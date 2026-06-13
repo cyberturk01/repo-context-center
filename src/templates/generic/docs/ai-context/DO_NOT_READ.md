@@ -7,6 +7,7 @@ Common examples:
 - `dist/`
 - `build/`
 - `coverage/`
+- `archive/`
 - `.next/`
 - `.turbo/`
 - Generated clients

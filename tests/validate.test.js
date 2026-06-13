@@ -150,3 +150,86 @@ test("validate strict mode fails when config metadata is missing", async () => {
     await rm(tempDir, { recursive: true, force: true });
   }
 });
+
+test("validate warns when Compact Mode is missing", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeFile(
+      path.join(tempDir, "docs", "ai-context", "TOKEN_BUDGET.md"),
+      "# Token Budget\n\nInvestigation Mode:\n- Read more when needed.\n",
+      "utf8"
+    );
+
+    const result = runCli(tempDir, ["validate"]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /TOKEN_BUDGET\.md: Compact Mode is not defined/);
+    assert.match(result.stdout, /Result: passed/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("validate warns when Investigation Mode is missing", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeFile(
+      path.join(tempDir, "docs", "ai-context", "TOKEN_BUDGET.md"),
+      "# Token Budget\n\nCompact Mode:\n- Keep context small.\n",
+      "utf8"
+    );
+
+    const result = runCli(tempDir, ["validate"]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /TOKEN_BUDGET\.md: Investigation Mode is not defined/);
+    assert.match(result.stdout, /Result: passed/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("validate warns when generated folder exclusions are missing", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeFile(
+      path.join(tempDir, "docs", "ai-context", "DO_NOT_READ.md"),
+      "# Do Not Read\n\n- `node_modules/`\n",
+      "utf8"
+    );
+
+    const result = runCli(tempDir, ["validate"]);
+
+    assert.equal(result.status, 0);
+    assert.match(
+      result.stdout,
+      /DO_NOT_READ\.md: Missing generated folder exclusions: dist, build, coverage, archive/
+    );
+    assert.match(result.stdout, /Result: passed/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("validate warns when AGENTS does not reference DO_NOT_READ", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeFile(
+      path.join(tempDir, "AGENTS.md"),
+      "# AGENTS.md\n\nRead task routing before editing.\n",
+      "utf8"
+    );
+
+    const result = runCli(tempDir, ["validate"]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /AGENTS\.md: Does not mention docs\/ai-context\/DO_NOT_READ\.md/);
+    assert.match(result.stdout, /Result: passed/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});

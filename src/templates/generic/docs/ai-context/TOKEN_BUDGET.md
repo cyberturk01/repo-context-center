@@ -2,6 +2,14 @@
 
 Use context deliberately.
 
+Compact Mode:
+- Read routing, the target file, and the nearest test only.
+- Use when the task is narrow or low risk.
+
+Investigation Mode:
+- Add maps, related callers, and failure evidence.
+- Use when behavior, ownership, or blast radius is unclear.
+
 Default read order:
 1. `AGENTS.md`
 2. `TASK_ROUTING.md`
