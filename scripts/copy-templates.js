@@ -1,4 +1,4 @@
-const { mkdir, readdir, rm, copyFile } = require("node:fs/promises");
+const { mkdir, readdir, copyFile } = require("node:fs/promises");
 const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
@@ -25,7 +25,6 @@ async function copyMarkdownFiles(sourceDir, targetDir) {
 }
 
 async function main() {
-  await rm(path.join(targetRoot, "index.ts"), { force: true });
   await copyMarkdownFiles(sourceRoot, targetRoot);
 }
 

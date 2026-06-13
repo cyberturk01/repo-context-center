@@ -23,9 +23,12 @@ Usage:
   repo-context-center <command>
 
 Commands:
-  init      Create a local repo-context-center config
-  validate  Validate the local repo-context-center config
-  archive   Placeholder for future archive generation
+  init      Install generic context templates and config
+            Options: --dry-run, --force
+  validate  Validate required context files and warnings
+            Options: --strict
+  archive   Archive older CHANGE_LOG and LESSONS_LEARNED entries
+            Options: --keep <number>, --dry-run
 
 Options:
   -h, --help  Show this help

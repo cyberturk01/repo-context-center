@@ -48,3 +48,12 @@ test("generic template loader exposes the required set", async () => {
   assert.equal(entries.length, requiredTemplates.length);
   assert.ok(entries.every((entry) => entry.content.trim().length > 0));
 });
+
+test("build copies markdown templates without removing compiled loader", async () => {
+  const distTemplateRoot = path.join(repoRoot, "dist", "templates", "generic");
+  const loaderStat = await stat(path.join(distTemplateRoot, "index.js"));
+  const markdownStat = await stat(path.join(distTemplateRoot, "AGENTS.md"));
+
+  assert.equal(loaderStat.isFile(), true);
+  assert.equal(markdownStat.isFile(), true);
+});

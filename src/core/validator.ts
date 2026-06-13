@@ -6,6 +6,7 @@ import {
   requiredContextFiles,
   type RequiredContextFile
 } from "./contextFiles";
+import { configDirName, configFileName, getConfigPath } from "./config";
 import { pathExists } from "./fileSystem";
 
 export interface ValidationIssue {
@@ -67,6 +68,13 @@ export async function validateContextSetup(cwd: string): Promise<ValidationRepor
   )).filter((issue): issue is ValidationIssue => issue !== undefined);
 
   const warnings = [...sizeWarnings];
+  if (!(await pathExists(getConfigPath(cwd)))) {
+    warnings.push({
+      path: `${configDirName}/${configFileName}`,
+      message: "Config metadata is missing"
+    });
+  }
+
   if (!(await pathExists(path.join(cwd, contextArchiveDir)))) {
     warnings.push({
       path: contextArchiveDir,

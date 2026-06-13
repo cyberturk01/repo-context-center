@@ -21,6 +21,12 @@ test("CLI help prints usage", () => {
   assert.equal(result.status, 0);
   assert.match(result.stdout, /Usage:/);
   assert.match(result.stdout, /repo-context-center <command>/);
+  assert.match(result.stdout, /init\s+Install generic context templates and config/);
+  assert.match(result.stdout, /Options: --dry-run, --force/);
+  assert.match(result.stdout, /validate\s+Validate required context files and warnings/);
+  assert.match(result.stdout, /Options: --strict/);
+  assert.match(result.stdout, /archive\s+Archive older CHANGE_LOG and LESSONS_LEARNED entries/);
+  assert.match(result.stdout, /Options: --keep <number>, --dry-run/);
 });
 
 test("unknown command returns an error", () => {

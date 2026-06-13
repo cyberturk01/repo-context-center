@@ -80,7 +80,9 @@ repo-context-center archive [--keep <number>] [--dry-run]
 ```
 
 - `init`: install the generic context templates.
-- `validate`: check that required context files exist; `--strict` treats warnings as failures.
+- `validate`: check that required context files exist and report warnings.
+  Missing `.repo-context-center/config.json` is a warning by default and a
+  failure with `--strict`.
 - `archive`: archive older entries from long-running context files; defaults to keeping 50 entries.
 
 ## Recommended AI Agent Workflow
