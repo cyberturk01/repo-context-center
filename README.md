@@ -22,6 +22,12 @@ This project adds a generic Repository Context Center to answer those questions 
 
 ## Quick Start
 
+Inside a target repository:
+
+```sh
+npx repo-context-center init
+```
+
 From a clone of this project:
 
 ```sh
@@ -35,6 +41,7 @@ Then, inside a target repository:
 ```sh
 repo-context-center init
 repo-context-center validate
+repo-context-center suggest "fix auth bug"
 ```
 
 Preview installation without writing files:
@@ -77,6 +84,8 @@ repo-context-center --help
 repo-context-center init [--dry-run] [--force]
 repo-context-center validate [--strict]
 repo-context-center archive [--keep <number>] [--dry-run]
+repo-context-center scan [--json]
+repo-context-center suggest "<task>" [--json]
 ```
 
 - `init`: install the generic context templates.
@@ -84,6 +93,14 @@ repo-context-center archive [--keep <number>] [--dry-run]
   Missing `.repo-context-center/config.json` is a warning by default and a
   failure with `--strict`.
 - `archive`: archive older entries from long-running context files; defaults to keeping 50 entries.
+- `scan`: inspect only the repository layout and suggest lightweight entries for context maps.
+- `suggest`: recommend low-token context files, likely modules, likely tests, mode, and risk level for a task.
+
+Example:
+
+```sh
+repo-context-center suggest "fix payment consent bug" --json
+```
 
 ## Recommended AI Agent Workflow
 
@@ -131,12 +148,14 @@ More examples are in [docs/examples.md](docs/examples.md).
 
 The generic templates are language-agnostic. They can be installed in JavaScript, TypeScript, Python, Go, Rust, Ruby, Java, monorepos, docs repos, and mixed stacks.
 
-Project-specific templates and repo scanning are not implemented yet.
+Project-specific templates are not implemented yet. The current scanner is intentionally lightweight and does not read full source files.
 
 ## Roadmap
 
 - Generic template installation and validation.
 - Context file archiving.
+- Lightweight repo layout scanning.
+- Task-specific context suggestions.
 - Project-specific template packs.
 - Optional repository scanning to prefill maps.
 - Safer update workflows for existing context centers.
