@@ -28,7 +28,7 @@ Usage:
 
 Commands:
   init      Install generic context templates and config
-            Options: --dry-run, --force
+            Options: --dry-run, --force, --github-action
   validate  Validate required context files and warnings
             Options: --strict
   archive   Archive older CHANGE_LOG and LESSONS_LEARNED entries

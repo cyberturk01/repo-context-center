@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdir, mkdtemp, readFile, rm, stat } = require("node:fs/promises");
+const { mkdir, mkdtemp, readFile, rm, stat, writeFile } = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
@@ -120,6 +120,78 @@ test("init creates archive directory", async () => {
 
     assert.equal(result.status, 0);
     assert.equal(archiveStat.isDirectory(), true);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init creates GitHub workflow with --github-action", async () => {
+  const tempDir = await createTempRepo();
+  const workflowPath = path.join(tempDir, ".github", "workflows", "repo-context-check.yml");
+
+  try {
+    const result = runInit(tempDir, ["--github-action"]);
+    const content = await readFile(workflowPath, "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /actions\/checkout@v4/);
+    assert.match(content, /actions\/setup-node@v4/);
+    assert.match(content, /npx repo-context-center validate/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init does not create GitHub workflow by default", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    const result = runInit(tempDir);
+
+    assert.equal(result.status, 0);
+    await assert.rejects(
+      () => stat(path.join(tempDir, ".github", "workflows", "repo-context-check.yml")),
+      { code: "ENOENT" }
+    );
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init does not overwrite existing GitHub workflow", async () => {
+  const tempDir = await createTempRepo();
+  const workflowPath = path.join(tempDir, ".github", "workflows", "repo-context-check.yml");
+
+  try {
+    await mkdir(path.dirname(workflowPath), { recursive: true });
+    await writeFile(workflowPath, "custom workflow\n", "utf8");
+
+    const result = runInit(tempDir, ["--github-action"]);
+    const content = await readFile(workflowPath, "utf8");
+
+    assert.equal(result.status, 0);
+    assert.equal(content, "custom workflow\n");
+    assert.match(result.stdout, /Skipped file: \.github\/workflows\/repo-context-check\.yml already exists/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init force overwrites GitHub workflow", async () => {
+  const tempDir = await createTempRepo();
+  const workflowPath = path.join(tempDir, ".github", "workflows", "repo-context-check.yml");
+
+  try {
+    await mkdir(path.dirname(workflowPath), { recursive: true });
+    await writeFile(workflowPath, "custom workflow\n", "utf8");
+
+    const result = runInit(tempDir, ["--github-action", "--force"]);
+    const content = await readFile(workflowPath, "utf8");
+
+    assert.equal(result.status, 0);
+    assert.notEqual(content, "custom workflow\n");
+    assert.match(content, /npx repo-context-center validate/);
+    assert.match(result.stdout, /Overwrote file: \.github\/workflows\/repo-context-check\.yml/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

@@ -5,12 +5,14 @@ import type { CliIO } from "../index";
 interface InitOptions {
   force: boolean;
   dryRun: boolean;
+  githubAction: boolean;
 }
 
 function parseInitOptions(args: string[]): InitOptions {
   return {
     force: args.includes("--force"),
-    dryRun: args.includes("--dry-run")
+    dryRun: args.includes("--dry-run"),
+    githubAction: args.includes("--github-action")
   };
 }
 
@@ -36,7 +38,8 @@ function formatInstallMessage(
 
 export async function initCommand(io: CliIO, args: string[] = []): Promise<number> {
   const options = parseInitOptions(args);
-  const unknownFlag = args.find((arg) => arg.startsWith("--") && arg !== "--force" && arg !== "--dry-run");
+  const knownFlags = new Set(["--force", "--dry-run", "--github-action"]);
+  const unknownFlag = args.find((arg) => arg.startsWith("--") && !knownFlags.has(arg));
 
   if (unknownFlag) {
     io.stderr(`Unknown init option: ${unknownFlag}\n`);
@@ -46,7 +49,8 @@ export async function initCommand(io: CliIO, args: string[] = []): Promise<numbe
   const results = await installGenericTemplates({
     cwd: io.cwd,
     force: options.force,
-    dryRun: options.dryRun
+    dryRun: options.dryRun,
+    githubAction: options.githubAction
   });
 
   for (const result of results) {

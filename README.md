@@ -50,6 +50,12 @@ Preview installation without writing files:
 repo-context-center init --dry-run
 ```
 
+Install a PR validation workflow:
+
+```sh
+repo-context-center init --github-action
+```
+
 Overwrite existing context templates:
 
 ```sh
@@ -77,11 +83,15 @@ repo-context-center init --force
 
 It also creates `.repo-context-center/config.json`.
 
+With `--github-action`, it also creates:
+
+- `.github/workflows/repo-context-check.yml`
+
 ## Commands
 
 ```sh
 repo-context-center --help
-repo-context-center init [--dry-run] [--force]
+repo-context-center init [--dry-run] [--force] [--github-action]
 repo-context-center validate [--strict]
 repo-context-center archive [--keep <number>] [--dry-run]
 repo-context-center scan [--json]
@@ -95,6 +105,8 @@ repo-context-center suggest "<task>" [--json]
 - `archive`: archive older entries from long-running context files; defaults to keeping 50 entries.
 - `scan`: inspect only the repository layout and suggest lightweight entries for context maps.
 - `suggest`: recommend low-token context files, likely modules, likely tests, mode, and risk level for a task.
+
+See [docs/github-action.md](docs/github-action.md) for PR validation setup.
 
 Example:
 
@@ -143,6 +155,7 @@ More examples are in [docs/examples.md](docs/examples.md).
 - [Agent usage](docs/agent-usage.md)
 - [Token strategy](docs/token-strategy.md)
 - [Examples](docs/examples.md)
+- [GitHub Action](docs/github-action.md)
 
 ## Supported Project Types
 

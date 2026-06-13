@@ -4,6 +4,8 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const sourceRoot = path.join(root, "src", "templates", "generic");
 const targetRoot = path.join(root, "dist", "templates", "generic");
+const githubSourceRoot = path.join(root, "templates", "github");
+const githubTargetRoot = path.join(root, "dist", "templates", "github");
 
 async function copyMarkdownFiles(sourceDir, targetDir) {
   await mkdir(targetDir, { recursive: true });
@@ -26,6 +28,11 @@ async function copyMarkdownFiles(sourceDir, targetDir) {
 
 async function main() {
   await copyMarkdownFiles(sourceRoot, targetRoot);
+  await mkdir(githubTargetRoot, { recursive: true });
+  await copyFile(
+    path.join(githubSourceRoot, "context-check.yml"),
+    path.join(githubTargetRoot, "context-check.yml")
+  );
 }
 
 main().catch((error) => {

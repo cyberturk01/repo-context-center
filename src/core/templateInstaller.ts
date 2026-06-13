@@ -1,11 +1,12 @@
 import path from "node:path";
-import { ensureDir, pathExists, writeTextFile } from "./fileSystem";
+import { ensureDir, pathExists, readTextFile, writeTextFile } from "./fileSystem";
 import { readGenericTemplates } from "../templates/generic";
 
 export interface TemplateInstallOptions {
   cwd: string;
   force?: boolean;
   dryRun?: boolean;
+  githubAction?: boolean;
 }
 
 export type TemplateInstallAction = "create" | "overwrite" | "skip";
@@ -17,6 +18,24 @@ export interface TemplateInstallResult {
 }
 
 const archiveDir = "docs/ai-context/archive";
+export const githubWorkflowPath = ".github/workflows/repo-context-check.yml";
+
+function getGitHubWorkflowTemplatePath(): string {
+  return path.join(__dirname, "..", "templates", "github", "context-check.yml");
+}
+
+async function installGitHubWorkflow(options: TemplateInstallOptions): Promise<TemplateInstallResult> {
+  const targetPath = path.join(options.cwd, githubWorkflowPath);
+  const exists = await pathExists(targetPath);
+  const action = exists ? (options.force ? "overwrite" : "skip") : "create";
+
+  if (!options.dryRun && action !== "skip") {
+    const content = await readTextFile(getGitHubWorkflowTemplatePath());
+    await writeTextFile(targetPath, content);
+  }
+
+  return { path: githubWorkflowPath, action, type: "file" };
+}
 
 export async function installGenericTemplates(
   options: TemplateInstallOptions
@@ -45,5 +64,10 @@ export async function installGenericTemplates(
   }
 
   results.push({ path: archiveDir, action: archiveAction, type: "directory" });
+
+  if (options.githubAction) {
+    results.push(await installGitHubWorkflow(options));
+  }
+
   return results;
 }
