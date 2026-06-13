@@ -2,6 +2,7 @@
 import { archiveCommand } from "./commands/archive";
 import { initCommand } from "./commands/init";
 import { scanCommand } from "./commands/scan";
+import { suggestCommand } from "./commands/suggest";
 import { validateCommand } from "./commands/validate";
 
 export interface CliIO {
@@ -16,7 +17,8 @@ const commands: Record<string, CommandHandler> = {
   init: initCommand,
   validate: validateCommand,
   archive: archiveCommand,
-  scan: scanCommand
+  scan: scanCommand,
+  suggest: suggestCommand
 };
 
 const helpText = `repo-context-center
@@ -33,6 +35,8 @@ Commands:
             Options: --keep <number>, --dry-run
   scan      Suggest lightweight context entries from repo layout
             Options: --json
+  suggest   Recommend context files for a task
+            Usage: suggest "<task>" [--json]
 
 Options:
   -h, --help  Show this help

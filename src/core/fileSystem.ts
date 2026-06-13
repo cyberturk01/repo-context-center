@@ -24,6 +24,10 @@ export async function writeTextFile(filePath: string, content: string): Promise<
   await writeFile(filePath, content, "utf8");
 }
 
+export async function readTextFile(filePath: string): Promise<string> {
+  return readFile(filePath, "utf8");
+}
+
 export async function readJsonFile<T>(filePath: string): Promise<T> {
   return JSON.parse(await readFile(filePath, "utf8")) as T;
 }
