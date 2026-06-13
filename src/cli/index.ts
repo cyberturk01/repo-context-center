@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { archiveCommand } from "./commands/archive";
 import { initCommand } from "./commands/init";
+import { scanCommand } from "./commands/scan";
 import { validateCommand } from "./commands/validate";
 
 export interface CliIO {
@@ -14,7 +15,8 @@ type CommandHandler = (io: CliIO, args: string[]) => Promise<number>;
 const commands: Record<string, CommandHandler> = {
   init: initCommand,
   validate: validateCommand,
-  archive: archiveCommand
+  archive: archiveCommand,
+  scan: scanCommand
 };
 
 const helpText = `repo-context-center
@@ -29,6 +31,8 @@ Commands:
             Options: --strict
   archive   Archive older CHANGE_LOG and LESSONS_LEARNED entries
             Options: --keep <number>, --dry-run
+  scan      Suggest lightweight context entries from repo layout
+            Options: --json
 
 Options:
   -h, --help  Show this help
