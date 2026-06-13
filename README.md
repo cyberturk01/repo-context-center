@@ -94,6 +94,7 @@ repo-context-center --help
 repo-context-center init [--dry-run] [--force] [--github-action]
 repo-context-center validate [--strict]
 repo-context-center archive [--keep <number>] [--dry-run]
+repo-context-center estimate [--mode compact|investigation|detailed] [--compare-naive] [--json]
 repo-context-center scan [--json]
 repo-context-center suggest "<task>" [--json]
 ```
@@ -103,6 +104,7 @@ repo-context-center suggest "<task>" [--json]
   Missing `.repo-context-center/config.json` is a warning by default and a
   failure with `--strict`.
 - `archive`: archive older entries from long-running context files; defaults to keeping 50 entries.
+- `estimate`: estimate context token overhead and compare it with a naive repo scan.
 - `scan`: inspect only the repository layout and suggest lightweight entries for context maps.
 - `suggest`: recommend low-token context files, likely modules, likely tests, mode, and risk level for a task.
 
@@ -113,6 +115,18 @@ Example:
 ```sh
 repo-context-center suggest "fix payment consent bug" --json
 ```
+
+Estimate context overhead:
+
+```sh
+repo-context-center estimate --compare-naive
+repo-context-center estimate --mode investigation --task "fix auth bug" --json
+```
+
+Token estimates use `ceil(characters / 4)`. They are rough planning numbers,
+not exact tokenizer output and not model billing estimates. The command is meant
+to help evaluate whether the context center is reducing broad repo reads enough
+to justify its own startup cost.
 
 ## Recommended AI Agent Workflow
 

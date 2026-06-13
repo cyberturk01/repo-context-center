@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { archiveCommand } from "./commands/archive";
+import { estimateCommand } from "./commands/estimate";
 import { initCommand } from "./commands/init";
 import { scanCommand } from "./commands/scan";
 import { suggestCommand } from "./commands/suggest";
@@ -17,6 +18,7 @@ const commands: Record<string, CommandHandler> = {
   init: initCommand,
   validate: validateCommand,
   archive: archiveCommand,
+  estimate: estimateCommand,
   scan: scanCommand,
   suggest: suggestCommand
 };
@@ -33,6 +35,8 @@ Commands:
             Options: --strict
   archive   Archive older CHANGE_LOG and LESSONS_LEARNED entries
             Options: --keep <number>, --dry-run
+  estimate  Estimate context token costs and rough savings
+            Options: --json, --mode <mode>, --task <text>, --compare-naive, --max-files <number>
   scan      Suggest lightweight context entries from repo layout
             Options: --json
   suggest   Recommend context files for a task
