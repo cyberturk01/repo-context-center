@@ -146,3 +146,17 @@ npm install
 npm run build
 npm test
 ```
+
+## Manual Release
+
+This package is prepared for manual npm publishing.
+
+```sh
+npm run build
+npm test
+npm pack
+```
+
+The package publishes the compiled `dist/` output, including the generic context
+templates copied during build. `prepublishOnly` runs build and tests before a
+manual `npm publish`.
