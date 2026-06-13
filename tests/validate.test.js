@@ -125,7 +125,7 @@ test("validate warns when config metadata is missing", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Warnings: 1/);
-    assert.match(result.stdout, /\.repo-context-center\/config\.json: Config metadata is missing/);
+    assert.match(result.stdout, /\.repo-context-center\/config\.json: Config file is missing/);
     assert.match(result.stdout, /Result: passed/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -144,7 +144,7 @@ test("validate strict mode fails when config metadata is missing", async () => {
 
     assert.equal(result.status, 1);
     assert.match(result.stderr, /Warnings: 1/);
-    assert.match(result.stderr, /\.repo-context-center\/config\.json: Config metadata is missing/);
+    assert.match(result.stderr, /\.repo-context-center\/config\.json: Config file is missing/);
     assert.match(result.stderr, /Result: failed in strict mode/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });

@@ -71,7 +71,7 @@ export async function validateContextSetup(cwd: string): Promise<ValidationRepor
   if (!(await pathExists(getConfigPath(cwd)))) {
     warnings.push({
       path: `${configDirName}/${configFileName}`,
-      message: "Config metadata is missing"
+      message: "Config file is missing"
     });
   }
 
