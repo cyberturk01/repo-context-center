@@ -40,6 +40,16 @@ test("generic templates are non-empty and compact", async () => {
   }
 });
 
+test("AGENTS template keeps low-token startup references", async () => {
+  const content = await readFile(path.join(templateRoot, "AGENTS.md"), "utf8");
+
+  assert.match(content, /TOKEN_BUDGET\.md/);
+  assert.match(content, /DO_NOT_READ\.md/);
+  assert.match(content, /TASK_ROUTING\.md/);
+  assert.match(content, /archive\/\*/);
+  assert.match(content, /\.repo-context-center\/config\.json/);
+});
+
 test("generic template loader exposes the required set", async () => {
   const { genericTemplateFiles, readGenericTemplates } = require("../dist/templates/generic");
   const entries = await readGenericTemplates();

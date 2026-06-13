@@ -83,7 +83,7 @@ test("init overwrites existing files with --force", async () => {
 
     assert.equal(result.status, 0);
     assert.notEqual(content, "custom\n");
-    assert.match(content, /Use this repository context center/);
+    assert.match(content, /Repository Context Center startup guide/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

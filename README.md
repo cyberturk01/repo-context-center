@@ -120,9 +120,10 @@ Ask the agent to:
 
 1. Read `AGENTS.md`.
 2. Follow `docs/ai-context/TASK_ROUTING.md`.
-3. Read only the context files relevant to the task.
-4. Check `DO_NOT_READ.md` before broad search.
-5. Update `LESSONS_LEARNED.md` and `CHANGE_LOG.md` when durable context changes.
+3. Check `docs/ai-context/TOKEN_BUDGET.md` and `docs/ai-context/DO_NOT_READ.md`.
+4. Read only the on-demand context files relevant to the task.
+5. Verify source code before changing behavior.
+6. Update context files only when durable repo knowledge changes.
 
 See [docs/agent-usage.md](docs/agent-usage.md).
 
