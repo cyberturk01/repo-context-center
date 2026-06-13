@@ -1,18 +1,69 @@
-import { hasConfig, readConfig } from "../../core/config";
+import { validateContextSetup, type ValidationReport } from "../../core/validator";
 import type { CliIO } from "../index";
 
-export async function validateCommand(io: CliIO): Promise<number> {
-  if (!(await hasConfig(io.cwd))) {
-    io.stderr("Missing repo-context-center config. Run `repo-context-center init` first.\n");
+interface ValidateOptions {
+  strict: boolean;
+}
+
+function parseValidateOptions(args: string[]): ValidateOptions | undefined {
+  const unknownFlag = args.find((arg) => arg.startsWith("--") && arg !== "--strict");
+  if (unknownFlag) {
+    return undefined;
+  }
+
+  return {
+    strict: args.includes("--strict")
+  };
+}
+
+function formatReport(report: ValidationReport, strict: boolean): string {
+  const lines = ["repo-context-center validation report", ""];
+
+  if (report.missing.length === 0) {
+    lines.push("Required files: ok");
+  } else {
+    lines.push(`Missing required files: ${report.missing.length}`);
+    for (const issue of report.missing) {
+      lines.push(`  - ${issue.path}: ${issue.message}`);
+    }
+  }
+
+  if (report.warnings.length === 0) {
+    lines.push("Warnings: none");
+  } else {
+    lines.push(`Warnings: ${report.warnings.length}`);
+    for (const issue of report.warnings) {
+      lines.push(`  - ${issue.path}: ${issue.message}`);
+    }
+  }
+
+  if (report.missing.length > 0) {
+    lines.push("", "Result: failed");
+  } else if (strict && report.warnings.length > 0) {
+    lines.push("", "Result: failed in strict mode");
+  } else {
+    lines.push("", "Result: passed");
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+export async function validateCommand(io: CliIO, args: string[] = []): Promise<number> {
+  const options = parseValidateOptions(args);
+  if (!options) {
+    io.stderr("Unknown validate option. Supported options: --strict\n");
     return 1;
   }
 
-  const config = await readConfig(io.cwd);
-  if (config.version !== 1 || config.createdBy !== "repo-context-center") {
-    io.stderr("Invalid repo-context-center config.\n");
+  const report = await validateContextSetup(io.cwd);
+  const hasFailures = report.missing.length > 0 || (options.strict && report.warnings.length > 0);
+  const output = formatReport(report, options.strict);
+
+  if (hasFailures) {
+    io.stderr(output);
     return 1;
   }
 
-  io.stdout("repo-context-center config is valid.\n");
+  io.stdout(output);
   return 0;
 }
