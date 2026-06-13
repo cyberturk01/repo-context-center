@@ -1,0 +1,26 @@
+{
+  "name": "repo-context-center",
+  "version": "0.1.0",
+  "description": "A ContextOps toolkit for AI coding agents.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "repo-context-center": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-templates.js",
+    "test": "npm run build && node --test tests/*.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
