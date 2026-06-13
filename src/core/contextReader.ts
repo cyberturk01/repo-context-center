@@ -5,6 +5,7 @@ export const suggestContextFiles = [
   "docs/ai-context/TASK_ROUTING.md",
   "docs/ai-context/MODULE_INDEX.md",
   "docs/ai-context/DEPENDENCY_MAP.md",
+  "docs/ai-context/SYMBOL_MAP.md",
   "docs/ai-context/RISK_REGISTER.md",
   "docs/ai-context/HOTSPOTS.md"
 ] as const;

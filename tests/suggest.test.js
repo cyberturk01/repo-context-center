@@ -55,6 +55,27 @@ async function withContextRepo(callback) {
       "utf8"
     );
     await writeFile(
+      path.join(contextDir, "SYMBOL_MAP.md"),
+      [
+        "# Symbol Map",
+        "",
+        "## src/auth/authService.ts",
+        "",
+        "Important symbols:",
+        "- login",
+        "- logout",
+        "- refreshToken",
+        "- validateRefreshToken",
+        "",
+        "Common tests:",
+        "- tests/auth/authService.test.ts",
+        "",
+        "Risk:",
+        "high"
+      ].join("\n"),
+      "utf8"
+    );
+    await writeFile(
       path.join(contextDir, "RISK_REGISTER.md"),
       [
         "# Risk Register",
@@ -128,5 +149,36 @@ test("suggest includes dependency map when module has dependencies", async () =>
     assert.ok(suggestion.contextFiles.includes("docs/ai-context/DEPENDENCY_MAP.md"));
     assert.ok(suggestion.likelySourceFiles.includes("src/db"));
     assert.ok(suggestion.likelySourceFiles.includes("src/session"));
+  });
+});
+
+test("suggest matches symbols from symbol map", async () => {
+  await withContextRepo(async (tempDir) => {
+    const result = runCli(["suggest", "refresh token bug", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(suggestion.contextFiles.includes("docs/ai-context/SYMBOL_MAP.md"));
+    assert.ok(suggestion.likelySourceFiles.includes("src/auth/authService.ts"));
+    assert.ok(suggestion.likelyTests.includes("tests/auth/authService.test.ts"));
+    assert.deepEqual(suggestion.relevantSymbols, [
+      {
+        file: "src/auth/authService.ts",
+        symbols: ["refreshToken", "validateRefreshToken"],
+        tests: ["tests/auth/authService.test.ts"],
+        risk: "high"
+      }
+    ]);
+  });
+});
+
+test("suggest text output includes symbols with --symbols", async () => {
+  await withContextRepo(async (tempDir) => {
+    const result = runCli(["suggest", "auth bug", "--symbols"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Relevant symbols:/);
+    assert.match(result.stdout, /src\/auth\/authService\.ts/);
+    assert.match(result.stdout, /refreshToken/);
   });
 });

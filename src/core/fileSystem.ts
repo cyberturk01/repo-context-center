@@ -43,3 +43,23 @@ export async function listDirectoryNames(dirPath: string): Promise<string[]> {
     return [];
   }
 }
+
+export async function listFilesRecursive(dirPath: string, rootPath = dirPath): Promise<string[]> {
+  try {
+    const entries = await readdir(dirPath, { withFileTypes: true });
+    const files: string[] = [];
+
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...await listFilesRecursive(fullPath, rootPath));
+      } else if (entry.isFile()) {
+        files.push(path.relative(rootPath, fullPath).split(path.sep).join("/"));
+      }
+    }
+
+    return files.sort((left, right) => left.localeCompare(right));
+  } catch {
+    return [];
+  }
+}

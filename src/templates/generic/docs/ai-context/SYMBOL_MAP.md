@@ -4,9 +4,18 @@ Track high-value names agents should find quickly.
 
 Format:
 
-| Symbol | Location | Notes |
-| --- | --- | --- |
-| `Name` | `path:line or path` | Role or caller guidance |
+## src/example/module.ts
+
+Important symbols:
+- exportedFunction
+- ExportedClass
+- PublicType
+
+Common tests:
+- tests/example/module.test.ts
+
+Risk:
+low
 
 Include:
 - Public APIs.

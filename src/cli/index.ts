@@ -36,7 +36,7 @@ Commands:
   scan      Suggest lightweight context entries from repo layout
             Options: --json
   suggest   Recommend context files for a task
-            Usage: suggest "<task>" [--json]
+            Usage: suggest "<task>" [--json] [--symbols]
 
 Options:
   -h, --help  Show this help
