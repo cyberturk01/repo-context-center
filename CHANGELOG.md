@@ -1,5 +1,28 @@
 # ChangeLog
 
+## repo-context-center@0.3.0
+
+### Added
+
+* Added an internal deterministic `RepositoryUnderstanding` model.
+* Added model-backed tracking for package manager, package scripts, entrypoints, key directories, modules, real test files, ignored areas, and config files.
+* Added focused unit coverage for RepositoryUnderstanding with an AI Project Guardian-like file list.
+
+### Improved
+
+* Improved entrypoint detection from `package.json` metadata, package bin targets, and conventional CLI/app files.
+* Added key directory roles for CLI, core, tests, docs, workflows, templates, config, generated output, and dependency folders.
+* Improved `PROJECT_MAP.md` with model-backed purpose, entrypoints, key directories, package scripts, tests, and ignored areas.
+* Improved `HOTSPOTS.md` prioritization for high-impact source, command, config, workflow, and package files.
+* Improved `DEPENDENCY_MAP.md` with deterministic high-level hints without fake import graph claims.
+* Reduced fixture and snapshot noise by separating real tests from fixture/snapshot context.
+
+### Notes
+
+* No framework detection was added.
+* No import graph parsing was added.
+* No AI or LLM calls were added.
+
 ## repo-context-center@0.2.2
 
 ### Fixed

@@ -1,6 +1,6 @@
 {
   "name": "repo-context-center",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "A ContextOps toolkit for AI coding agents.",
   "keywords": [
     "ai",
@@ -9,9 +9,11 @@
     "coding-agent",
     "llm",
     "llm-context",
+    "agent-context",
     "context",
     "context-engineering",
     "repo-context",
+    "repository-map",
     "repository",
     "developer-tools",
     "cli",

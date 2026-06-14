@@ -188,6 +188,30 @@ The map command:
 - does not emit placeholders like `path/or/flow`;
 - is best treated as a starting map, not a substitute for source review.
 
+### Repository Understanding
+
+Version 0.3.0 adds a deterministic `RepositoryUnderstanding` layer behind `map`. It builds a compact internal model from discovered files, `package.json` when present, and existing scanner inputs before rendering context docs.
+
+The model tracks:
+
+- package manager and package scripts;
+- real entrypoints from package metadata and conventional CLI/app files;
+- key directory roles such as CLI commands, core logic, tests, docs, workflows, templates, and generated output;
+- source modules, config files, real test files, and ignored areas;
+- fixtures, snapshots, lockfiles, archives, generated output, and dependency folders as separate noise categories.
+
+This improves `PROJECT_MAP.md`, `HOTSPOTS.md`, and `DEPENDENCY_MAP.md` by making entrypoints, high-impact files, key directory roles, and high-level dependency hints more consistent. It also reduces fixture and snapshot noise in routing, module, symbol, hotspot, and dependency output.
+
+The 0.3.0 mapper still does not perform framework detection, import graph parsing, AI/LLM analysis, or project-pack selection.
+
+### 0.3.0 Release Notes
+
+- Added the internal `RepositoryUnderstanding` model for deterministic repo structure analysis.
+- Improved entrypoint detection using `package.json` fields, package bin targets, and conventional CLI/app files.
+- Added key directory role summaries for source, tests, docs, workflows, templates, config, generated output, and dependency folders.
+- Improved `PROJECT_MAP.md`, `HOTSPOTS.md`, and `DEPENDENCY_MAP.md` with model-backed entrypoints, roles, hotspots, and high-level hints.
+- Reduced fixture and snapshot noise by separating real tests from fixture/snapshot context.
+
 ## Recommended AI Agent Workflow
 
 Ask the agent to:
