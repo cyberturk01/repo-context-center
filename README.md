@@ -32,8 +32,6 @@ Estimated compact startup: 546 tokens
 Estimated saving: 99.4%
 ```
 
-Estimates use `ceil(characters / 4)`. They are not tokenizer-exact, not billing estimates, and results vary by repo. Percentages are estimates and actual tokenizer usage may differ.
-
 ## Real-World Validation
 
 Repository Context Center has been validated against multiple public repositories with different structures.
