@@ -297,6 +297,83 @@ test("map preserves manual content before and after generated markers", async ()
   });
 });
 
+test("AGENTS.md generated from scratch contains complete compact startup guidance", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-map-agents-"));
+
+  try {
+    await writeFixture(tempDir, "src/api/main.py", "def app():\n    return True\n");
+
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
+    const generated = generatedSection(content);
+
+    assert.equal(result.status, 0);
+    assert.match(generated, /COMMUNICATION_MODE\.md/);
+    assert.match(generated, /TASK_ROUTING\.md/);
+    assert.match(generated, /TOKEN_BUDGET\.md/);
+    assert.match(generated, /DO_NOT_READ\.md/);
+    assert.match(generated, /Compact: default/);
+    assert.match(generated, /Investigation: security\/auth/);
+    assert.match(generated, /Detailed: explicit request/);
+    assert.match(generated, /MODULE_INDEX\.md/);
+    assert.match(generated, /PROJECT_MAP\.md/);
+    assert.match(generated, /DEPENDENCY_MAP\.md/);
+    assert.match(generated, /RISK_REGISTER\.md/);
+    assert.match(generated, /HOTSPOTS\.md/);
+    assert.match(generated, /SYMBOL_MAP\.md/);
+    assert.match(generated, /LESSONS_LEARNED\.md/);
+    assert.match(generated, /docs\/ai-context\/archive\/\*/);
+    assert.match(generated, /paths in `DO_NOT_READ\.md`/);
+    assert.match(generated, /\.repo-context-center\/config\.json/);
+    assert.match(generated, /Code is source of truth\./);
+    assert.doesNotMatch(generated, /\| Task Type \||src\/api\/main\.py|FastAPI|Repository purpose/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("AGENTS.md preserves manual content and updates only generated markers", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const targetPath = path.join(tempDir, "AGENTS.md");
+    await writeFile(targetPath, [
+      "# Agents",
+      "",
+      "Manual before marker.",
+      "",
+      generatedStart,
+      "old minimal generated content",
+      generatedEnd,
+      "",
+      "Manual after marker."
+    ].join("\n"), "utf8");
+
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = await readFile(targetPath, "utf8");
+    const generated = generatedSection(content);
+
+    assert.equal(result.status, 0);
+    assert.match(content, /Manual before marker\./);
+    assert.match(content, /Manual after marker\./);
+    assert.match(generated, /COMMUNICATION_MODE\.md/);
+    assert.match(generated, /Code is source of truth\./);
+    assert.doesNotMatch(content, /old minimal generated content/);
+  });
+});
+
+test("AGENTS.md preserves existing markerless content when adding generated startup guidance", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const targetPath = path.join(tempDir, "AGENTS.md");
+    await writeFile(targetPath, "# Agents\n\nManual owner guidance.\n", "utf8");
+
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = await readFile(targetPath, "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /Manual owner guidance\./);
+    assert.match(generatedSection(content), /TASK_ROUTING\.md/);
+  });
+});
+
 test("TASK_ROUTING.md includes real repo files only", async () => {
   await withMappedRepo(async (tempDir) => {
     const result = runCli(tempDir, ["map", "--write"]);

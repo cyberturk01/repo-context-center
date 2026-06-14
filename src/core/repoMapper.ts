@@ -1864,10 +1864,45 @@ function renderChangeLog(data: RepoMapData): string {
   }]);
 }
 
+function renderAgents(): string {
+  return [
+    "Repo Context Center startup.",
+    "",
+    "Read:",
+    "1. `docs/ai-context/COMMUNICATION_MODE.md`",
+    "2. `docs/ai-context/TASK_ROUTING.md`",
+    "3. `docs/ai-context/TOKEN_BUDGET.md`",
+    "4. `docs/ai-context/DO_NOT_READ.md`",
+    "",
+    "Use `TASK_ROUTING.md` before opening repo files.",
+    "",
+    "Modes:",
+    "- Compact: default for small localized tasks.",
+    "- Investigation: security/auth, release, migrations, high-risk bugs.",
+    "- Detailed: explicit request or broad cross-module change.",
+    "",
+    "On demand:",
+    "- `MODULE_INDEX.md`",
+    "- `PROJECT_MAP.md`",
+    "- `DEPENDENCY_MAP.md`",
+    "- `RISK_REGISTER.md`",
+    "- `HOTSPOTS.md`",
+    "- `SYMBOL_MAP.md`",
+    "- `LESSONS_LEARNED.md`",
+    "",
+    "Skip:",
+    "- `docs/ai-context/archive/*`",
+    "- paths in `DO_NOT_READ.md`",
+    "- `.repo-context-center/config.json` unless debugging install",
+    "",
+    "Code is source of truth."
+  ].join("\n");
+}
+
 const renderers: Record<RequiredContextFile, { title: string; render: (data: RepoMapData) => string }> = {
   "AGENTS.md": {
     title: "AGENTS.md",
-    render: () => "Start with `docs/ai-context/TASK_ROUTING.md`, then read only the generated rows relevant to the task."
+    render: renderAgents
   },
   "docs/ai-context/COMMUNICATION_MODE.md": { title: "Communication Mode", render: renderCommunication },
   "docs/ai-context/TASK_ROUTING.md": { title: "Task Routing", render: renderTaskRouting },
@@ -1930,9 +1965,6 @@ async function buildChanges(cwd: string, data: RepoMapData): Promise<RepoMapChan
     const targetPath = path.join(cwd, file);
     const renderer = renderers[file];
     const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : undefined;
-    if (file === "AGENTS.md" && existing !== undefined && !existing.includes(generatedStart)) {
-      continue;
-    }
     const content = upsertGeneratedSection(existing, renderer.title, renderer.render(data));
     changes.push({
       path: file,
