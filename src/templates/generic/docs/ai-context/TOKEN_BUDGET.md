@@ -1,16 +1,12 @@
 # Token Budget
 
-Use context deliberately.
-
 Compact Mode:
-- Read routing, the target file, and the nearest test only.
-- Use when the task is narrow or low risk.
+- routing + target file + nearest test
 
 Investigation Mode:
-- Add maps, related callers, and failure evidence.
-- Use when behavior, ownership, or blast radius is unclear.
+- add maps, callers, failure evidence
 
-Default read order:
+Read:
 1. `AGENTS.md`
 2. `TASK_ROUTING.md`
 3. Relevant map files
@@ -18,12 +14,12 @@ Default read order:
 
 Estimate overhead:
 - Run `repo-context-center estimate`.
-- Use `--compare-naive` to compare startup context with a broad repo pass.
-- Treat results as approximate, not billing data.
+- `--compare-naive` compares startup vs broad pass.
+- Approximate, not billing data.
 
-Avoid:
-- Generated output.
-- Lockfiles unless dependency state matters.
-- Large snapshots or fixtures unless failing behavior depends on them.
+Skip:
+- generated output
+- lockfiles unless dependency state matters
+- large snapshots unless failure depends on them
 
-Escalate context only when the first pass leaves a concrete unknown.
+Escalate only for concrete unknowns.

@@ -1,17 +1,15 @@
 # Project Map
 
-Describe the repository at a glance.
-
 Fill in:
-- Primary language/runtime:
+- Runtime:
 - Package manager:
-- Build command:
-- Test command:
-- Main entrypoints:
-- Generated or vendored paths:
-- Important conventions:
+- Build:
+- Test:
+- Entrypoints:
+- Generated/vendored:
+- Conventions:
 
-Agent notes:
-- Keep this file factual.
-- Link to files instead of restating long docs.
-- Update when commands or entrypoints change.
+Rules:
+- factual only
+- link, do not restate
+- update commands/entrypoints promptly

@@ -1,8 +1,6 @@
 # Do Not Read
 
-Skip these unless the task explicitly requires them.
-
-Common examples:
+Skip:
 - `node_modules/`
 - `dist/`
 - `build/`
@@ -15,4 +13,4 @@ Common examples:
 - Vendored code
 - Minified bundles
 
-When an excluded file is required, explain why and read the smallest useful section.
+If required, explain why and read the smallest slice.

@@ -1,18 +1,14 @@
 # Risk Register
 
-Track areas where changes need extra care.
-
-Format:
+Record high-care areas.
 
 | Area | Risk | Check |
 | --- | --- | --- |
-| `path/or/system` | What can break | Test or review needed |
+| `path/or/system` | what breaks | check |
 
 Include:
-- Security-sensitive code.
-- Data migrations.
-- Public APIs.
-- Cross-cutting utilities.
-- Flaky or expensive tests.
-
-Keep risks current and specific.
+- security
+- migrations
+- public APIs
+- shared utilities
+- flaky/expensive tests

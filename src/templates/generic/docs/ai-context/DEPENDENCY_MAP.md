@@ -1,16 +1,12 @@
 # Dependency Map
 
-Record important internal and external dependencies.
-
-Format:
+Record dependencies that change blast radius.
 
 | From | Depends On | Why It Matters |
 | --- | --- | --- |
-| `module` | `module/package` | Runtime, API, build, or test impact |
+| `module` | `module/package` | impact |
 
-Use this to avoid surprise blast radius.
-
-Update when:
-- A shared dependency changes.
-- A module boundary shifts.
-- A new external package is added.
+Update:
+- shared dependency changes
+- module boundary shifts
+- package added/removed

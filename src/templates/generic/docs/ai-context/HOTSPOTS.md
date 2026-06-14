@@ -1,18 +1,13 @@
 # Hotspots
 
-Track files or flows that often cause bugs.
-
-Format:
+Record fragile files/flows.
 
 | Hotspot | Why | Safer Move |
 | --- | --- | --- |
-| `path/or/flow` | Failure pattern | Test, review, or constraint |
+| `path/or/flow` | failure pattern | check |
 
-Use for:
-- Complex state.
-- Concurrency.
-- Auth or permissions.
-- Serialization.
-- Boundary adapters.
-
-Remove entries when they stop being true.
+Use:
+- state/concurrency
+- auth/permissions
+- serialization
+- boundary adapters

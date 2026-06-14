@@ -1,15 +1,12 @@
 # Change Log
 
-Record context-center changes, not every code change.
-
-Format:
+Record context edits only.
 
 | Date | Change | Reason |
 | --- | --- | --- |
-| YYYY-MM-DD | File or section updated | Why context changed |
+| YYYY-MM-DD | file/section | why |
 
-Use when:
-- A template is installed.
-- A context map is corrected.
-- Routing guidance changes.
-- A stale note is removed.
+Record:
+- install/update/remove context files
+- routing/map corrections
+- stale context removed

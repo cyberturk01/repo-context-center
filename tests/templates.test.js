@@ -5,7 +5,10 @@ const test = require("node:test");
 
 const repoRoot = path.resolve(__dirname, "..");
 const templateRoot = path.join(repoRoot, "src", "templates", "generic");
+const distTemplateRoot = path.join(repoRoot, "dist", "templates", "generic");
 const maxTemplateBytes = 1600;
+const previousTemplateWordBaseline = 925;
+const compressedTemplateWordLimit = Math.floor(previousTemplateWordBaseline * 0.7);
 
 const requiredTemplates = [
   "AGENTS.md",
@@ -50,6 +53,35 @@ test("AGENTS template keeps low-token startup references", async () => {
   assert.match(content, /\.repo-context-center\/config\.json/);
 });
 
+test("generated templates stay below the previous word baseline", async () => {
+  let totalWords = 0;
+
+  for (const file of requiredTemplates) {
+    const content = await readFile(path.join(distTemplateRoot, file), "utf8");
+    totalWords += content.trim().split(/\s+/).filter(Boolean).length;
+  }
+
+  assert.ok(
+    totalWords <= compressedTemplateWordLimit,
+    `${totalWords} words exceeds ${compressedTemplateWordLimit}`
+  );
+});
+
+test("generated AGENTS template avoids verbose meta headings", async () => {
+  const content = await readFile(path.join(distTemplateRoot, "AGENTS.md"), "utf8");
+
+  assert.doesNotMatch(content, /When to read/);
+  assert.doesNotMatch(content, /What to read/);
+  assert.doesNotMatch(content, /This file contains/);
+});
+
+test("generated AGENTS template keeps core startup rules", async () => {
+  const content = await readFile(path.join(distTemplateRoot, "AGENTS.md"), "utf8");
+
+  assert.match(content, /Code is source of truth\./);
+  assert.match(content, /Use `TASK_ROUTING\.md` before opening repo files\./);
+});
+
 test("generic template loader exposes the required set", async () => {
   const { genericTemplateFiles, readGenericTemplates } = require("../dist/templates/generic");
   const entries = await readGenericTemplates();
@@ -60,7 +92,6 @@ test("generic template loader exposes the required set", async () => {
 });
 
 test("build copies markdown templates without removing compiled loader", async () => {
-  const distTemplateRoot = path.join(repoRoot, "dist", "templates", "generic");
   const loaderStat = await stat(path.join(distTemplateRoot, "index.js"));
   const markdownStat = await stat(path.join(distTemplateRoot, "AGENTS.md"));
 

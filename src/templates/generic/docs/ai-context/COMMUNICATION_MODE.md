@@ -1,14 +1,10 @@
 # Communication Mode
 
-Purpose: align the agent's working style with the current task.
-
-Default mode:
+Use:
 - Read first, then act.
-- Share assumptions when context is incomplete.
-- Ask only when a wrong assumption would be costly.
-- Keep updates concise and tied to observable progress.
-
-When editing:
-- Name the files being changed.
+- State risky assumptions.
+- Ask only when guessing is costly.
+- Keep updates short.
+- Name changed files.
 - Preserve user changes.
-- Report tests run and failures clearly.
+- Report checks run.

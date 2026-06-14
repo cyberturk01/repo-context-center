@@ -1,26 +1,15 @@
 # Symbol Map
 
-Track high-value names agents should find quickly.
-
-Format:
+Record high-value symbols only.
 
 ## src/example/module.ts
 
-Important symbols:
+Symbols:
 - exportedFunction
 - ExportedClass
 - PublicType
 
-Common tests:
+Tests:
 - tests/example/module.test.ts
 
-Risk:
-low
-
-Include:
-- Public APIs.
-- Main classes/functions.
-- Config objects.
-- Cross-module types.
-
-Do not list every symbol. Keep this navigational.
+Risk: low
