@@ -143,6 +143,51 @@ async function withGuardianLikeRepo(callback) {
   }
 }
 
+async function withFastApiLikeRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-fastapi-map-"));
+  const repoDir = path.join(tempDir, "fastapi");
+
+  try {
+    await mkdir(repoDir, { recursive: true });
+    assert.equal(runCli(repoDir, ["init"]).status, 0);
+
+    const files = {
+      "README.md": [
+        "<p align=\"center\">",
+        "  <img src=\"https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png\" alt=\"FastAPI\">",
+        "</p>",
+        "",
+        "<p align=\"center\">",
+        "  <a href=\"https://github.com/fastapi/fastapi/actions\"><img src=\"https://img.shields.io/badge/build-passing-green\" alt=\"Build\"></a>",
+        "</p>",
+        "",
+        "<p align=\"center\"><em>FastAPI framework, high performance, easy to learn, fast to code, ready for production</em></p>",
+        "",
+        "## Installation",
+        "",
+        "Install with pip."
+      ].join("\n"),
+      "pyproject.toml": "[project]\nname = \"fastapi\"\n",
+      "fastapi/__init__.py": "__version__ = '0.1.0'\n",
+      "fastapi/applications.py": "class FastAPI:\n    pass\n",
+      "fastapi/security/http.py": "class HTTPBasic:\n    pass\n",
+      "tests/test_applications.py": "from fastapi.applications import FastAPI\n",
+      "docs/en/docs/advanced/security/http-basic-auth.md": "# HTTP Basic Auth\n",
+      "docs/en/docs/tutorial/static-files.md": "# Static Files\n",
+      "scripts/format-imports.py": "print('format')\n",
+      ".github/workflows/test.yml": "name: test\n"
+    };
+
+    for (const [filePath, content] of Object.entries(files)) {
+      await writeFixture(repoDir, filePath, content);
+    }
+
+    return await callback(repoDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 function moduleByName(data, name) {
   const module = data.modules.find((entry) => entry.name === name);
   assert.ok(module, `Expected module ${name}`);
@@ -624,6 +669,7 @@ test("PROJECT_MAP.md uses real entrypoints and package scripts for Guardian-like
       "`src/repo` - repository scanning and git helpers",
       "`templates` - generated templates and starter context",
       "`tests` - test coverage, fixtures, and regression cases",
+      "`docs` - documentation",
       "`.github/workflows` - CI and release automation",
       "`docs/ai-context` - generated agent context",
       "`.repo-context-center` - tool config"
@@ -637,7 +683,7 @@ test("PROJECT_MAP.md uses real entrypoints and package scripts for Guardian-like
     assert.deepEqual(data.projectMap.understandingQuality, {
       level: "High",
       entrypointsDetected: 2,
-      keyDirectoriesDetected: 11,
+      keyDirectoriesDetected: 12,
       modulesDetected: 8,
       dependencyHintsMode: "Conservative",
       noiseFilteringStatus: "Active (2 ignored/noise areas separated)"
@@ -645,7 +691,7 @@ test("PROJECT_MAP.md uses real entrypoints and package scripts for Guardian-like
     assert.match(projectMap, /### Repository Understanding Quality/);
     assert.match(projectMap, /\| Repo understanding level \| High \|/);
     assert.match(projectMap, /\| Entrypoints detected \| 2 \|/);
-    assert.match(projectMap, /\| Key directories detected \| 11 \|/);
+    assert.match(projectMap, /\| Key directories detected \| 12 \|/);
     assert.match(projectMap, /\| Modules detected \| 8 \|/);
     assert.match(projectMap, /\| Dependency hints mode \| Conservative \|/);
     assert.match(projectMap, /\| Generated\/noise filtering \| Active \(2 ignored\/noise areas separated\) \|/);
@@ -758,6 +804,40 @@ test("HOTSPOTS.md prioritizes high-impact Guardian-like files over fixtures", as
     assert.ok(!hotspotFiles.some((file) => file.startsWith("tests/fixtures/")));
     assert.ok(!hotspotFiles.some((file) => file.startsWith("tests/__snapshots__/")));
     assert.doesNotMatch(hotspots, /tests\/fixtures|tests\/__snapshots__/);
+  });
+});
+
+test("map generalizes to FastAPI-like non-Node repositories without docs leakage", async () => {
+  await withFastApiLikeRepo(async (repoDir) => {
+    const result = runCli(repoDir, ["map", "--write", "--json", "--max-files", "150"]);
+    const data = JSON.parse(result.stdout);
+    const projectMap = generatedSection(await readFile(path.join(repoDir, "docs", "ai-context", "PROJECT_MAP.md"), "utf8"));
+    const taskRouting = generatedSection(await readFile(path.join(repoDir, "docs", "ai-context", "TASK_ROUTING.md"), "utf8"));
+    const hotspots = generatedSection(await readFile(path.join(repoDir, "docs", "ai-context", "HOTSPOTS.md"), "utf8"));
+    const hotspotFiles = data.hotspots.map((hotspot) => hotspot.file);
+
+    assert.equal(result.status, 0);
+    assert.equal(
+      data.projectMap.purpose,
+      "FastAPI framework, high performance, easy to learn, fast to code, ready for production."
+    );
+    assert.doesNotMatch(projectMap, /<p|<img|shields\.io|logo-margin/);
+    assert.deepEqual(data.projectMap.keyDirectories.slice(0, 5), [
+      "`fastapi` - primary package/source code",
+      "`tests` - test coverage, fixtures, and regression cases",
+      "`docs` - documentation",
+      "`scripts` - automation and maintenance scripts",
+      "`.github/workflows` - CI and release automation"
+    ]);
+    assert.doesNotMatch(taskRouting, /Analyzer\/risk rule changes|Analyzer \/ risk scoring/);
+    assert.doesNotMatch(taskRouting, /Staff\/POS\/public flows/);
+    assert.ok(hotspotFiles.includes("fastapi/__init__.py"));
+    assert.ok(hotspotFiles.includes("fastapi/applications.py"));
+    assert.ok(hotspotFiles.includes("scripts/format-imports.py"));
+    assert.ok(hotspotFiles.includes("tests/test_applications.py"));
+    assert.ok(hotspotFiles.includes(".github/workflows/test.yml"));
+    assert.ok(!hotspotFiles.some((file) => file.startsWith("docs/en/docs/advanced/security/")));
+    assert.doesNotMatch(hotspots, /docs\/en\/docs\/advanced\/security/);
   });
 });
 

@@ -1,3 +1,4 @@
+import path from "node:path";
 import { mapRepository, type RepoMapResult } from "../../core/repoMapper";
 import type { CliIO } from "../index";
 
@@ -6,6 +7,7 @@ interface MapOptions {
   json: boolean;
   dryRun: boolean;
   maxFiles: number;
+  repo?: string;
 }
 
 function parseMapOptions(args: string[]): MapOptions | undefined {
@@ -13,6 +15,7 @@ function parseMapOptions(args: string[]): MapOptions | undefined {
   let json = false;
   let dryRun = false;
   let maxFiles = 500;
+  let repo: string | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -30,12 +33,19 @@ function parseMapOptions(args: string[]): MapOptions | undefined {
       }
       maxFiles = value;
       index += 1;
+    } else if (arg === "--repo") {
+      const value = args[index + 1];
+      if (!value) {
+        return undefined;
+      }
+      repo = value;
+      index += 1;
     } else {
       return undefined;
     }
   }
 
-  return { write, json, dryRun, maxFiles };
+  return { write, json, dryRun, maxFiles, repo };
 }
 
 function formatResult(result: RepoMapResult, willWrite: boolean): string {
@@ -63,12 +73,13 @@ function formatResult(result: RepoMapResult, willWrite: boolean): string {
 export async function mapCommand(io: CliIO, args: string[] = []): Promise<number> {
   const options = parseMapOptions(args);
   if (!options) {
-    io.stderr("Usage: repo-context-center map [--write] [--json] [--max-files <number>] [--dry-run]\n");
+    io.stderr("Usage: repo-context-center map [--write] [--json] [--max-files <number>] [--dry-run] [--repo <path>]\n");
     return 1;
   }
 
+  const cwd = options.repo ? path.resolve(io.cwd, options.repo) : io.cwd;
   const result = await mapRepository({
-    cwd: io.cwd,
+    cwd,
     maxFiles: options.maxFiles,
     write: options.write,
     dryRun: options.dryRun

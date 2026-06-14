@@ -37,6 +37,7 @@ export interface BuildRepositoryUnderstandingInput {
 }
 
 const sourceRoots = ["src", "app", "lib", "packages"];
+const testRoots = ["tests", "test", "__tests__", "cypress", "e2e"];
 const configFileNames = new Set([
   ".eslintrc",
   ".eslintrc.cjs",
@@ -48,6 +49,7 @@ const configFileNames = new Set([
   "eslint.config.js",
   "eslint.config.mjs",
   "package.json",
+  "pyproject.toml",
   "tsconfig.json",
   "vite.config.js",
   "vite.config.ts"
@@ -56,7 +58,6 @@ const configExtensions = /\.(?:config|rc)\.(?:cjs|js|json|mjs|ts|yaml|yml)$/;
 const generatedAreaNames = new Set(["dist", "build", "coverage", ".next", "target", ".turbo"]);
 const dependencyAreaNames = new Set(["node_modules", ".pnpm-store"]);
 const lockfileNames = new Set(["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb"]);
-const sourceExtensions = new Set([".cjs", ".js", ".jsx", ".mjs", ".ts", ".tsx"]);
 const keyDirectoryRoles = [
   ["src/cli", "CLI commands and command entrypoints"],
   ["src/config", "configuration loading and validation"],
@@ -66,6 +67,8 @@ const keyDirectoryRoles = [
   ["src/repo", "repository scanning and git helpers"],
   ["templates", "generated templates and starter context"],
   ["tests", "test coverage, fixtures, and regression cases"],
+  ["docs", "documentation"],
+  ["scripts", "automation and maintenance scripts"],
   [".github/workflows", "CI and release automation"],
   ["docs/ai-context", "generated agent context"],
   [".repo-context-center", "tool config"]
@@ -117,10 +120,47 @@ function packageStringField(packageJson: unknown, field: string): string | undef
 
 function cleanMarkdownText(value: string): string {
   return value
+    .replace(/!\[[^\]]*]\([^)]+\)/g, "")
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[*_~]+/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function isBadgeOrImageLine(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed.length === 0
+    || /!\[[^\]]*]\([^)]+\)/.test(trimmed)
+    || /<img\b/i.test(trimmed)
+    || /shields\.io|badge\/|badge-|logo-margin/i.test(trimmed)
+    || /^<\/?(p|div|span|a)\b[^>]*>$/i.test(trimmed);
+}
+
+function plainReadmeLines(content: string): string[] {
+  return content
+    .replace(/```[\s\S]*?```/g, "\n")
+    .replace(/<!--[\s\S]*?-->/g, "\n")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<img\b[^>]*>/gi, " ")
+    .replace(/<\/?(?:p|div|span|a|picture|source)\b[^>]*>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => !line.startsWith("#"))
+    .filter((line) => !isBadgeOrImageLine(line))
+    .map(cleanMarkdownText)
+    .filter((line) => line.length > 0);
+}
+
+function firstSentence(text: string): string {
+  const sentence = text.match(/^.{20,220}?[.!?](?=\s|$)/);
+  if (sentence) {
+    return sentence[0].trim();
+  }
+
+  const compact = text.length > 220 ? text.slice(0, 220).replace(/\s+\S*$/, "") : text;
+  return /[.!?]$/.test(compact) ? compact : `${compact}.`;
 }
 
 function readmePurpose(content: string | undefined): string | undefined {
@@ -128,16 +168,11 @@ function readmePurpose(content: string | undefined): string | undefined {
     return undefined;
   }
 
-  const paragraphs = content
-    .split(/\r?\n\s*\r?\n/)
-    .map((paragraph) => paragraph
-      .split(/\r?\n/)
-      .filter((line) => !line.trim().startsWith("#"))
-      .join(" "))
-    .map(cleanMarkdownText)
-    .filter(Boolean);
+  const paragraphs = plainReadmeLines(content)
+    .filter((paragraph) => paragraph.length >= 20)
+    .filter((paragraph) => !/^(install|usage|quickstart|documentation|license)\b/i.test(paragraph));
 
-  return paragraphs[0];
+  return paragraphs[0] ? firstSentence(paragraphs[0]) : undefined;
 }
 
 function packageBinEntrypoints(packageJson: unknown): string[] {
@@ -213,7 +248,9 @@ function isTestFile(filePath: string): boolean {
   }
 
   return /\.(test|spec|cy)\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(filePath)
-    || /(^|\/)(tests?|__tests__|e2e|cypress)\/.*\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(filePath);
+    || /(^|\/)test_[^/]+\.py$/i.test(filePath)
+    || /(^|\/)(tests?|__tests__|e2e|cypress)\/.*\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(filePath)
+    || /(^|\/)(tests?|__tests__|e2e|cypress)\/.*(^|\/)(test_[^/]+|[^/]+_test)\.py$/i.test(filePath);
 }
 
 function entrypointFiles(files: string[], packageJson: unknown): string[] {
@@ -238,20 +275,41 @@ function hasDirectory(files: string[], dirPath: string): boolean {
   return files.some((file) => file.startsWith(`${dirPath}/`));
 }
 
-function keyDirectories(files: string[], scanner?: Partial<ScanReport["detected"]>): string[] {
+function hasNonContextDocs(files: string[]): boolean {
+  return files.some((file) => file.startsWith("docs/") && !file.startsWith("docs/ai-context/"));
+}
+
+function repositoryDirectoryName(cwd: string | undefined, packageJson: unknown): string | undefined {
+  const packageName = packageStringField(packageJson, "name");
+  const fallbackName = cwd ? path.basename(cwd) : undefined;
+  const name = packageName ?? fallbackName;
+  return name?.split("/").pop()?.toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
+}
+
+function keyDirectories(
+  files: string[],
+  packageJson: unknown,
+  cwd: string | undefined,
+  scanner?: Partial<ScanReport["detected"]>
+): string[] {
+  const repoDir = repositoryDirectoryName(cwd, packageJson);
+  const packageRoot = repoDir && hasDirectory(files, repoDir)
+    ? [`\`${repoDir}\` - primary package/source code`]
+    : [];
   const roleDirectories = keyDirectoryRoles
+    .filter(([dirPath]) => dirPath !== "docs" || hasNonContextDocs(files))
     .filter(([dirPath]) => hasDirectory(files, dirPath))
     .map(([dirPath, role]) => `\`${dirPath}\` - ${role}`);
 
-  if (roleDirectories.length > 0) {
-    return roleDirectories;
+  if (packageRoot.length > 0 || roleDirectories.length > 0) {
+    return uniqueOrdered([...packageRoot, ...roleDirectories]);
   }
 
   const topLevelDirs = uniqueSorted(files
     .map((file) => file.split("/")[0])
     .filter((part): part is string => part !== undefined && part !== ""));
   const sourceFolders = scanner?.sourceFolders ?? topLevelDirs.filter((dir) => sourceRoots.includes(dir));
-  const testFolders = scanner?.testFolders ?? topLevelDirs.filter((dir) => ["tests", "test", "__tests__", "cypress", "e2e"].includes(dir));
+  const testFolders = scanner?.testFolders ?? topLevelDirs.filter((dir) => testRoots.includes(dir));
 
   return uniqueSorted([...sourceFolders, ...testFolders, ...topLevelDirs.filter((dir) => dir === "docs" || dir === ".github")]);
 }
@@ -361,7 +419,7 @@ export async function buildRepositoryUnderstanding(
     packageManager: packageManager(files, packageJson),
     scripts: packageScripts(packageJson),
     entrypoints: entrypointFiles(files, packageJson),
-    keyDirectories: keyDirectories(files, input.scanner),
+    keyDirectories: keyDirectories(files, packageJson, input.cwd, input.scanner),
     modules: modules(files, input.scanner),
     testFiles: files.filter(isTestFile),
     ignoredAreas: ignoredAreas(files),

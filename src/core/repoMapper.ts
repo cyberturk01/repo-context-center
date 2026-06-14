@@ -167,7 +167,7 @@ const generatedExtensions = new Set([
   ".woff",
   ".woff2"
 ]);
-const sourceExtensions = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
+const sourceExtensions = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".go", ".rs", ".java", ".kt", ".rb", ".php", ".sh"]);
 const textReadLimit = 128 * 1024;
 
 function todayIso(): string {
@@ -226,15 +226,23 @@ function isTestPath(filePath: string): boolean {
     return false;
   }
 
-  return /\.(test|spec)\.(ts|js)$/i.test(filePath)
-    || /(^|\/)(tests?|__tests__|e2e|cypress)\/.*integration.*\.(ts|js)$/i.test(filePath)
-    || /(^|\/)integration-tests?\/.*\.(ts|js)$/i.test(filePath);
+  return /\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(filePath)
+    || /(^|\/)test_[^/]+\.py$/i.test(filePath)
+    || /(^|\/)(tests?|__tests__|e2e|cypress)\/.*\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(filePath)
+    || /(^|\/)(tests?|__tests__|e2e|cypress)\/.*(^|\/)(test_[^/]+|[^/]+_test)\.py$/i.test(filePath)
+    || /(^|\/)(tests?|__tests__|e2e|cypress)\/.*integration.*\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(filePath)
+    || /(^|\/)integration-tests?\/.*\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(filePath);
 }
 
 function isSourcePath(filePath: string): boolean {
-  return sourceRoots.some((root) => filePath === root || filePath.startsWith(`${root}/`))
+  return !isDocumentationPath(filePath)
+    && sourceRoots.some((root) => filePath === root || filePath.startsWith(`${root}/`))
     && !isTestPath(filePath)
     && sourceExtensions.has(path.extname(filePath).toLowerCase());
+}
+
+function isDocumentationPath(filePath: string): boolean {
+  return filePath.startsWith("docs/") || /\.(md|mdx|rst|txt)$/i.test(filePath);
 }
 
 function isContextPath(filePath: string): boolean {
@@ -249,6 +257,7 @@ function isConfigPath(filePath: string): boolean {
     || /^src\/core\/config\.[^.]+$/.test(filePath)
     || filePath === "guardian.config.json"
     || /^examples\/[^/]+\/guardian\.config\.json$/.test(filePath)
+    || filePath === "pyproject.toml"
     || filePath === "package.json"
     || filePath === "package-lock.json"
     || filePath === "pnpm-lock.yaml"
@@ -301,8 +310,18 @@ function isReportPath(filePath: string): boolean {
 }
 
 function isAnalyzerPath(filePath: string): boolean {
+  if (isDocumentationPath(filePath)) {
+    return false;
+  }
+
   return filePath.startsWith("src/analyzers/")
-    || /(^|\/)(analy[sz]er|risk|hotspot|score|rule|validator|security)[^/]*\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(filePath);
+    || filePath.startsWith("analyzers/")
+    || /(^|\/)(analy[sz]er|risk|hotspot|score|rule|validator|security)[^/]*\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|rb|php)$/i.test(filePath);
+}
+
+function isSourceLikeClassificationPath(filePath: string): boolean {
+  return !isDocumentationPath(filePath)
+    && sourceExtensions.has(path.extname(filePath).toLowerCase());
 }
 
 function isScannerPath(filePath: string): boolean {
@@ -314,15 +333,85 @@ function isCoreOrchestrationPath(filePath: string): boolean {
   return filePath.startsWith("src/core/");
 }
 
-function isLowValueHotspotPath(filePath: string): boolean {
+function isLowValueHotspotPath(filePath: string, hasSourceOrTests = true): boolean {
   return filePath === ".repo-context-center/config.json"
     || filePath.startsWith(".project-brain/metrics/")
     || filePath.startsWith("docs/ai-context/")
+    || (hasSourceOrTests && isDocumentationPath(filePath))
     || isFixtureOrSnapshotPath(filePath);
 }
 
 async function walkRepo(cwd: string, maxFiles: number): Promise<RepoFile[]> {
   const files: RepoFile[] = [];
+  const seen = new Set<string>();
+  const repoDirName = path.basename(cwd);
+
+  function addFile(filePath: string): void {
+    const normalized = normalizePath(filePath);
+    if (seen.has(normalized) || isGeneratedAsset(normalized) || files.length >= maxFiles) {
+      return;
+    }
+
+    seen.add(normalized);
+    files.push({
+      path: normalized,
+      parts: normalized.split("/"),
+      ext: path.extname(normalized).toLowerCase()
+    });
+  }
+
+  async function seedRepresentativeFiles(relativeDir: string, limit: number): Promise<void> {
+    if (files.length >= maxFiles || limit <= 0) {
+      return;
+    }
+
+    let dirEntries;
+    try {
+      dirEntries = await import("node:fs/promises").then((fs) =>
+        fs.readdir(path.join(cwd, relativeDir), { withFileTypes: true })
+      );
+    } catch {
+      return;
+    }
+
+    dirEntries.sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of dirEntries) {
+      if (files.length >= maxFiles || limit <= 0) {
+        return;
+      }
+
+      const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
+      const normalized = normalizePath(relativePath);
+      if (entry.isFile()) {
+        if (!seen.has(normalized) && !isGeneratedAsset(normalized)) {
+          addFile(normalized);
+          limit -= 1;
+        }
+      } else if (entry.isDirectory() && !excludedDirs.has(entry.name) && normalized !== "docs/ai-context/archive") {
+        const before = files.length;
+        await seedRepresentativeFiles(normalized, limit);
+        limit -= files.length - before;
+      }
+    }
+  }
+
+  const seedDirs = uniqueOrdered([
+    repoDirName,
+    "src",
+    "app",
+    "lib",
+    "packages",
+    "tests",
+    "test",
+    "__tests__",
+    "scripts",
+    "docs",
+    ".github/workflows"
+  ]);
+
+  for (const dir of seedDirs) {
+    await seedRepresentativeFiles(dir, dir === repoDirName ? 8 : 4);
+  }
 
   async function walk(relativeDir: string): Promise<void> {
     if (files.length >= maxFiles) {
@@ -364,11 +453,7 @@ async function walkRepo(cwd: string, maxFiles: number): Promise<RepoFile[]> {
           await walk(normalized);
         }
       } else if (entry.isFile() && !isGeneratedAsset(normalized)) {
-        files.push({
-          path: normalized,
-          parts: normalized.split("/"),
-          ext: path.extname(normalized).toLowerCase()
-        });
+        addFile(normalized);
       }
     }
 
@@ -552,7 +637,7 @@ function verificationFor(files: string[], tests: string[], packageScripts: Set<s
     checks.push("npm run build");
   }
   if (tests.length > 0) {
-    checks.push(`node --test ${tests.slice(0, 2).join(" ")}`);
+    checks.push(testReviewCheck(tests));
   } else if (packageScripts.has("test")) {
     checks.push("npm test");
   }
@@ -563,6 +648,14 @@ function verificationFor(files: string[], tests: string[], packageScripts: Set<s
     checks.push(`review ${files.slice(0, 2).join(", ")}`);
   }
   return checks.join("; ") || "focused manual review";
+}
+
+function testReviewCheck(tests: string[]): string {
+  const selected = tests.slice(0, 2);
+  const nodeRunnable = selected.every((testFile) => /\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(testFile));
+  return nodeRunnable
+    ? `node --test ${selected.join(" ")}`
+    : `review ${selected.join(", ")}`;
 }
 
 function defaultVerificationChecks(packageScripts: Set<string>): string[] {
@@ -576,7 +669,7 @@ function defaultVerificationChecks(packageScripts: Set<string>): string[] {
 function focusedVerificationFor(files: string[], tests: string[]): string[] {
   const checks: string[] = [];
   if (tests.length > 0) {
-    checks.push(`node --test ${tests.slice(0, 2).join(" ")}`);
+    checks.push(testReviewCheck(tests));
   }
   if (files.length > 0) {
     checks.push(`review ${files.slice(0, 2).join(", ")}`);
@@ -604,7 +697,7 @@ const categories: Category[] = [
     thenCheck: ["template installer", "validator", "init tests"],
     notes: "Preserve existing user files unless force behavior is explicit.",
     riskWhy: "Config mistakes can misroute agent work or break validation.",
-    match: (file) => isConfigPath(file.path) || pathHas(file, ["config", "validate", "validator"])
+    match: (file) => isConfigPath(file.path) || (isSourceLikeClassificationPath(file.path) && pathHas(file, ["config", "validate", "validator"]))
   },
   {
     key: "analyzers",
@@ -827,9 +920,9 @@ const firstFilesDefinitions: FirstFilesDefinition[] = [
   {
     taskArea: "Analyzer / risk scoring",
     categoryKey: "analyzers",
-    primary: [/^src\/analyzers\//],
+    primary: [/^src\/analyzers\//, /^analyzers\//],
     related: [/^src\/core\/validator\./, /^src\/core\/.*risk/i],
-    helper: [/hotspot|score|rule|security/i],
+    helper: [/(^|\/)(analy[sz]er|risk|hotspot|score|rule|validator|security)[^/]*\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|rb|php)$/i],
     tests: [/analy[sz]er\.(test|spec)\./, /risk\.(test|spec)\./, /security\.(test|spec)\./]
   },
   {
@@ -915,7 +1008,8 @@ function rankedFirstFiles(definition: FirstFilesDefinition, paths: string[], tes
     ? normalPaths.filter((file) => !isFixtureOrSnapshotPath(file) && isTestPath(file))
     : filesByPatternOrder(normalPaths, definition.primary);
   const related = filesByPatternOrder(normalPaths, definition.related);
-  const helper = filesByPatternOrder(normalPaths, definition.helper);
+  const helper = filesByPatternOrder(normalPaths, definition.helper)
+    .filter((file) => definition.categoryKey !== "analyzers" || isAnalyzerPath(file));
   const tests = filesByPatternOrder(testFiles, definition.tests);
   const fixtureOrSnapshot = definition.categoryKey === "fixtures"
     ? paths.filter(isFixtureOrSnapshotPath)
@@ -1310,6 +1404,28 @@ async function fileSize(cwd: string, filePath: string): Promise<number> {
   }
 }
 
+function sourceLikeHotspotPath(filePath: string): boolean {
+  return !isDocumentationPath(filePath)
+    && !isContextPath(filePath)
+    && !isFixtureOrSnapshotPath(filePath)
+    && !filePath.split("/").some((part) => excludedDirs.has(part))
+    && sourceExtensions.has(path.extname(filePath).toLowerCase());
+}
+
+function packageSourceHotspotFiles(allPaths: string[], understanding: RepositoryUnderstanding): string[] {
+  const packageDirs = understanding.keyDirectories
+    .map((directory) => directory.match(/^`([^`]+)` - primary package\/source code$/)?.[1])
+    .filter((directory): directory is string => directory !== undefined);
+
+  return packageDirs.flatMap((directory) =>
+    allPaths.filter((file) => file.startsWith(`${directory}/`) && sourceLikeHotspotPath(file))
+  );
+}
+
+function scriptHotspotFiles(allPaths: string[]): string[] {
+  return allPaths.filter((file) => file.startsWith("scripts/") && sourceLikeHotspotPath(file));
+}
+
 async function buildHotspots(
   cwd: string,
   files: RepoFile[],
@@ -1325,8 +1441,10 @@ async function buildHotspots(
 
   const riskyPaths = new Set(risks.flatMap((risk) => [...risk.area.matchAll(/`([^`]+)`/g)].map((match) => match[1])));
   const allPaths = files.map((file) => file.path);
+  const hasSourceOrTests = allPaths.some((file) => sourceLikeHotspotPath(file) || isTestPath(file));
   const highImpactGroups = [
     understanding.entrypoints.filter((file) => allPaths.includes(file)),
+    topHotspotFiles(packageSourceHotspotFiles(allPaths, understanding), 4),
     topHotspotFiles(
       allPaths
         .filter((file) => /^src\/core\/(guardian|repoMapper|reportDecisionSupport|actionableGuidance|baseline|types)\.[^.]+$/.test(file))
@@ -1340,6 +1458,8 @@ async function buildHotspots(
     topHotspotFiles(allPaths.filter((file) => isAnalyzerPath(file)), 2),
     topHotspotFiles(allPaths.filter((file) => file.startsWith("src/renderers/") || /^src\/core\/repoMapper\.[^.]+$/.test(file)), 2),
     topHotspotFiles(allPaths.filter((file) => isScannerPath(file)), 1),
+    topHotspotFiles(scriptHotspotFiles(allPaths), 2),
+    topHotspotFiles(understanding.testFiles.filter((file) => allPaths.includes(file)), 2),
     topHotspotFiles(allPaths.filter((file) => file.startsWith(".github/workflows/")), 2),
     topHotspotFiles(allPaths.filter((file) => isTemplatePath(file) || file.startsWith("src/project-brain/")), 2),
     [...dependentCounts.entries()].filter(([, count]) => count > 1).map(([file]) => file),
@@ -1349,8 +1469,7 @@ async function buildHotspots(
   const candidates = highImpactGroups
     .flat()
     .filter((file) => allPaths.includes(file))
-    .filter((file) => !isTestPath(file))
-    .filter((file) => !isLowValueHotspotPath(file));
+    .filter((file) => !isLowValueHotspotPath(file, hasSourceOrTests));
 
   const rows: RepoHotspot[] = [];
   const seen = new Set<string>();
@@ -1375,6 +1494,8 @@ async function buildHotspots(
       isAnalyzerPath(file) ? "analyzer or risk scoring" : "",
       file.startsWith("src/renderers/") || /^src\/core\/repoMapper\.[^.]+$/.test(file) ? "report rendering or map model" : "",
       isScannerPath(file) ? "repository scanner or classifier" : "",
+      file.startsWith("scripts/") ? "automation or maintenance script" : "",
+      isTestPath(file) ? "test coverage or regression case" : "",
       file.startsWith(".github/workflows/") ? "CI or release workflow" : "",
       isTemplatePath(file) || file.startsWith("src/project-brain/") ? "template or context generator" : "",
       file === "package.json" ? "package scripts and release metadata" : ""
