@@ -107,6 +107,12 @@ export interface RepoMapResult {
   written: string[];
 }
 
+export interface RepoMapCheckResult {
+  data: RepoMapData;
+  changes: RepoMapChange[];
+  staleChanges: RepoMapChange[];
+}
+
 interface RepoFile {
   path: string;
   parts: string[];
@@ -1983,6 +1989,46 @@ async function buildChanges(cwd: string, data: RepoMapData): Promise<RepoMapChan
   return changes;
 }
 
+function generatedSection(content: string): string | undefined {
+  const start = content.indexOf(generatedStart);
+  const end = content.indexOf(generatedEnd);
+
+  if (start === -1 || end === -1 || end <= start) {
+    return undefined;
+  }
+
+  return content.slice(start, end + generatedEnd.length);
+}
+
+function isGeneratedChangeCurrent(existing: string | undefined, proposed: string): boolean {
+  if (existing === undefined) {
+    return false;
+  }
+
+  const existingGenerated = generatedSection(existing);
+  const proposedGenerated = generatedSection(proposed);
+
+  if (existingGenerated !== undefined && proposedGenerated !== undefined) {
+    return existingGenerated === proposedGenerated;
+  }
+
+  return existing === proposed;
+}
+
+async function staleChanges(cwd: string, changes: RepoMapChange[]): Promise<RepoMapChange[]> {
+  const stale: RepoMapChange[] = [];
+
+  for (const change of changes) {
+    const targetPath = path.join(cwd, change.path);
+    const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : undefined;
+    if (!isGeneratedChangeCurrent(existing, change.content)) {
+      stale.push(change);
+    }
+  }
+
+  return stale;
+}
+
 export async function mapRepository(options: RepoMapOptions): Promise<RepoMapResult> {
   if (!Number.isInteger(options.maxFiles) || options.maxFiles < 1) {
     throw new Error("--max-files must be a positive integer");
@@ -2002,6 +2048,20 @@ export async function mapRepository(options: RepoMapOptions): Promise<RepoMapRes
   }
 
   return { data, changes, written };
+}
+
+export async function checkRepositoryMap(options: Pick<RepoMapOptions, "cwd" | "maxFiles">): Promise<RepoMapCheckResult> {
+  if (!Number.isInteger(options.maxFiles) || options.maxFiles < 1) {
+    throw new Error("--max-files must be a positive integer");
+  }
+
+  const data = await buildMapData(options.cwd, options.maxFiles);
+  const changes = await buildChanges(options.cwd, data);
+  return {
+    data,
+    changes,
+    staleChanges: await staleChanges(options.cwd, changes)
+  };
 }
 
 export function generatedMarkers(): { start: string; end: string } {

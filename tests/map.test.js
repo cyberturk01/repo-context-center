@@ -275,6 +275,88 @@ test("map --write updates generated sections", async () => {
   });
 });
 
+test("map --check passes when generated files are current", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const writeResult = runCli(tempDir, ["map", "--write", "--max-files", "500"]);
+    const checkResult = runCli(tempDir, ["map", "--check", "--max-files", "500"]);
+
+    assert.equal(writeResult.status, 0);
+    assert.equal(checkResult.status, 0);
+    assert.match(checkResult.stdout, /repo-context-center map --check/);
+    assert.match(checkResult.stdout, /Generated context files are up to date\./);
+    assert.doesNotMatch(checkResult.stdout, /Files that would change:/);
+  });
+});
+
+test("map --check fails when a generated file is stale", async () => {
+  await withMappedRepo(async (tempDir) => {
+    assert.equal(runCli(tempDir, ["map", "--write"]).status, 0);
+
+    const targetPath = path.join(tempDir, "docs", "ai-context", "TASK_ROUTING.md");
+    const before = await readFile(targetPath, "utf8");
+    await writeFile(targetPath, before.replace("CLI flags/output", "STALE CLI flags/output"), "utf8");
+    const staleContent = await readFile(targetPath, "utf8");
+
+    const result = runCli(tempDir, ["map", "--check", "--max-files", "75"]);
+    const after = await readFile(targetPath, "utf8");
+
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /Generated context files are stale or missing\./);
+    assert.match(result.stdout, /Files that would change:/);
+    assert.match(result.stdout, /- docs\/ai-context\/TASK_ROUTING\.md \(update\)/);
+    assert.match(result.stdout, /Run: npx repo-context-center map --write --max-files 75/);
+    assert.equal(after, staleContent);
+  });
+});
+
+test("map --check fails when generated files are missing", async () => {
+  await withMappedRepo(async (tempDir) => {
+    assert.equal(runCli(tempDir, ["map", "--write"]).status, 0);
+
+    const targetPath = path.join(tempDir, "docs", "ai-context", "HOTSPOTS.md");
+    await rm(targetPath, { force: true });
+
+    const result = runCli(tempDir, ["map", "--check"]);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /Generated context files are stale or missing\./);
+    assert.match(result.stdout, /- docs\/ai-context\/HOTSPOTS\.md \(create\)/);
+    assert.match(result.stdout, /Run: npx repo-context-center map --write --max-files 500/);
+  });
+});
+
+test("map --check does not write files", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const targetPath = path.join(tempDir, "docs", "ai-context", "TASK_ROUTING.md");
+    const before = await readFile(targetPath, "utf8");
+    const result = runCli(tempDir, ["map", "--check"]);
+    const after = await readFile(targetPath, "utf8");
+
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /Generated context files are stale or missing\./);
+    assert.equal(after, before);
+    assert.doesNotMatch(after, /repo-context-center:generated:start/);
+  });
+});
+
+test("map --check and --write cannot be used together", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--check", "--write"]);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Usage: repo-context-center map/);
+  });
+});
+
+test("map --check and --dry-run cannot be used together", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--check", "--dry-run"]);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Usage: repo-context-center map/);
+  });
+});
+
 test("TASK_ROUTING.md uses task-oriented rows instead of generic module fallback", async () => {
   await withMappedRepo(async (tempDir) => {
     const result = runCli(tempDir, ["map", "--write"]);

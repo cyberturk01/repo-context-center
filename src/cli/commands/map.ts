@@ -1,9 +1,10 @@
 import path from "node:path";
-import { mapRepository, type RepoMapResult } from "../../core/repoMapper";
+import { checkRepositoryMap, mapRepository, type RepoMapCheckResult, type RepoMapResult } from "../../core/repoMapper";
 import type { CliIO } from "../index";
 
 interface MapOptions {
   write: boolean;
+  check: boolean;
   json: boolean;
   dryRun: boolean;
   maxFiles: number;
@@ -12,6 +13,7 @@ interface MapOptions {
 
 function parseMapOptions(args: string[]): MapOptions | undefined {
   let write = false;
+  let check = false;
   let json = false;
   let dryRun = false;
   let maxFiles = 500;
@@ -22,6 +24,8 @@ function parseMapOptions(args: string[]): MapOptions | undefined {
 
     if (arg === "--write") {
       write = true;
+    } else if (arg === "--check") {
+      check = true;
     } else if (arg === "--json") {
       json = true;
     } else if (arg === "--dry-run") {
@@ -45,7 +49,11 @@ function parseMapOptions(args: string[]): MapOptions | undefined {
     }
   }
 
-  return { write, json, dryRun, maxFiles, repo };
+  if ((check && write) || (check && dryRun)) {
+    return undefined;
+  }
+
+  return { write, check, json, dryRun, maxFiles, repo };
 }
 
 function formatResult(result: RepoMapResult, willWrite: boolean): string {
@@ -70,14 +78,47 @@ function formatResult(result: RepoMapResult, willWrite: boolean): string {
   return `${lines.join("\n")}\n`;
 }
 
+function formatCheckResult(result: RepoMapCheckResult, maxFiles: number): string {
+  const lines = [
+    "repo-context-center map --check",
+    "",
+    `Files scanned: ${result.data.filesScanned}`,
+    "Mode: check",
+    ""
+  ];
+
+  if (result.staleChanges.length === 0) {
+    lines.push("Generated context files are up to date.");
+  } else {
+    lines.push("Generated context files are stale or missing.");
+    lines.push("");
+    lines.push("Files that would change:");
+    lines.push(...result.staleChanges.map((change) => `- ${change.path} (${change.action})`));
+    lines.push("");
+    lines.push(`Run: npx repo-context-center map --write --max-files ${maxFiles}`);
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
 export async function mapCommand(io: CliIO, args: string[] = []): Promise<number> {
   const options = parseMapOptions(args);
   if (!options) {
-    io.stderr("Usage: repo-context-center map [--write] [--json] [--max-files <number>] [--dry-run] [--repo <path>]\n");
+    io.stderr("Usage: repo-context-center map [--write] [--check] [--json] [--max-files <number>] [--dry-run] [--repo <path>]\n");
     return 1;
   }
 
   const cwd = options.repo ? path.resolve(io.cwd, options.repo) : io.cwd;
+
+  if (options.check) {
+    const result = await checkRepositoryMap({
+      cwd,
+      maxFiles: options.maxFiles
+    });
+    io.stdout(formatCheckResult(result, options.maxFiles));
+    return result.staleChanges.length === 0 ? 0 : 1;
+  }
+
   const result = await mapRepository({
     cwd,
     maxFiles: options.maxFiles,

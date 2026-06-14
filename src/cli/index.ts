@@ -40,7 +40,7 @@ Commands:
   estimate  Estimate context token costs and rough savings
             Options: --json, --mode <mode>, --task <text>, --compare-naive, --max-files <number>
   map       Generate repo-specific context maps
-            Options: --write, --json, --dry-run, --max-files <number>, --repo <path>
+            Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>
   scan      Suggest lightweight context entries from repo layout
             Options: --json
   suggest   Recommend context files for a task

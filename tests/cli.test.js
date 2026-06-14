@@ -27,6 +27,7 @@ test("CLI help prints usage", () => {
   assert.match(result.stdout, /Options: --strict/);
   assert.match(result.stdout, /archive\s+Archive older CHANGE_LOG and LESSONS_LEARNED entries/);
   assert.match(result.stdout, /Options: --keep <number>, --dry-run/);
+  assert.match(result.stdout, /Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>/);
 });
 
 test("unknown command returns an error", () => {
