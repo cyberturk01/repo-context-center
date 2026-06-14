@@ -202,6 +202,28 @@ test("compare-naive respects --max-files cap", async () => {
   });
 });
 
+test("compare-naive reports near-100 percent savings without rounding to 100", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeText(tempDir, "AGENTS.md", "a".repeat(240));
+    await writeText(tempDir, "docs/ai-context/COMMUNICATION_MODE.md", "");
+    await writeText(tempDir, "docs/ai-context/TASK_ROUTING.md", "");
+    await writeText(tempDir, "docs/ai-context/TOKEN_BUDGET.md", "");
+    await writeText(tempDir, "docs/ai-context/DO_NOT_READ.md", "- `node_modules/`\n- `dist/`\n");
+    await writeText(tempDir, "src/large.ts", "x".repeat(60_000));
+
+    const jsonResult = runCli(["estimate", "--compare-naive", "--json"], { cwd: tempDir });
+    const textResult = runCli(["estimate", "--compare-naive"], { cwd: tempDir });
+    const report = JSON.parse(jsonResult.stdout);
+
+    assert.equal(jsonResult.status, 0);
+    assert.equal(textResult.status, 0);
+    assert.ok(report.startupTokens > 0);
+    assert.equal(report.estimatedSavingPercent, 99.6);
+    assert.match(textResult.stdout, /Estimated saving: 99\.6%/);
+    assert.doesNotMatch(textResult.stdout, /Estimated saving: 100(?:\.0)?%/);
+  });
+});
+
 test("estimate task recommendation counts source-only files", async () => {
   await withTempRepo(async (tempDir) => {
     await writeText(tempDir, "docs/ai-context/TASK_ROUTING.md", "- API work: read `src/api`.");

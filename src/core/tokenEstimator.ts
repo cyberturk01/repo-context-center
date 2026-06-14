@@ -117,6 +117,20 @@ function estimateTokens(characterCount: number): number {
   return Math.ceil(characterCount / 4);
 }
 
+function estimateSavingPercent(naiveTokens: number, startupTokens: number, savedTokens: number): number {
+  if (naiveTokens <= 0) {
+    return 0;
+  }
+
+  const rawPercent = (savedTokens / naiveTokens) * 100;
+  if (startupTokens === 0 && rawPercent >= 100) {
+    return 100;
+  }
+
+  const rounded = Math.round(rawPercent * 10) / 10;
+  return Math.min(99.9, Math.max(0, rounded));
+}
+
 function sumTokens(files: FileTokenEstimate[]): number {
   return files.reduce((total, file) => total + file.tokens, 0);
 }
@@ -492,9 +506,7 @@ export async function estimateTokenCost(options: TokenEstimateOptions): Promise<
     report.naiveScanFiles = naive.fileCount;
     report.naiveScanCapped = naive.capped;
     report.estimatedSavedTokens = Math.max(0, naive.tokens - report.startupTokens);
-    report.estimatedSavingPercent = naive.tokens > 0
-      ? Math.round((report.estimatedSavedTokens / naive.tokens) * 100)
-      : 0;
+    report.estimatedSavingPercent = estimateSavingPercent(naive.tokens, report.startupTokens, report.estimatedSavedTokens);
 
     if (naive.capped) {
       warnings.push(`Naive scan was capped at ${options.maxFiles} files.`);

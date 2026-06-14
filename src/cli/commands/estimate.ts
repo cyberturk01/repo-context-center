@@ -56,6 +56,12 @@ function formatNumber(value: number | undefined): string {
   return value === undefined ? "not run" : value.toLocaleString("en-US");
 }
 
+function formatPercent(value: number | undefined): string {
+  return value === undefined
+    ? "not run"
+    : value.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
 function formatReport(report: TokenEstimateReport): string {
   const lines = [
     "repo-context-center token estimate",
@@ -80,7 +86,7 @@ function formatReport(report: TokenEstimateReport): string {
       `- Estimated naive scan: ${formatNumber(report.naiveScanTokens)} tokens`,
       `- Estimated compact startup: ${formatNumber(report.startupTokens)} tokens`,
       `- Estimated saving: ${formatNumber(report.estimatedSavedTokens)} tokens`,
-      `- Estimated saving: ${formatNumber(report.estimatedSavingPercent)}%`
+      `- Estimated saving: ${formatPercent(report.estimatedSavingPercent)}%`
     );
 
     if (report.naiveScanCapped) {

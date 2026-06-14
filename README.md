@@ -29,10 +29,10 @@ repo-context-center estimate --compare-naive
 ```text
 Estimated naive scan: 97,917 tokens
 Estimated compact startup: 546 tokens
-Estimated saving: 99%
+Estimated saving: 99.4%
 ```
 
-Estimates use `ceil(characters / 4)`. They are not tokenizer-exact, not billing estimates, and results vary by repo.
+Estimates use `ceil(characters / 4)`. They are not tokenizer-exact, not billing estimates, and results vary by repo. Percentages are estimates and actual tokenizer usage may differ.
 
 ## What Problem This Solves
 
@@ -247,11 +247,12 @@ repo-context-center estimate --task "fix Cypress test" --mode compact
 ```
 
 Token estimates use `ceil(characters / 4)`. They are rough planning numbers,
-not exact tokenizer output and not model billing estimates. The command is meant
-to help evaluate whether the context center is reducing broad repo reads enough
-to justify its own startup cost. In an empty repo, startup context can be zero
-until templates are installed; after `repo-context-center init`, default context
-files should produce a realistic non-zero startup estimate.
+not exact tokenizer output and not model billing estimates. Percentages are
+estimates and actual tokenizer usage may differ. The command is meant to help
+evaluate whether the context center is reducing broad repo reads enough to
+justify its own startup cost. In an empty repo, startup context can be zero until
+templates are installed; after `repo-context-center init`, default context files
+should produce a realistic non-zero startup estimate.
 
 ## Map Command
 
