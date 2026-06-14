@@ -974,9 +974,6 @@ function buildProjectMap(
   doNotRead: string[],
   understanding: RepositoryUnderstanding
 ): RepoMapData["projectMap"] {
-  const sourceFolders = uniqueSorted(files
-    .map((file) => file.parts[0])
-    .filter((part): part is string => sourceRoots.includes(part ?? "")));
   const entrypoints = understanding.entrypoints.slice(0, 8);
   const configCategory = categories.find((category) => category.key === "config");
   const config = configCategory
@@ -987,8 +984,8 @@ function buildProjectMap(
 
   return {
     purpose: "Repository Context Center CLI for installing, validating, mapping, estimating, and suggesting low-token repository context.",
-    keyDirectories: sourceFolders.length > 0
-      ? sourceFolders.map((folder) => `${folder}/ source root`)
+    keyDirectories: understanding.keyDirectories.length > 0
+      ? understanding.keyDirectories
       : ["No standard source roots detected"],
     entrypoints,
     config,

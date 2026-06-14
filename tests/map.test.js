@@ -105,6 +105,7 @@ async function withGuardianLikeRepo(callback) {
       "src/core/config.ts": "export function loadConfig() { return {}; }\n",
       "src/core/validator.ts": "export function validateConfig() { return true; }\n",
       "src/analyzers/index.ts": "export function createAnalyzer() { return true; }\n",
+      "src/renderers/markdown.ts": "export function renderMarkdown() { return true; }\n",
       "src/repo/index.ts": "export function createRepo() { return true; }\n",
       "src/project-brain/index.ts": "export function createProjectBrain() { return true; }\n",
       "guardian.config.json": "{}\n",
@@ -475,6 +476,25 @@ test("PROJECT_MAP.md uses real entrypoints and package scripts for Guardian-like
     assert.doesNotMatch(projectMap, /src\/repo\/index\.ts/);
     assert.doesNotMatch(projectMap, /src\/project-brain\/index\.ts/);
     assert.match(projectMap, /### Startup \/ Entrypoints[\s\S]*`dist\/cli\/index\.js`[\s\S]*`src\/cli\/index\.ts`/);
+    assert.deepEqual(data.projectMap.keyDirectories, [
+      "`src/cli` - CLI commands and command entrypoints",
+      "`src/config` - configuration loading and validation",
+      "`src/analyzers` - analysis and rule logic",
+      "`src/renderers` - report rendering and output formatting",
+      "`src/core` - orchestration and core business logic",
+      "`src/repo` - repository scanning and git helpers",
+      "`templates` - generated templates and starter context",
+      "`tests` - test coverage, fixtures, and regression cases",
+      "`.github/workflows` - CI and release automation",
+      "`docs/ai-context` - generated agent context",
+      "`.repo-context-center` - tool config"
+    ]);
+    assert.match(projectMap, /### Key Directories[\s\S]*`src\/cli` - CLI commands and command entrypoints/);
+    assert.match(projectMap, /### Key Directories[\s\S]*`src\/renderers` - report rendering and output formatting/);
+    assert.match(projectMap, /### Key Directories[\s\S]*`templates` - generated templates and starter context/);
+    assert.match(projectMap, /### Key Directories[\s\S]*`\.github\/workflows` - CI and release automation/);
+    assert.doesNotMatch(projectMap, /- src\/ source root/);
+    assert.doesNotMatch(projectMap, /tests\/fixtures` -/);
     assert.ok(data.projectMap.productionCriticalFlows.length > 0);
     assert.ok(data.projectMap.productionCriticalFlows.every((flow) => flow["First check"] === "npm run build"));
     assert.match(projectMap, /\| Flow \| Why critical \| First check \|/);

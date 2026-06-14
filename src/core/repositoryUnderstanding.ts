@@ -54,6 +54,19 @@ const generatedAreaNames = new Set(["dist", "build", "coverage", ".next", "targe
 const dependencyAreaNames = new Set(["node_modules", ".pnpm-store"]);
 const lockfileNames = new Set(["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb"]);
 const sourceExtensions = new Set([".cjs", ".js", ".jsx", ".mjs", ".ts", ".tsx"]);
+const keyDirectoryRoles = [
+  ["src/cli", "CLI commands and command entrypoints"],
+  ["src/config", "configuration loading and validation"],
+  ["src/analyzers", "analysis and rule logic"],
+  ["src/renderers", "report rendering and output formatting"],
+  ["src/core", "orchestration and core business logic"],
+  ["src/repo", "repository scanning and git helpers"],
+  ["templates", "generated templates and starter context"],
+  ["tests", "test coverage, fixtures, and regression cases"],
+  [".github/workflows", "CI and release automation"],
+  ["docs/ai-context", "generated agent context"],
+  [".repo-context-center", "tool config"]
+] as const;
 
 function normalizePath(filePath: string): string {
   return filePath.split(path.sep).join("/").replace(/^\.\/+/, "");
@@ -193,7 +206,19 @@ function entrypointFiles(files: string[], packageJson: unknown): string[] {
   );
 }
 
+function hasDirectory(files: string[], dirPath: string): boolean {
+  return files.some((file) => file.startsWith(`${dirPath}/`));
+}
+
 function keyDirectories(files: string[], scanner?: Partial<ScanReport["detected"]>): string[] {
+  const roleDirectories = keyDirectoryRoles
+    .filter(([dirPath]) => hasDirectory(files, dirPath))
+    .map(([dirPath, role]) => `\`${dirPath}\` - ${role}`);
+
+  if (roleDirectories.length > 0) {
+    return roleDirectories;
+  }
+
   const topLevelDirs = uniqueSorted(files
     .map((file) => file.split("/")[0])
     .filter((part): part is string => part !== undefined && part !== ""));

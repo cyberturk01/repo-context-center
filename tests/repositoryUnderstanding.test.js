@@ -14,6 +14,7 @@ const guardianLikeFiles = [
   "src/core/repoMapper.ts",
   "src/core/scanner.ts",
   "src/analyzers/index.ts",
+  "src/renderers/markdown.ts",
   "src/repo/index.ts",
   "src/project-brain/index.ts",
   "guardian.config.json",
@@ -108,7 +109,17 @@ test("RepositoryUnderstanding builds deterministic directories, modules, entrypo
   assert.ok(!understanding.entrypoints.includes("src/analyzers/index.ts"));
   assert.ok(!understanding.entrypoints.includes("src/repo/index.ts"));
   assert.ok(!understanding.entrypoints.includes("src/project-brain/index.ts"));
-  assert.deepEqual(understanding.keyDirectories, [".github", "docs", "src", "tests"]);
+  assert.deepEqual(understanding.keyDirectories, [
+    "`src/cli` - CLI commands and command entrypoints",
+    "`src/config` - configuration loading and validation",
+    "`src/analyzers` - analysis and rule logic",
+    "`src/renderers` - report rendering and output formatting",
+    "`src/core` - orchestration and core business logic",
+    "`src/repo` - repository scanning and git helpers",
+    "`tests` - test coverage, fixtures, and regression cases",
+    "`.github/workflows` - CI and release automation",
+    "`docs/ai-context` - generated agent context"
+  ]);
   assert.deepEqual(understanding.modules, [
     { name: "cli", path: "src/cli", sourceRoot: "src" },
     { name: "core", path: "src/core", sourceRoot: "src" }
