@@ -17,9 +17,11 @@ export interface TaskTokenEstimate {
   recommendedContextTokens: number;
   likelySourceTokens: number;
   likelyTestTokens: number;
+  likelyContextTokens: number;
   recommendedContextFiles: FileTokenEstimate[];
   likelySourceFiles: FileTokenEstimate[];
   likelyTests: FileTokenEstimate[];
+  likelyContextFiles: FileTokenEstimate[];
 }
 
 export interface TokenEstimateOptions {
@@ -259,6 +261,140 @@ async function estimateRecommendedFiles(cwd: string, files: string[], maxFiles: 
   return Promise.all(limitedFiles.map((file) => estimateBySize(cwd, file)));
 }
 
+function isContextPath(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, "/").replace(/^\.\//, "");
+  return normalized === "AGENTS.md"
+    || normalized.startsWith("docs/ai-context/")
+    || normalized.startsWith(".project-brain/");
+}
+
+function isTestPath(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, "/");
+  const parts = normalized.split("/");
+
+  return normalized.startsWith("tests/")
+    || normalized.startsWith("cypress/")
+    || parts.some((part) => part.toLowerCase().includes("tests"))
+    || /\.(spec|test)\.[^.]+$/i.test(normalized);
+}
+
+function classifyRecommendedPath(filePath: string): "context" | "test" | "source" {
+  if (isContextPath(filePath)) {
+    return "context";
+  }
+
+  if (isTestPath(filePath)) {
+    return "test";
+  }
+
+  return "source";
+}
+
+async function collectRecommendedFiles(
+  cwd: string,
+  filePath: string,
+  excludedPaths: string[],
+  files: string[],
+  maxFiles: number
+): Promise<void> {
+  if (files.length >= maxFiles) {
+    return;
+  }
+
+  const normalizedPath = filePath.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/$/, "");
+  let fileStat;
+
+  try {
+    fileStat = await stat(path.join(cwd, normalizedPath));
+  } catch {
+    return;
+  }
+
+  if (fileStat.isFile()) {
+    if (isSourceOrDocFile(normalizedPath)) {
+      files.push(normalizedPath);
+    }
+    return;
+  }
+
+  if (!fileStat.isDirectory()) {
+    return;
+  }
+
+  let entries;
+  try {
+    entries = await readdir(path.join(cwd, normalizedPath), { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  entries.sort((left, right) => left.name.localeCompare(right.name));
+
+  for (const entry of entries) {
+    if (files.length >= maxFiles) {
+      return;
+    }
+
+    const relativePath = `${normalizedPath}/${entry.name}`;
+    if (entry.name === ".git" || isExcluded(relativePath, excludedPaths)) {
+      continue;
+    }
+
+    if (entry.isDirectory()) {
+      await collectRecommendedFiles(cwd, relativePath, excludedPaths, files, maxFiles);
+    } else if (entry.isFile() && isSourceOrDocFile(relativePath)) {
+      files.push(relativePath);
+    }
+  }
+}
+
+async function resolveRecommendedFiles(cwd: string, paths: string[], maxFiles: number): Promise<string[]> {
+  const excludedPaths = await readExcludedPaths(cwd);
+  const files: string[] = [];
+
+  for (const filePath of uniqueSorted(paths)) {
+    if (files.length >= maxFiles) {
+      break;
+    }
+
+    await collectRecommendedFiles(cwd, filePath, excludedPaths, files, maxFiles);
+  }
+
+  return uniqueSorted(files).slice(0, maxFiles);
+}
+
+async function estimateTaskRecommendation(
+  cwd: string,
+  task: string,
+  maxFiles: number
+): Promise<TaskTokenEstimate> {
+  const suggestion = await suggestContext(cwd, task);
+  const recommendedPaths = [
+    ...suggestion.contextFiles,
+    ...suggestion.likelySourceFiles,
+    ...suggestion.likelyTests
+  ];
+  const resolvedFiles = await resolveRecommendedFiles(cwd, recommendedPaths, maxFiles);
+  const sourcePaths = resolvedFiles.filter((file) => classifyRecommendedPath(file) === "source");
+  const testPaths = resolvedFiles.filter((file) => classifyRecommendedPath(file) === "test");
+  const contextPaths = resolvedFiles.filter((file) => classifyRecommendedPath(file) === "context");
+  const recommendedContextFiles = await estimateRecommendedFiles(cwd, contextPaths, maxFiles);
+  const likelySourceFiles = await estimateRecommendedFiles(cwd, sourcePaths, maxFiles);
+  const likelyTests = await estimateRecommendedFiles(cwd, testPaths, maxFiles);
+
+  return {
+    task,
+    recommendedContextTokens: sumTokens(recommendedContextFiles),
+    likelySourceTokens: sumTokens(likelySourceFiles),
+    likelyTestTokens: sumTokens(likelyTests),
+    likelyContextTokens: sumTokens(recommendedContextFiles),
+    recommendedContextFiles,
+    likelySourceFiles,
+    likelyTests,
+    likelyContextFiles: recommendedContextFiles
+  };
+}
+
 function modeFiles(
   mode: EstimateMode,
   startupFiles: FileTokenEstimate[],
@@ -367,22 +503,7 @@ export async function estimateTokenCost(options: TokenEstimateOptions): Promise<
 
   if (options.task) {
     try {
-      const suggestion = await suggestContext(options.cwd, options.task);
-      const recommendedContextFiles = await Promise.all(
-        suggestion.contextFiles.map((file) => estimateTextFile(options.cwd, file))
-      );
-      const likelySourceFiles = await estimateRecommendedFiles(options.cwd, suggestion.likelySourceFiles, options.maxFiles);
-      const likelyTests = await estimateRecommendedFiles(options.cwd, suggestion.likelyTests, options.maxFiles);
-
-      report.taskEstimate = {
-        task: options.task,
-        recommendedContextTokens: sumTokens(recommendedContextFiles),
-        likelySourceTokens: sumTokens(likelySourceFiles),
-        likelyTestTokens: sumTokens(likelyTests),
-        recommendedContextFiles,
-        likelySourceFiles,
-        likelyTests
-      };
+      report.taskEstimate = await estimateTaskRecommendation(options.cwd, options.task, options.maxFiles);
     } catch {
       warnings.push("Task-specific suggestion failed; estimate excludes task recommendations.");
     }

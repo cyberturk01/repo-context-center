@@ -95,7 +95,8 @@ function formatReport(report: TokenEstimateReport): string {
       `- Task: ${report.taskEstimate.task}`,
       `- Recommended context: ${formatNumber(report.taskEstimate.recommendedContextTokens)} tokens`,
       `- Likely source: ${formatNumber(report.taskEstimate.likelySourceTokens)} tokens`,
-      `- Likely tests: ${formatNumber(report.taskEstimate.likelyTestTokens)} tokens`
+      `- Likely tests: ${formatNumber(report.taskEstimate.likelyTestTokens)} tokens`,
+      `- Likely context docs: ${formatNumber(report.taskEstimate.likelyContextTokens)} tokens`
     );
   }
 

@@ -201,3 +201,73 @@ test("compare-naive respects --max-files cap", async () => {
     assert.ok(report.warnings.some((warning) => warning.includes("capped at 1 files")));
   });
 });
+
+test("estimate task recommendation counts source-only files", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeText(tempDir, "docs/ai-context/TASK_ROUTING.md", "- API work: read `src/api`.");
+    await writeText(tempDir, "docs/ai-context/MODULE_INDEX.md", "| `src/api` | API module | API work |");
+    await writeText(tempDir, "src/api/index.ts", "a".repeat(80));
+
+    const result = runCli(["estimate", "--task", "API endpoint update", "--json"], { cwd: tempDir });
+    const report = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(report.taskEstimate.likelySourceTokens, tokenEstimate("a".repeat(80)));
+    assert.equal(report.taskEstimate.likelyTestTokens, 0);
+    assert.equal(report.taskEstimate.likelyContextTokens, report.taskEstimate.recommendedContextTokens);
+  });
+});
+
+test("estimate task recommendation counts test-heavy files", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeText(tempDir, "docs/ai-context/TASK_ROUTING.md", "- Cypress work: read `cypress/e2e`.");
+    await writeText(tempDir, "docs/ai-context/MODULE_INDEX.md", "| `cypress/e2e` | Browser tests | Cypress work |");
+    await writeText(tempDir, "cypress/e2e/login.cy.ts", "c".repeat(120));
+    await writeText(tempDir, "cypress/e2e/helpers.ts", "h".repeat(40));
+
+    const result = runCli(["estimate", "--task", "fix Cypress test", "--json"], { cwd: tempDir });
+    const report = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(report.taskEstimate.likelySourceTokens, 0);
+    assert.equal(report.taskEstimate.likelyTestTokens, tokenEstimate("c".repeat(120)) + tokenEstimate("h".repeat(40)));
+  });
+});
+
+test("estimate task recommendation separates mixed source, test, and context files", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeText(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      "- Auth work: read `src/auth`, `tests/auth.test.ts`, and `docs/ai-context/RISK_REGISTER.md`."
+    );
+    await writeText(tempDir, "docs/ai-context/MODULE_INDEX.md", "| `src/auth` | Auth module | auth work |");
+    await writeText(tempDir, "docs/ai-context/RISK_REGISTER.md", "| `src/auth` | auth risk | Run `tests/auth.test.ts` |");
+    await writeText(tempDir, "src/auth/index.ts", "s".repeat(64));
+    await writeText(tempDir, "src/auth/index.test.ts", "t".repeat(96));
+    await writeText(tempDir, "tests/auth.test.ts", "u".repeat(128));
+
+    const result = runCli(["estimate", "--task", "auth bug", "--json"], { cwd: tempDir });
+    const report = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(report.taskEstimate.likelySourceTokens, tokenEstimate("s".repeat(64)));
+    assert.equal(report.taskEstimate.likelyTestTokens, tokenEstimate("t".repeat(96)) + tokenEstimate("u".repeat(128)));
+    assert.ok(report.taskEstimate.likelyContextTokens > 0);
+    assert.ok(report.taskEstimate.likelyContextFiles.some((file) => file.path === "docs/ai-context/RISK_REGISTER.md"));
+  });
+});
+
+test("estimate task recommendation ignores missing files", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeText(tempDir, "docs/ai-context/TASK_ROUTING.md", "- Missing work: read `src/missing.ts` and `tests/missing.test.ts`.");
+
+    const result = runCli(["estimate", "--task", "missing work", "--json"], { cwd: tempDir });
+    const report = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(report.taskEstimate.likelySourceTokens, 0);
+    assert.equal(report.taskEstimate.likelyTestTokens, 0);
+    assert.equal(report.taskEstimate.recommendedContextFiles.some((file) => file.missing), false);
+  });
+});
