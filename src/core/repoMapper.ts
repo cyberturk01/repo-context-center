@@ -1,6 +1,7 @@
 import path from "node:path";
 import { requiredContextFiles, type RequiredContextFile } from "./contextFiles";
 import { ensureDir, listDirectoryNames, readTextFile, writeTextFile, pathExists } from "./fileSystem";
+import { buildRepositoryUnderstanding } from "./repositoryUnderstanding";
 import { extractExportedSymbols, type ScannedSymbol } from "./scanner";
 
 export interface RepoMapOptions {
@@ -1245,6 +1246,8 @@ const renderers: Record<RequiredContextFile, { title: string; render: (data: Rep
 
 async function buildMapData(cwd: string, maxFiles: number): Promise<RepoMapData> {
   const files = await walkRepo(cwd, maxFiles);
+  const understanding = await buildRepositoryUnderstanding({ cwd, files: files.map((file) => file.path) });
+  void understanding;
   const packageScripts = await readPackageScripts(cwd);
   const sourceFiles = files.filter((file) => isSourcePath(file.path)).map((file) => file.path);
   const testFiles = files.filter((file) => isTestPath(file.path)).map((file) => file.path);
