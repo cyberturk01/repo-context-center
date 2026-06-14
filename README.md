@@ -1,5 +1,8 @@
 # repo-context-center
 
+![npm](https://img.shields.io/npm/dm/repo-context-center)
+![npm](https://img.shields.io/npm/v/repo-context-center)
+
 A context layer for AI coding agents.
 
 `repo-context-center` installs compact generic repository context so AI coding tools can find the right files faster and avoid rereading noisy paths. `init` creates the generic context center; `map --write` adds repo-specific generated sections from real files using lightweight heuristics.
