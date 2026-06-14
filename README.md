@@ -137,7 +137,7 @@ With `--github-action`, it also creates:
 ```sh
 repo-context-center --help
 repo-context-center init [--dry-run] [--force] [--github-action]
-repo-context-center map [--write] [--dry-run] [--json] [--max-files <number>]
+repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <number>]
 repo-context-center validate [--strict]
 repo-context-center archive [--keep <number>] [--dry-run]
 repo-context-center estimate [--mode compact|investigation|detailed] [--task "<task>"] [--compare-naive] [--json] [--max-files <number>]
@@ -156,6 +156,45 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 - `suggest`: recommend low-token context files, real likely files, likely tests, mode, symbols, and risk level for a task.
 
 See [docs/github-action.md](docs/github-action.md) for PR validation setup.
+
+### Main Map Modes
+
+Write or update generated context after meaningful repo structure changes:
+
+```sh
+npx repo-context-center map --write --max-files 300
+```
+
+Preview proposed generated context changes without writing files:
+
+```sh
+npx repo-context-center map --dry-run --max-files 300
+```
+
+Check for stale generated context in CI:
+
+```sh
+npx repo-context-center map --check --max-files 300
+```
+
+Recommended `--max-files` values:
+
+- Small and medium repos: `150`–`300`.
+- Larger repos and monorepos: `500` or more, tuned to keep CI runtime acceptable.
+
+### Keeping context fresh as your repo grows
+
+`repo-context-center` does not run in the background. It only updates generated context when you run `map --write`, and it only checks freshness when you run `map --check`.
+
+Refresh generated context after significant structure changes, such as new source roots, renamed modules, new CLI entrypoints, changed test layout, or updated build/config files. The generated files are meant to help AI agents navigate the repo and save tokens by skipping noisy or irrelevant paths; they are not a full dependency graph or import analyzer.
+
+Use `map --check` in CI to enforce that generated context stays current. If CI fails, run:
+
+```sh
+npx repo-context-center map --write --max-files 300
+```
+
+Then commit the updated `AGENTS.md` and `docs/ai-context/*` files.
 
 ### CI Check
 
@@ -188,6 +227,8 @@ If CI fails, refresh the generated sections locally:
 ```sh
 npx repo-context-center map --write --max-files 300
 ```
+
+Then commit the updated `AGENTS.md` and `docs/ai-context/*` files.
 
 The default workflow only checks freshness. Auto-commit can be added by users,
 but it is not the recommended default.
@@ -238,6 +279,13 @@ The model tracks:
 This improves `PROJECT_MAP.md`, `HOTSPOTS.md`, and `DEPENDENCY_MAP.md` by making entrypoints, high-impact files, key directory roles, and high-level dependency hints more consistent. It also reduces fixture and snapshot noise in routing, module, symbol, hotspot, and dependency output.
 
 The 0.3.0 mapper still does not perform framework detection, import graph parsing, AI/LLM analysis, or project-pack selection.
+
+### 0.3.3 Release Notes
+
+- Added `map --check` for stale generated-context detection.
+- Added CI guidance for keeping AI agent navigation context fresh as repositories grow.
+- Documented the check-only GitHub Actions flow with no auto-commit by default.
+- Kept generated context focused on lightweight repo navigation and token-saving guidance, without claiming full dependency or import graph behavior.
 
 ### 0.3.0 Release Notes
 

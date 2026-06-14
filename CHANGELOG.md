@@ -1,5 +1,18 @@
 # ChangeLog
 
+## repo-context-center@0.3.3
+
+### Added
+
+* Added `map --check` documentation for detecting stale generated context in CI.
+* Added README guidance for keeping context fresh as repositories grow.
+* Added GitHub Actions usage docs for check-only stale-context detection.
+
+### Notes
+
+* The CI flow does not auto-commit by default; pull request authors should run `map --write` and commit refreshed `AGENTS.md` and `docs/ai-context/*` files.
+* The mapper remains focused on lightweight AI agent navigation and token-saving context, not full dependency or import graph analysis.
+
 ## repo-context-center@0.3.1
 
 ### Improved
