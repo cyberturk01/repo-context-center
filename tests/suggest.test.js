@@ -124,6 +124,20 @@ async function assertReturnedPathsExist(root, paths) {
   }
 }
 
+async function withTestDiscoveryRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-suggest-tests-"));
+
+  try {
+    await writeFixtureFile(tempDir, "tests/example.test.js", "test('example', () => {});\n");
+    await writeFixtureFile(tempDir, "src/example.js", "export const example = true;\n");
+    await writeFixtureFile(tempDir, "dist/tests/generated.test.js", "test('generated', () => {});\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 test("suggest uses compact mode for simple UI task", async () => {
   await withContextRepo(async (tempDir) => {
     const result = runCli(["suggest", "adjust UI button spacing", "--json"], { cwd: tempDir });
@@ -246,11 +260,37 @@ test("suggest filters missing symbol map paths", async () => {
   });
 });
 
+test("suggest discovers real tests for generic test tasks", async () => {
+  await withTestDiscoveryRepo(async (tempDir) => {
+    const result = runCli(["suggest", "fix test", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(suggestion.likelyTests.includes("tests/example.test.js"));
+    assert.ok(!suggestion.likelyTests.includes("dist/tests/generated.test.js"));
+    assert.deepEqual(suggestion.likelyTests, ["tests/example.test.js"]);
+    await assertReturnedPathsExist(tempDir, suggestion.likelyTests);
+  });
+});
+
+test("suggest discovers real tests for unit test failure tasks", async () => {
+  await withTestDiscoveryRepo(async (tempDir) => {
+    const result = runCli(["suggest", "fix unit test failure", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(suggestion.likelyTests.includes("tests/example.test.js"));
+    assert.ok(!suggestion.likelyTests.includes("dist/tests/generated.test.js"));
+    assert.deepEqual(suggestion.likelyTests, ["tests/example.test.js"]);
+    await assertReturnedPathsExist(tempDir, suggestion.likelyTests);
+  });
+});
+
 test("suggest returns empty file arrays for empty repos", async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-suggest-empty-"));
 
   try {
-    const result = runCli(["suggest", "adjust UI button spacing", "--json"], { cwd: tempDir });
+    const result = runCli(["suggest", "fix test", "--json"], { cwd: tempDir });
     const suggestion = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);

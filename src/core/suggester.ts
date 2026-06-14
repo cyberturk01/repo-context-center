@@ -54,6 +54,7 @@ const workflowKeywords = [
   "workflow",
   "workflows"
 ];
+const testDiscoveryKeywords = ["test", "unit test", "spec", "failure", "jest", "vitest", "cypress", "e2e"];
 const sourceRoots = ["src", "app", "lib"];
 const ignoredDirs = new Set(["node_modules", "dist", "build", "coverage", ".next", "target", ".git"]);
 const workflowFiles = ["package.json", "Dockerfile", "railway.json"];
@@ -127,6 +128,17 @@ function isLikelySourceSearchPath(filePath: string): boolean {
 
 function isWorkflowTask(tokens: string[]): boolean {
   return workflowKeywords.some((keyword) => tokens.includes(keyword));
+}
+
+function isTestRelatedTask(task: string): boolean {
+  const lowerTask = task.toLowerCase();
+  return testDiscoveryKeywords.some((keyword) => {
+    if (keyword.includes(" ")) {
+      return lowerTask.includes(keyword);
+    }
+
+    return new RegExp(`(^|[^a-z0-9])${keyword}([^a-z0-9]|$)`).test(lowerTask);
+  });
 }
 
 function pathTokens(filePath: string): string[] {
@@ -231,13 +243,18 @@ function discoverLikelySourceFiles(
   return uniqueSorted([...sourceMatches, ...existingHintMatches.filter((file) => !isLikelyTestPath(file))]);
 }
 
-function discoverLikelyTests(files: string[], tokens: string[], existingHintMatches: string[]): string[] {
+function discoverLikelyTests(
+  files: string[],
+  tokens: string[],
+  existingHintMatches: string[],
+  includeAllTests: boolean
+): string[] {
   return uniqueSorted(files.filter((file) => {
     if (!isLikelyTestPath(file)) {
       return false;
     }
 
-    return pathMatchesTokens(file, tokens) || existingHintMatches.includes(file);
+    return includeAllTests || pathMatchesTokens(file, tokens) || existingHintMatches.includes(file);
   }));
 }
 
@@ -403,6 +420,7 @@ function riskFor(mode: SuggestMode, riskMatches: number, dependencyMatches: numb
 export async function suggestContext(cwd: string, task: string): Promise<ContextSuggestion> {
   const documents = await readSuggestContext(cwd);
   const tokens = tokenize(task);
+  const testRelatedTask = isTestRelatedTask(task);
   const repoFiles = await listRepoFiles(cwd);
   const taskRouting = findDocument(documents, "docs/ai-context/TASK_ROUTING.md");
   const moduleIndex = findDocument(documents, "docs/ai-context/MODULE_INDEX.md");
@@ -495,7 +513,7 @@ export async function suggestContext(cwd: string, task: string): Promise<Context
       isWorkflowTask(tokens)
     ),
     relevantSymbols,
-    likelyTests: discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches),
+    likelyTests: discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches, testRelatedTask),
     riskLevel,
     reasons: uniqueSorted([
       routingMatches.length > 0 ? "task matched routing guidance" : "",
@@ -503,6 +521,7 @@ export async function suggestContext(cwd: string, task: string): Promise<Context
       dependencyModuleMatches.length > 0 || dependencyMatches.length > 0 ? "module dependency guidance matched" : "",
       relevantSymbols.length > 0 ? "task matched symbol map entries" : "",
       riskMatches.length > 0 ? "risk or hotspot guidance matched" : "",
+      testRelatedTask ? "test-related task triggered test discovery" : "",
       mode === "Investigation" ? "task contains investigation keyword" : ""
     ].filter(Boolean))
   };
