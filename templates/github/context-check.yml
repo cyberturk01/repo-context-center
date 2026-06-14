@@ -16,5 +16,5 @@ jobs:
         with:
           node-version: 20
 
-      - name: Validate repository context
-        run: npx repo-context-center validate
+      - name: Check generated context is fresh
+        run: npx repo-context-center map --check --max-files 300

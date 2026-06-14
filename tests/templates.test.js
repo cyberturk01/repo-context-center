@@ -6,6 +6,7 @@ const test = require("node:test");
 const repoRoot = path.resolve(__dirname, "..");
 const templateRoot = path.join(repoRoot, "src", "templates", "generic");
 const distTemplateRoot = path.join(repoRoot, "dist", "templates", "generic");
+const distGithubTemplateRoot = path.join(repoRoot, "dist", "templates", "github");
 const maxTemplateBytes = 1600;
 const previousTemplateWordBaseline = 925;
 const compressedTemplateWordLimit = Math.floor(previousTemplateWordBaseline * 0.7);
@@ -146,4 +147,15 @@ test("build copies markdown templates without removing compiled loader", async (
 
   assert.equal(loaderStat.isFile(), true);
   assert.equal(markdownStat.isFile(), true);
+});
+
+test("build copies GitHub workflow template into package output", async () => {
+  const workflowPath = path.join(distGithubTemplateRoot, "context-check.yml");
+  const workflowStat = await stat(workflowPath);
+  const content = await readFile(workflowPath, "utf8");
+
+  assert.equal(workflowStat.isFile(), true);
+  assert.match(content, /pull_request:/);
+  assert.match(content, /actions\/setup-node@v4/);
+  assert.match(content, /npx repo-context-center map --check --max-files 300/);
 });

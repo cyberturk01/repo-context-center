@@ -136,7 +136,7 @@ test("init creates GitHub workflow with --github-action", async () => {
     assert.equal(result.status, 0);
     assert.match(content, /actions\/checkout@v4/);
     assert.match(content, /actions\/setup-node@v4/);
-    assert.match(content, /npx repo-context-center validate/);
+    assert.match(content, /npx repo-context-center map --check --max-files 300/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -190,7 +190,7 @@ test("init force overwrites GitHub workflow", async () => {
 
     assert.equal(result.status, 0);
     assert.notEqual(content, "custom workflow\n");
-    assert.match(content, /npx repo-context-center validate/);
+    assert.match(content, /npx repo-context-center map --check --max-files 300/);
     assert.match(result.stdout, /Overwrote file: \.github\/workflows\/repo-context-check\.yml/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });

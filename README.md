@@ -157,6 +157,41 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 
 See [docs/github-action.md](docs/github-action.md) for PR validation setup.
 
+### CI Check
+
+Use `map --check` in CI to fail pull requests when generated context files are stale:
+
+```yaml
+name: Repository Context Check
+
+on:
+  pull_request:
+
+jobs:
+  context-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check generated context is fresh
+        run: npx repo-context-center map --check --max-files 300
+```
+
+If CI fails, refresh the generated sections locally:
+
+```sh
+npx repo-context-center map --write --max-files 300
+```
+
+The default workflow only checks freshness. Auto-commit can be added by users,
+but it is not the recommended default.
+
 Example:
 
 ```sh
