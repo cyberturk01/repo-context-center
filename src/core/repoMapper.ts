@@ -102,6 +102,7 @@ interface Category {
   commonTasks: string[];
   thenCheck: string[];
   notes: string;
+  includeInRouting?: boolean;
   riskWhy?: string;
   match: (file: RepoFile) => boolean;
 }
@@ -268,6 +269,32 @@ function isReleasePath(filePath: string): boolean {
     || filePath === "vercel.json";
 }
 
+function isTemplatePath(filePath: string): boolean {
+  return filePath.startsWith("src/templates/")
+    || filePath.startsWith("templates/")
+    || /^src\/core\/templateInstaller\.[^.]+$/.test(filePath);
+}
+
+function isReportPath(filePath: string): boolean {
+  return filePath.startsWith("src/renderers/")
+    || /^src\/core\/repoMapper\.[^.]+$/.test(filePath)
+    || /(^|\/)(archive|estimate|suggest|map|report)[^/]*\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(filePath);
+}
+
+function isAnalyzerPath(filePath: string): boolean {
+  return filePath.startsWith("src/analyzers/")
+    || /(^|\/)(analy[sz]er|risk|hotspot|score|rule|validator|security)[^/]*\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(filePath);
+}
+
+function isScannerPath(filePath: string): boolean {
+  return filePath.startsWith("src/repo/")
+    || /(^|\/)(scan|scanner|symbol|symbols|fileSystem|contextFiles)[^/]*\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(filePath);
+}
+
+function isCoreOrchestrationPath(filePath: string): boolean {
+  return filePath.startsWith("src/core/");
+}
+
 async function walkRepo(cwd: string, maxFiles: number): Promise<RepoFile[]> {
   const files: RepoFile[] = [];
 
@@ -345,8 +372,10 @@ function findCategoryTestFiles(category: Category, tests: string[]): string[] {
     cli: ["cli", "command"],
     config: ["config", "validator", "init"],
     scanner: ["scan", "scanner", "symbol"],
-    risk: ["risk", "hotspot", "validate", "validator"],
+    analyzers: ["analyzer", "analysis", "risk", "hotspot", "validate", "validator", "security"],
     reports: ["map", "report", "archive", "estimate", "suggest"],
+    core: ["core"],
+    templates: ["template", "context"],
     auth: ["auth", "session", "security", "consent"],
     database: ["db", "database", "migration"],
     email: ["email", "mail", "message", "notification"],
@@ -404,6 +433,59 @@ function categoryRank(category: Category, filePath: string, hasAiContextDocs: bo
     if (filePath.startsWith(".project-brain/")) {
       return 6;
     }
+  }
+
+  if (category.key === "analyzers") {
+    if (filePath.startsWith("src/analyzers/")) {
+      return 0;
+    }
+    if (/validator|risk|hotspot|security/i.test(filePath) && sourceExtensions.has(path.extname(filePath).toLowerCase())) {
+      return 1;
+    }
+    return 5;
+  }
+
+  if (category.key === "reports") {
+    if (filePath.startsWith("src/renderers/")) {
+      return 0;
+    }
+    if (/^src\/core\/repoMapper\.[^.]+$/.test(filePath)) {
+      return 1;
+    }
+    return 5;
+  }
+
+  if (category.key === "core") {
+    if (filePath.startsWith("src/core/")) {
+      return 0;
+    }
+    return 5;
+  }
+
+  if (category.key === "scanner") {
+    if (filePath.startsWith("src/repo/")) {
+      return 0;
+    }
+    if (/scanner|scan|symbol/i.test(filePath)) {
+      return 1;
+    }
+    return 5;
+  }
+
+  if (category.key === "templates") {
+    if (filePath.startsWith("src/templates/")) {
+      return 0;
+    }
+    if (/^src\/core\/templateInstaller\.[^.]+$/.test(filePath)) {
+      return 1;
+    }
+    if (filePath.startsWith("templates/")) {
+      return 2;
+    }
+    if (filePath.startsWith("src/project-brain/")) {
+      return 3;
+    }
+    return 5;
   }
 
   if (category.key === "release") {
@@ -480,40 +562,61 @@ const categories: Category[] = [
     match: (file) => isConfigPath(file.path) || pathHas(file, ["config", "validate", "validator"])
   },
   {
+    key: "analyzers",
+    label: "Analyzers / Risk Rules",
+    taskType: "Analyzer/risk rule changes",
+    purpose: "Analysis, validation, risk scoring, and hotspot guidance",
+    commonTasks: ["change analyzers", "adjust risk rows", "score context quality", "validate rules"],
+    thenCheck: ["validator", "hotspots", "risk register tests"],
+    notes: "Risk and analyzer wording affects future agent read order.",
+    riskWhy: "Risk guidance affects what agents inspect before changes.",
+    match: (file) => isAnalyzerPath(file.path)
+  },
+  {
+    key: "reports",
+    label: "Renderers / Reports",
+    taskType: "Report rendering",
+    purpose: "Generated CLI reports and markdown output",
+    commonTasks: ["format markdown", "format JSON", "preserve generated markers", "summarize report output"],
+    thenCheck: ["renderers", "snapshot-like tests", "README examples"],
+    notes: "Keep generated sections deterministic.",
+    match: (file) => isReportPath(file.path)
+  },
+  {
+    key: "core",
+    label: "Core / Orchestration",
+    taskType: "Core/orchestration changes",
+    purpose: "Core coordination and shared command behavior",
+    commonTasks: ["coordinate commands", "connect scanner and renderers", "share common services"],
+    thenCheck: ["CLI commands", "map output", "core tests"],
+    notes: "Check callers because core changes often affect multiple commands.",
+    includeInRouting: false,
+    match: (file) => isCoreOrchestrationPath(file.path)
+  },
+  {
     key: "scanner",
     label: "Repository scanning",
-    taskType: "File scanning/classification",
+    taskType: "Repository scanning/classification",
     purpose: "Repo inspection and lightweight analysis",
     commonTasks: ["classify files", "ignore generated areas", "detect symbols", "match tests"],
     thenCheck: ["context file rules", "symbol map output", "scan tests"],
     notes: "Avoid full source reads except bounded symbol extraction.",
-    match: (file) => pathHas(file, ["scan", "scanner", "symbol", "symbols"])
+    match: (file) => isScannerPath(file.path)
   },
   {
-    key: "risk",
-    label: "Risk rules",
-    taskType: "Rule/scoring changes",
-    purpose: "Risk, validation, and hotspot guidance",
-    commonTasks: ["change warnings", "adjust risk rows", "score context quality"],
-    thenCheck: ["validator", "hotspots", "risk register tests"],
-    notes: "Risk wording affects future agent read order.",
-    riskWhy: "Risk guidance affects what agents inspect before changes.",
-    match: (file) => pathHas(file, ["risk", "hotspot", "validate", "validator", "security"])
-  },
-  {
-    key: "reports",
-    label: "Report generation",
-    taskType: "Report output",
-    purpose: "Generated CLI reports and markdown output",
-    commonTasks: ["format markdown", "format JSON", "preserve generated markers", "summarize map output"],
-    thenCheck: ["renderers", "snapshot-like tests", "README examples"],
-    notes: "Keep generated sections deterministic.",
-    match: (file) => pathHas(file, ["archive", "estimate", "suggest", "map", "report"])
+    key: "templates",
+    label: "Templates",
+    taskType: "Template/context generation",
+    purpose: "Generated templates and starter context content",
+    commonTasks: ["update templates", "change generated defaults", "adjust starter docs"],
+    thenCheck: ["template installer", "context docs", "template tests"],
+    notes: "Keep templates compact and aligned with generated context files.",
+    match: (file) => isTemplatePath(file.path) || file.path.startsWith("src/project-brain/")
   },
   {
     key: "fixtures",
-    label: "Test fixtures",
-    taskType: "Test fixture updates",
+    label: "Tests / Fixtures",
+    taskType: "Test fixture/snapshot updates",
     purpose: "Test data, temp repos, and fixtures",
     commonTasks: ["update temp repo setup", "change fixtures", "refresh expected docs"],
     thenCheck: ["affected tests", "generated docs", "do-not-read rules"],
@@ -583,6 +686,7 @@ const categories: Category[] = [
     commonTasks: ["update routing", "refresh maps", "preserve manual notes"],
     thenCheck: ["templates", "map tests", "validator"],
     notes: "Keep generated content compact and factual.",
+    includeInRouting: false,
     match: (file) => isContextPath(file.path)
   },
   {
@@ -623,11 +727,12 @@ function testsForCategory(category: Category, primary: string[], testFiles: stri
   ]);
 }
 
-function buildTaskRouting(files: RepoFile[], testFiles: string[], packageScripts: Set<string>): RepoMapRow[] {
+function buildTaskRouting(files: RepoFile[], understanding: RepositoryUnderstanding, packageScripts: Set<string>): RepoMapRow[] {
   const hasProjectFiles = files.some((file) => !isContextPath(file.path));
+  const testFiles = understanding.testFiles;
 
   return categories.flatMap((category) => {
-    if (category.key === "fixtures") {
+    if (category.includeInRouting === false) {
       return [];
     }
 
@@ -656,8 +761,9 @@ function buildTaskRouting(files: RepoFile[], testFiles: string[], packageScripts
   });
 }
 
-function buildModules(files: RepoFile[], testFiles: string[], maxModules = 12): RepoModule[] {
+function buildModules(files: RepoFile[], understanding: RepositoryUnderstanding, maxModules = 12): RepoModule[] {
   const hasProjectFiles = files.some((file) => !isContextPath(file.path));
+  const testFiles = understanding.testFiles;
 
   return categories
     .map((category) => {
@@ -733,7 +839,9 @@ function defaultRiskForCategory(key: string): string | undefined {
   const risks: Record<string, string> = {
     cli: "CLI behavior changes can break scripts, help text, JSON output, or exit codes.",
     scanner: "File classification changes can cause future agents to read too much or miss important files.",
+    analyzers: "Analyzer and risk-rule changes can misclassify important work or understate risk.",
     reports: "Report rendering changes can break generated markdown, JSON consumers, or marker preservation.",
+    templates: "Template changes can propagate stale or oversized context into new repos.",
     fixtures: "Fixture changes can make tests pass while real map output gets worse.",
     context: "Context doc changes affect future agent routing and token use.",
     release: "CI or workflow changes can block validation or release broken packages."
@@ -761,14 +869,33 @@ function dependencyHintsForCategory(key: string, files: RepoFile[]): string[] {
       first(/^src\/core\/validator/)
     ]),
     scanner: existing([
+      first(/^src\/repo\//),
       first(/^src\/core\/fileSystem/),
       first(/^src\/core\/contextFiles/),
       has(/^tests\//) ? "tests/*" : undefined
     ]),
+    analyzers: existing([
+      first(/^src\/analyzers\//),
+      first(/^src\/core\/validator/),
+      first(/^src\/core\/.*risk/i),
+      has(/^tests\//) ? "tests/*" : undefined
+    ]),
     reports: existing([
+      first(/^src\/renderers\//),
       first(/^src\/core\/repoMapper/) ?? "src/core/repoMapper.ts",
       first(/^src\/core\/.*er\.ts$/),
       has(/^tests\//) ? "tests/*" : undefined
+    ]),
+    core: existing([
+      first(/^src\/cli\/commands\//),
+      first(/^src\/core\//),
+      has(/^tests\//) ? "tests/*" : undefined
+    ]),
+    templates: existing([
+      first(/^src\/core\/templateInstaller/),
+      area("src/templates"),
+      area("templates"),
+      area("docs/ai-context")
     ]),
     fixtures: existing([has(/^tests\//) ? "tests/*" : undefined, area("fixtures"), area("__snapshots__"), area("snapshots")]),
     context: existing([area("docs/ai-context"), area("src/templates/generic"), first(/^src\/core\/repoMapper/)]),
@@ -783,8 +910,10 @@ function riskHintsForCategory(key: string, files: string[]): string[] {
     cli: ["stdout/stderr compatibility", "exit code regressions", "help text drift"],
     config: ["default config drift", "unsafe overwrite behavior"],
     scanner: ["generated files included", "real source files missed"],
-    risk: ["over-broad warnings", "under-reported risky areas"],
+    analyzers: ["over-broad warnings", "under-reported risky areas"],
     reports: ["broken generated markers", "unstable markdown ordering"],
+    core: ["cross-command regression", "shared behavior drift"],
+    templates: ["stale generated defaults", "template/context mismatch"],
     fixtures: ["fixture/snapshot drift"],
     context: ["manual content overwritten", "future agents misrouted"],
     release: ["CI blocked", "release validation skipped"],
@@ -1255,8 +1384,8 @@ async function buildMapData(cwd: string, maxFiles: number): Promise<RepoMapData>
   const understanding = await buildRepositoryUnderstanding({ cwd, files: files.map((file) => file.path) });
   const packageScripts = new Set(Object.keys(understanding.scripts));
   const sourceFiles = files.filter((file) => isSourcePath(file.path)).map((file) => file.path);
-  const testFiles = files.filter((file) => isTestPath(file.path)).map((file) => file.path);
-  const modules = buildModules(files, testFiles);
+  const testFiles = understanding.testFiles;
+  const modules = buildModules(files, understanding);
   const risks = buildRisks(files, testFiles, packageScripts);
   const dependencies = await buildDependencies(files, sourceFiles, testFiles);
   const symbolLimit = maxFiles === defaultMaxFiles ? 30 : Math.min(maxFiles, 30);
@@ -1269,7 +1398,7 @@ async function buildMapData(cwd: string, maxFiles: number): Promise<RepoMapData>
     root: cwd,
     generatedAt: todayIso(),
     filesScanned: files.length,
-    taskRouting: buildTaskRouting(files, testFiles, packageScripts),
+    taskRouting: buildTaskRouting(files, understanding, packageScripts),
     modules,
     projectMap: buildProjectMap(files, testFiles, risks, doNotRead, understanding),
     risks,

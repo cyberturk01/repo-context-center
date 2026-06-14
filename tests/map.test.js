@@ -152,6 +152,13 @@ function moduleSection(content, name) {
   return match[0];
 }
 
+function tableRow(content, firstCell) {
+  const escapedCell = firstCell.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = content.match(new RegExp(`\\| ${escapedCell} \\|[^\\n]+`));
+  assert.ok(match, `Expected table row ${firstCell}`);
+  return match[0];
+}
+
 test("map --dry-run prints proposed updates without writing", async () => {
   await withMappedRepo(async (tempDir) => {
     const targetPath = path.join(tempDir, "docs", "ai-context", "TASK_ROUTING.md");
@@ -448,16 +455,74 @@ test("map classifies Guardian-like repo files without fixture or metrics noise",
       assert.ok(!module.tests.some((file) => file.startsWith("tests/__snapshots__/")), module.name);
     }
 
-    assert.doesNotMatch(taskRouting, /tests\/fixtures|tests\/__snapshots__|tests\/fixtures\/context\.md/);
+    const normalRouting = taskRouting
+      .split(/\r?\n/)
+      .filter((line) => !line.includes("Test fixture/snapshot updates"))
+      .join("\n");
+    assert.doesNotMatch(normalRouting, /tests\/fixtures|tests\/__snapshots__|tests\/fixtures\/context\.md/);
     assert.doesNotMatch(moduleSection(moduleIndex, "Release workflow"), /tests\/fixtures|tests\/__snapshots__/);
     assert.doesNotMatch(moduleSection(moduleIndex, "Context docs"), /tests\/fixtures|tests\/__snapshots__/);
-    assert.match(moduleIndex, /## Test fixtures[\s\S]*`tests\/fixtures\/config\.test\.ts`/);
+    assert.match(moduleIndex, /## Tests \/ Fixtures[\s\S]*`tests\/fixtures\/config\.test\.ts`/);
     assert.match(moduleIndex, /## Release workflow[\s\S]*- Related tests: `tests\/integration\/release\.ts`\./);
     assert.match(moduleIndex, /## Context docs[\s\S]*`AGENTS\.md`/);
     assert.match(moduleIndex, /## Context docs[\s\S]*`docs\/ai-context\/TASK_ROUTING\.md`/);
     assert.match(moduleIndex, /## Context docs[\s\S]*`.repo-context-center\/config\.json`/);
     assert.match(moduleIndex, /## Context docs[\s\S]*- Related tests: none detected\./);
     assert.doesNotMatch(moduleIndex, /## Context docs[\s\S]*\.project-brain\/metrics/);
+  });
+});
+
+test("Guardian-like map prefers repository-specific modules and task routing", async () => {
+  await withGuardianLikeRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--write", "--json"]);
+    const data = JSON.parse(result.stdout);
+    const taskRouting = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "TASK_ROUTING.md"), "utf8"));
+    const moduleIndex = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "MODULE_INDEX.md"), "utf8"));
+
+    assert.equal(result.status, 0);
+    for (const label of [
+      "CLI",
+      "Configuration",
+      "Analyzers / Risk Rules",
+      "Renderers / Reports",
+      "Core / Orchestration",
+      "Repository scanning",
+      "Templates",
+      "Tests / Fixtures",
+      "Context docs",
+      "Release workflow"
+    ]) {
+      assert.ok(data.modules.some((module) => module.name === label), label);
+      assert.match(moduleIndex, new RegExp(`## ${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+    }
+
+    for (const taskType of [
+      "CLI flags/output",
+      "Config behavior",
+      "Analyzer/risk rule changes",
+      "Report rendering",
+      "Repository scanning/classification",
+      "Template/context generation",
+      "Test fixture/snapshot updates",
+      "GitHub Actions / release workflow"
+    ]) {
+      assert.match(taskRouting, new RegExp(`\\| ${taskType.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\|`));
+    }
+
+    assert.match(tableRow(taskRouting, "Repository scanning/classification"), /`src\/repo\/index\.ts`/);
+    assert.match(tableRow(taskRouting, "Template/context generation"), /`src\/project-brain\/index\.ts`|`templates\/deployment\/checklist\.md`/);
+
+    const normalModules = data.modules.filter((module) => module.name !== "Tests / Fixtures");
+    for (const module of normalModules) {
+      assert.ok(!module.primaryFiles.some((file) => file.startsWith("tests/fixtures/")), module.name);
+      assert.ok(!module.primaryFiles.some((file) => file.startsWith("tests/__snapshots__/")), module.name);
+    }
+
+    const normalRouting = taskRouting
+      .split(/\r?\n/)
+      .filter((line) => !line.includes("Test fixture/snapshot updates"))
+      .join("\n");
+    assert.doesNotMatch(normalRouting, /tests\/fixtures|tests\/__snapshots__/);
   });
 });
 
@@ -472,9 +537,6 @@ test("PROJECT_MAP.md uses real entrypoints and package scripts for Guardian-like
       "dist/cli/index.js",
       "src/cli/index.ts"
     ]);
-    assert.doesNotMatch(projectMap, /src\/analyzers\/index\.ts/);
-    assert.doesNotMatch(projectMap, /src\/repo\/index\.ts/);
-    assert.doesNotMatch(projectMap, /src\/project-brain\/index\.ts/);
     assert.match(projectMap, /### Startup \/ Entrypoints[\s\S]*`dist\/cli\/index\.js`[\s\S]*`src\/cli\/index\.ts`/);
     assert.deepEqual(data.projectMap.keyDirectories, [
       "`src/cli` - CLI commands and command entrypoints",
@@ -540,7 +602,7 @@ test("map keeps fixture security files out of auth primary files and task routin
     const taskRouting = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "TASK_ROUTING.md"), "utf8"));
     const moduleIndex = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "MODULE_INDEX.md"), "utf8"));
     const auth = moduleByName(data, "Auth/access");
-    const fixtures = moduleByName(data, "Test fixtures");
+    const fixtures = moduleByName(data, "Tests / Fixtures");
 
     assert.equal(result.status, 0);
     assert.ok(auth.primaryFiles.includes("src/analyzers/securityAnalyzer.ts"));
@@ -549,9 +611,13 @@ test("map keeps fixture security files out of auth primary files and task routin
     assert.ok(fixtures.primaryFiles.includes("tests/fixtures/project-brain/complete/.project-brain/security-rules.md"));
 
     assert.match(taskRouting, /Auth\/access \| `src\/analyzers\/securityAnalyzer\.ts`, `templates\/project-brain\/security-rules\.md`/);
-    assert.doesNotMatch(taskRouting, /tests\/fixtures\/project-brain\/complete\/\.project-brain\/security-rules\.md/);
+    const normalRouting = taskRouting
+      .split(/\r?\n/)
+      .filter((line) => !line.includes("Test fixture/snapshot updates"))
+      .join("\n");
+    assert.doesNotMatch(normalRouting, /tests\/fixtures\/project-brain\/complete\/\.project-brain\/security-rules\.md/);
     assert.doesNotMatch(moduleSection(moduleIndex, "Auth/access"), /tests\/fixtures\/project-brain\/complete\/\.project-brain\/security-rules\.md/);
-    assert.match(moduleSection(moduleIndex, "Test fixtures"), /tests\/fixtures\/project-brain\/complete\/\.project-brain\/security-rules\.md/);
+    assert.match(moduleSection(moduleIndex, "Tests / Fixtures"), /tests\/fixtures\/project-brain\/complete\/\.project-brain\/security-rules\.md/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

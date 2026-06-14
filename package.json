@@ -4,10 +4,20 @@
   "description": "A ContextOps toolkit for AI coding agents.",
   "keywords": [
     "ai",
+    "agent",
+    "ai-agent",
     "coding-agent",
+    "llm",
+    "llm-context",
     "context",
+    "context-engineering",
+    "repo-context",
+    "repository",
+    "developer-tools",
     "cli",
-    "repository"
+    "token-optimization",
+    "codex",
+    "claude-code"
   ],
   "author": "Gökhan Yigit",
   "license": "MIT",
