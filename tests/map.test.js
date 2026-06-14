@@ -8,6 +8,7 @@ const test = require("node:test");
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
 const generatedStart = "<!-- repo-context-center:generated:start -->";
+const generatedEnd = "<!-- repo-context-center:generated:end -->";
 
 function runCli(cwd, args) {
   return spawnSync(process.execPath, [cliPath, ...args], {
@@ -19,6 +20,17 @@ function runCli(cwd, args) {
 async function writeFixture(root, filePath, content) {
   await mkdir(path.dirname(path.join(root, filePath)), { recursive: true });
   await writeFile(path.join(root, filePath), content, "utf8");
+}
+
+function generatedSection(content) {
+  const start = content.indexOf(generatedStart);
+  const end = content.indexOf(generatedEnd);
+
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  assert.ok(end > start);
+
+  return content.slice(start, end + generatedEnd.length);
 }
 
 async function withMappedRepo(callback) {
@@ -96,6 +108,20 @@ test("map --write updates generated sections", async () => {
   });
 });
 
+test("TASK_ROUTING.md uses task-oriented rows instead of generic module fallback", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "TASK_ROUTING.md"), "utf8"));
+
+    assert.equal(result.status, 0);
+    assert.match(content, /\| Task Type \| Start With \| Then Check \| Tests \| Notes \|/);
+    assert.match(content, /\| CLI flags\/output \| `src\/cli\/index\.ts` \| core command handler, README examples, CLI tests \|/);
+    assert.match(content, /\| Auth\/access \| `src\/auth\/session\.ts` \| database\/session code, risk register, auth tests \|/);
+    assert.doesNotMatch(content, /src\/\.\.\.\s*\|\s*boundary\s*\|\s*task touches area/i);
+    assert.doesNotMatch(content, /\|\s*`?src\/[^|`]*`?\s*\|\s*boundary\s*\|\s*task touches (this )?area/i);
+  });
+});
+
 test("map preserves manual content outside generated markers", async () => {
   await withMappedRepo(async (tempDir) => {
     const targetPath = path.join(tempDir, "docs", "ai-context", "TASK_ROUTING.md");
@@ -107,6 +133,32 @@ test("map preserves manual content outside generated markers", async () => {
     assert.equal(result.status, 0);
     assert.match(content, /Manual note: keep this\./);
     assert.match(content, /repo-context-center:generated:start/);
+  });
+});
+
+test("map preserves manual content before and after generated markers", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const targetPath = path.join(tempDir, "docs", "ai-context", "MODULE_INDEX.md");
+    await writeFile(targetPath, [
+      "# Module Index",
+      "",
+      "Manual before marker.",
+      "",
+      generatedStart,
+      "old generated content",
+      generatedEnd,
+      "",
+      "Manual after marker."
+    ].join("\n"), "utf8");
+
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = await readFile(targetPath, "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /Manual before marker\./);
+    assert.match(content, /Manual after marker\./);
+    assert.match(generatedSection(content), /## Auth\/access/);
+    assert.doesNotMatch(content, /old generated content/);
   });
 });
 
@@ -155,6 +207,23 @@ test("MODULE_INDEX.md groups source and tests", async () => {
     assert.match(content, /`src\/auth\/session\.ts`/);
     assert.match(content, /`tests\/auth\/session\.test\.ts`/);
     assert.match(content, /- Risks: permission bypass, session handling regression\./);
+  });
+});
+
+test("MODULE_INDEX.md named module sections include required guidance fields", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "MODULE_INDEX.md"), "utf8"));
+
+    assert.equal(result.status, 0);
+    for (const section of ["CLI", "Configuration", "Auth/access"]) {
+      assert.match(content, new RegExp(`## ${section.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+    }
+
+    assert.match(content, /- Purpose:/);
+    assert.match(content, /- Primary files:/);
+    assert.match(content, /- Common tasks:/);
+    assert.match(content, /- Related tests:/);
   });
 });
 
@@ -209,6 +278,38 @@ test("DO_NOT_READ.md includes generated folders", async () => {
   });
 });
 
+test("DO_NOT_READ.md includes noisy generated and fixture areas", async () => {
+  await withMappedRepo(async (tempDir) => {
+    await writeFixture(tempDir, "src/__snapshots__/session.snap.ts", "export const snapshotSession = {};\n");
+    await writeFixture(tempDir, "src/fixtures/user.ts", "export function fixtureUser() { return {}; }\n");
+
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "DO_NOT_READ.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    for (const area of ["node_modules", "dist", "build", "coverage", ".next", "target", "snapshots", "__snapshots__", "fixtures", "package-lock.json"]) {
+      assert.match(content, new RegExp(area.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    }
+    assert.match(content, /`src\/__snapshots__\/`/);
+    assert.match(content, /`src\/fixtures\/`/);
+  });
+});
+
+test("SYMBOL_MAP.md avoids fixture snapshot and generated noise", async () => {
+  await withMappedRepo(async (tempDir) => {
+    await writeFixture(tempDir, "src/__snapshots__/session.snap.ts", "export function snapshotSession() { return {}; }\n");
+    await writeFixture(tempDir, "src/fixtures/user.ts", "export function fixtureUser() { return {}; }\n");
+
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "SYMBOL_MAP.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /`requireSession`/);
+    assert.doesNotMatch(content, /snapshotSession|fixtureUser/);
+    assert.doesNotMatch(content, /src\/__snapshots__|src\/fixtures|dist\//);
+  });
+});
+
 test("CHANGE_LOG.md records map generation", async () => {
   await withMappedRepo(async (tempDir) => {
     const result = runCli(tempDir, ["map", "--write"]);
@@ -217,6 +318,7 @@ test("CHANGE_LOG.md records map generation", async () => {
     assert.equal(result.status, 0);
     assert.match(content, /`repo-context-center map --write`/);
     assert.match(content, /generated repo-specific context map/);
+    assert.doesNotMatch(content, /release|released|published|deployed|version\s+0\./i);
   });
 });
 
@@ -228,6 +330,7 @@ test("LESSONS_LEARNED.md does not invent history", async () => {
     assert.equal(result.status, 0);
     assert.match(content, /No generated lessons yet\. Add stable lessons manually after repeated issues\./);
     assert.doesNotMatch(content, /2026-/);
+    assert.doesNotMatch(content, /fixed .* bug|discovered .* cause|root cause|auth .* issue|release .* failed/i);
   });
 });
 

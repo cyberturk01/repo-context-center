@@ -1109,7 +1109,8 @@ async function buildMapData(cwd: string, maxFiles: number): Promise<RepoMapData>
   const risks = buildRisks(files, testFiles, packageScripts);
   const dependencies = await buildDependencies(files, sourceFiles, testFiles);
   const symbolLimit = maxFiles === defaultMaxFiles ? 30 : Math.min(maxFiles, 30);
-  const symbols = await buildSymbols(cwd, sourceFiles.slice(0, maxFiles), symbolLimit);
+  const symbolSourceFiles = sourceFiles.filter((file) => !isFixtureOrSnapshotPath(file));
+  const symbols = await buildSymbols(cwd, symbolSourceFiles.slice(0, maxFiles), symbolLimit);
   const hotspots = await buildHotspots(cwd, files, sourceFiles, testFiles, risks, dependencies, packageScripts);
   const doNotRead = buildDoNotRead(files);
 
