@@ -4,6 +4,13 @@ A context layer for AI coding agents.
 
 `repo-context-center` installs a small set of repository instructions and context maps into a target repo so AI coding tools can find the right context faster and avoid rereading noisy files.
 
+Measure estimated context token savings before using the repo.
+
+```sh
+repo-context-center estimate --compare-naive
+repo-context-center estimate --task "fix Cypress test" --mode compact
+```
+
 It is not an AI agent. It is not a code analyzer. It does not understand your project automatically yet. It gives agents a durable place to store routing notes, module maps, risk notes, token guidance, and lessons learned.
 
 It is designed to work with Codex, Claude Code, Cursor, Copilot-style agents, and other tools that read repository instructions.
@@ -120,13 +127,15 @@ Estimate context overhead:
 
 ```sh
 repo-context-center estimate --compare-naive
-repo-context-center estimate --mode investigation --task "fix auth bug" --json
+repo-context-center estimate --task "fix Cypress test" --mode compact
 ```
 
 Token estimates use `ceil(characters / 4)`. They are rough planning numbers,
 not exact tokenizer output and not model billing estimates. The command is meant
 to help evaluate whether the context center is reducing broad repo reads enough
-to justify its own startup cost.
+to justify its own startup cost. In an empty repo, startup context can be zero
+until templates are installed; after `repo-context-center init`, default context
+files should produce a realistic non-zero startup estimate.
 
 ## Recommended AI Agent Workflow
 
