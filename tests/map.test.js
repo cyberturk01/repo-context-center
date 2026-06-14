@@ -80,6 +80,62 @@ async function withMappedRepo(callback) {
   }
 }
 
+async function withGuardianLikeRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-guardian-map-"));
+
+  try {
+    assert.equal(runCli(tempDir, ["init"]).status, 0);
+
+    const files = {
+      "package.json": JSON.stringify({
+        scripts: {
+          build: "tsc",
+          lint: "eslint .",
+          test: "node --test tests/*.test.js"
+        }
+      }, null, 2),
+      "src/cli/index.ts": "export function runCli() { return true; }\n",
+      "src/cli/commands/map.ts": "export function mapCommand() { return true; }\n",
+      "src/config/defaults.ts": "export const defaults = {};\n",
+      "src/core/config.ts": "export function loadConfig() { return {}; }\n",
+      "src/core/validator.ts": "export function validateConfig() { return true; }\n",
+      "guardian.config.json": "{}\n",
+      "examples/basic/guardian.config.json": "{}\n",
+      ".github/workflows/release.yml": "name: release\n",
+      ".github/workflows/ci.yml": "name: ci\n",
+      "src/release/deploymentAnalyzer.ts": "export function analyzeDeployment() { return true; }\n",
+      "docs/deployment/railway.md": "# Railway deployment\n",
+      "templates/deployment/checklist.md": "# Deployment checklist\n",
+      "AGENTS.md": "# Agents\n",
+      "docs/ai-context/TASK_ROUTING.md": "# Task Routing\n",
+      "docs/ai-context/MODULE_INDEX.md": "# Module Index\n",
+      "docs/ai-context/PROJECT_MAP.md": "# Project Map\n",
+      ".project-brain/metrics/latest.md": "# Metrics\n",
+      ".project-brain/metrics/history.json": "{}\n",
+      "tests/cli.test.js": "import '../src/cli/index';\n",
+      "tests/core/config.test.ts": "import '../../src/core/config';\n",
+      "tests/integration/release.ts": "import '../../src/release/deploymentAnalyzer';\n",
+      "tests/fixtures/config.test.ts": "fixture should not be a related test\n",
+      "tests/fixtures/context.md": "# fixture context\n",
+      "tests/__snapshots__/cli.test.js": "snapshot should not be a related test\n"
+    };
+
+    for (const [filePath, content] of Object.entries(files)) {
+      await writeFixture(tempDir, filePath, content);
+    }
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+function moduleByName(data, name) {
+  const module = data.modules.find((entry) => entry.name === name);
+  assert.ok(module, `Expected module ${name}`);
+  return module;
+}
+
 test("map --dry-run prints proposed updates without writing", async () => {
   await withMappedRepo(async (tempDir) => {
     const targetPath = path.join(tempDir, "docs", "ai-context", "TASK_ROUTING.md");
@@ -331,6 +387,59 @@ test("LESSONS_LEARNED.md does not invent history", async () => {
     assert.match(content, /No generated lessons yet\. Add stable lessons manually after repeated issues\./);
     assert.doesNotMatch(content, /2026-/);
     assert.doesNotMatch(content, /fixed .* bug|discovered .* cause|root cause|auth .* issue|release .* failed/i);
+  });
+});
+
+test("map classifies Guardian-like repo files without fixture or metrics noise", async () => {
+  await withGuardianLikeRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--write", "--json"]);
+    const data = JSON.parse(result.stdout);
+    const taskRouting = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "TASK_ROUTING.md"), "utf8"));
+    const moduleIndex = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "MODULE_INDEX.md"), "utf8"));
+
+    assert.equal(result.status, 0);
+
+    const config = moduleByName(data, "Configuration");
+    assert.deepEqual(config.primaryFiles.slice(0, 4), [
+      "src/config/defaults.ts",
+      "src/core/config.ts",
+      "guardian.config.json",
+      "examples/basic/guardian.config.json"
+    ]);
+    assert.ok(!config.primaryFiles.some((file) => file.startsWith(".github/workflows/")));
+
+    const release = moduleByName(data, "Release workflow");
+    assert.ok(release.primaryFiles.includes(".github/workflows/ci.yml"));
+    assert.ok(release.primaryFiles.includes(".github/workflows/release.yml"));
+    assert.ok(release.primaryFiles.includes("src/release/deploymentAnalyzer.ts"));
+    assert.ok(release.primaryFiles.some((file) => file.includes("deployment")));
+
+    const cli = moduleByName(data, "CLI");
+    assert.ok(cli.tests.includes("tests/cli.test.js"));
+
+    const context = moduleByName(data, "Context docs");
+    assert.deepEqual(context.primaryFiles.slice(0, 5), [
+      "AGENTS.md",
+      "docs/ai-context/TASK_ROUTING.md",
+      "docs/ai-context/MODULE_INDEX.md",
+      "docs/ai-context/PROJECT_MAP.md",
+      ".repo-context-center/config.json"
+    ]);
+    assert.ok(!context.primaryFiles.some((file) => file.startsWith(".project-brain/metrics/")));
+
+    for (const module of data.modules) {
+      assert.ok(!module.tests.some((file) => file.startsWith("tests/fixtures/")), module.name);
+      assert.ok(!module.tests.some((file) => file.startsWith("tests/__snapshots__/")), module.name);
+    }
+
+    assert.doesNotMatch(taskRouting, /tests\/fixtures|tests\/__snapshots__|tests\/fixtures\/context\.md/);
+    assert.doesNotMatch(moduleIndex, /tests\/fixtures|tests\/__snapshots__|tests\/fixtures\/context\.md/);
+    assert.match(moduleIndex, /## Release workflow[\s\S]*- Related tests: `tests\/integration\/release\.ts`\./);
+    assert.match(moduleIndex, /## Context docs[\s\S]*`AGENTS\.md`/);
+    assert.match(moduleIndex, /## Context docs[\s\S]*`docs\/ai-context\/TASK_ROUTING\.md`/);
+    assert.match(moduleIndex, /## Context docs[\s\S]*`.repo-context-center\/config\.json`/);
+    assert.match(moduleIndex, /## Context docs[\s\S]*- Related tests: none detected\./);
+    assert.doesNotMatch(moduleIndex, /## Context docs[\s\S]*\.project-brain\/metrics/);
   });
 });
 

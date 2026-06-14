@@ -162,6 +162,18 @@ function compactList(values: string[], fallback = "none", limit = 4): string {
   return list.length > 0 ? list.map((value) => `\`${value}\``).join(", ") : fallback;
 }
 
+function compactOrderedList(values: string[], fallback = "none", limit = 4): string {
+  const seen = new Set<string>();
+  const list = values.filter((value) => {
+    if (seen.has(value)) {
+      return false;
+    }
+    seen.add(value);
+    return true;
+  }).slice(0, limit);
+  return list.length > 0 ? list.map((value) => `\`${value}\``).join(", ") : fallback;
+}
+
 function compactPlainList(values: string[], fallback = "none", limit = 4): string {
   const list = uniqueSorted(values).slice(0, limit);
   return list.length > 0 ? list.join(", ") : fallback;
@@ -189,10 +201,13 @@ function pathHas(file: RepoFile, terms: string[]): boolean {
 }
 
 function isTestPath(filePath: string): boolean {
-  const parts = filePath.split("/");
-  return parts.some((part) => part.toLowerCase().includes("tests"))
-    || testRoots.includes(parts[0] ?? "")
-    || /\.(test|spec|cy)\.[^.]+$/i.test(filePath);
+  if (isFixtureOrSnapshotPath(filePath)) {
+    return false;
+  }
+
+  return /\.(test|spec)\.(ts|js)$/i.test(filePath)
+    || /(^|\/)(tests?|__tests__|e2e|cypress)\/.*integration.*\.(ts|js)$/i.test(filePath)
+    || /(^|\/)integration-tests?\/.*\.(ts|js)$/i.test(filePath);
 }
 
 function isSourcePath(filePath: string): boolean {
@@ -202,19 +217,21 @@ function isSourcePath(filePath: string): boolean {
 }
 
 function isContextPath(filePath: string): boolean {
-  return filePath === "AGENTS.md" || filePath.startsWith("docs/ai-context/") || filePath.startsWith(".project-brain/");
+  return filePath === "AGENTS.md"
+    || filePath.startsWith("docs/ai-context/")
+    || filePath === ".repo-context-center/config.json"
+    || filePath.startsWith(".project-brain/");
 }
 
 function isConfigPath(filePath: string): boolean {
-  return filePath === "package.json"
+  return filePath.startsWith("src/config/")
+    || /^src\/core\/config\.[^.]+$/.test(filePath)
+    || filePath === "guardian.config.json"
+    || /^examples\/[^/]+\/guardian\.config\.json$/.test(filePath)
+    || filePath === "package.json"
     || filePath === "package-lock.json"
     || filePath === "pnpm-lock.yaml"
-    || filePath === "yarn.lock"
-    || filePath === "Dockerfile"
-    || filePath === "docker-compose.yml"
-    || filePath === "railway.json"
-    || filePath === "vercel.json"
-    || filePath.startsWith(".github/workflows/");
+    || filePath === "yarn.lock";
 }
 
 function isLockfilePath(filePath: string): boolean {
@@ -238,6 +255,16 @@ function isGeneratedAsset(filePath: string): boolean {
 
 function isFixtureOrSnapshotPath(filePath: string): boolean {
   return /(^|\/)(__snapshots__|snapshots?|fixtures?)(\/|$)/i.test(filePath);
+}
+
+function isReleasePath(filePath: string): boolean {
+  return filePath.startsWith(".github/workflows/")
+    || /(^|\/)(deploy|deployment|release)[^/]*\.(ts|js|md|json|ya?ml)$/i.test(filePath)
+    || /(^|\/)(deploy|deployment|release)(\/|$)/i.test(filePath)
+    || filePath === "Dockerfile"
+    || filePath === "docker-compose.yml"
+    || filePath === "railway.json"
+    || filePath === "vercel.json";
 }
 
 async function walkRepo(cwd: string, maxFiles: number): Promise<RepoFile[]> {
@@ -270,7 +297,16 @@ async function walkRepo(cwd: string, maxFiles: number): Promise<RepoFile[]> {
       const normalized = normalizePath(relativePath);
 
       if (entry.isDirectory()) {
-        if (!excludedDirs.has(entry.name) && normalized !== "docs/ai-context/archive") {
+        if (normalized === ".repo-context-center") {
+          const configPath = ".repo-context-center/config.json";
+          if (await pathExists(path.join(cwd, configPath))) {
+            files.push({
+              path: configPath,
+              parts: configPath.split("/"),
+              ext: ".json"
+            });
+          }
+        } else if (!excludedDirs.has(entry.name) && normalized !== "docs/ai-context/archive") {
           await walk(normalized);
         }
       } else if (entry.isFile() && !isGeneratedAsset(normalized)) {
@@ -301,6 +337,103 @@ function findMatchingTestFiles(sourceFile: string, tests: string[]): string[] {
       .replace(/^(tests?|__tests__|cypress|e2e)\//, "");
     return testStem.endsWith(sourceStem) || path.posix.basename(testStem) === sourceBase;
   });
+}
+
+function findCategoryTestFiles(category: Category, tests: string[]): string[] {
+  const keyTerms: Record<string, string[]> = {
+    cli: ["cli", "command"],
+    config: ["config", "validator", "init"],
+    scanner: ["scan", "scanner", "symbol"],
+    risk: ["risk", "hotspot", "validate", "validator"],
+    reports: ["map", "report", "archive", "estimate", "suggest"],
+    auth: ["auth", "session", "security", "consent"],
+    database: ["db", "database", "migration"],
+    email: ["email", "mail", "message", "notification"],
+    business: ["coupon", "reward", "loyalty", "customer"],
+    "public-staff-pos": ["public", "staff", "pos", "qr"],
+    context: ["context", "template", "map", "validate"],
+    release: ["release", "deploy", "deployment", "workflow", "ci"]
+  };
+  const terms = keyTerms[category.key] ?? [];
+  return tests.filter((testFile) => {
+    const testWords = new Set(words(testFile));
+    return terms.some((term) => testWords.has(term));
+  });
+}
+
+function categoryRank(category: Category, filePath: string, hasAiContextDocs: boolean): number {
+  if (category.key === "config") {
+    if (filePath.startsWith("src/config/")) {
+      return 0;
+    }
+    if (/^src\/core\/config\.[^.]+$/.test(filePath)) {
+      return 1;
+    }
+    if (filePath === "guardian.config.json") {
+      return 2;
+    }
+    if (/^examples\/[^/]+\/guardian\.config\.json$/.test(filePath)) {
+      return 3;
+    }
+    return 9;
+  }
+
+  if (category.key === "context") {
+    if (filePath === "AGENTS.md") {
+      return 0;
+    }
+    if (filePath === "docs/ai-context/TASK_ROUTING.md") {
+      return 1;
+    }
+    if (filePath === "docs/ai-context/MODULE_INDEX.md") {
+      return 2;
+    }
+    if (filePath === "docs/ai-context/PROJECT_MAP.md") {
+      return 3;
+    }
+    if (filePath === ".repo-context-center/config.json") {
+      return 4;
+    }
+    if (filePath.startsWith("docs/ai-context/")) {
+      return 5;
+    }
+    if (filePath.startsWith(".project-brain/metrics/") && hasAiContextDocs) {
+      return 10;
+    }
+    if (filePath.startsWith(".project-brain/")) {
+      return 6;
+    }
+  }
+
+  if (category.key === "release") {
+    if (filePath.startsWith(".github/workflows/")) {
+      return 0;
+    }
+    if (/deploy|deployment|release/i.test(filePath) && sourceExtensions.has(path.extname(filePath).toLowerCase())) {
+      return 1;
+    }
+    if (/deploy|deployment|release/i.test(filePath) && /\.(md|json|ya?ml)$/i.test(filePath)) {
+      return 2;
+    }
+    return 3;
+  }
+
+  return 0;
+}
+
+function primaryFilesForCategory(files: RepoFile[], category: Category, limit: number): string[] {
+  const hasAiContextDocs = files.some((file) => file.path.startsWith("docs/ai-context/"));
+
+  return filesForCategory(files, category)
+    .filter((file) => !isTestPath(file.path))
+    .filter((file) => category.key === "release" || !isLockfilePath(file.path))
+    .filter((file) => category.key !== "context" || !file.path.startsWith(".project-brain/metrics/") || !hasAiContextDocs)
+    .sort((left, right) => {
+      const rankDiff = categoryRank(category, left.path, hasAiContextDocs) - categoryRank(category, right.path, hasAiContextDocs);
+      return rankDiff === 0 ? left.path.localeCompare(right.path) : rankDiff;
+    })
+    .map((file) => file.path)
+    .slice(0, limit);
 }
 
 function verificationFor(files: string[], tests: string[], packageScripts: Set<string>): string {
@@ -393,7 +526,7 @@ const categories: Category[] = [
     commonTasks: ["update temp repo setup", "change fixtures", "refresh expected docs"],
     thenCheck: ["affected tests", "generated docs", "do-not-read rules"],
     notes: "Fixture drift can hide broken routing or map output.",
-    match: (file) => isTestPath(file.path)
+    match: (file) => isFixtureOrSnapshotPath(file.path)
   },
   {
     key: "auth",
@@ -469,8 +602,7 @@ const categories: Category[] = [
     thenCheck: ["package scripts", "workflow files", "release docs"],
     notes: "Use Investigation Mode before changing deploy or release behavior.",
     riskWhy: "Workflow changes can block releases or deploy broken builds.",
-    match: (file) => file.path.startsWith(".github/workflows/")
-      || pathHas(file, ["docker", "railway", "vercel", "deploy", "release"])
+    match: (file) => isReleasePath(file.path)
   }
 ];
 
@@ -488,10 +620,25 @@ function relatedTests(sourceFiles: string[], testFiles: string[]): string[] {
   return uniqueSorted(sourceFiles.flatMap((file) => findMatchingTestFiles(file, testFiles)));
 }
 
+function testsForCategory(category: Category, primary: string[], testFiles: string[]): string[] {
+  if (category.key === "context" || category.key === "fixtures") {
+    return findCategoryTestFiles(category, testFiles);
+  }
+
+  return uniqueSorted([
+    ...relatedTests(primary, testFiles),
+    ...findCategoryTestFiles(category, testFiles)
+  ]);
+}
+
 function buildTaskRouting(files: RepoFile[], testFiles: string[], packageScripts: Set<string>): RepoMapRow[] {
   const hasProjectFiles = files.some((file) => !isContextPath(file.path));
 
   return categories.flatMap((category) => {
+    if (category.key === "fixtures") {
+      return [];
+    }
+
     if (category.key === "context" && !hasProjectFiles) {
       return [];
     }
@@ -501,19 +648,15 @@ function buildTaskRouting(files: RepoFile[], testFiles: string[], packageScripts
       return [];
     }
 
-    const primary = matches
-      .filter((file) => !isTestPath(file.path))
-      .filter((file) => category.key === "release" || !isLockfilePath(file.path))
-      .map((file) => file.path)
-      .slice(0, 4);
-    const tests = relatedTests(primary, testFiles);
+    const primary = primaryFilesForCategory(files, category, 4);
+    const tests = testsForCategory(category, primary, testFiles);
     const inspect = primary.length > 0 ? primary : matches.map((file) => file.path).slice(0, 4);
 
     return [{
       "Task Type": category.taskType,
       "Start With": compactList(inspect),
       "Then Check": category.thenCheck.join(", "),
-      Tests: compactList(tests, packageScripts.has("test") ? "`npm test`" : "focused manual review", 3),
+      Tests: compactList(tests, "none detected", 3),
       Notes: category.notes
     }];
   });
@@ -524,22 +667,20 @@ function buildModules(files: RepoFile[], testFiles: string[], maxModules = 12): 
 
   return categories
     .map((category) => {
+      if (category.key === "fixtures") {
+        return undefined;
+      }
+
       if (category.key === "context" && !hasProjectFiles) {
         return undefined;
       }
 
-      const primary = filesForCategory(files, category)
-        .filter((file) => !isTestPath(file.path))
-        .filter((file) => category.key === "release" || !isLockfilePath(file.path))
-        .map((file) => file.path)
-        .slice(0, 5);
+      const primary = primaryFilesForCategory(files, category, 5);
       if (primary.length === 0 && category.key !== "fixtures") {
         return undefined;
       }
 
-      const moduleTests = category.key === "fixtures"
-        ? filesForCategory(files, category).map((file) => file.path).slice(0, 5)
-        : relatedTests(primary, testFiles).slice(0, 5);
+      const moduleTests = testsForCategory(category, primary, testFiles).slice(0, 5);
 
       if (primary.length === 0 && moduleTests.length === 0) {
         return undefined;
@@ -828,7 +969,10 @@ function buildProjectMap(files: RepoFile[], testFiles: string[], risks: RepoRisk
       || file.path === "package.json")
     .map((file) => file.path)
     .slice(0, 8);
-  const config = files.filter((file) => isConfigPath(file.path)).map((file) => file.path).slice(0, 8);
+  const configCategory = categories.find((category) => category.key === "config");
+  const config = configCategory
+    ? primaryFilesForCategory(files, configCategory, 8)
+    : files.filter((file) => isConfigPath(file.path)).map((file) => file.path).slice(0, 8);
   const cliEntrypoints = entrypoints.filter((file) => file.startsWith("src/cli/"));
   const coreEntrypoints = files.filter((file) => file.path.startsWith("src/core/")).map((file) => file.path).slice(0, 4);
 
@@ -973,9 +1117,9 @@ function renderModules(data: RepoMapData): string {
   return data.modules.map((module) => [
     `## ${module.name}`,
     `- Purpose: ${module.purpose}.`,
-    `- Primary files: ${compactList(module.primaryFiles)}.`,
+    `- Primary files: ${compactOrderedList(module.primaryFiles, "none", module.name === "Context docs" ? 5 : 4)}.`,
     `- Common tasks: ${module.commonTasks.join(", ")}.`,
-    `- Related tests: ${compactList(module.tests)}.`,
+    `- Related tests: ${compactList(module.tests, "none detected")}.`,
     `- Dependency hints: ${compactPlainList(module.dependencies)}.`,
     `- Risks: ${compactPlainList(module.risks)}.`
   ].join("\n")).join("\n\n");
