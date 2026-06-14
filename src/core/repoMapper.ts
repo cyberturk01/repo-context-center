@@ -50,6 +50,11 @@ export interface RepoHotspot {
   checks: string[];
 }
 
+export interface RepoFirstFilesGroup {
+  taskArea: string;
+  files: string[];
+}
+
 export type RepoUnderstandingLevel = "High" | "Medium" | "Low";
 
 export interface RepoUnderstandingQuality {
@@ -65,6 +70,7 @@ export interface RepoMapData {
   root: string;
   generatedAt: string;
   filesScanned: number;
+  firstFiles: RepoFirstFilesGroup[];
   taskRouting: RepoMapRow[];
   modules: RepoModule[];
   projectMap: {
@@ -746,6 +752,169 @@ function testsForCategory(category: Category, primary: string[], testFiles: stri
   ]);
 }
 
+interface FirstFilesDefinition {
+  taskArea: string;
+  categoryKey: string;
+  primary: RegExp[];
+  related: RegExp[];
+  helper: RegExp[];
+  tests: RegExp[];
+}
+
+const firstFilesDefinitions: FirstFilesDefinition[] = [
+  {
+    taskArea: "CLI behavior",
+    categoryKey: "cli",
+    primary: [/^src\/cli\/index\./, /^src\/cli\/commands\//],
+    related: [/^src\/core\/guardian\./, /^src\/core\/repoMapper\./, /^src\/core\/config\./, /^src\/config\//],
+    helper: [/^src\/renderers\//],
+    tests: [/^tests\/cli\.(test|spec)\./, /(^|\/)cli\.(test|spec)\./]
+  },
+  {
+    taskArea: "Configuration",
+    categoryKey: "config",
+    primary: [/^src\/config\//, /^src\/core\/config\./],
+    related: [/^src\/core\/validator\./, /^src\/core\/templateInstaller\./, /^guardian\.config\.json$/],
+    helper: [/^examples\/[^/]+\/guardian\.config\.json$/],
+    tests: [/config\.(test|spec)\./, /validator\.(test|spec)\./]
+  },
+  {
+    taskArea: "Analyzer / risk scoring",
+    categoryKey: "analyzers",
+    primary: [/^src\/analyzers\//],
+    related: [/^src\/core\/validator\./, /^src\/core\/.*risk/i],
+    helper: [/hotspot|score|rule|security/i],
+    tests: [/analy[sz]er\.(test|spec)\./, /risk\.(test|spec)\./, /security\.(test|spec)\./]
+  },
+  {
+    taskArea: "Report rendering",
+    categoryKey: "reports",
+    primary: [/^src\/renderers\//],
+    related: [/^src\/core\/repoMapper\./],
+    helper: [/^src\/cli\/commands\/(map|suggest|estimate|archive)\./],
+    tests: [/(map|report|archive|estimate|suggest)\.(test|spec)\./]
+  },
+  {
+    taskArea: "Repository scanning / classification",
+    categoryKey: "scanner",
+    primary: [/^src\/repo\//, /^src\/core\/scanner\./],
+    related: [/^src\/core\/fileSystem\./, /^src\/core\/contextFiles\./],
+    helper: [/symbol/i],
+    tests: [/(scan|scanner|symbols?)\.(test|spec)\./]
+  },
+  {
+    taskArea: "Template / context generation",
+    categoryKey: "templates",
+    primary: [/^src\/templates\//, /^src\/core\/templateInstaller\./],
+    related: [/^templates\//],
+    helper: [/^src\/project-brain\//],
+    tests: [/(template|init)\.(test|spec)\./]
+  },
+  {
+    taskArea: "CI / release workflow",
+    categoryKey: "release",
+    primary: [/^\.github\/workflows\//],
+    related: [/^src\/.*(?:release|deploy|deployment).*\.([cm]?js|jsx|tsx?|mjs)$/i],
+    helper: [/^package\.json$/],
+    tests: [/release\.(test|spec)\./, /integration\/release\./]
+  },
+  {
+    taskArea: "Tests / fixtures",
+    categoryKey: "fixtures",
+    primary: [/^tests?\//, /^__tests__\//],
+    related: [/fixtures?/i],
+    helper: [/__snapshots__|snapshots?/i],
+    tests: [/\.(test|spec)\./]
+  }
+];
+
+function matchesAny(filePath: string, patterns: RegExp[]): boolean {
+  return patterns.some((pattern) => pattern.test(filePath));
+}
+
+function isGeneratedOrIgnoredNavigationPath(filePath: string): boolean {
+  return filePath.startsWith("docs/ai-context/")
+    || filePath.startsWith(".project-brain/metrics/")
+    || filePath === ".repo-context-center/config.json"
+    || filePath === "package-lock.json"
+    || filePath === "pnpm-lock.yaml"
+    || filePath === "yarn.lock"
+    || filePath.split("/").some((part) => excludedDirs.has(part));
+}
+
+function isNormalFirstFileCandidate(filePath: string): boolean {
+  return !isGeneratedOrIgnoredNavigationPath(filePath) && !isFixtureOrSnapshotPath(filePath);
+}
+
+function uniqueOrdered(values: string[]): string[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    if (seen.has(value)) {
+      return false;
+    }
+    seen.add(value);
+    return true;
+  });
+}
+
+function filesByPatternOrder(paths: string[], patterns: RegExp[]): string[] {
+  return patterns.flatMap((pattern) => paths.filter((file) => pattern.test(file)));
+}
+
+function rankedFirstFiles(definition: FirstFilesDefinition, paths: string[], testFiles: string[]): string[] {
+  const normalPaths = definition.categoryKey === "fixtures"
+    ? paths
+    : paths.filter(isNormalFirstFileCandidate);
+  const primarySource = definition.categoryKey === "fixtures"
+    ? normalPaths.filter((file) => !isFixtureOrSnapshotPath(file) && isTestPath(file))
+    : filesByPatternOrder(normalPaths, definition.primary);
+  const related = filesByPatternOrder(normalPaths, definition.related);
+  const helper = filesByPatternOrder(normalPaths, definition.helper);
+  const tests = filesByPatternOrder(testFiles, definition.tests);
+  const fixtureOrSnapshot = definition.categoryKey === "fixtures"
+    ? paths.filter(isFixtureOrSnapshotPath)
+    : [];
+
+  if (definition.categoryKey === "fixtures") {
+    return uniqueOrdered([
+      ...primarySource.slice(0, 2),
+      ...fixtureOrSnapshot,
+      ...tests
+    ]).slice(0, 4);
+  }
+
+  return uniqueOrdered([
+    ...primarySource,
+    ...related,
+    ...helper,
+    ...tests,
+    ...fixtureOrSnapshot
+  ]).slice(0, 4);
+}
+
+function buildFirstFiles(files: RepoFile[], understanding: RepositoryUnderstanding): RepoFirstFilesGroup[] {
+  const paths = files.map((file) => file.path);
+
+  return firstFilesDefinitions.flatMap((definition) => {
+    const category = categories.find((entry) => entry.key === definition.categoryKey);
+    const categoryMatches = category
+      ? filesForCategory(files, category).map((file) => file.path)
+      : [];
+    const patternMatches = paths.filter((file) =>
+      matchesAny(file, [...definition.primary, ...definition.related, ...definition.helper])
+    );
+    const tests = understanding.testFiles.filter((file) => matchesAny(file, definition.tests));
+    const candidates = uniqueSorted([...categoryMatches, ...patternMatches, ...tests]);
+    const selected = rankedFirstFiles(definition, candidates, understanding.testFiles);
+
+    if (selected.length === 0) {
+      return [] as RepoFirstFilesGroup[];
+    }
+
+    return [{ taskArea: definition.taskArea, files: selected }];
+  });
+}
+
 function buildTaskRouting(files: RepoFile[], understanding: RepositoryUnderstanding, packageScripts: Set<string>): RepoMapRow[] {
   const hasProjectFiles = files.some((file) => !isContextPath(file.path));
   const testFiles = understanding.testFiles;
@@ -1374,7 +1543,18 @@ function sanitizeGenericPlaceholders(existing: string | undefined): string | und
 }
 
 function renderTaskRouting(data: RepoMapData): string {
-  return table(["Task Type", "Start With", "Then Check", "Tests", "Notes"], data.taskRouting);
+  const firstFiles = table(["Task Area", "Open First"], data.firstFiles.map((group) => ({
+    "Task Area": group.taskArea,
+    "Open First": compactOrderedList(group.files, "none detected", 4)
+  })));
+
+  return [
+    "### First Files to Open",
+    firstFiles,
+    "",
+    "### Task Routing",
+    table(["Task Type", "Start With", "Then Check", "Tests", "Notes"], data.taskRouting)
+  ].join("\n");
 }
 
 function renderModules(data: RepoMapData): string {
@@ -1543,6 +1723,7 @@ async function buildMapData(cwd: string, maxFiles: number): Promise<RepoMapData>
     root: cwd,
     generatedAt: todayIso(),
     filesScanned: files.length,
+    firstFiles: buildFirstFiles(files, understanding),
     taskRouting: buildTaskRouting(files, understanding, packageScripts),
     modules,
     projectMap: buildProjectMap(files, testFiles, risks, doNotRead, understanding),
