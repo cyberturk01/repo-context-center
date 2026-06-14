@@ -90,7 +90,9 @@ test("map --write updates generated sections", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Updated files:/);
     assert.match(taskRouting, /repo-context-center:generated:start/);
-    assert.match(taskRouting, /CLI argument parsing/);
+    assert.match(taskRouting, /\| Task Type \| Start With \| Then Check \| Tests \| Notes \|/);
+    assert.match(taskRouting, /CLI flags\/output/);
+    assert.match(taskRouting, /`src\/cli\/index\.ts`/);
   });
 });
 
@@ -116,6 +118,7 @@ test("TASK_ROUTING.md includes real repo files only", async () => {
     assert.equal(result.status, 0);
     assert.match(content, /`src\/auth\/session\.ts`/);
     assert.match(content, /`src\/cli\/index\.ts`/);
+    assert.match(content, /Auth\/access \| `src\/auth\/session\.ts`/);
     assert.doesNotMatch(content, /path\/or\/flow/);
     assert.doesNotMatch(content, /src\/missing/);
   });
@@ -147,9 +150,26 @@ test("MODULE_INDEX.md groups source and tests", async () => {
     const content = await readFile(path.join(tempDir, "docs", "ai-context", "MODULE_INDEX.md"), "utf8");
 
     assert.equal(result.status, 0);
-    assert.match(content, /Auth\/access/);
+    assert.match(content, /## Auth\/access/);
+    assert.match(content, /- Purpose: Authentication, sessions, roles, and permissions\./);
     assert.match(content, /`src\/auth\/session\.ts`/);
     assert.match(content, /`tests\/auth\/session\.test\.ts`/);
+    assert.match(content, /- Risks: permission bypass, session handling regression\./);
+  });
+});
+
+test("PROJECT_MAP.md describes purpose, flow, tests, and ignored areas", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "PROJECT_MAP.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /### Main Purpose/);
+    assert.match(content, /Repository Context Center CLI/);
+    assert.match(content, /### Main Execution Flow/);
+    assert.match(content, /`src\/cli\/index\.ts`/);
+    assert.match(content, /### Generated \/ Ignored Areas/);
+    assert.match(content, /`docs\/ai-context\/archive\/`/);
   });
 });
 
@@ -200,6 +220,17 @@ test("CHANGE_LOG.md records map generation", async () => {
   });
 });
 
+test("LESSONS_LEARNED.md does not invent history", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "LESSONS_LEARNED.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /No generated lessons yet\. Add stable lessons manually after repeated issues\./);
+    assert.doesNotMatch(content, /2026-/);
+  });
+});
+
 test("map --json contains structured mapping data", async () => {
   await withMappedRepo(async (tempDir) => {
     const result = runCli(tempDir, ["map", "--json", "--max-files", "50"]);
@@ -214,6 +245,7 @@ test("map --json contains structured mapping data", async () => {
     assert.ok(Array.isArray(data.hotspots));
     assert.ok(data.dependencies.some((dependency) => dependency.from === "src/auth/session.ts"));
     assert.ok(data.symbols.some((symbol) => symbol.symbol === "requireSession"));
+    assert.ok(data.symbols.length <= 30);
   });
 });
 

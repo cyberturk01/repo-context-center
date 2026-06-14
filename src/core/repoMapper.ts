@@ -20,6 +20,8 @@ export interface RepoModule {
   primaryFiles: string[];
   commonTasks: string[];
   tests: string[];
+  dependencies: string[];
+  risks: string[];
 }
 
 export interface RepoRisk {
@@ -54,10 +56,13 @@ export interface RepoMapData {
   taskRouting: RepoMapRow[];
   modules: RepoModule[];
   projectMap: {
-    coreShape: string[];
+    purpose: string;
+    keyDirectories: string[];
     entrypoints: string[];
     config: string[];
     tests: string[];
+    executionFlow: string[];
+    ignoredAreas: string[];
     productionCriticalFlows: RepoMapRow[];
   };
   risks: RepoRisk[];
@@ -94,6 +99,8 @@ interface Category {
   taskType: string;
   purpose: string;
   commonTasks: string[];
+  thenCheck: string[];
+  notes: string;
   riskWhy?: string;
   match: (file: RepoFile) => boolean;
 }
@@ -120,7 +127,11 @@ const baseDoNotRead = [
   "coverage",
   ".next",
   "target",
-  "docs/ai-context/archive"
+  "docs/ai-context/archive",
+  "snapshots",
+  "__snapshots__",
+  "fixtures",
+  "package-lock.json"
 ];
 const generatedExtensions = new Set([
   ".gif",
@@ -149,6 +160,11 @@ function uniqueSorted(values: string[]): string[] {
 function compactList(values: string[], fallback = "none", limit = 4): string {
   const list = uniqueSorted(values).slice(0, limit);
   return list.length > 0 ? list.map((value) => `\`${value}\``).join(", ") : fallback;
+}
+
+function compactPlainList(values: string[], fallback = "none", limit = 4): string {
+  const list = uniqueSorted(values).slice(0, limit);
+  return list.length > 0 ? list.join(", ") : fallback;
 }
 
 function normalizePath(filePath: string): string {
@@ -201,6 +217,10 @@ function isConfigPath(filePath: string): boolean {
     || filePath.startsWith(".github/workflows/");
 }
 
+function isLockfilePath(filePath: string): boolean {
+  return filePath === "package-lock.json" || filePath === "pnpm-lock.yaml" || filePath === "yarn.lock";
+}
+
 function isDatabasePath(filePath: string): boolean {
   return filePath.startsWith("db/")
     || filePath.startsWith("migrations/")
@@ -214,6 +234,10 @@ function isPublicPath(filePath: string): boolean {
 
 function isGeneratedAsset(filePath: string): boolean {
   return generatedExtensions.has(path.extname(filePath).toLowerCase()) || /\.min\.[^.]+$/i.test(filePath);
+}
+
+function isFixtureOrSnapshotPath(filePath: string): boolean {
+  return /(^|\/)(__snapshots__|snapshots?|fixtures?)(\/|$)/i.test(filePath);
 }
 
 async function walkRepo(cwd: string, maxFiles: number): Promise<RepoFile[]> {
@@ -312,51 +336,63 @@ const categories: Category[] = [
   {
     key: "cli",
     label: "CLI",
-    taskType: "CLI argument parsing",
+    taskType: "CLI flags/output",
     purpose: "Command parsing and user-facing output",
-    commonTasks: ["commands", "arguments", "output"],
+    commonTasks: ["add flags", "adjust help text", "change stdout/stderr", "set exit codes"],
+    thenCheck: ["core command handler", "README examples", "CLI tests"],
+    notes: "Keep output stable for tests and scripts.",
     match: (file) => file.path.startsWith("src/cli/")
   },
   {
     key: "config",
     label: "Configuration",
-    taskType: "Configuration loading/validation",
+    taskType: "Config behavior",
     purpose: "Project configuration and setup rules",
-    commonTasks: ["config", "validation", "setup"],
+    commonTasks: ["change defaults", "validate config", "install templates", "update setup rules"],
+    thenCheck: ["template installer", "validator", "init tests"],
+    notes: "Preserve existing user files unless force behavior is explicit.",
     riskWhy: "Config mistakes can misroute agent work or break validation.",
     match: (file) => isConfigPath(file.path) || pathHas(file, ["config", "validate", "validator"])
   },
   {
     key: "scanner",
     label: "Repository scanning",
-    taskType: "Repository scanning",
+    taskType: "File scanning/classification",
     purpose: "Repo inspection and lightweight analysis",
-    commonTasks: ["scan", "file discovery", "symbols"],
+    commonTasks: ["classify files", "ignore generated areas", "detect symbols", "match tests"],
+    thenCheck: ["context file rules", "symbol map output", "scan tests"],
+    notes: "Avoid full source reads except bounded symbol extraction.",
     match: (file) => pathHas(file, ["scan", "scanner", "symbol", "symbols"])
   },
   {
     key: "risk",
     label: "Risk rules",
-    taskType: "Risk rule evaluation",
+    taskType: "Rule/scoring changes",
     purpose: "Risk, validation, and hotspot guidance",
-    commonTasks: ["risk", "warnings", "checks"],
+    commonTasks: ["change warnings", "adjust risk rows", "score context quality"],
+    thenCheck: ["validator", "hotspots", "risk register tests"],
+    notes: "Risk wording affects future agent read order.",
     riskWhy: "Risk guidance affects what agents inspect before changes.",
     match: (file) => pathHas(file, ["risk", "hotspot", "validate", "validator", "security"])
   },
   {
     key: "reports",
     label: "Report generation",
-    taskType: "Report generation",
+    taskType: "Report output",
     purpose: "Generated CLI reports and markdown output",
-    commonTasks: ["formatting", "markdown", "json"],
+    commonTasks: ["format markdown", "format JSON", "preserve generated markers", "summarize map output"],
+    thenCheck: ["renderers", "snapshot-like tests", "README examples"],
+    notes: "Keep generated sections deterministic.",
     match: (file) => pathHas(file, ["archive", "estimate", "suggest", "map", "report"])
   },
   {
     key: "fixtures",
     label: "Test fixtures",
-    taskType: "Test fixtures",
+    taskType: "Test fixture updates",
     purpose: "Test data, temp repos, and fixtures",
-    commonTasks: ["fixtures", "test setup", "coverage"],
+    commonTasks: ["update temp repo setup", "change fixtures", "refresh expected docs"],
+    thenCheck: ["affected tests", "generated docs", "do-not-read rules"],
+    notes: "Fixture drift can hide broken routing or map output.",
     match: (file) => isTestPath(file.path)
   },
   {
@@ -365,8 +401,10 @@ const categories: Category[] = [
     taskType: "Auth/access",
     purpose: "Authentication, sessions, roles, and permissions",
     commonTasks: ["auth", "access", "sessions"],
+    thenCheck: ["database/session code", "risk register", "auth tests"],
+    notes: "Use Investigation Mode.",
     riskWhy: "Auth changes can expose accounts or bypass permissions.",
-    match: (file) => pathHas(file, ["auth", "session", "token", "password", "permission", "role", "security"])
+    match: (file) => pathHas(file, ["auth", "session", "password", "permission", "role", "security", "consent"])
   },
   {
     key: "database",
@@ -374,6 +412,8 @@ const categories: Category[] = [
     taskType: "Database/migrations",
     purpose: "Persistence, schema, and migrations",
     commonTasks: ["schema", "migration", "data"],
+    thenCheck: ["data callers", "migration tests", "rollback notes"],
+    notes: "Use Investigation Mode for production data changes.",
     riskWhy: "Schema changes can lose data or break production deploys.",
     match: (file) => isDatabasePath(file.path)
   },
@@ -383,6 +423,8 @@ const categories: Category[] = [
     taskType: "Email/messaging",
     purpose: "Email, messages, notifications, and campaigns",
     commonTasks: ["delivery", "templates", "queues"],
+    thenCheck: ["queue boundaries", "template tests", "delivery guards"],
+    notes: "Check duplicate-send and incorrect-recipient risks.",
     riskWhy: "Messaging changes can send incorrect or duplicate communication.",
     match: (file) => pathHas(file, ["email", "mail", "message", "notification", "campaign"])
   },
@@ -392,6 +434,8 @@ const categories: Category[] = [
     taskType: "Coupon/reward/loyalty",
     purpose: "Coupon, reward, customer, and loyalty behavior",
     commonTasks: ["business rules", "eligibility", "redemption"],
+    thenCheck: ["service rules", "public/staff callers", "business tests"],
+    notes: "Check accounting, eligibility, and duplicate-use cases.",
     riskWhy: "Business rules can affect customer value or owner accounting.",
     match: (file) => pathHas(file, ["coupon", "reward", "loyalty", "referral", "visit", "contact", "customer"])
   },
@@ -401,15 +445,19 @@ const categories: Category[] = [
     taskType: "Staff/POS/public flows",
     purpose: "Public, staff, owner, POS, and QR flows",
     commonTasks: ["public UI", "staff workflow", "POS"],
+    thenCheck: ["role checks", "route handlers", "e2e tests"],
+    notes: "User-visible and often role-sensitive.",
     riskWhy: "Public and staff flows are user-visible and often role-sensitive.",
     match: (file) => isPublicPath(file.path) || pathHas(file, ["owner", "staff", "pos", "qr", "public"])
   },
   {
     key: "context",
     label: "Context docs",
-    taskType: "Context docs / agent workflow",
+    taskType: "Context doc updates",
     purpose: "Agent routing, context maps, and workflow notes",
-    commonTasks: ["context updates", "agent workflow", "docs"],
+    commonTasks: ["update routing", "refresh maps", "preserve manual notes"],
+    thenCheck: ["templates", "map tests", "validator"],
+    notes: "Keep generated content compact and factual.",
     match: (file) => isContextPath(file.path)
   },
   {
@@ -418,6 +466,8 @@ const categories: Category[] = [
     taskType: "GitHub Actions / release workflow",
     purpose: "CI, deployment, and release configuration",
     commonTasks: ["CI", "deployment", "release"],
+    thenCheck: ["package scripts", "workflow files", "release docs"],
+    notes: "Use Investigation Mode before changing deploy or release behavior.",
     riskWhy: "Workflow changes can block releases or deploy broken builds.",
     match: (file) => file.path.startsWith(".github/workflows/")
       || pathHas(file, ["docker", "railway", "vercel", "deploy", "release"])
@@ -453,15 +503,18 @@ function buildTaskRouting(files: RepoFile[], testFiles: string[], packageScripts
 
     const primary = matches
       .filter((file) => !isTestPath(file.path))
+      .filter((file) => category.key === "release" || !isLockfilePath(file.path))
       .map((file) => file.path)
       .slice(0, 4);
     const tests = relatedTests(primary, testFiles);
     const inspect = primary.length > 0 ? primary : matches.map((file) => file.path).slice(0, 4);
 
     return [{
-      "Task type": category.taskType,
-      "Inspect first": compactList(inspect),
-      "Focused verification": verificationFor(inspect, tests, packageScripts)
+      "Task Type": category.taskType,
+      "Start With": compactList(inspect),
+      "Then Check": category.thenCheck.join(", "),
+      Tests: compactList(tests, packageScripts.has("test") ? "`npm test`" : "focused manual review", 3),
+      Notes: category.notes
     }];
   });
 }
@@ -477,6 +530,7 @@ function buildModules(files: RepoFile[], testFiles: string[], maxModules = 12): 
 
       const primary = filesForCategory(files, category)
         .filter((file) => !isTestPath(file.path))
+        .filter((file) => category.key === "release" || !isLockfilePath(file.path))
         .map((file) => file.path)
         .slice(0, 5);
       if (primary.length === 0 && category.key !== "fixtures") {
@@ -496,7 +550,9 @@ function buildModules(files: RepoFile[], testFiles: string[], maxModules = 12): 
         purpose: category.purpose,
         primaryFiles: primary,
         commonTasks: category.commonTasks,
-        tests: moduleTests
+        tests: moduleTests,
+        dependencies: dependencyHintsForCategory(category.key, files).slice(0, 5),
+        risks: riskHintsForCategory(category.key, primary).slice(0, 4)
       };
     })
     .filter((module): module is RepoModule => module !== undefined)
@@ -504,103 +560,156 @@ function buildModules(files: RepoFile[], testFiles: string[], maxModules = 12): 
 }
 
 function buildRisks(files: RepoFile[], testFiles: string[], packageScripts: Set<string>): RepoRisk[] {
-  return categories.flatMap((category) => {
-    if (!category.riskWhy) {
-      return [];
+  const hasProjectFiles = files.some((file) => !isContextPath(file.path));
+  const detected = categories.flatMap((category) => {
+    if (category.key === "context" && !hasProjectFiles) {
+      return [] as RepoRisk[];
+    }
+
+    const defaultRisk = defaultRiskForCategory(category.key);
+    const riskWhy = category.riskWhy ?? defaultRisk;
+    if (!riskWhy) {
+      return [] as RepoRisk[];
     }
 
     const matches = filesForCategory(files, category)
       .filter((file) => !isTestPath(file.path))
       .map((file) => file.path);
     if (matches.length === 0) {
-      return [];
+      return [] as RepoRisk[];
     }
 
     return [{
       area: `${category.label}: ${compactList(matches, "none", 3)}`,
-      why: category.riskWhy,
+      why: riskWhy,
       checks: verificationFor(matches, relatedTests(matches, testFiles), packageScripts).split("; ")
     }];
   });
-}
 
-function importSpecifiers(content: string): string[] {
-  const imports: string[] = [];
-  const patterns = [
-    /\bimport\s+(?:[^'"]+\s+from\s+)?["']([^"']+)["']/g,
-    /\bexport\s+[^'"]+\s+from\s+["']([^"']+)["']/g,
-    /\brequire\(["']([^"']+)["']\)/g
-  ];
-
-  for (const pattern of patterns) {
-    let match: RegExpExecArray | null;
-    while ((match = pattern.exec(content)) !== null) {
-      imports.push(match[1]);
-    }
+  const fixtureFiles = files.filter((file) => isFixtureOrSnapshotPath(file.path) || isTestPath(file.path)).map((file) => file.path);
+  if (fixtureFiles.length > 0) {
+    detected.push({
+      area: `Fixture/snapshot drift: ${compactList(fixtureFiles, "none", 3)}`,
+      why: "Fixtures and expected output can drift from generated map behavior.",
+      checks: verificationFor(fixtureFiles, fixtureFiles.filter(isTestPath), packageScripts).split("; ")
+    });
   }
 
-  return imports;
+  return detected.slice(0, 14);
 }
 
-function resolveLocalImport(fromFile: string, specifier: string, sourceFileSet: Set<string>): string | undefined {
-  if (!specifier.startsWith(".")) {
-    return undefined;
-  }
-
-  const base = path.posix.normalize(path.posix.join(path.posix.dirname(fromFile), specifier));
-  const candidates = [
-    base,
-    `${base}.ts`,
-    `${base}.tsx`,
-    `${base}.js`,
-    `${base}.jsx`,
-    `${base}/index.ts`,
-    `${base}/index.tsx`,
-    `${base}/index.js`,
-    `${base}/index.jsx`
-  ];
-
-  return candidates.find((candidate) => sourceFileSet.has(candidate));
+function defaultRiskForCategory(key: string): string | undefined {
+  const risks: Record<string, string> = {
+    cli: "CLI behavior changes can break scripts, help text, JSON output, or exit codes.",
+    scanner: "File classification changes can cause future agents to read too much or miss important files.",
+    reports: "Report rendering changes can break generated markdown, JSON consumers, or marker preservation.",
+    fixtures: "Fixture changes can make tests pass while real map output gets worse.",
+    context: "Context doc changes affect future agent routing and token use.",
+    release: "CI or workflow changes can block validation or release broken packages."
+  };
+  return risks[key];
 }
 
-async function buildDependencies(cwd: string, sourceFiles: string[], maxFiles: number): Promise<RepoDependency[]> {
-  const sourceFileSet = new Set(sourceFiles);
+function dependencyHintsForCategory(key: string, files: RepoFile[]): string[] {
+  const paths = files.map((file) => file.path);
+  const has = (pattern: RegExp) => paths.some((file) => pattern.test(file));
+  const first = (pattern: RegExp) => paths.find((file) => pattern.test(file));
+  const existing = (values: Array<string | undefined>): string[] =>
+    values.filter((value): value is string => value !== undefined && (paths.includes(value) || value.endsWith("/*") || value === "nearby tests"));
+  const area = (prefix: string): string | undefined => has(new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/`)) ? `${prefix}/*` : undefined;
+
+  const hints: Record<string, string[]> = {
+    cli: existing([
+      first(/^src\/cli\/commands\//) ?? area("src/cli/commands"),
+      first(/^src\/core\//) ?? area("src/core"),
+      first(/^src\/core\/config/)
+    ]),
+    config: existing([
+      first(/^src\/core\/config/),
+      first(/^src\/core\/templateInstaller/),
+      first(/^src\/core\/validator/)
+    ]),
+    scanner: existing([
+      first(/^src\/core\/fileSystem/),
+      first(/^src\/core\/contextFiles/),
+      has(/^tests\//) ? "tests/*" : undefined
+    ]),
+    reports: existing([
+      first(/^src\/core\/repoMapper/) ?? "src/core/repoMapper.ts",
+      first(/^src\/core\/.*er\.ts$/),
+      has(/^tests\//) ? "tests/*" : undefined
+    ]),
+    fixtures: existing([has(/^tests\//) ? "tests/*" : undefined, area("fixtures"), area("__snapshots__"), area("snapshots")]),
+    context: existing([area("docs/ai-context"), area("src/templates/generic"), first(/^src\/core\/repoMapper/)]),
+    release: existing([first(/^package\.json$/), area(".github/workflows")])
+  };
+
+  return uniqueSorted((hints[key] ?? []).filter(Boolean));
+}
+
+function riskHintsForCategory(key: string, files: string[]): string[] {
+  const hints: Record<string, string[]> = {
+    cli: ["stdout/stderr compatibility", "exit code regressions", "help text drift"],
+    config: ["default config drift", "unsafe overwrite behavior"],
+    scanner: ["generated files included", "real source files missed"],
+    risk: ["over-broad warnings", "under-reported risky areas"],
+    reports: ["broken generated markers", "unstable markdown ordering"],
+    fixtures: ["fixture/snapshot drift"],
+    context: ["manual content overwritten", "future agents misrouted"],
+    release: ["CI blocked", "release validation skipped"],
+    auth: ["permission bypass", "session handling regression"],
+    database: ["data loss", "migration rollback gap"]
+  };
+
+  const fallback = files.length > 0 ? ["review real callers before editing"] : [];
+  return hints[key] ?? fallback;
+}
+
+async function buildDependencies(files: RepoFile[], sourceFiles: string[], testFiles: string[]): Promise<RepoDependency[]> {
   const dependencies: RepoDependency[] = [];
-
-  for (const sourceFile of sourceFiles.slice(0, maxFiles)) {
-    let content = "";
-    try {
-      content = (await readTextFile(path.join(cwd, sourceFile))).slice(0, textReadLimit);
-    } catch {
-      continue;
+  const allPaths = files.map((file) => file.path);
+  const sourceSet = new Set(sourceFiles);
+  const firstExisting = (patterns: RegExp[]): string | undefined =>
+    allPaths.find((file) => patterns.some((pattern) => pattern.test(file)));
+  const add = (from: string | undefined, dependsOn: string | undefined, why: string): void => {
+    if (from && dependsOn && from !== dependsOn) {
+      dependencies.push({ from, dependsOn, why, inferred: true });
     }
+  };
 
-    for (const specifier of importSpecifiers(content)) {
-      const resolved = resolveLocalImport(sourceFile, specifier, sourceFileSet);
-      if (resolved) {
-        dependencies.push({
-          from: sourceFile,
-          dependsOn: resolved,
-          why: "local import",
-          inferred: false
-        });
-      }
-    }
+  for (const cliFile of sourceFiles.filter((file) => file.startsWith("src/cli/")).slice(0, 6)) {
+    add(cliFile, firstExisting([/^src\/core\/config/, /^src\/core\//]), "CLI command likely delegates to core/config behavior");
   }
 
-  if (dependencies.length > 0) {
-    return dependencies.slice(0, 20);
+  for (const coreFile of sourceFiles.filter((file) => file.startsWith("src/core/")).slice(0, 8)) {
+    add(coreFile, firstExisting([/^src\/core\/contextFiles/, /^src\/core\/fileSystem/]), "core modules share context/file helpers");
   }
 
-  return sourceFiles
-    .filter((file) => file.includes("/routes/") || file.includes("/api/") || file.includes("/cli/"))
-    .slice(0, 8)
-    .map((file) => ({
-      from: file,
-      dependsOn: "nearby service/core files",
-      why: "inferred from path; verify before relying on it",
-      inferred: true
-    }));
+  for (const reportFile of sourceFiles.filter((file) => /map|suggest|estimate|archive|report/i.test(file)).slice(0, 8)) {
+    add(reportFile, firstExisting([/^src\/core\/.*\.ts$/, /^src\/cli\/commands\//]), "report output depends on core model and command formatting");
+  }
+
+  for (const authFile of sourceFiles.filter((file) => /auth|session|security|consent/i.test(file)).slice(0, 5)) {
+    add(authFile, firstExisting([/^src\/db\//, /db|database|store|repo/i]), "auth/security path likely touches persistence or session state");
+  }
+
+  for (const testFile of testFiles.slice(0, 8)) {
+    add(testFile, firstExisting([/fixtures?\//, /__snapshots__|snapshots?/, /^src\//]), "tests depend on fixtures, snapshots, or target source");
+  }
+
+  if (dependencies.length === 0 && sourceFiles.length > 0) {
+    add(sourceFiles[0], sourceFiles.find((file) => file !== sourceFiles[0] && sourceSet.has(file)), "path heuristic fallback; verify before relying on it");
+  }
+
+  const seen = new Set<string>();
+  return dependencies.filter((dependency) => {
+    const key = `${dependency.from}->${dependency.dependsOn}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  }).slice(0, 24);
 }
 
 function symbolUse(symbol: ScannedSymbol): string {
@@ -665,6 +774,7 @@ async function fileSize(cwd: string, filePath: string): Promise<number> {
 
 async function buildHotspots(
   cwd: string,
+  files: RepoFile[],
   sourceFiles: string[],
   testFiles: string[],
   risks: RepoRisk[],
@@ -677,13 +787,14 @@ async function buildHotspots(
   }
 
   const riskyPaths = new Set(risks.flatMap((risk) => [...risk.area.matchAll(/`([^`]+)`/g)].map((match) => match[1])));
+  const allPaths = files.map((file) => file.path);
   const candidates = uniqueSorted([
     ...sourceFiles.filter((file) => riskyPaths.has(file)),
     ...[...dependentCounts.entries()].filter(([, count]) => count > 1).map(([file]) => file),
-    ...sourceFiles.filter((file) => /config|workflow|deploy|auth|session|migration|payment|coupon|reward/i.test(file)),
+    ...allPaths.filter((file) => /(^src\/cli\/index|config|workflow|deploy|auth|session|migration|payment|coupon|reward|scanner|mapper|renderer|classifier)/i.test(file)),
     "package.json",
-    ...sourceFiles.filter((file) => file.startsWith(".github/workflows/"))
-  ]).filter((file) => sourceFiles.includes(file) || file === "package.json");
+    ...allPaths.filter((file) => file.startsWith(".github/workflows/"))
+  ]).filter((file) => allPaths.includes(file) || file === "package.json");
 
   const rows: RepoHotspot[] = [];
   for (const file of candidates.slice(0, 12)) {
@@ -693,6 +804,8 @@ async function buildHotspots(
       riskyPaths.has(file) ? "risky area" : "",
       (dependentCounts.get(file) ?? 0) > 1 ? "multiple local dependents" : "",
       size > 20_000 ? "large central file" : "",
+      /src\/cli\/index/.test(file) ? "CLI entrypoint" : "",
+      /config|scanner|mapper|renderer|classifier/i.test(file) ? "core orchestration or classification" : "",
       /package\.json|\.github\/workflows/.test(file) ? "build or release configuration" : ""
     ].filter(Boolean);
 
@@ -706,7 +819,7 @@ async function buildHotspots(
   return rows;
 }
 
-function buildProjectMap(files: RepoFile[], testFiles: string[], risks: RepoRisk[]): RepoMapData["projectMap"] {
+function buildProjectMap(files: RepoFile[], testFiles: string[], risks: RepoRisk[], doNotRead: string[]): RepoMapData["projectMap"] {
   const sourceFolders = uniqueSorted(files
     .map((file) => file.parts[0])
     .filter((part): part is string => sourceRoots.includes(part ?? "")));
@@ -716,12 +829,29 @@ function buildProjectMap(files: RepoFile[], testFiles: string[], risks: RepoRisk
     .map((file) => file.path)
     .slice(0, 8);
   const config = files.filter((file) => isConfigPath(file.path)).map((file) => file.path).slice(0, 8);
+  const cliEntrypoints = entrypoints.filter((file) => file.startsWith("src/cli/"));
+  const coreEntrypoints = files.filter((file) => file.path.startsWith("src/core/")).map((file) => file.path).slice(0, 4);
 
   return {
-    coreShape: sourceFolders.length > 0 ? sourceFolders.map((folder) => `${folder}/ source root`) : ["No standard source roots detected"],
+    purpose: "Repository Context Center CLI for installing, validating, mapping, estimating, and suggesting low-token repository context.",
+    keyDirectories: sourceFolders.length > 0
+      ? sourceFolders.map((folder) => `${folder}/ source root`)
+      : ["No standard source roots detected"],
     entrypoints,
     config,
     tests: testFiles.slice(0, 8),
+    executionFlow: [
+      cliEntrypoints.length > 0
+        ? `CLI starts in ${compactList(cliEntrypoints, "CLI entrypoint", 2)}`
+        : "CLI entrypoint not detected",
+      coreEntrypoints.length > 0
+        ? `Commands delegate to ${compactList(coreEntrypoints, "core modules", 4)}`
+        : "Core command modules not detected",
+      testFiles.length > 0
+        ? `Behavior is checked by ${compactList(testFiles, "tests", 4)}`
+        : "No tests detected"
+    ],
+    ignoredAreas: doNotRead,
     productionCriticalFlows: risks.map((risk) => ({
       Flow: risk.area,
       "Why critical": risk.why,
@@ -736,6 +866,10 @@ function buildDoNotRead(files: RepoFile[]): string[] {
     ...baseDoNotRead,
     ...[...excludedDirs].filter((folder) => topLevel.has(folder)),
     ...files
+      .filter((file) => isFixtureOrSnapshotPath(file.path))
+      .map((file) => path.posix.dirname(file.path))
+      .filter((folder) => folder !== "."),
+    ...files
       .filter((file) => isGeneratedAsset(file.path))
       .map((file) => path.posix.dirname(file.path))
       .filter((folder) => folder !== ".")
@@ -744,26 +878,28 @@ function buildDoNotRead(files: RepoFile[]): string[] {
 
 function buildTokenBudget(filesScanned: number, modules: RepoModule[], risks: RepoRisk[]): RepoMapRow[] {
   const repoSize = filesScanned < 50 ? "small" : filesScanned < 300 ? "medium" : "large";
-  const compactMax = repoSize === "small" ? "20" : repoSize === "medium" ? "35" : "50";
-  const detailedMax = repoSize === "small" ? "80" : repoSize === "medium" ? "150" : "250";
+  const compactMax = repoSize === "small" ? "8" : repoSize === "medium" ? "12" : "16";
+  const investigationMax = repoSize === "small" ? "16" : repoSize === "medium" ? "24" : "32";
+  const detailedMax = repoSize === "small" ? "30" : repoSize === "medium" ? "45" : "60";
+  const moduleNames = modules.slice(0, 3).map((module) => module.name);
 
   return [
     {
       Mode: "Compact Mode",
       "Use when": "small localized task",
-      "Read first": "AGENTS.md, TASK_ROUTING.md, relevant module row",
+      "Read first": "AGENTS.md, TASK_ROUTING.md, one MODULE_INDEX section",
       "Max files": compactMax
     },
     {
       Mode: "Investigation Mode",
       "Use when": risks.length > 0 ? "risk, auth, data, release, or bug task" : "bug or unclear task",
       "Read first": "RISK_REGISTER.md, HOTSPOTS.md, DEPENDENCY_MAP.md",
-      "Max files": detailedMax
+      "Max files": investigationMax
     },
     {
       Mode: "Detailed Mode",
       "Use when": "cross-module refactor or broad behavior change",
-      "Read first": `${modules.length} module rows plus targeted source/tests`,
+      "Read first": moduleNames.length > 0 ? `${moduleNames.join(", ")} sections plus targeted source/tests` : "PROJECT_MAP.md plus targeted source/tests",
       "Max files": detailedMax
     }
   ];
@@ -775,7 +911,7 @@ function table(headers: string[], rows: RepoMapRow[]): string {
   }
 
   return [
-    `| ${headers.join(" |")} |`,
+    `| ${headers.join(" | ")} |`,
     `| ${headers.map(() => "---").join(" | ")} |`,
     ...rows.map((row) => `| ${headers.map((header) => row[header] || "none").join(" | ")} |`)
   ].join("\n");
@@ -826,32 +962,47 @@ function sanitizeGenericPlaceholders(existing: string | undefined): string | und
 }
 
 function renderTaskRouting(data: RepoMapData): string {
-  return table(["Task type", "Inspect first", "Focused verification"], data.taskRouting);
+  return table(["Task Type", "Start With", "Then Check", "Tests", "Notes"], data.taskRouting);
 }
 
 function renderModules(data: RepoMapData): string {
-  return table(["Module", "Purpose", "Primary files", "Common tasks", "Tests"], data.modules.map((module) => ({
-    Module: module.name,
-    Purpose: module.purpose,
-    "Primary files": compactList(module.primaryFiles),
-    "Common tasks": module.commonTasks.join(", "),
-    Tests: compactList(module.tests)
-  })));
+  if (data.modules.length === 0) {
+    return "_No repo-specific modules detected._";
+  }
+
+  return data.modules.map((module) => [
+    `## ${module.name}`,
+    `- Purpose: ${module.purpose}.`,
+    `- Primary files: ${compactList(module.primaryFiles)}.`,
+    `- Common tasks: ${module.commonTasks.join(", ")}.`,
+    `- Related tests: ${compactList(module.tests)}.`,
+    `- Dependency hints: ${compactPlainList(module.dependencies)}.`,
+    `- Risks: ${compactPlainList(module.risks)}.`
+  ].join("\n")).join("\n\n");
 }
 
 function renderProjectMap(data: RepoMapData): string {
   return [
-    "### Core Shape",
-    bullets(data.projectMap.coreShape),
+    "### Main Purpose",
+    data.projectMap.purpose,
+    "",
+    "### Key Directories",
+    bullets(data.projectMap.keyDirectories),
     "",
     "### Startup / Entrypoints",
     bullets(data.projectMap.entrypoints.map((file) => `\`${file}\``)),
+    "",
+    "### Main Execution Flow",
+    bullets(data.projectMap.executionFlow),
     "",
     "### Config",
     bullets(data.projectMap.config.map((file) => `\`${file}\``)),
     "",
     "### Tests",
     bullets(data.projectMap.tests.map((file) => `\`${file}\``)),
+    "",
+    "### Generated / Ignored Areas",
+    bullets(data.projectMap.ignoredAreas.map((file) => `\`${file.replace(/\/$/, "")}/\``)),
     "",
     "### Production-Critical Flows",
     table(["Flow", "Why critical", "First check"], data.projectMap.productionCriticalFlows)
@@ -869,7 +1020,7 @@ function renderRisks(data: RepoMapData): string {
 function renderDependencies(data: RepoMapData): string {
   return table(["From", "Depends on", "Why"], data.dependencies.map((dependency) => ({
     From: `\`${dependency.from}\``,
-    "Depends on": dependency.inferred ? dependency.dependsOn : `\`${dependency.dependsOn}\``,
+    "Depends on": `\`${dependency.dependsOn}\``,
     Why: dependency.inferred ? `${dependency.why} (inferred)` : dependency.why
   })));
 }
@@ -896,7 +1047,11 @@ function renderTokenBudget(data: RepoMapData): string {
     "",
     table(["Mode", "Use when", "Read first", "Max files"], data.tokenBudget),
     "",
-    "Avoid broad scans unless routing, module maps, and targeted tests leave a concrete unknown."
+    "Suggested max files: Compact 8-16, Investigation 16-32, Detailed 30-60.",
+    "",
+    "Do not read generated, fixture, snapshot, archive, or lockfile content unless the task specifically needs it.",
+    "",
+    "Escalate only when routing, module maps, and targeted tests leave a concrete unknown."
   ].join("\n");
 }
 
@@ -911,7 +1066,7 @@ function renderCommunication(data: RepoMapData): string {
 }
 
 function renderLessons(data: RepoMapData): string {
-  return data.lessonsPlaceholder.map((note) => `- ${note}`).join("\n");
+  return data.lessonsPlaceholder.join("\n");
 }
 
 function renderChangeLog(data: RepoMapData): string {
@@ -952,10 +1107,11 @@ async function buildMapData(cwd: string, maxFiles: number): Promise<RepoMapData>
   const testFiles = files.filter((file) => isTestPath(file.path)).map((file) => file.path);
   const modules = buildModules(files, testFiles);
   const risks = buildRisks(files, testFiles, packageScripts);
-  const dependencies = await buildDependencies(cwd, sourceFiles, maxFiles);
-  const symbolLimit = maxFiles === defaultMaxFiles ? 50 : maxFiles;
+  const dependencies = await buildDependencies(files, sourceFiles, testFiles);
+  const symbolLimit = maxFiles === defaultMaxFiles ? 30 : Math.min(maxFiles, 30);
   const symbols = await buildSymbols(cwd, sourceFiles.slice(0, maxFiles), symbolLimit);
-  const hotspots = await buildHotspots(cwd, sourceFiles, testFiles, risks, dependencies, packageScripts);
+  const hotspots = await buildHotspots(cwd, files, sourceFiles, testFiles, risks, dependencies, packageScripts);
+  const doNotRead = buildDoNotRead(files);
 
   return {
     root: cwd,
@@ -963,17 +1119,17 @@ async function buildMapData(cwd: string, maxFiles: number): Promise<RepoMapData>
     filesScanned: files.length,
     taskRouting: buildTaskRouting(files, testFiles, packageScripts),
     modules,
-    projectMap: buildProjectMap(files, testFiles, risks),
+    projectMap: buildProjectMap(files, testFiles, risks, doNotRead),
     risks,
     dependencies,
     symbols,
     hotspots,
-    doNotRead: buildDoNotRead(files),
+    doNotRead,
     tokenBudget: buildTokenBudget(files.length, modules, risks),
     communicationNotes: risks.length > 0
       ? [`Use Investigation Mode for ${risks.map((risk) => risk.area.split(":")[0]).join(", ")} tasks.`]
       : [],
-    lessonsPlaceholder: ["Add durable lessons only after repeated tasks or verified mistakes."]
+    lessonsPlaceholder: ["No generated lessons yet. Add stable lessons manually after repeated issues."]
   };
 }
 
@@ -984,6 +1140,9 @@ async function buildChanges(cwd: string, data: RepoMapData): Promise<RepoMapChan
     const targetPath = path.join(cwd, file);
     const renderer = renderers[file];
     const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : undefined;
+    if (file === "AGENTS.md" && existing !== undefined && !existing.includes(generatedStart)) {
+      continue;
+    }
     const content = upsertGeneratedSection(existing, renderer.title, renderer.render(data));
     changes.push({
       path: file,

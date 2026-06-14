@@ -24,6 +24,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/copy-templates.js",
+    "lint": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "npm run build && npm test",
     "test": "npm run build && node --test tests/*.test.js"
   },
