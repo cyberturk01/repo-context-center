@@ -13,9 +13,7 @@ Read:
 4. Target source and tests
 
 Estimate overhead:
-- Run `repo-context-center estimate`.
 - `--compare-naive` compares startup vs broad pass.
-- Approximate, not billing data.
 
 Skip:
 - generated output

@@ -1,6 +1,5 @@
 # Do Not Read
 
-Skip:
 - `node_modules/`
 - `dist/`
 - `build/`

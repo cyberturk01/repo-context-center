@@ -1,12 +1,5 @@
 # Dependency Map
 
-Record dependencies that change blast radius.
+Record dependencies that change ownership, order, or blast radius.
 
-| From | Depends On | Why It Matters |
-| --- | --- | --- |
-| `module` | `module/package` | impact |
-
-Update:
-- shared dependency changes
-- module boundary shifts
-- package added/removed
+Include shared modules, runtime packages, generated clients, and boundary adapters.

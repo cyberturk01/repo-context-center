@@ -1,6 +1,5 @@
 # Task Routing
 
-Read:
 - Bug: `PROJECT_MAP.md`, `MODULE_INDEX.md`, `HOTSPOTS.md`, related tests.
 - Feature: `PROJECT_MAP.md`, `MODULE_INDEX.md`, `DEPENDENCY_MAP.md`, examples.
 - Refactor: `DEPENDENCY_MAP.md`, `SYMBOL_MAP.md`, callers.

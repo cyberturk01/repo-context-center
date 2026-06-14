@@ -2,10 +2,6 @@
 
 Record high-care areas.
 
-| Area | Risk | Check |
-| --- | --- | --- |
-| `path/or/system` | what breaks | check |
-
 Include:
 - security
 - migrations

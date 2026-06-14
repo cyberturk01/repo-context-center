@@ -26,11 +26,35 @@ const requiredTemplates = [
   "docs/ai-context/CHANGE_LOG.md"
 ];
 
+const templateTitles = {
+  "AGENTS.md": "# AGENTS.md",
+  "docs/ai-context/COMMUNICATION_MODE.md": "# Communication Mode",
+  "docs/ai-context/TASK_ROUTING.md": "# Task Routing",
+  "docs/ai-context/MODULE_INDEX.md": "# Module Index",
+  "docs/ai-context/PROJECT_MAP.md": "# Project Map",
+  "docs/ai-context/RISK_REGISTER.md": "# Risk Register",
+  "docs/ai-context/DEPENDENCY_MAP.md": "# Dependency Map",
+  "docs/ai-context/SYMBOL_MAP.md": "# Symbol Map",
+  "docs/ai-context/TOKEN_BUDGET.md": "# Token Budget",
+  "docs/ai-context/DO_NOT_READ.md": "# Do Not Read",
+  "docs/ai-context/HOTSPOTS.md": "# Hotspots",
+  "docs/ai-context/LESSONS_LEARNED.md": "# Lessons Learned",
+  "docs/ai-context/CHANGE_LOG.md": "# Change Log"
+};
+
 test("all required generic templates exist", async () => {
   for (const file of requiredTemplates) {
     const fileStat = await stat(path.join(templateRoot, file));
     assert.equal(fileStat.isFile(), true, file);
   }
+});
+
+test("generic template count and names stay unchanged", async () => {
+  const { genericTemplateFiles } = require("../dist/templates/generic");
+
+  assert.equal(requiredTemplates.length, 13);
+  assert.equal(genericTemplateFiles.length, requiredTemplates.length);
+  assert.deepEqual([...genericTemplateFiles].sort(), [...requiredTemplates].sort());
 });
 
 test("generic templates are non-empty and compact", async () => {
@@ -51,6 +75,31 @@ test("AGENTS template keeps low-token startup references", async () => {
   assert.match(content, /TASK_ROUTING\.md/);
   assert.match(content, /archive\/\*/);
   assert.match(content, /\.repo-context-center\/config\.json/);
+});
+
+test("AGENTS template remains startup-only", async () => {
+  const content = await readFile(path.join(templateRoot, "AGENTS.md"), "utf8");
+  const words = content.trim().split(/\s+/).filter(Boolean);
+
+  assert.ok(words.length < 120, `AGENTS.md has ${words.length} words`);
+  assert.doesNotMatch(content, /# Task Routing/);
+  assert.doesNotMatch(content, /# Project Map/);
+  assert.doesNotMatch(content, /# Module Index/);
+  assert.doesNotMatch(content, /# Risk Register/);
+  assert.doesNotMatch(content, /# Change Log/);
+});
+
+test("templates do not contain another template title", async () => {
+  for (const file of requiredTemplates) {
+    const content = await readFile(path.join(templateRoot, file), "utf8");
+    const otherTitles = Object.entries(templateTitles)
+      .filter(([otherFile]) => otherFile !== file)
+      .map(([, title]) => title);
+
+    for (const title of otherTitles) {
+      assert.doesNotMatch(content, new RegExp(`^${title}$`, "m"), `${file} contains ${title}`);
+    }
+  }
 });
 
 test("generated templates stay below the previous word baseline", async () => {

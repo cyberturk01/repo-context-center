@@ -1,6 +1,5 @@
 # Communication Mode
 
-Use:
 - Read first, then act.
 - State risky assumptions.
 - Ask only when guessing is costly.
