@@ -925,41 +925,54 @@ function riskHintsForCategory(key: string, files: string[]): string[] {
   return hints[key] ?? fallback;
 }
 
-async function buildDependencies(files: RepoFile[], sourceFiles: string[], testFiles: string[]): Promise<RepoDependency[]> {
+function buildDependencies(files: RepoFile[], understanding: RepositoryUnderstanding): RepoDependency[] {
   const dependencies: RepoDependency[] = [];
   const allPaths = files.map((file) => file.path);
-  const sourceSet = new Set(sourceFiles);
-  const firstExisting = (patterns: RegExp[]): string | undefined =>
-    allPaths.find((file) => patterns.some((pattern) => pattern.test(file)));
+  const firstExisting = (patterns: RegExp[]): string | undefined => {
+    for (const pattern of patterns) {
+      const found = allPaths.find((file) => pattern.test(file));
+      if (found) {
+        return found;
+      }
+    }
+    return undefined;
+  };
+  const firstEntrypoint = (patterns: RegExp[]): string | undefined => {
+    for (const pattern of patterns) {
+      const found = understanding.entrypoints.find((file) => pattern.test(file));
+      if (found) {
+        return found;
+      }
+    }
+    return firstExisting(patterns);
+  };
+  const area = (prefix: string): string | undefined => allPaths.some((file) => file.startsWith(`${prefix}/`)) ? `${prefix}/*` : undefined;
   const add = (from: string | undefined, dependsOn: string | undefined, why: string): void => {
     if (from && dependsOn && from !== dependsOn) {
       dependencies.push({ from, dependsOn, why, inferred: true });
     }
   };
 
-  for (const cliFile of sourceFiles.filter((file) => file.startsWith("src/cli/")).slice(0, 6)) {
-    add(cliFile, firstExisting([/^src\/core\/config/, /^src\/core\//]), "CLI command likely delegates to core/config behavior");
-  }
+  const cliEntrypoint = firstEntrypoint([/^src\/cli\/index\./, /^cli\/index\./, /^src\/cli\//]);
+  add(cliEntrypoint, firstExisting([/^src\/core\/config\./, /^src\/config\//]), "CLI loads repository configuration before command behavior");
+  add(cliEntrypoint, firstExisting([/^src\/core\/repoMapper\./, /^src\/core\//]), "CLI delegates repository work to core modules");
+  add(cliEntrypoint, firstExisting([/^src\/renderers\//]), "CLI output may be formatted by renderer modules");
 
-  for (const coreFile of sourceFiles.filter((file) => file.startsWith("src/core/")).slice(0, 8)) {
-    add(coreFile, firstExisting([/^src\/core\/contextFiles/, /^src\/core\/fileSystem/]), "core modules share context/file helpers");
-  }
+  const coreModel = firstExisting([/^src\/core\/repoMapper\./, /^src\/core\/.*map/i, /^src\/core\//]);
+  add(coreModel, firstExisting([/^src\/analyzers\//]), "core mapping coordinates analyzer and risk-rule results");
+  add(coreModel, firstExisting([/^src\/repo\//, /^src\/core\/scanner\./]), "core mapping consumes repository scanning/classification");
+  add(coreModel, firstExisting([/^src\/core\/config\./, /^src\/config\//]), "core behavior is driven by configuration");
 
-  for (const reportFile of sourceFiles.filter((file) => /map|suggest|estimate|archive|report/i.test(file)).slice(0, 8)) {
-    add(reportFile, firstExisting([/^src\/core\/.*\.ts$/, /^src\/cli\/commands\//]), "report output depends on core model and command formatting");
-  }
+  const analyzer = firstExisting([/^src\/analyzers\//, /(^|\/)(analy[sz]er|risk|hotspot|score|rule|validator|security)[^/]*\.(ts|tsx|js|jsx|mjs|cjs)$/i]);
+  add(analyzer, firstExisting([/^src\/config\//, /^src\/core\/config\./, /^guardian\.config\.json$/]), "analyzers read configuration rules when present");
+  add(analyzer, firstExisting([/^src\/project-brain\//, /^\.project-brain\//]), "analyzers can summarize project-brain context when present");
+  add(analyzer, area("templates"), "analyzers compare generated context expectations with templates");
 
-  for (const authFile of sourceFiles.filter((file) => /auth|session|security|consent/i.test(file)).slice(0, 5)) {
-    add(authFile, firstExisting([/^src\/db\//, /db|database|store|repo/i]), "auth/security path likely touches persistence or session state");
-  }
+  const renderer = firstExisting([/^src\/renderers\//]);
+  add(renderer, coreModel, "renderers format the core report model");
 
-  for (const testFile of testFiles.slice(0, 8)) {
-    add(testFile, firstExisting([/fixtures?\//, /__snapshots__|snapshots?/, /^src\//]), "tests depend on fixtures, snapshots, or target source");
-  }
-
-  if (dependencies.length === 0 && sourceFiles.length > 0) {
-    add(sourceFiles[0], sourceFiles.find((file) => file !== sourceFiles[0] && sourceSet.has(file)), "path heuristic fallback; verify before relying on it");
-  }
+  const testContext = understanding.ignoredAreas.find((ignored) => ignored.reason === "fixture" || ignored.reason === "snapshot");
+  add(understanding.testFiles[0], testContext?.path, "tests use fixtures or snapshots only as test context");
 
   const seen = new Set<string>();
   return dependencies.filter((dependency) => {
@@ -969,7 +982,7 @@ async function buildDependencies(files: RepoFile[], sourceFiles: string[], testF
     }
     seen.add(key);
     return true;
-  }).slice(0, 24);
+  }).slice(0, 16);
 }
 
 function symbolUse(symbol: ScannedSymbol): string {
@@ -1035,8 +1048,7 @@ async function fileSize(cwd: string, filePath: string): Promise<number> {
 async function buildHotspots(
   cwd: string,
   files: RepoFile[],
-  sourceFiles: string[],
-  testFiles: string[],
+  understanding: RepositoryUnderstanding,
   risks: RepoRisk[],
   dependencies: RepoDependency[],
   packageScripts: Set<string>
@@ -1048,25 +1060,49 @@ async function buildHotspots(
 
   const riskyPaths = new Set(risks.flatMap((risk) => [...risk.area.matchAll(/`([^`]+)`/g)].map((match) => match[1])));
   const allPaths = files.map((file) => file.path);
-  const candidates = uniqueSorted([
-    ...sourceFiles.filter((file) => riskyPaths.has(file)),
-    ...[...dependentCounts.entries()].filter(([, count]) => count > 1).map(([file]) => file),
-    ...allPaths.filter((file) => /(^src\/cli\/index|config|workflow|deploy|auth|session|migration|payment|coupon|reward|scanner|mapper|renderer|classifier)/i.test(file)),
-    "package.json",
-    ...allPaths.filter((file) => file.startsWith(".github/workflows/"))
-  ]).filter((file) => allPaths.includes(file) || file === "package.json");
+  const highImpactGroups = [
+    understanding.entrypoints.filter((file) => allPaths.includes(file)),
+    allPaths.filter((file) => /^src\/core\/config\.[^.]+$/.test(file) || file.startsWith("src/config/")),
+    allPaths.filter((file) => isAnalyzerPath(file)),
+    allPaths.filter((file) => file.startsWith("src/renderers/") || /^src\/core\/repoMapper\.[^.]+$/.test(file)),
+    allPaths.filter((file) => isScannerPath(file)),
+    allPaths.filter((file) => file.startsWith(".github/workflows/")),
+    allPaths.filter((file) => isTemplatePath(file) || file.startsWith("src/project-brain/")),
+    [...dependentCounts.entries()].filter(([, count]) => count > 1).map(([file]) => file),
+    allPaths.filter((file) => riskyPaths.has(file)),
+    allPaths.includes("package.json") ? ["package.json"] : []
+  ];
+  const candidates = highImpactGroups
+    .flat()
+    .filter((file) => allPaths.includes(file))
+    .filter((file) => !isTestPath(file))
+    .filter((file) => !isFixtureOrSnapshotPath(file));
 
   const rows: RepoHotspot[] = [];
-  for (const file of candidates.slice(0, 12)) {
+  const seen = new Set<string>();
+  for (const file of candidates) {
+    if (rows.length >= 12) {
+      break;
+    }
+    if (seen.has(file)) {
+      continue;
+    }
+    seen.add(file);
+
     const size = await fileSize(cwd, file);
-    const checks = verificationFor([file], findMatchingTestFiles(file, testFiles), packageScripts).split("; ");
+    const checks = verificationFor([file], findMatchingTestFiles(file, understanding.testFiles), packageScripts).split("; ");
     const reasons = [
+      understanding.entrypoints.includes(file) ? "CLI or package entrypoint" : "",
       riskyPaths.has(file) ? "risky area" : "",
       (dependentCounts.get(file) ?? 0) > 1 ? "multiple local dependents" : "",
       size > 20_000 ? "large central file" : "",
-      /src\/cli\/index/.test(file) ? "CLI entrypoint" : "",
-      /config|scanner|mapper|renderer|classifier/i.test(file) ? "core orchestration or classification" : "",
-      /package\.json|\.github\/workflows/.test(file) ? "build or release configuration" : ""
+      /^src\/core\/config\.[^.]+$/.test(file) || file.startsWith("src/config/") ? "configuration loader or defaults" : "",
+      isAnalyzerPath(file) ? "analyzer or risk scoring" : "",
+      file.startsWith("src/renderers/") || /^src\/core\/repoMapper\.[^.]+$/.test(file) ? "report rendering or map model" : "",
+      isScannerPath(file) ? "repository scanner or classifier" : "",
+      file.startsWith(".github/workflows/") ? "CI or release workflow" : "",
+      isTemplatePath(file) || file.startsWith("src/project-brain/") ? "template or context generator" : "",
+      file === "package.json" ? "package scripts and release metadata" : ""
     ].filter(Boolean);
 
     rows.push({
@@ -1387,11 +1423,11 @@ async function buildMapData(cwd: string, maxFiles: number): Promise<RepoMapData>
   const testFiles = understanding.testFiles;
   const modules = buildModules(files, understanding);
   const risks = buildRisks(files, testFiles, packageScripts);
-  const dependencies = await buildDependencies(files, sourceFiles, testFiles);
+  const dependencies = buildDependencies(files, understanding);
   const symbolLimit = maxFiles === defaultMaxFiles ? 30 : Math.min(maxFiles, 30);
   const symbolSourceFiles = sourceFiles.filter((file) => !isFixtureOrSnapshotPath(file));
   const symbols = await buildSymbols(cwd, symbolSourceFiles.slice(0, maxFiles), symbolLimit);
-  const hotspots = await buildHotspots(cwd, files, sourceFiles, testFiles, risks, dependencies, packageScripts);
+  const hotspots = await buildHotspots(cwd, files, understanding, risks, dependencies, packageScripts);
   const doNotRead = buildDoNotRead(files);
 
   return {

@@ -564,6 +564,107 @@ test("PROJECT_MAP.md uses real entrypoints and package scripts for Guardian-like
   });
 });
 
+test("HOTSPOTS.md prioritizes high-impact Guardian-like files over fixtures", async () => {
+  await withGuardianLikeRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--write", "--json"]);
+    const data = JSON.parse(result.stdout);
+    const hotspots = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "HOTSPOTS.md"), "utf8"));
+    const hotspotFiles = data.hotspots.map((hotspot) => hotspot.file);
+
+    assert.equal(result.status, 0);
+    for (const expected of [
+      "src/cli/index.ts",
+      "src/config/defaults.ts",
+      "src/core/config.ts",
+      "src/analyzers/index.ts",
+      "src/renderers/markdown.ts",
+      "src/repo/index.ts",
+      ".github/workflows/ci.yml",
+      "src/project-brain/index.ts"
+    ]) {
+      assert.ok(hotspotFiles.includes(expected), expected);
+      assert.match(hotspots, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    }
+
+    assert.ok(hotspotFiles.indexOf("src/cli/index.ts") < hotspotFiles.indexOf("src/analyzers/index.ts"));
+    assert.ok(!hotspotFiles.some((file) => file.startsWith("tests/fixtures/")));
+    assert.ok(!hotspotFiles.some((file) => file.startsWith("tests/__snapshots__/")));
+    assert.doesNotMatch(hotspots, /tests\/fixtures|tests\/__snapshots__/);
+  });
+});
+
+test("DEPENDENCY_MAP.md uses deterministic high-level hints without fake dependencies", async () => {
+  await withGuardianLikeRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--write", "--json"]);
+    const data = JSON.parse(result.stdout);
+    const dependencyMap = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "DEPENDENCY_MAP.md"), "utf8"));
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(data.dependencies, [
+      {
+        from: "src/cli/index.ts",
+        dependsOn: "src/core/config.ts",
+        why: "CLI loads repository configuration before command behavior",
+        inferred: true
+      },
+      {
+        from: "src/cli/index.ts",
+        dependsOn: "src/renderers/markdown.ts",
+        why: "CLI output may be formatted by renderer modules",
+        inferred: true
+      },
+      {
+        from: "src/core/config.ts",
+        dependsOn: "src/analyzers/index.ts",
+        why: "core mapping coordinates analyzer and risk-rule results",
+        inferred: true
+      },
+      {
+        from: "src/core/config.ts",
+        dependsOn: "src/repo/index.ts",
+        why: "core mapping consumes repository scanning/classification",
+        inferred: true
+      },
+      {
+        from: "src/analyzers/index.ts",
+        dependsOn: "src/config/defaults.ts",
+        why: "analyzers read configuration rules when present",
+        inferred: true
+      },
+      {
+        from: "src/analyzers/index.ts",
+        dependsOn: "src/project-brain/index.ts",
+        why: "analyzers can summarize project-brain context when present",
+        inferred: true
+      },
+      {
+        from: "src/analyzers/index.ts",
+        dependsOn: "templates/*",
+        why: "analyzers compare generated context expectations with templates",
+        inferred: true
+      },
+      {
+        from: "src/renderers/markdown.ts",
+        dependsOn: "src/core/config.ts",
+        why: "renderers format the core report model",
+        inferred: true
+      },
+      {
+        from: "tests/cli.test.js",
+        dependsOn: "tests/__snapshots__",
+        why: "tests use fixtures or snapshots only as test context",
+        inferred: true
+      }
+    ]);
+    assert.match(dependencyMap, /CLI loads repository configuration before command behavior/);
+    assert.match(dependencyMap, /renderers format the core report model/);
+    assert.match(dependencyMap, /tests use fixtures or snapshots only as test context/);
+    assert.doesNotMatch(dependencyMap, /path heuristic fallback|likely touches persistence|auth\/security path/i);
+    assert.ok(!data.dependencies.some((dependency) => dependency.from.startsWith("tests/fixtures/")));
+    assert.ok(!data.dependencies.some((dependency) => dependency.from.startsWith("tests/__snapshots__/")));
+  });
+});
+
 test("map keeps fixture security files out of auth primary files and task routing", async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-map-fixture-leak-"));
 
@@ -635,7 +736,8 @@ test("map --json contains structured mapping data", async () => {
     assert.ok(Array.isArray(data.dependencies));
     assert.ok(Array.isArray(data.symbols));
     assert.ok(Array.isArray(data.hotspots));
-    assert.ok(data.dependencies.some((dependency) => dependency.from === "src/auth/session.ts"));
+    assert.ok(data.dependencies.some((dependency) => dependency.from.startsWith("src/cli/")));
+    assert.ok(!data.dependencies.some((dependency) => /path heuristic fallback|likely touches persistence/i.test(dependency.why)));
     assert.ok(data.symbols.some((symbol) => symbol.symbol === "requireSession"));
     assert.ok(data.symbols.length <= 30);
   });
