@@ -88,8 +88,13 @@ async function withGuardianLikeRepo(callback) {
 
     const files = {
       "package.json": JSON.stringify({
+        bin: {
+          "repo-context-center": "./dist/cli/index.js"
+        },
+        main: "./dist/cli/index.js",
         scripts: {
           build: "tsc",
+          coverage: "c8 npm test",
           lint: "eslint .",
           test: "node --test tests/*.test.js"
         }
@@ -99,6 +104,9 @@ async function withGuardianLikeRepo(callback) {
       "src/config/defaults.ts": "export const defaults = {};\n",
       "src/core/config.ts": "export function loadConfig() { return {}; }\n",
       "src/core/validator.ts": "export function validateConfig() { return true; }\n",
+      "src/analyzers/index.ts": "export function createAnalyzer() { return true; }\n",
+      "src/repo/index.ts": "export function createRepo() { return true; }\n",
+      "src/project-brain/index.ts": "export function createProjectBrain() { return true; }\n",
       "guardian.config.json": "{}\n",
       "examples/basic/guardian.config.json": "{}\n",
       ".github/workflows/release.yml": "name: release\n",
@@ -449,6 +457,28 @@ test("map classifies Guardian-like repo files without fixture or metrics noise",
     assert.match(moduleIndex, /## Context docs[\s\S]*`.repo-context-center\/config\.json`/);
     assert.match(moduleIndex, /## Context docs[\s\S]*- Related tests: none detected\./);
     assert.doesNotMatch(moduleIndex, /## Context docs[\s\S]*\.project-brain\/metrics/);
+  });
+});
+
+test("PROJECT_MAP.md uses real entrypoints and package scripts for Guardian-like repo", async () => {
+  await withGuardianLikeRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--write", "--json"]);
+    const data = JSON.parse(result.stdout);
+    const projectMap = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "PROJECT_MAP.md"), "utf8"));
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(data.projectMap.entrypoints, [
+      "dist/cli/index.js",
+      "src/cli/index.ts"
+    ]);
+    assert.doesNotMatch(projectMap, /src\/analyzers\/index\.ts/);
+    assert.doesNotMatch(projectMap, /src\/repo\/index\.ts/);
+    assert.doesNotMatch(projectMap, /src\/project-brain\/index\.ts/);
+    assert.match(projectMap, /### Startup \/ Entrypoints[\s\S]*`dist\/cli\/index\.js`[\s\S]*`src\/cli\/index\.ts`/);
+    assert.ok(data.projectMap.productionCriticalFlows.length > 0);
+    assert.ok(data.projectMap.productionCriticalFlows.every((flow) => flow["First check"] === "npm run build"));
+    assert.match(projectMap, /\| Flow \| Why critical \| First check \|/);
+    assert.match(projectMap, /\| .* \| .* \| npm run build \|/);
   });
 });
 

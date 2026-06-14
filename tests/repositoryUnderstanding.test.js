@@ -13,6 +13,9 @@ const guardianLikeFiles = [
   "src/core/config.ts",
   "src/core/repoMapper.ts",
   "src/core/scanner.ts",
+  "src/analyzers/index.ts",
+  "src/repo/index.ts",
+  "src/project-brain/index.ts",
   "guardian.config.json",
   "examples/basic/guardian.config.json",
   ".github/workflows/ci.yml",
@@ -35,6 +38,7 @@ test("RepositoryUnderstanding detects package scripts from package.json", async 
     packageJson: {
       scripts: {
         build: "tsc",
+        coverage: "c8 npm test",
         lint: "eslint .",
         test: "node --test tests/*.test.js"
       }
@@ -44,6 +48,7 @@ test("RepositoryUnderstanding detects package scripts from package.json", async 
   assert.equal(understanding.packageManager, "npm");
   assert.deepEqual(understanding.scripts, {
     build: "tsc",
+    coverage: "c8 npm test",
     lint: "eslint .",
     test: "node --test tests/*.test.js"
   });
@@ -100,6 +105,9 @@ test("RepositoryUnderstanding builds deterministic directories, modules, entrypo
   });
 
   assert.deepEqual(understanding.entrypoints, ["dist/cli/index.js", "src/cli/index.ts"]);
+  assert.ok(!understanding.entrypoints.includes("src/analyzers/index.ts"));
+  assert.ok(!understanding.entrypoints.includes("src/repo/index.ts"));
+  assert.ok(!understanding.entrypoints.includes("src/project-brain/index.ts"));
   assert.deepEqual(understanding.keyDirectories, [".github", "docs", "src", "tests"]);
   assert.deepEqual(understanding.modules, [
     { name: "cli", path: "src/cli", sourceRoot: "src" },

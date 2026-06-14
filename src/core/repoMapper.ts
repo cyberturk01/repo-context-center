@@ -1,7 +1,7 @@
 import path from "node:path";
 import { requiredContextFiles, type RequiredContextFile } from "./contextFiles";
 import { ensureDir, listDirectoryNames, readTextFile, writeTextFile, pathExists } from "./fileSystem";
-import { buildRepositoryUnderstanding } from "./repositoryUnderstanding";
+import { buildRepositoryUnderstanding, type RepositoryUnderstanding } from "./repositoryUnderstanding";
 import { extractExportedSymbols, type ScannedSymbol } from "./scanner";
 
 export interface RepoMapOptions {
@@ -455,16 +455,6 @@ function verificationFor(files: string[], tests: string[], packageScripts: Set<s
     checks.push(`review ${files.slice(0, 2).join(", ")}`);
   }
   return checks.join("; ") || "focused manual review";
-}
-
-async function readPackageScripts(cwd: string): Promise<Set<string>> {
-  try {
-    const content = await readTextFile(path.join(cwd, "package.json"));
-    const parsed = JSON.parse(content) as { scripts?: Record<string, string> };
-    return new Set(Object.keys(parsed.scripts ?? {}));
-  } catch {
-    return new Set();
-  }
 }
 
 const categories: Category[] = [
@@ -960,15 +950,34 @@ async function buildHotspots(
   return rows;
 }
 
-function buildProjectMap(files: RepoFile[], testFiles: string[], risks: RepoRisk[], doNotRead: string[]): RepoMapData["projectMap"] {
+function firstProjectCheck(risk: RepoRisk, understanding: RepositoryUnderstanding): string {
+  if (understanding.scripts.build) {
+    return "npm run build";
+  }
+  if (understanding.scripts.lint) {
+    return "npm run lint";
+  }
+  if (understanding.scripts.test) {
+    return "npm test";
+  }
+  if (understanding.scripts.coverage) {
+    return "npm run coverage";
+  }
+
+  return risk.checks[0] ?? "focused review";
+}
+
+function buildProjectMap(
+  files: RepoFile[],
+  testFiles: string[],
+  risks: RepoRisk[],
+  doNotRead: string[],
+  understanding: RepositoryUnderstanding
+): RepoMapData["projectMap"] {
   const sourceFolders = uniqueSorted(files
     .map((file) => file.parts[0])
     .filter((part): part is string => sourceRoots.includes(part ?? "")));
-  const entrypoints = files
-    .filter((file) => /(^|\/)(index|main|server|app|cli)\.(ts|tsx|js|jsx|mjs|cjs)$/.test(file.path)
-      || file.path === "package.json")
-    .map((file) => file.path)
-    .slice(0, 8);
+  const entrypoints = understanding.entrypoints.slice(0, 8);
   const configCategory = categories.find((category) => category.key === "config");
   const config = configCategory
     ? primaryFilesForCategory(files, configCategory, 8)
@@ -999,7 +1008,7 @@ function buildProjectMap(files: RepoFile[], testFiles: string[], risks: RepoRisk
     productionCriticalFlows: risks.map((risk) => ({
       Flow: risk.area,
       "Why critical": risk.why,
-      "First check": risk.checks[0] ?? "focused review"
+      "First check": firstProjectCheck(risk, understanding)
     }))
   };
 }
@@ -1247,8 +1256,7 @@ const renderers: Record<RequiredContextFile, { title: string; render: (data: Rep
 async function buildMapData(cwd: string, maxFiles: number): Promise<RepoMapData> {
   const files = await walkRepo(cwd, maxFiles);
   const understanding = await buildRepositoryUnderstanding({ cwd, files: files.map((file) => file.path) });
-  void understanding;
-  const packageScripts = await readPackageScripts(cwd);
+  const packageScripts = new Set(Object.keys(understanding.scripts));
   const sourceFiles = files.filter((file) => isSourcePath(file.path)).map((file) => file.path);
   const testFiles = files.filter((file) => isTestPath(file.path)).map((file) => file.path);
   const modules = buildModules(files, testFiles);
@@ -1266,7 +1274,7 @@ async function buildMapData(cwd: string, maxFiles: number): Promise<RepoMapData>
     filesScanned: files.length,
     taskRouting: buildTaskRouting(files, testFiles, packageScripts),
     modules,
-    projectMap: buildProjectMap(files, testFiles, risks, doNotRead),
+    projectMap: buildProjectMap(files, testFiles, risks, doNotRead, understanding),
     risks,
     dependencies,
     symbols,

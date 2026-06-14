@@ -63,6 +63,17 @@ function uniqueSorted(values: string[]): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
+function uniqueOrdered(values: string[]): string[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    if (seen.has(value)) {
+      return false;
+    }
+    seen.add(value);
+    return true;
+  });
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -102,7 +113,10 @@ function packageBinEntrypoints(packageJson: unknown): string[] {
     return [];
   }
 
-  return Object.values(bin).filter((value): value is string => typeof value === "string");
+  return Object.entries(bin)
+    .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, value]) => value);
 }
 
 function packageManager(files: string[], packageJson: unknown): PackageManager {
@@ -163,17 +177,20 @@ function isTestFile(filePath: string): boolean {
 
 function entrypointFiles(files: string[], packageJson: unknown): string[] {
   const declared = [
-    packageStringField(packageJson, "main"),
-    packageStringField(packageJson, "module"),
-    packageStringField(packageJson, "types"),
-    ...packageBinEntrypoints(packageJson)
+    ...packageBinEntrypoints(packageJson),
+    packageStringField(packageJson, "main")
   ].filter((value): value is string => value !== undefined);
+  const declaredEntrypoints = declared.map(normalizePath);
 
-  const conventional = files.filter((file) =>
-    /(^|\/)(index|main|server|app|cli)\.(ts|tsx|js|jsx|mjs|cjs)$/.test(file)
+  const conventional = [
+    ...files.filter((file) => /^src\/cli\/index\.(ts|tsx|js|jsx|mjs|cjs)$/.test(file)),
+    ...files.filter((file) => /^cli\/index\.(ts|tsx|js|jsx|mjs|cjs)$/.test(file)),
+    ...files.filter((file) => /^src\/index\.(ts|tsx|js|jsx|mjs|cjs)$/.test(file))
+  ];
+
+  return uniqueOrdered(
+    [...declaredEntrypoints, ...conventional].filter((file) => declaredEntrypoints.includes(file) || files.includes(file))
   );
-
-  return uniqueSorted([...declared, ...conventional].filter((file) => files.includes(file)));
 }
 
 function keyDirectories(files: string[], scanner?: Partial<ScanReport["detected"]>): string[] {
