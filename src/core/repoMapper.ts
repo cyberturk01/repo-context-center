@@ -50,6 +50,17 @@ export interface RepoHotspot {
   checks: string[];
 }
 
+export type RepoUnderstandingLevel = "High" | "Medium" | "Low";
+
+export interface RepoUnderstandingQuality {
+  level: RepoUnderstandingLevel;
+  entrypointsDetected: number;
+  keyDirectoriesDetected: number;
+  modulesDetected: number;
+  dependencyHintsMode: "Conservative";
+  noiseFilteringStatus: string;
+}
+
 export interface RepoMapData {
   root: string;
   generatedAt: string;
@@ -64,6 +75,7 @@ export interface RepoMapData {
     tests: string[];
     executionFlow: string[];
     ignoredAreas: string[];
+    understandingQuality: RepoUnderstandingQuality;
     productionCriticalFlows: RepoMapRow[];
   };
   risks: RepoRisk[];
@@ -1184,6 +1196,38 @@ function projectPurpose(understanding: RepositoryUnderstanding): string {
   return "Repository purpose not declared in package metadata or README.";
 }
 
+function isNoisePath(filePath: string): boolean {
+  return isFixtureOrSnapshotPath(filePath)
+    || filePath.startsWith("docs/ai-context/archive/")
+    || filePath.split("/").some((part) => excludedDirs.has(part));
+}
+
+function understandingQuality(understanding: RepositoryUnderstanding): RepoUnderstandingQuality {
+  const signalEntrypoints = understanding.entrypoints.filter((file) => !isNoisePath(file)).length;
+  const signalKeyDirectories = understanding.keyDirectories.filter((directory) =>
+    !/^`?tests?\b/.test(directory) || understanding.testFiles.length > 0
+  ).length;
+  const signalModules = understanding.modules.filter((module) => !isNoisePath(module.path)).length;
+  const keyDirectoriesDetected = understanding.keyDirectories.length;
+  const modulesDetected = understanding.modules.length;
+  const hasHighSignals = signalEntrypoints > 0 && signalKeyDirectories >= 4 && signalModules >= 4;
+  const hasMediumSignals = signalEntrypoints > 0 && (signalKeyDirectories >= 2 || signalModules >= 2)
+    || signalKeyDirectories >= 3
+    || signalModules >= 3;
+  const level: RepoUnderstandingLevel = hasHighSignals ? "High" : hasMediumSignals ? "Medium" : "Low";
+
+  return {
+    level,
+    entrypointsDetected: understanding.entrypoints.length,
+    keyDirectoriesDetected,
+    modulesDetected,
+    dependencyHintsMode: "Conservative",
+    noiseFilteringStatus: understanding.ignoredAreas.length > 0
+      ? `Active (${understanding.ignoredAreas.length} ignored/noise areas separated)`
+      : "Active (no ignored/noise areas detected)"
+  };
+}
+
 function buildProjectMap(
   files: RepoFile[],
   testFiles: string[],
@@ -1219,6 +1263,7 @@ function buildProjectMap(
         : "No tests detected"
     ],
     ignoredAreas: doNotRead,
+    understandingQuality: understandingQuality(understanding),
     productionCriticalFlows: risks.map((risk) => ({
       Flow: risk.area,
       "Why critical": risk.why,
@@ -1349,6 +1394,8 @@ function renderModules(data: RepoMapData): string {
 }
 
 function renderProjectMap(data: RepoMapData): string {
+  const quality = data.projectMap.understandingQuality;
+
   return [
     "### Main Purpose",
     data.projectMap.purpose,
@@ -1358,6 +1405,16 @@ function renderProjectMap(data: RepoMapData): string {
     "",
     "### Startup / Entrypoints",
     bullets(data.projectMap.entrypoints.map((file) => `\`${file}\``)),
+    "",
+    "### Repository Understanding Quality",
+    table(["Signal", "Value"], [
+      { Signal: "Repo understanding level", Value: quality.level },
+      { Signal: "Entrypoints detected", Value: String(quality.entrypointsDetected) },
+      { Signal: "Key directories detected", Value: String(quality.keyDirectoriesDetected) },
+      { Signal: "Modules detected", Value: String(quality.modulesDetected) },
+      { Signal: "Dependency hints mode", Value: quality.dependencyHintsMode },
+      { Signal: "Generated/noise filtering", Value: quality.noiseFilteringStatus }
+    ]),
     "",
     "### Main Execution Flow",
     bullets(data.projectMap.executionFlow),

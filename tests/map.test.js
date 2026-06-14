@@ -567,11 +567,102 @@ test("PROJECT_MAP.md uses real entrypoints and package scripts for Guardian-like
     assert.match(projectMap, /### Key Directories[\s\S]*`\.github\/workflows` - CI and release automation/);
     assert.doesNotMatch(projectMap, /- src\/ source root/);
     assert.doesNotMatch(projectMap, /tests\/fixtures` -/);
+    assert.deepEqual(data.projectMap.understandingQuality, {
+      level: "High",
+      entrypointsDetected: 2,
+      keyDirectoriesDetected: 11,
+      modulesDetected: 8,
+      dependencyHintsMode: "Conservative",
+      noiseFilteringStatus: "Active (2 ignored/noise areas separated)"
+    });
+    assert.match(projectMap, /### Repository Understanding Quality/);
+    assert.match(projectMap, /\| Repo understanding level \| High \|/);
+    assert.match(projectMap, /\| Entrypoints detected \| 2 \|/);
+    assert.match(projectMap, /\| Key directories detected \| 11 \|/);
+    assert.match(projectMap, /\| Modules detected \| 8 \|/);
+    assert.match(projectMap, /\| Dependency hints mode \| Conservative \|/);
+    assert.match(projectMap, /\| Generated\/noise filtering \| Active \(2 ignored\/noise areas separated\) \|/);
     assert.ok(data.projectMap.productionCriticalFlows.length > 0);
     assert.ok(data.projectMap.productionCriticalFlows.every((flow) => flow["First check"] === "npm run build"));
     assert.match(projectMap, /\| Flow \| Why critical \| First check \|/);
     assert.match(projectMap, /\| .* \| .* \| npm run build \|/);
   });
+});
+
+test("PROJECT_MAP.md reports medium repository understanding quality for partial signals", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-map-confidence-medium-"));
+
+  try {
+    assert.equal(runCli(tempDir, ["init"]).status, 0);
+    await writeFixture(tempDir, "package.json", JSON.stringify({
+      bin: {
+        "partial-cli": "./src/cli/index.ts"
+      },
+      scripts: {
+        test: "node --test tests/*.test.js"
+      }
+    }, null, 2));
+    await writeFixture(tempDir, "src/cli/index.ts", "export function runCli() { return true; }\n");
+    await writeFixture(tempDir, "src/core/config.ts", "export function loadConfig() { return {}; }\n");
+    await writeFixture(tempDir, "tests/cli.test.js", "import '../src/cli/index';\n");
+
+    const result = runCli(tempDir, ["map", "--write", "--json"]);
+    const data = JSON.parse(result.stdout);
+    const projectMap = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "PROJECT_MAP.md"), "utf8"));
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(data.projectMap.understandingQuality, {
+      level: "Medium",
+      entrypointsDetected: 1,
+      keyDirectoriesDetected: 5,
+      modulesDetected: 2,
+      dependencyHintsMode: "Conservative",
+      noiseFilteringStatus: "Active (no ignored/noise areas detected)"
+    });
+    assert.match(projectMap, /\| Repo understanding level \| Medium \|/);
+    assert.match(projectMap, /\| Entrypoints detected \| 1 \|/);
+    assert.match(projectMap, /\| Key directories detected \| 5 \|/);
+    assert.match(projectMap, /\| Modules detected \| 2 \|/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("PROJECT_MAP.md reports low repository understanding quality without noise inflation", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-map-confidence-low-"));
+
+  try {
+    assert.equal(runCli(tempDir, ["init"]).status, 0);
+    await writeFixture(tempDir, "package.json", JSON.stringify({
+      main: "./dist/cli/index.js"
+    }, null, 2));
+    await writeFixture(tempDir, "dist/cli/index.js", "module.exports = {};\n");
+    await writeFixture(tempDir, "coverage/lcov.info", "TN:\n");
+    await writeFixture(tempDir, "tests/fixtures/generated.test.js", "fixture only\n");
+    await writeFixture(tempDir, "tests/__snapshots__/cli.test.js", "snapshot only\n");
+
+    const result = runCli(tempDir, ["map", "--write", "--json"]);
+    const data = JSON.parse(result.stdout);
+    const projectMap = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "PROJECT_MAP.md"), "utf8"));
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(data.projectMap.understandingQuality, {
+      level: "Low",
+      entrypointsDetected: 1,
+      keyDirectoriesDetected: 3,
+      modulesDetected: 0,
+      dependencyHintsMode: "Conservative",
+      noiseFilteringStatus: "Active (2 ignored/noise areas separated)"
+    });
+    assert.deepEqual(data.projectMap.tests, []);
+    assert.match(projectMap, /\| Repo understanding level \| Low \|/);
+    assert.match(projectMap, /\| Entrypoints detected \| 1 \|/);
+    assert.match(projectMap, /\| Key directories detected \| 3 \|/);
+    assert.match(projectMap, /\| Modules detected \| 0 \|/);
+    assert.match(projectMap, /\| Generated\/noise filtering \| Active \(2 ignored\/noise areas separated\) \|/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("HOTSPOTS.md prioritizes high-impact Guardian-like files over fixtures", async () => {
