@@ -36,7 +36,7 @@ export interface BuildRepositoryUnderstandingInput {
   scanner?: Partial<ScanReport["detected"]>;
 }
 
-const sourceRoots = ["src", "app", "lib", "packages"];
+const sourceRoots = ["src", "app", "lib", "libs", "packages", "apps", "services"];
 const testRoots = ["tests", "test", "__tests__", "cypress", "e2e"];
 const configFileNames = new Set([
   ".eslintrc",
@@ -58,16 +58,34 @@ const configExtensions = /\.(?:config|rc)\.(?:cjs|js|json|mjs|ts|yaml|yml)$/;
 const generatedAreaNames = new Set(["dist", "build", "coverage", ".next", "target", ".turbo"]);
 const dependencyAreaNames = new Set(["node_modules", ".pnpm-store"]);
 const lockfileNames = new Set(["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb"]);
+const sourceFileExtensions = new Set([
+  ".cjs",
+  ".go",
+  ".java",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".py",
+  ".rs",
+  ".ts",
+  ".tsx"
+]);
 const keyDirectoryRoles = [
+  ["libs", "monorepo packages/libraries"],
+  ["packages", "monorepo packages/libraries"],
+  ["apps", "applications"],
+  ["services", "services"],
   ["src/cli", "CLI commands and command entrypoints"],
   ["src/config", "configuration loading and validation"],
   ["src/analyzers", "analysis and rule logic"],
   ["src/renderers", "report rendering and output formatting"],
   ["src/core", "orchestration and core business logic"],
   ["src/repo", "repository scanning and git helpers"],
-  ["templates", "generated templates and starter context"],
-  ["tests", "test coverage, fixtures, and regression cases"],
   ["docs", "documentation"],
+  ["templates", "templates/prompts/examples"],
+  ["examples", "examples and usage samples"],
+  ["examples/cookbook", "examples and usage samples"],
+  ["tests", "test coverage, fixtures, and regression cases"],
   ["scripts", "automation and maintenance scripts"],
   [".github/workflows", "CI and release automation"],
   ["docs/ai-context", "generated agent context"],
@@ -253,6 +271,15 @@ function isTestFile(filePath: string): boolean {
     || /(^|\/)(tests?|__tests__|e2e|cypress)\/.*(^|\/)(test_[^/]+|[^/]+_test)\.py$/i.test(filePath);
 }
 
+function isSourceFile(filePath: string): boolean {
+  return !isTestFile(filePath)
+    && !isFixturePath(filePath)
+    && !isSnapshotPath(filePath)
+    && !isGeneratedPath(filePath)
+    && !isDependencyPath(filePath)
+    && sourceFileExtensions.has(path.posix.extname(filePath).toLowerCase());
+}
+
 function entrypointFiles(files: string[], packageJson: unknown): string[] {
   const declared = [
     ...packageBinEntrypoints(packageJson),
@@ -279,6 +306,55 @@ function hasNonContextDocs(files: string[]): boolean {
   return files.some((file) => file.startsWith("docs/") && !file.startsWith("docs/ai-context/"));
 }
 
+function packageRootLabel(packageRoot: string): string {
+  if (packageRoot === "libs/core") {
+    return "core library/package area";
+  }
+  if (packageRoot.startsWith("libs/")) {
+    return "library/package area";
+  }
+  if (packageRoot.startsWith("apps/")) {
+    return "application area";
+  }
+  if (packageRoot.startsWith("services/")) {
+    return "service area";
+  }
+  return "package area";
+}
+
+function monorepoPackageDirectories(files: string[]): string[] {
+  const packageRoots = new Set<string>();
+  const monorepoRoots = new Set(["libs", "packages", "apps", "services"]);
+
+  for (const file of files.filter(isSourceFile)) {
+    const [root, child] = file.split("/");
+    if (!root || !child || !monorepoRoots.has(root)) {
+      continue;
+    }
+    if (generatedAreaNames.has(child) || dependencyAreaNames.has(child)) {
+      continue;
+    }
+    packageRoots.add(`${root}/${child}`);
+  }
+
+  return [...packageRoots]
+    .sort((left, right) => {
+      if (left === "libs/core") {
+        return -1;
+      }
+      if (right === "libs/core") {
+        return 1;
+      }
+      return left.localeCompare(right);
+    })
+    .map((dirPath) => `\`${dirPath}\` - ${packageRootLabel(dirPath)}`);
+}
+
+function monorepoPackageRootFromLabel(label: string): string | undefined {
+  const match = label.match(/^`([^`]+)`/);
+  return match?.[1].split("/")[0];
+}
+
 function repositoryDirectoryName(cwd: string | undefined, packageJson: unknown): string | undefined {
   const packageName = packageStringField(packageJson, "name");
   const fallbackName = cwd ? path.basename(cwd) : undefined;
@@ -296,13 +372,18 @@ function keyDirectories(
   const packageRoot = repoDir && hasDirectory(files, repoDir)
     ? [`\`${repoDir}\` - primary package/source code`]
     : [];
+  const packageDirectories = monorepoPackageDirectories(files);
   const roleDirectories = keyDirectoryRoles
     .filter(([dirPath]) => dirPath !== "docs" || hasNonContextDocs(files))
     .filter(([dirPath]) => hasDirectory(files, dirPath))
-    .map(([dirPath, role]) => `\`${dirPath}\` - ${role}`);
+    .flatMap(([dirPath, role]) => {
+      const directory = `\`${dirPath}\` - ${role}`;
+      const nested = packageDirectories.filter((packageDirectory) => monorepoPackageRootFromLabel(packageDirectory) === dirPath);
+      return [directory, ...nested];
+    });
 
-  if (packageRoot.length > 0 || roleDirectories.length > 0) {
-    return uniqueOrdered([...packageRoot, ...roleDirectories]);
+  if (packageRoot.length > 0 || roleDirectories.length > 0 || packageDirectories.length > 0) {
+    return uniqueOrdered([...packageRoot, ...roleDirectories, ...packageDirectories]);
   }
 
   const topLevelDirs = uniqueSorted(files
@@ -324,7 +405,7 @@ function modules(files: string[], scanner?: Partial<ScanReport["detected"]>): Re
   const moduleMap = new Map<string, RepositoryModuleUnderstanding>();
   for (const file of files) {
     const [sourceRoot, child] = file.split("/");
-    if (!sourceRoot || !child || !sourceRoots.includes(sourceRoot)) {
+    if (!sourceRoot || !child || !sourceRoots.includes(sourceRoot) || !isSourceFile(file)) {
       continue;
     }
     if (generatedAreaNames.has(child) || dependencyAreaNames.has(child)) {

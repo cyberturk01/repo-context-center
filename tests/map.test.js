@@ -188,6 +188,38 @@ async function withFastApiLikeRepo(callback) {
   }
 }
 
+async function withLangChainLikeRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-langchain-map-"));
+
+  try {
+    assert.equal(runCli(tempDir, ["init"]).status, 0);
+
+    const files = {
+      "pyproject.toml": "[project]\nname = \"langchain\"\n",
+      "libs/core/langchain_core/__init__.py": "\n",
+      "libs/core/langchain_core/runnables/base.py": "class Runnable:\n    pass\n",
+      "libs/core/tests/unit_tests/runnables/test_base.py": "def test_base():\n    assert True\n",
+      "libs/community/langchain_community/__init__.py": "\n",
+      "libs/community/tests/unit_tests/test_tools.py": "def test_tools():\n    assert True\n",
+      "libs/langchain/langchain/__init__.py": "\n",
+      "libs/langchain/tests/unit_tests/test_chains.py": "def test_chains():\n    assert True\n",
+      "docs/docs/get_started/introduction.mdx": "# Introduction\n",
+      "templates/rag-pinecone/package.json": "{}\n",
+      "examples/cookbook/retrieval.ipynb": "{}\n",
+      "scripts/check_imports.py": "print('check')\n",
+      ".github/workflows/ci.yml": "name: ci\n"
+    };
+
+    for (const [filePath, content] of Object.entries(files)) {
+      await writeFixture(tempDir, filePath, content);
+    }
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 function moduleByName(data, name) {
   const module = data.modules.find((entry) => entry.name === name);
   assert.ok(module, `Expected module ${name}`);
@@ -771,23 +803,24 @@ test("PROJECT_MAP.md uses real entrypoints and package scripts for Guardian-like
       "`src/renderers` - report rendering and output formatting",
       "`src/core` - orchestration and core business logic",
       "`src/repo` - repository scanning and git helpers",
-      "`templates` - generated templates and starter context",
-      "`tests` - test coverage, fixtures, and regression cases",
       "`docs` - documentation",
+      "`templates` - templates/prompts/examples",
+      "`examples` - examples and usage samples",
+      "`tests` - test coverage, fixtures, and regression cases",
       "`.github/workflows` - CI and release automation",
       "`docs/ai-context` - generated agent context",
       "`.repo-context-center` - tool config"
     ]);
     assert.match(projectMap, /### Key Directories[\s\S]*`src\/cli` - CLI commands and command entrypoints/);
     assert.match(projectMap, /### Key Directories[\s\S]*`src\/renderers` - report rendering and output formatting/);
-    assert.match(projectMap, /### Key Directories[\s\S]*`templates` - generated templates and starter context/);
+    assert.match(projectMap, /### Key Directories[\s\S]*`templates` - templates\/prompts\/examples/);
     assert.match(projectMap, /### Key Directories[\s\S]*`\.github\/workflows` - CI and release automation/);
     assert.doesNotMatch(projectMap, /- src\/ source root/);
     assert.doesNotMatch(projectMap, /tests\/fixtures` -/);
     assert.deepEqual(data.projectMap.understandingQuality, {
       level: "High",
       entrypointsDetected: 2,
-      keyDirectoriesDetected: 12,
+      keyDirectoriesDetected: 13,
       modulesDetected: 8,
       dependencyHintsMode: "Conservative",
       noiseFilteringStatus: "Active (2 ignored/noise areas separated)"
@@ -795,7 +828,7 @@ test("PROJECT_MAP.md uses real entrypoints and package scripts for Guardian-like
     assert.match(projectMap, /### Repository Understanding Quality/);
     assert.match(projectMap, /\| Repo understanding level \| High \|/);
     assert.match(projectMap, /\| Entrypoints detected \| 2 \|/);
-    assert.match(projectMap, /\| Key directories detected \| 12 \|/);
+    assert.match(projectMap, /\| Key directories detected \| 13 \|/);
     assert.match(projectMap, /\| Modules detected \| 8 \|/);
     assert.match(projectMap, /\| Dependency hints mode \| Conservative \|/);
     assert.match(projectMap, /\| Generated\/noise filtering \| Active \(2 ignored\/noise areas separated\) \|/);
@@ -843,6 +876,40 @@ test("PROJECT_MAP.md reports medium repository understanding quality for partial
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+});
+
+test("PROJECT_MAP.md promotes LangChain-like monorepo directories without entrypoints", async () => {
+  await withLangChainLikeRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--write", "--json", "--max-files", "500"]);
+    const data = JSON.parse(result.stdout);
+    const projectMap = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "PROJECT_MAP.md"), "utf8"));
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(data.projectMap.entrypoints, []);
+    assert.deepEqual(data.projectMap.keyDirectories.slice(0, 10), [
+      "`libs` - monorepo packages/libraries",
+      "`libs/core` - core library/package area",
+      "`libs/community` - library/package area",
+      "`libs/langchain` - library/package area",
+      "`docs` - documentation",
+      "`templates` - templates/prompts/examples",
+      "`examples` - examples and usage samples",
+      "`examples/cookbook` - examples and usage samples",
+      "`scripts` - automation and maintenance scripts",
+      "`.github/workflows` - CI and release automation"
+    ]);
+    assert.deepEqual(data.projectMap.understandingQuality, {
+      level: "Medium",
+      entrypointsDetected: 0,
+      keyDirectoriesDetected: 12,
+      modulesDetected: 3,
+      dependencyHintsMode: "Conservative",
+      noiseFilteringStatus: "Active (no ignored/noise areas detected)"
+    });
+    assert.match(projectMap, /### Key Directories[\s\S]*`libs` - monorepo packages\/libraries/);
+    assert.match(projectMap, /### Key Directories[\s\S]*`libs\/core` - core library\/package area/);
+    assert.match(projectMap, /\| Repo understanding level \| Medium \|/);
+  });
 });
 
 test("PROJECT_MAP.md reports low repository understanding quality without noise inflation", async () => {
@@ -928,8 +995,8 @@ test("map generalizes to FastAPI-like non-Node repositories without docs leakage
     assert.doesNotMatch(projectMap, /<p|<img|shields\.io|logo-margin/);
     assert.deepEqual(data.projectMap.keyDirectories.slice(0, 5), [
       "`fastapi` - primary package/source code",
-      "`tests` - test coverage, fixtures, and regression cases",
       "`docs` - documentation",
+      "`tests` - test coverage, fixtures, and regression cases",
       "`scripts` - automation and maintenance scripts",
       "`.github/workflows` - CI and release automation"
     ]);

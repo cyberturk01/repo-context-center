@@ -1557,8 +1557,13 @@ function understandingQuality(understanding: RepositoryUnderstanding): RepoUnder
   const signalModules = understanding.modules.filter((module) => !isNoisePath(module.path)).length;
   const keyDirectoriesDetected = understanding.keyDirectories.length;
   const modulesDetected = understanding.modules.length;
+  const hasSourceSignals = signalModules > 0
+    || understanding.keyDirectories.some((directory) => /`(?:src|lib|libs|packages|apps|services)(?:\/|`)/.test(directory));
+  const hasWorkflowSignals = understanding.keyDirectories.some((directory) => directory.startsWith("`.github/workflows`"));
+  const hasTestSignals = understanding.testFiles.length > 0;
   const hasHighSignals = signalEntrypoints > 0 && signalKeyDirectories >= 4 && signalModules >= 4;
   const hasMediumSignals = signalEntrypoints > 0 && (signalKeyDirectories >= 2 || signalModules >= 2)
+    || (hasSourceSignals && hasTestSignals && hasWorkflowSignals)
     || signalKeyDirectories >= 3
     || signalModules >= 3;
   const level: RepoUnderstandingLevel = hasHighSignals ? "High" : hasMediumSignals ? "Medium" : "Low";

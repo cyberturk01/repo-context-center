@@ -33,6 +33,22 @@ const guardianLikeFiles = [
   "coverage/lcov.info"
 ];
 
+const langChainLikeFiles = [
+  "pyproject.toml",
+  "libs/core/langchain_core/__init__.py",
+  "libs/core/langchain_core/runnables/base.py",
+  "libs/core/tests/unit_tests/runnables/test_base.py",
+  "libs/community/langchain_community/__init__.py",
+  "libs/community/tests/unit_tests/test_tools.py",
+  "libs/langchain/langchain/__init__.py",
+  "libs/langchain/tests/unit_tests/test_chains.py",
+  "docs/docs/get_started/introduction.mdx",
+  "templates/rag-pinecone/package.json",
+  "examples/cookbook/retrieval.ipynb",
+  "scripts/check_imports.py",
+  ".github/workflows/ci.yml"
+];
+
 test("RepositoryUnderstanding detects package scripts from package.json", async () => {
   const understanding = await buildRepositoryUnderstanding({
     files: guardianLikeFiles,
@@ -116,6 +132,7 @@ test("RepositoryUnderstanding builds deterministic directories, modules, entrypo
     "`src/renderers` - report rendering and output formatting",
     "`src/core` - orchestration and core business logic",
     "`src/repo` - repository scanning and git helpers",
+    "`examples` - examples and usage samples",
     "`tests` - test coverage, fixtures, and regression cases",
     "`.github/workflows` - CI and release automation",
     "`docs/ai-context` - generated agent context"
@@ -129,5 +146,36 @@ test("RepositoryUnderstanding builds deterministic directories, modules, entrypo
     "guardian.config.json",
     "package.json",
     "tsconfig.json"
+  ]);
+});
+
+test("RepositoryUnderstanding promotes monorepo package roots with neutral labels", async () => {
+  const understanding = await buildRepositoryUnderstanding({
+    files: langChainLikeFiles,
+    packageJson: {}
+  });
+
+  assert.deepEqual(understanding.entrypoints, []);
+  assert.deepEqual(understanding.keyDirectories, [
+    "`libs` - monorepo packages/libraries",
+    "`libs/core` - core library/package area",
+    "`libs/community` - library/package area",
+    "`libs/langchain` - library/package area",
+    "`docs` - documentation",
+    "`templates` - templates/prompts/examples",
+    "`examples` - examples and usage samples",
+    "`examples/cookbook` - examples and usage samples",
+    "`scripts` - automation and maintenance scripts",
+    "`.github/workflows` - CI and release automation"
+  ]);
+  assert.deepEqual(understanding.modules, [
+    { name: "community", path: "libs/community", sourceRoot: "libs" },
+    { name: "core", path: "libs/core", sourceRoot: "libs" },
+    { name: "langchain", path: "libs/langchain", sourceRoot: "libs" }
+  ]);
+  assert.deepEqual(understanding.testFiles, [
+    "libs/community/tests/unit_tests/test_tools.py",
+    "libs/core/tests/unit_tests/runnables/test_base.py",
+    "libs/langchain/tests/unit_tests/test_chains.py"
   ]);
 });
