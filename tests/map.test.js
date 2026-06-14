@@ -495,6 +495,33 @@ test("RISK_REGISTER.md keeps default checks separate from focused risk checks", 
   });
 });
 
+test("RISK_REGISTER.md does not label normal benchmark tests as fixture drift", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-map-benchmark-risk-"));
+
+  try {
+    assert.equal(runCli(tempDir, ["init"]).status, 0);
+    await writeFixture(tempDir, "package.json", JSON.stringify({
+      scripts: {
+        test: "pytest"
+      }
+    }, null, 2));
+    await writeFixture(tempDir, "fastapi/applications.py", "class FastAPI: pass\n");
+    await writeFixture(tempDir, "tests/benchmarks/test_general_performance.py", "def test_general_performance(): pass\n");
+
+    const result = runCli(tempDir, ["map", "--json"]);
+    const data = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(!data.risks.some((risk) => risk.area.includes("Fixture/snapshot drift")));
+    assert.ok(!data.risks.some((risk) => risk.area.includes("tests/benchmarks/test_general_performance.py")));
+    for (const risk of data.risks) {
+      assert.deepEqual(risk.checks, [...new Set(risk.checks)]);
+    }
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("DO_NOT_READ.md includes generated folders", async () => {
   await withMappedRepo(async (tempDir) => {
     const result = runCli(tempDir, ["map", "--write"]);

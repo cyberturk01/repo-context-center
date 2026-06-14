@@ -284,7 +284,8 @@ function isGeneratedAsset(filePath: string): boolean {
 }
 
 function isFixtureOrSnapshotPath(filePath: string): boolean {
-  return /(^|\/)(__fixtures__|__snapshots__|snapshots?|fixtures?|test-fixtures)(\/|$)/i.test(filePath);
+  return /(^|\/)(__fixtures__|__snapshots__|snapshots?|fixtures?|test-fixtures)(\/|$)/i.test(filePath)
+    || /(^|\/)[^/]+\.(?:snap|snapshot)(?:\.[^/]*)?$/i.test(filePath);
 }
 
 function isReleasePath(filePath: string): boolean {
@@ -647,7 +648,7 @@ function verificationFor(files: string[], tests: string[], packageScripts: Set<s
   if (checks.length === 0 && files.length > 0) {
     checks.push(`review ${files.slice(0, 2).join(", ")}`);
   }
-  return checks.join("; ") || "focused manual review";
+  return uniqueOrdered(checks).join("; ") || "focused manual review";
 }
 
 function testReviewCheck(tests: string[]): string {
@@ -674,7 +675,8 @@ function focusedVerificationFor(files: string[], tests: string[]): string[] {
   if (files.length > 0) {
     checks.push(`review ${files.slice(0, 2).join(", ")}`);
   }
-  return checks.length > 0 ? checks : ["focused manual review"];
+  const deduped = uniqueOrdered(checks);
+  return deduped.length > 0 ? deduped : ["focused manual review"];
 }
 
 const categories: Category[] = [
@@ -1160,7 +1162,7 @@ function buildRisks(files: RepoFile[], testFiles: string[], packageScripts: Set<
     }];
   });
 
-  const fixtureFiles = files.filter((file) => isFixtureOrSnapshotPath(file.path) || isTestPath(file.path)).map((file) => file.path);
+  const fixtureFiles = files.filter((file) => isFixtureOrSnapshotPath(file.path)).map((file) => file.path);
   if (fixtureFiles.length > 0) {
     detected.push({
       area: `Fixture/snapshot drift: ${compactList(fixtureFiles, "none", 3)}`,
