@@ -129,6 +129,11 @@ async function withTestDiscoveryRepo(callback) {
 
   try {
     await writeFixtureFile(tempDir, "tests/example.test.js", "test('example', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/fixtures/data.json", "{}\n");
+    await writeFixtureFile(tempDir, "tests/test-fixtures/helper.ts", "export const fixture = true;\n");
+    await writeFixtureFile(tempDir, "tests/__fixtures__/thing.ts", "export const thing = true;\n");
+    await writeFixtureFile(tempDir, "tests/__snapshots__/snap.md", "# snap\n");
+    await writeFixtureFile(tempDir, "tests/schemas/example.sql", "select 1;\n");
     await writeFixtureFile(tempDir, "src/example.js", "export const example = true;\n");
     await writeFixtureFile(tempDir, "dist/tests/generated.test.js", "test('generated', () => {});\n");
 
@@ -268,6 +273,11 @@ test("suggest discovers real tests for generic test tasks", async () => {
     assert.equal(result.status, 0);
     assert.ok(suggestion.likelyTests.includes("tests/example.test.js"));
     assert.ok(!suggestion.likelyTests.includes("dist/tests/generated.test.js"));
+    assert.ok(!suggestion.likelyTests.includes("tests/fixtures/data.json"));
+    assert.ok(!suggestion.likelyTests.includes("tests/test-fixtures/helper.ts"));
+    assert.ok(!suggestion.likelyTests.includes("tests/__fixtures__/thing.ts"));
+    assert.ok(!suggestion.likelyTests.includes("tests/__snapshots__/snap.md"));
+    assert.ok(!suggestion.likelyTests.includes("tests/schemas/example.sql"));
     assert.deepEqual(suggestion.likelyTests, ["tests/example.test.js"]);
     await assertReturnedPathsExist(tempDir, suggestion.likelyTests);
   });
@@ -281,9 +291,48 @@ test("suggest discovers real tests for unit test failure tasks", async () => {
     assert.equal(result.status, 0);
     assert.ok(suggestion.likelyTests.includes("tests/example.test.js"));
     assert.ok(!suggestion.likelyTests.includes("dist/tests/generated.test.js"));
+    assert.ok(!suggestion.likelyTests.includes("tests/fixtures/data.json"));
+    assert.ok(!suggestion.likelyTests.includes("tests/__snapshots__/snap.md"));
+    assert.ok(!suggestion.likelyTests.includes("tests/schemas/example.sql"));
     assert.deepEqual(suggestion.likelyTests, ["tests/example.test.js"]);
     await assertReturnedPathsExist(tempDir, suggestion.likelyTests);
   });
+});
+
+test("suggest falls back to broader tests files when no primary tests exist", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-suggest-fallback-tests-"));
+
+  try {
+    await writeFixtureFile(tempDir, "tests/helper.ts", "export const helper = true;\n");
+    await writeFixtureFile(tempDir, "tests/fixtures/data.json", "{}\n");
+    await writeFixtureFile(tempDir, "tests/__snapshots__/snap.md", "# snap\n");
+
+    const result = runCli(["suggest", "fix test", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(suggestion.likelyTests, ["tests/helper.ts"]);
+    await assertReturnedPathsExist(tempDir, suggestion.likelyTests);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("suggest respects max files for likely tests", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-suggest-max-tests-"));
+
+  try {
+    await writeFixtureFile(tempDir, "tests/a.test.js", "test('a', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/b.test.js", "test('b', () => {});\n");
+
+    const result = runCli(["suggest", "fix test", "--max-files", "1", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(suggestion.likelyTests, ["tests/a.test.js"]);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("suggest returns empty file arrays for empty repos", async () => {

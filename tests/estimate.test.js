@@ -230,7 +230,30 @@ test("estimate task recommendation counts test-heavy files", async () => {
 
     assert.equal(result.status, 0);
     assert.equal(report.taskEstimate.likelySourceTokens, 0);
-    assert.equal(report.taskEstimate.likelyTestTokens, tokenEstimate("c".repeat(120)) + tokenEstimate("h".repeat(40)));
+    assert.equal(report.taskEstimate.likelyTestTokens, tokenEstimate("c".repeat(120)));
+    assert.deepEqual(
+      report.taskEstimate.likelyTests.map((file) => file.path),
+      ["cypress/e2e/login.cy.ts"]
+    );
+  });
+});
+
+test("estimate task recommendation uses primary tests and excludes fixtures", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeText(tempDir, "tests/example.test.js", "t".repeat(80));
+    await writeText(tempDir, "tests/fixtures/data.json", "f".repeat(80));
+    await writeText(tempDir, "tests/__snapshots__/snap.md", "s".repeat(80));
+    await writeText(tempDir, "tests/schemas/schema.sql", "q".repeat(80));
+
+    const result = runCli(["estimate", "--task", "fix test", "--json"], { cwd: tempDir });
+    const report = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(report.taskEstimate.likelyTestTokens, tokenEstimate("t".repeat(80)));
+    assert.deepEqual(
+      report.taskEstimate.likelyTests.map((file) => file.path),
+      ["tests/example.test.js"]
+    );
   });
 });
 
@@ -252,7 +275,11 @@ test("estimate task recommendation separates mixed source, test, and context fil
 
     assert.equal(result.status, 0);
     assert.equal(report.taskEstimate.likelySourceTokens, tokenEstimate("s".repeat(64)));
-    assert.equal(report.taskEstimate.likelyTestTokens, tokenEstimate("t".repeat(96)) + tokenEstimate("u".repeat(128)));
+    assert.equal(report.taskEstimate.likelyTestTokens, tokenEstimate("u".repeat(128)));
+    assert.deepEqual(
+      report.taskEstimate.likelyTests.map((file) => file.path),
+      ["tests/auth.test.ts"]
+    );
     assert.ok(report.taskEstimate.likelyContextTokens > 0);
     assert.ok(report.taskEstimate.likelyContextFiles.some((file) => file.path === "docs/ai-context/RISK_REGISTER.md"));
   });

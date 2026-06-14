@@ -3,6 +3,7 @@ import type { CliIO } from "../index";
 
 interface SuggestOptions {
   json: boolean;
+  maxFiles: number;
   symbols: boolean;
   task: string;
 }
@@ -10,10 +11,31 @@ interface SuggestOptions {
 function parseSuggestOptions(args: string[]): SuggestOptions | undefined {
   const json = args.includes("--json");
   const symbols = args.includes("--symbols");
-  const taskParts = args.filter((arg) => arg !== "--json" && arg !== "--symbols");
+  let maxFiles = 50;
+  const taskParts: string[] = [];
 
-  if (taskParts.some((arg) => arg.startsWith("--"))) {
-    return undefined;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (arg === "--json" || arg === "--symbols") {
+      continue;
+    }
+
+    if (arg === "--max-files") {
+      const value = Number.parseInt(args[index + 1] ?? "", 10);
+      if (!Number.isInteger(value) || value < 1) {
+        return undefined;
+      }
+      maxFiles = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--")) {
+      return undefined;
+    }
+
+    taskParts.push(arg);
   }
 
   const task = taskParts.join(" ").trim();
@@ -21,7 +43,7 @@ function parseSuggestOptions(args: string[]): SuggestOptions | undefined {
     return undefined;
   }
 
-  return { json, symbols, task };
+  return { json, maxFiles, symbols, task };
 }
 
 function formatList(values: string[]): string {
@@ -75,11 +97,11 @@ function formatSuggestion(suggestion: ContextSuggestion, includeSymbols: boolean
 export async function suggestCommand(io: CliIO, args: string[] = []): Promise<number> {
   const options = parseSuggestOptions(args);
   if (!options) {
-    io.stderr('Usage: repo-context-center suggest "<task>" [--json] [--symbols]\n');
+    io.stderr('Usage: repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]\n');
     return 1;
   }
 
-  const suggestion = await suggestContext(io.cwd, options.task);
+  const suggestion = await suggestContext(io.cwd, options.task, { maxFiles: options.maxFiles });
   if (options.json) {
     io.stdout(`${JSON.stringify(suggestion, null, 2)}\n`);
     return 0;

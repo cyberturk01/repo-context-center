@@ -368,7 +368,7 @@ async function estimateTaskRecommendation(
   task: string,
   maxFiles: number
 ): Promise<TaskTokenEstimate> {
-  const suggestion = await suggestContext(cwd, task);
+  const suggestion = await suggestContext(cwd, task, { maxFiles });
   const recommendedPaths = [
     ...suggestion.contextFiles,
     ...suggestion.likelySourceFiles,

@@ -16,6 +16,10 @@ export interface ContextSuggestion {
   reasons: string[];
 }
 
+export interface SuggestContextOptions {
+  maxFiles?: number;
+}
+
 export interface SymbolRecommendation {
   file: string;
   symbols: string[];
@@ -58,6 +62,7 @@ const testDiscoveryKeywords = ["test", "unit test", "spec", "failure", "jest", "
 const sourceRoots = ["src", "app", "lib"];
 const ignoredDirs = new Set(["node_modules", "dist", "build", "coverage", ".next", "target", ".git"]);
 const workflowFiles = ["package.json", "Dockerfile", "railway.json"];
+const defaultSuggestMaxFiles = 50;
 const stopWords = new Set([
   "a",
   "an",
@@ -81,6 +86,10 @@ const stopWords = new Set([
 
 function uniqueSorted(values: string[]): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
+
+function uniqueOrdered(values: string[]): string[] {
+  return [...new Set(values)];
 }
 
 function tokenize(text: string): string[] {
@@ -120,6 +129,45 @@ function isLikelyTestPath(filePath: string): boolean {
     || parts.includes("cypress")
     || parts.includes("e2e")
     || /\.(test|spec)\.[^.]+$/i.test(filePath);
+}
+
+function isPrimaryTestPath(filePath: string): boolean {
+  return /^(tests?|e2e)\/.*\.(test|spec)\.[^.]+$/i.test(filePath)
+    || /^cypress\/.*\.(cy|spec)\.[^.]+$/i.test(filePath);
+}
+
+function isExcludedPrimaryTestPath(filePath: string): boolean {
+  return /(^|\/)(fixtures|test-fixtures|__fixtures__|__snapshots__|schemas)\//i.test(filePath)
+    || /\.(md|json|sql)$/i.test(filePath);
+}
+
+function isFallbackTestPath(filePath: string): boolean {
+  return /^tests?\//i.test(filePath)
+    && !/(^|\/)(__snapshots__|schemas)\//i.test(filePath)
+    && !/\.(md|json|sql)$/i.test(filePath);
+}
+
+function testPathRank(filePath: string, directPrimaryHints: Set<string>): number {
+  if (directPrimaryHints.has(filePath)) {
+    return 0;
+  }
+
+  if (/^(tests?|__tests__)\/.*\.(test|spec)\.[^.]+$/i.test(filePath)) {
+    return 1;
+  }
+
+  if (/^(cypress|e2e)\/.*\.(cy|test|spec)\.[^.]+$/i.test(filePath)) {
+    return 2;
+  }
+
+  return 3;
+}
+
+function orderLikelyTests(testPaths: string[], directPrimaryHints: Set<string>): string[] {
+  return uniqueOrdered(testPaths).sort((left, right) => {
+    const rankDifference = testPathRank(left, directPrimaryHints) - testPathRank(right, directPrimaryHints);
+    return rankDifference === 0 ? left.localeCompare(right) : rankDifference;
+  });
 }
 
 function isLikelySourceSearchPath(filePath: string): boolean {
@@ -222,7 +270,8 @@ function discoverLikelySourceFiles(
   files: string[],
   tokens: string[],
   existingHintMatches: string[],
-  includeWorkflowFiles: boolean
+  includeWorkflowFiles: boolean,
+  maxFiles: number
 ): string[] {
   const sourceMatches = files.filter((file) => {
     if (isLikelyTestPath(file)) {
@@ -240,22 +289,39 @@ function discoverLikelySourceFiles(
     return false;
   });
 
-  return uniqueSorted([...sourceMatches, ...existingHintMatches.filter((file) => !isLikelyTestPath(file))]);
+  return uniqueSorted([...sourceMatches, ...existingHintMatches.filter((file) => !isLikelyTestPath(file))])
+    .slice(0, maxFiles);
 }
 
 function discoverLikelyTests(
   files: string[],
   tokens: string[],
   existingHintMatches: string[],
-  includeAllTests: boolean
+  includeAllTests: boolean,
+  maxFiles: number
 ): string[] {
-  return uniqueSorted(files.filter((file) => {
-    if (!isLikelyTestPath(file)) {
+  const directPrimaryHints = new Set(existingHintMatches.filter(isPrimaryTestPath));
+  const primaryTests = files.filter((file) => {
+    if (!isPrimaryTestPath(file) || isExcludedPrimaryTestPath(file)) {
       return false;
     }
 
     return includeAllTests || pathMatchesTokens(file, tokens) || existingHintMatches.includes(file);
-  }));
+  });
+
+  if (primaryTests.length > 0) {
+    return orderLikelyTests(primaryTests, directPrimaryHints).slice(0, maxFiles);
+  }
+
+  const fallbackTests = files.filter((file) => {
+    if (!isFallbackTestPath(file)) {
+      return false;
+    }
+
+    return includeAllTests || pathMatchesTokens(file, tokens) || existingHintMatches.includes(file);
+  });
+
+  return orderLikelyTests(fallbackTests, directPrimaryHints).slice(0, maxFiles);
 }
 
 function onlyExistingSymbolEntries(symbolEntries: SymbolRecommendation[], files: string[]): SymbolRecommendation[] {
@@ -417,7 +483,12 @@ function riskFor(mode: SuggestMode, riskMatches: number, dependencyMatches: numb
   return "low";
 }
 
-export async function suggestContext(cwd: string, task: string): Promise<ContextSuggestion> {
+export async function suggestContext(
+  cwd: string,
+  task: string,
+  options: SuggestContextOptions = {}
+): Promise<ContextSuggestion> {
+  const maxFiles = options.maxFiles ?? defaultSuggestMaxFiles;
   const documents = await readSuggestContext(cwd);
   const tokens = tokenize(task);
   const testRelatedTask = isTestRelatedTask(task);
@@ -510,10 +581,11 @@ export async function suggestContext(cwd: string, task: string): Promise<Context
       repoFiles,
       discoveryTokens,
       existingHintMatches,
-      isWorkflowTask(tokens)
+      isWorkflowTask(tokens),
+      maxFiles
     ),
     relevantSymbols,
-    likelyTests: discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches, testRelatedTask),
+    likelyTests: discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches, testRelatedTask, maxFiles),
     riskLevel,
     reasons: uniqueSorted([
       routingMatches.length > 0 ? "task matched routing guidance" : "",
