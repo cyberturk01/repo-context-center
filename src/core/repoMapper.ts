@@ -295,6 +295,13 @@ function isCoreOrchestrationPath(filePath: string): boolean {
   return filePath.startsWith("src/core/");
 }
 
+function isLowValueHotspotPath(filePath: string): boolean {
+  return filePath === ".repo-context-center/config.json"
+    || filePath.startsWith(".project-brain/metrics/")
+    || filePath.startsWith("docs/ai-context/")
+    || isFixtureOrSnapshotPath(filePath);
+}
+
 async function walkRepo(cwd: string, maxFiles: number): Promise<RepoFile[]> {
   const files: RepoFile[] = [];
 
@@ -946,7 +953,6 @@ function buildDependencies(files: RepoFile[], understanding: RepositoryUnderstan
     }
     return firstExisting(patterns);
   };
-  const area = (prefix: string): string | undefined => allPaths.some((file) => file.startsWith(`${prefix}/`)) ? `${prefix}/*` : undefined;
   const add = (from: string | undefined, dependsOn: string | undefined, why: string): void => {
     if (from && dependsOn && from !== dependsOn) {
       dependencies.push({ from, dependsOn, why, inferred: true });
@@ -955,18 +961,21 @@ function buildDependencies(files: RepoFile[], understanding: RepositoryUnderstan
 
   const cliEntrypoint = firstEntrypoint([/^src\/cli\/index\./, /^cli\/index\./, /^src\/cli\//]);
   add(cliEntrypoint, firstExisting([/^src\/core\/config\./, /^src\/config\//]), "CLI loads repository configuration before command behavior");
-  add(cliEntrypoint, firstExisting([/^src\/core\/repoMapper\./, /^src\/core\//]), "CLI delegates repository work to core modules");
+  add(cliEntrypoint, firstExisting([/^src\/core\/guardian\./, /^src\/core\/repoMapper\./, /^src\/core\/index\./]), "CLI delegates repository work to core modules");
   add(cliEntrypoint, firstExisting([/^src\/renderers\//]), "CLI output may be formatted by renderer modules");
 
-  const coreModel = firstExisting([/^src\/core\/repoMapper\./, /^src\/core\/.*map/i, /^src\/core\//]);
+  const coreModel = firstExisting([
+    /^src\/core\/guardian\./,
+    /^src\/core\/repoMapper\./,
+    /^src\/core\/.*(?:map|report|guidance|decision|types)/i,
+    /^src\/core\/index\./
+  ]);
   add(coreModel, firstExisting([/^src\/analyzers\//]), "core mapping coordinates analyzer and risk-rule results");
   add(coreModel, firstExisting([/^src\/repo\//, /^src\/core\/scanner\./]), "core mapping consumes repository scanning/classification");
   add(coreModel, firstExisting([/^src\/core\/config\./, /^src\/config\//]), "core behavior is driven by configuration");
 
   const analyzer = firstExisting([/^src\/analyzers\//, /(^|\/)(analy[sz]er|risk|hotspot|score|rule|validator|security)[^/]*\.(ts|tsx|js|jsx|mjs|cjs)$/i]);
   add(analyzer, firstExisting([/^src\/config\//, /^src\/core\/config\./, /^guardian\.config\.json$/]), "analyzers read configuration rules when present");
-  add(analyzer, firstExisting([/^src\/project-brain\//, /^\.project-brain\//]), "analyzers can summarize project-brain context when present");
-  add(analyzer, area("templates"), "analyzers compare generated context expectations with templates");
 
   const renderer = firstExisting([/^src\/renderers\//]);
   add(renderer, coreModel, "renderers format the core report model");
@@ -983,6 +992,26 @@ function buildDependencies(files: RepoFile[], understanding: RepositoryUnderstan
     seen.add(key);
     return true;
   }).slice(0, 16);
+}
+
+function topHotspotFiles(values: string[], limit: number): string[] {
+  return values.filter((value, index) => values.indexOf(value) === index).slice(0, limit);
+}
+
+function coreHotspotRank(filePath: string): number {
+  if (/^src\/core\/guardian\./.test(filePath) || /^src\/core\/repoMapper\./.test(filePath)) {
+    return 0;
+  }
+  if (/^src\/core\/reportDecisionSupport\./.test(filePath)) {
+    return 1;
+  }
+  if (/^src\/core\/actionableGuidance\./.test(filePath)) {
+    return 2;
+  }
+  if (/^src\/core\/baseline\./.test(filePath)) {
+    return 3;
+  }
+  return 9;
 }
 
 function symbolUse(symbol: ScannedSymbol): string {
@@ -1062,12 +1091,21 @@ async function buildHotspots(
   const allPaths = files.map((file) => file.path);
   const highImpactGroups = [
     understanding.entrypoints.filter((file) => allPaths.includes(file)),
-    allPaths.filter((file) => /^src\/core\/config\.[^.]+$/.test(file) || file.startsWith("src/config/")),
-    allPaths.filter((file) => isAnalyzerPath(file)),
-    allPaths.filter((file) => file.startsWith("src/renderers/") || /^src\/core\/repoMapper\.[^.]+$/.test(file)),
-    allPaths.filter((file) => isScannerPath(file)),
-    allPaths.filter((file) => file.startsWith(".github/workflows/")),
-    allPaths.filter((file) => isTemplatePath(file) || file.startsWith("src/project-brain/")),
+    topHotspotFiles(
+      allPaths
+        .filter((file) => /^src\/core\/(guardian|repoMapper|reportDecisionSupport|actionableGuidance|baseline|types)\.[^.]+$/.test(file))
+        .sort((left, right) => {
+          const rankDiff = coreHotspotRank(left) - coreHotspotRank(right);
+          return rankDiff === 0 ? left.localeCompare(right) : rankDiff;
+        }),
+      2
+    ),
+    topHotspotFiles(allPaths.filter((file) => /^src\/core\/config\.[^.]+$/.test(file) || file.startsWith("src/config/")), 2),
+    topHotspotFiles(allPaths.filter((file) => isAnalyzerPath(file)), 2),
+    topHotspotFiles(allPaths.filter((file) => file.startsWith("src/renderers/") || /^src\/core\/repoMapper\.[^.]+$/.test(file)), 2),
+    topHotspotFiles(allPaths.filter((file) => isScannerPath(file)), 1),
+    topHotspotFiles(allPaths.filter((file) => file.startsWith(".github/workflows/")), 2),
+    topHotspotFiles(allPaths.filter((file) => isTemplatePath(file) || file.startsWith("src/project-brain/")), 2),
     [...dependentCounts.entries()].filter(([, count]) => count > 1).map(([file]) => file),
     allPaths.filter((file) => riskyPaths.has(file)),
     allPaths.includes("package.json") ? ["package.json"] : []
@@ -1076,7 +1114,7 @@ async function buildHotspots(
     .flat()
     .filter((file) => allPaths.includes(file))
     .filter((file) => !isTestPath(file))
-    .filter((file) => !isFixtureOrSnapshotPath(file));
+    .filter((file) => !isLowValueHotspotPath(file));
 
   const rows: RepoHotspot[] = [];
   const seen = new Set<string>();
@@ -1096,6 +1134,7 @@ async function buildHotspots(
       riskyPaths.has(file) ? "risky area" : "",
       (dependentCounts.get(file) ?? 0) > 1 ? "multiple local dependents" : "",
       size > 20_000 ? "large central file" : "",
+      isCoreOrchestrationPath(file) ? "core orchestration or shared model" : "",
       /^src\/core\/config\.[^.]+$/.test(file) || file.startsWith("src/config/") ? "configuration loader or defaults" : "",
       isAnalyzerPath(file) ? "analyzer or risk scoring" : "",
       file.startsWith("src/renderers/") || /^src\/core\/repoMapper\.[^.]+$/.test(file) ? "report rendering or map model" : "",
@@ -1132,6 +1171,19 @@ function firstProjectCheck(risk: RepoRisk, understanding: RepositoryUnderstandin
   return risk.checks[0] ?? "focused review";
 }
 
+function projectPurpose(understanding: RepositoryUnderstanding): string {
+  if (understanding.readmePurpose) {
+    return understanding.readmePurpose;
+  }
+  if (understanding.packageDescription) {
+    return understanding.packageDescription;
+  }
+  if (understanding.packageName) {
+    return `${understanding.packageName} repository.`;
+  }
+  return "Repository purpose not declared in package metadata or README.";
+}
+
 function buildProjectMap(
   files: RepoFile[],
   testFiles: string[],
@@ -1148,7 +1200,7 @@ function buildProjectMap(
   const coreEntrypoints = files.filter((file) => file.path.startsWith("src/core/")).map((file) => file.path).slice(0, 4);
 
   return {
-    purpose: "Repository Context Center CLI for installing, validating, mapping, estimating, and suggesting low-token repository context.",
+    purpose: projectPurpose(understanding),
     keyDirectories: understanding.keyDirectories.length > 0
       ? understanding.keyDirectories
       : ["No standard source roots detected"],

@@ -88,8 +88,10 @@ async function withGuardianLikeRepo(callback) {
 
     const files = {
       "package.json": JSON.stringify({
+        name: "ai-project-guardian",
+        description: "CLI repository risk analysis reports for QA, release, and security workflows.",
         bin: {
-          "repo-context-center": "./dist/cli/index.js"
+          "ai-project-guardian": "./dist/cli/index.js"
         },
         main: "./dist/cli/index.js",
         scripts: {
@@ -99,10 +101,12 @@ async function withGuardianLikeRepo(callback) {
           test: "node --test tests/*.test.js"
         }
       }, null, 2),
+      "README.md": "# ai-project-guardian\n\n`ai-project-guardian` is a TypeScript CLI for analyzing another repository and producing QA, release, security, workflow, coverage, and external-scanner risk reports that can be published from GitHub Actions.\n",
       "src/cli/index.ts": "export function runCli() { return true; }\n",
       "src/cli/commands/map.ts": "export function mapCommand() { return true; }\n",
       "src/config/defaults.ts": "export const defaults = {};\n",
       "src/core/config.ts": "export function loadConfig() { return {}; }\n",
+      "src/core/guardian.ts": "export function runGuardian() { return true; }\n",
       "src/core/validator.ts": "export function validateConfig() { return true; }\n",
       "src/analyzers/index.ts": "export function createAnalyzer() { return true; }\n",
       "src/renderers/markdown.ts": "export function renderMarkdown() { return true; }\n",
@@ -313,7 +317,7 @@ test("PROJECT_MAP.md describes purpose, flow, tests, and ignored areas", async (
 
     assert.equal(result.status, 0);
     assert.match(content, /### Main Purpose/);
-    assert.match(content, /Repository Context Center CLI/);
+    assert.match(content, /Repository purpose not declared in package metadata or README\./);
     assert.match(content, /### Main Execution Flow/);
     assert.match(content, /`src\/cli\/index\.ts`/);
     assert.match(content, /### Generated \/ Ignored Areas/);
@@ -537,6 +541,12 @@ test("PROJECT_MAP.md uses real entrypoints and package scripts for Guardian-like
       "dist/cli/index.js",
       "src/cli/index.ts"
     ]);
+    assert.equal(
+      data.projectMap.purpose,
+      "ai-project-guardian is a TypeScript CLI for analyzing another repository and producing QA, release, security, workflow, coverage, and external-scanner risk reports that can be published from GitHub Actions."
+    );
+    assert.match(projectMap, /ai-project-guardian is a TypeScript CLI for analyzing another repository/);
+    assert.doesNotMatch(projectMap, /Repository Context Center CLI/);
     assert.match(projectMap, /### Startup \/ Entrypoints[\s\S]*`dist\/cli\/index\.js`[\s\S]*`src\/cli\/index\.ts`/);
     assert.deepEqual(data.projectMap.keyDirectories, [
       "`src/cli` - CLI commands and command entrypoints",
@@ -574,13 +584,13 @@ test("HOTSPOTS.md prioritizes high-impact Guardian-like files over fixtures", as
     assert.equal(result.status, 0);
     for (const expected of [
       "src/cli/index.ts",
+      "src/core/guardian.ts",
       "src/config/defaults.ts",
       "src/core/config.ts",
       "src/analyzers/index.ts",
       "src/renderers/markdown.ts",
       "src/repo/index.ts",
-      ".github/workflows/ci.yml",
-      "src/project-brain/index.ts"
+      ".github/workflows/ci.yml"
     ]) {
       assert.ok(hotspotFiles.includes(expected), expected);
       assert.match(hotspots, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -609,20 +619,32 @@ test("DEPENDENCY_MAP.md uses deterministic high-level hints without fake depende
       },
       {
         from: "src/cli/index.ts",
+        dependsOn: "src/core/guardian.ts",
+        why: "CLI delegates repository work to core modules",
+        inferred: true
+      },
+      {
+        from: "src/cli/index.ts",
         dependsOn: "src/renderers/markdown.ts",
         why: "CLI output may be formatted by renderer modules",
         inferred: true
       },
       {
-        from: "src/core/config.ts",
+        from: "src/core/guardian.ts",
         dependsOn: "src/analyzers/index.ts",
         why: "core mapping coordinates analyzer and risk-rule results",
         inferred: true
       },
       {
-        from: "src/core/config.ts",
+        from: "src/core/guardian.ts",
         dependsOn: "src/repo/index.ts",
         why: "core mapping consumes repository scanning/classification",
+        inferred: true
+      },
+      {
+        from: "src/core/guardian.ts",
+        dependsOn: "src/core/config.ts",
+        why: "core behavior is driven by configuration",
         inferred: true
       },
       {
@@ -632,20 +654,8 @@ test("DEPENDENCY_MAP.md uses deterministic high-level hints without fake depende
         inferred: true
       },
       {
-        from: "src/analyzers/index.ts",
-        dependsOn: "src/project-brain/index.ts",
-        why: "analyzers can summarize project-brain context when present",
-        inferred: true
-      },
-      {
-        from: "src/analyzers/index.ts",
-        dependsOn: "templates/*",
-        why: "analyzers compare generated context expectations with templates",
-        inferred: true
-      },
-      {
         from: "src/renderers/markdown.ts",
-        dependsOn: "src/core/config.ts",
+        dependsOn: "src/core/guardian.ts",
         why: "renderers format the core report model",
         inferred: true
       },
@@ -659,6 +669,7 @@ test("DEPENDENCY_MAP.md uses deterministic high-level hints without fake depende
     assert.match(dependencyMap, /CLI loads repository configuration before command behavior/);
     assert.match(dependencyMap, /renderers format the core report model/);
     assert.match(dependencyMap, /tests use fixtures or snapshots only as test context/);
+    assert.doesNotMatch(dependencyMap, /\.project-brain\/metrics|businessAreaAnalyzer|templates\/\*/);
     assert.doesNotMatch(dependencyMap, /path heuristic fallback|likely touches persistence|auth\/security path/i);
     assert.ok(!data.dependencies.some((dependency) => dependency.from.startsWith("tests/fixtures/")));
     assert.ok(!data.dependencies.some((dependency) => dependency.from.startsWith("tests/__snapshots__/")));

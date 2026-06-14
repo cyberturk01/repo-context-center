@@ -16,6 +16,9 @@ export interface IgnoredAreaUnderstanding {
 }
 
 export interface RepositoryUnderstanding {
+  packageName?: string;
+  packageDescription?: string;
+  readmePurpose?: string;
   packageManager: PackageManager;
   scripts: Record<string, string>;
   entrypoints: string[];
@@ -110,6 +113,31 @@ function packageStringField(packageJson: unknown, field: string): string | undef
 
   const value = packageJson[field];
   return typeof value === "string" ? value : undefined;
+}
+
+function cleanMarkdownText(value: string): string {
+  return value
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function readmePurpose(content: string | undefined): string | undefined {
+  if (!content) {
+    return undefined;
+  }
+
+  const paragraphs = content
+    .split(/\r?\n\s*\r?\n/)
+    .map((paragraph) => paragraph
+      .split(/\r?\n/)
+      .filter((line) => !line.trim().startsWith("#"))
+      .join(" "))
+    .map(cleanMarkdownText)
+    .filter(Boolean);
+
+  return paragraphs[0];
 }
 
 function packageBinEntrypoints(packageJson: unknown): string[] {
@@ -307,13 +335,29 @@ async function readPackageJson(cwd: string | undefined, provided: unknown): Prom
   }
 }
 
+async function readReadme(cwd: string | undefined): Promise<string | undefined> {
+  if (cwd === undefined) {
+    return undefined;
+  }
+
+  try {
+    return await readTextFile(path.join(cwd, "README.md"));
+  } catch {
+    return undefined;
+  }
+}
+
 export async function buildRepositoryUnderstanding(
   input: BuildRepositoryUnderstandingInput
 ): Promise<RepositoryUnderstanding> {
   const files = uniqueSorted(input.files.map(normalizePath));
   const packageJson = await readPackageJson(input.cwd, input.packageJson);
+  const readme = await readReadme(input.cwd);
 
   return {
+    packageName: packageStringField(packageJson, "name"),
+    packageDescription: packageStringField(packageJson, "description"),
+    readmePurpose: readmePurpose(readme),
     packageManager: packageManager(files, packageJson),
     scripts: packageScripts(packageJson),
     entrypoints: entrypointFiles(files, packageJson),
