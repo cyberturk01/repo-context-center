@@ -34,6 +34,28 @@ Estimated saving: 99.4%
 
 Estimates use `ceil(characters / 4)`. They are not tokenizer-exact, not billing estimates, and results vary by repo. Percentages are estimates and actual tokenizer usage may differ.
 
+## Real-World Validation
+
+Repository Context Center has been validated against multiple public repositories with different structures.
+
+### FastAPI (Python framework)
+
+- Files scanned: 500
+- Naive scan estimate: ~936K tokens
+- Compact startup context: ~862 tokens
+- Estimated reduction: ~99.9%
+
+### LangChain (large AI monorepo)
+
+- Files scanned: 500
+- Naive scan estimate: ~1.18M tokens
+- Compact startup context: ~4.4K tokens
+- Estimated reduction: ~99.6%
+
+Estimates use a simple `ceil(characters / 4)` approximation and are intended for relative comparison only. Actual tokenizer costs vary by model.
+
+No affiliation with or endorsement by FastAPI or LangChain is implied.
+
 ## What Problem This Solves
 
 AI coding agents often waste context on repeated discovery:
