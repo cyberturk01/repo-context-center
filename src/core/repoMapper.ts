@@ -426,6 +426,7 @@ function primaryFilesForCategory(files: RepoFile[], category: Category, limit: n
 
   return filesForCategory(files, category)
     .filter((file) => !isTestPath(file.path))
+    .filter((file) => category.key === "fixtures" || !isFixtureOrSnapshotPath(file.path))
     .filter((file) => category.key === "release" || !isLockfilePath(file.path))
     .filter((file) => category.key !== "context" || !file.path.startsWith(".project-brain/metrics/") || !hasAiContextDocs)
     .sort((left, right) => {
@@ -643,7 +644,9 @@ function buildTaskRouting(files: RepoFile[], testFiles: string[], packageScripts
       return [];
     }
 
-    const matches = filesForCategory(files, category).filter((file) => !isContextPath(file.path) || category.key === "context");
+    const matches = filesForCategory(files, category)
+      .filter((file) => !isContextPath(file.path) || category.key === "context")
+      .filter((file) => category.key === "fixtures" || !isFixtureOrSnapshotPath(file.path));
     if (matches.length === 0) {
       return [];
     }
@@ -667,10 +670,6 @@ function buildModules(files: RepoFile[], testFiles: string[], maxModules = 12): 
 
   return categories
     .map((category) => {
-      if (category.key === "fixtures") {
-        return undefined;
-      }
-
       if (category.key === "context" && !hasProjectFiles) {
         return undefined;
       }

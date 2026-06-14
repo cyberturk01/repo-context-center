@@ -136,6 +136,13 @@ function moduleByName(data, name) {
   return module;
 }
 
+function moduleSection(content, name) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = content.match(new RegExp(`## ${escapedName}\\n[\\s\\S]*?(?=\\n\\n## |$)`));
+  assert.ok(match, `Expected module section ${name}`);
+  return match[0];
+}
+
 test("map --dry-run prints proposed updates without writing", async () => {
   await withMappedRepo(async (tempDir) => {
     const targetPath = path.join(tempDir, "docs", "ai-context", "TASK_ROUTING.md");
@@ -433,7 +440,9 @@ test("map classifies Guardian-like repo files without fixture or metrics noise",
     }
 
     assert.doesNotMatch(taskRouting, /tests\/fixtures|tests\/__snapshots__|tests\/fixtures\/context\.md/);
-    assert.doesNotMatch(moduleIndex, /tests\/fixtures|tests\/__snapshots__|tests\/fixtures\/context\.md/);
+    assert.doesNotMatch(moduleSection(moduleIndex, "Release workflow"), /tests\/fixtures|tests\/__snapshots__/);
+    assert.doesNotMatch(moduleSection(moduleIndex, "Context docs"), /tests\/fixtures|tests\/__snapshots__/);
+    assert.match(moduleIndex, /## Test fixtures[\s\S]*`tests\/fixtures\/config\.test\.ts`/);
     assert.match(moduleIndex, /## Release workflow[\s\S]*- Related tests: `tests\/integration\/release\.ts`\./);
     assert.match(moduleIndex, /## Context docs[\s\S]*`AGENTS\.md`/);
     assert.match(moduleIndex, /## Context docs[\s\S]*`docs\/ai-context\/TASK_ROUTING\.md`/);
@@ -441,6 +450,61 @@ test("map classifies Guardian-like repo files without fixture or metrics noise",
     assert.match(moduleIndex, /## Context docs[\s\S]*- Related tests: none detected\./);
     assert.doesNotMatch(moduleIndex, /## Context docs[\s\S]*\.project-brain\/metrics/);
   });
+});
+
+test("map keeps fixture security files out of auth primary files and task routing", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-map-fixture-leak-"));
+
+  try {
+    assert.equal(runCli(tempDir, ["init"]).status, 0);
+    await writeFixture(tempDir, "package.json", JSON.stringify({
+      scripts: {
+        build: "tsc",
+        lint: "eslint .",
+        test: "node --test tests/*.test.js"
+      }
+    }, null, 2));
+    await writeFixture(
+      tempDir,
+      "src/analyzers/securityAnalyzer.ts",
+      "export function analyzeSecurityRules() { return true; }\n"
+    );
+    await writeFixture(
+      tempDir,
+      "templates/project-brain/security-rules.md",
+      "# Security rules template\n"
+    );
+    await writeFixture(
+      tempDir,
+      "tests/fixtures/project-brain/complete/.project-brain/security-rules.md",
+      "# Fixture security rules\n"
+    );
+    await writeFixture(
+      tempDir,
+      "tests/securityAnalyzer.test.ts",
+      "import '../src/analyzers/securityAnalyzer';\n"
+    );
+
+    const result = runCli(tempDir, ["map", "--write", "--json"]);
+    const data = JSON.parse(result.stdout);
+    const taskRouting = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "TASK_ROUTING.md"), "utf8"));
+    const moduleIndex = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "MODULE_INDEX.md"), "utf8"));
+    const auth = moduleByName(data, "Auth/access");
+    const fixtures = moduleByName(data, "Test fixtures");
+
+    assert.equal(result.status, 0);
+    assert.ok(auth.primaryFiles.includes("src/analyzers/securityAnalyzer.ts"));
+    assert.ok(auth.primaryFiles.includes("templates/project-brain/security-rules.md"));
+    assert.ok(!auth.primaryFiles.some((file) => file.startsWith("tests/fixtures/")));
+    assert.ok(fixtures.primaryFiles.includes("tests/fixtures/project-brain/complete/.project-brain/security-rules.md"));
+
+    assert.match(taskRouting, /Auth\/access \| `src\/analyzers\/securityAnalyzer\.ts`, `templates\/project-brain\/security-rules\.md`/);
+    assert.doesNotMatch(taskRouting, /tests\/fixtures\/project-brain\/complete\/\.project-brain\/security-rules\.md/);
+    assert.doesNotMatch(moduleSection(moduleIndex, "Auth/access"), /tests\/fixtures\/project-brain\/complete\/\.project-brain\/security-rules\.md/);
+    assert.match(moduleSection(moduleIndex, "Test fixtures"), /tests\/fixtures\/project-brain\/complete\/\.project-brain\/security-rules\.md/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("map --json contains structured mapping data", async () => {
