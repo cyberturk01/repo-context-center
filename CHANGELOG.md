@@ -1,5 +1,12 @@
 # ChangeLog
 
+## repo-context-center@0.3.1
+
+### Improved
+
+* Improved Repository Understanding quality for deterministic repo metadata, test classification, ignored areas, and config discovery.
+* Improved generated `TASK_ROUTING.md` guidance with clearer first files to open for common task types.
+
 ## repo-context-center@0.3.0
 
 ### Added
