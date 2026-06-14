@@ -2,7 +2,7 @@
 
 A context layer for AI coding agents.
 
-`repo-context-center` installs a small set of repository instructions and context maps into a target repo so AI coding tools can find the right context faster and avoid rereading noisy files.
+`repo-context-center` installs compact generic repository context so AI coding tools can find the right files faster and avoid rereading noisy paths. `init` creates the generic context center; `map --write` adds repo-specific generated sections from real files using lightweight heuristics.
 
 Measure estimated context token savings before using the repo.
 
@@ -11,9 +11,25 @@ repo-context-center estimate --compare-naive
 repo-context-center estimate --task "fix Cypress test" --mode compact
 ```
 
-It is not an AI agent. It is not a code analyzer. It does not understand your project automatically yet. It gives agents a durable place to store routing notes, module maps, risk notes, token guidance, and lessons learned.
+It is not an AI agent and does not call an AI API. It gives agents a durable place to store routing notes, module maps, risk notes, token guidance, and lessons learned.
 
 It is designed to work with Codex, Claude Code, Cursor, Copilot-style agents, and other tools that read repository instructions.
+
+## Real Repo Demo
+
+Verified with:
+
+```sh
+repo-context-center estimate --compare-naive
+```
+
+```text
+Estimated naive scan: 97,917 tokens
+Estimated compact startup: 546 tokens
+Estimated saving: 99%
+```
+
+Estimates use `ceil(characters / 4)`. They are not tokenizer-exact, not billing estimates, and results vary by repo.
 
 ## What Problem This Solves
 
@@ -33,6 +49,10 @@ Inside a target repository:
 
 ```sh
 npx repo-context-center init
+npx repo-context-center map --write
+npx repo-context-center validate
+npx repo-context-center estimate --compare-naive
+npx repo-context-center suggest "fix unit test failure" --max-files 8
 ```
 
 From a clone of this project:
@@ -47,8 +67,10 @@ Then, inside a target repository:
 
 ```sh
 repo-context-center init
+repo-context-center map --write
 repo-context-center validate
-repo-context-center suggest "fix auth bug"
+repo-context-center estimate --compare-naive
+repo-context-center suggest "fix unit test failure" --max-files 8
 ```
 
 Preview installation without writing files:
@@ -90,6 +112,19 @@ repo-context-center init --force
 
 It also creates `.repo-context-center/config.json`.
 
+`repo-context-center map --write` may update generated sections in:
+
+- `docs/ai-context/TASK_ROUTING.md`
+- `docs/ai-context/MODULE_INDEX.md`
+- `docs/ai-context/PROJECT_MAP.md`
+- `docs/ai-context/RISK_REGISTER.md`
+- `docs/ai-context/DEPENDENCY_MAP.md`
+- `docs/ai-context/SYMBOL_MAP.md`
+- `docs/ai-context/HOTSPOTS.md`
+- `docs/ai-context/TOKEN_BUDGET.md`
+- `docs/ai-context/DO_NOT_READ.md`
+- `docs/ai-context/CHANGE_LOG.md`
+
 With `--github-action`, it also creates:
 
 - `.github/workflows/repo-context-check.yml`
@@ -99,28 +134,30 @@ With `--github-action`, it also creates:
 ```sh
 repo-context-center --help
 repo-context-center init [--dry-run] [--force] [--github-action]
+repo-context-center map [--write] [--dry-run] [--json] [--max-files <number>]
 repo-context-center validate [--strict]
 repo-context-center archive [--keep <number>] [--dry-run]
-repo-context-center estimate [--mode compact|investigation|detailed] [--compare-naive] [--json]
+repo-context-center estimate [--mode compact|investigation|detailed] [--task "<task>"] [--compare-naive] [--json] [--max-files <number>]
 repo-context-center scan [--json]
-repo-context-center suggest "<task>" [--json]
+repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 ```
 
 - `init`: install the generic context templates.
+- `map`: analyze repo layout and generate repo-specific context sections.
 - `validate`: check that required context files exist and report warnings.
   Missing `.repo-context-center/config.json` is a warning by default and a
   failure with `--strict`.
 - `archive`: archive older entries from long-running context files; defaults to keeping 50 entries.
-- `estimate`: estimate context token overhead and compare it with a naive repo scan.
+- `estimate`: estimate task-aware source, test, and context token overhead; optionally compare with a naive repo scan.
 - `scan`: inspect only the repository layout and suggest lightweight entries for context maps.
-- `suggest`: recommend low-token context files, likely modules, likely tests, mode, and risk level for a task.
+- `suggest`: recommend low-token context files, real likely files, likely tests, mode, symbols, and risk level for a task.
 
 See [docs/github-action.md](docs/github-action.md) for PR validation setup.
 
 Example:
 
 ```sh
-repo-context-center suggest "fix payment consent bug" --json
+repo-context-center suggest "fix payment consent bug" --json --max-files 8
 ```
 
 Estimate context overhead:
@@ -136,6 +173,17 @@ to help evaluate whether the context center is reducing broad repo reads enough
 to justify its own startup cost. In an empty repo, startup context can be zero
 until templates are installed; after `repo-context-center init`, default context
 files should produce a realistic non-zero startup estimate.
+
+## Map Command
+
+`init` creates generic templates. `map` analyzes repo layout with heuristics, and `map --write` updates generated sections between markers while preserving manual content outside those markers.
+
+The map command:
+
+- uses no AI and adds no runtime dependency;
+- uses only real existing files;
+- does not emit placeholders like `path/or/flow`;
+- is best treated as a starting map, not a substitute for source review.
 
 ## Recommended AI Agent Workflow
 
@@ -185,17 +233,20 @@ More examples are in [docs/examples.md](docs/examples.md).
 
 The generic templates are language-agnostic. They can be installed in JavaScript, TypeScript, Python, Go, Rust, Ruby, Java, monorepos, docs repos, and mixed stacks.
 
-Project-specific templates are not implemented yet. The current scanner is intentionally lightweight and does not read full source files.
+Repo-specific mapping is heuristic-based and works best when files follow common conventions. Source code remains the source of truth.
 
 ## Roadmap
 
-- Generic template installation and validation.
-- Context file archiving.
-- Lightweight repo layout scanning.
-- Task-specific context suggestions.
-- Project-specific template packs.
-- Optional repository scanning to prefill maps.
-- Safer update workflows for existing context centers.
+- Completed: generic template installation.
+- Completed: validation.
+- Completed: archive.
+- Completed: estimate.
+- Completed: suggest.
+- Completed: repo-specific map generation.
+- Future: richer import graph.
+- Future: better framework detection.
+- Future: safer merge/update UX.
+- Future: project-specific packs.
 
 ## Development
 
