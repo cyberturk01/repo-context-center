@@ -70,6 +70,7 @@ export interface RepoMapData {
   root: string;
   generatedAt: string;
   filesScanned: number;
+  riskDefaultChecks: string[];
   firstFiles: RepoFirstFilesGroup[];
   taskRouting: RepoMapRow[];
   modules: RepoModule[];
@@ -274,7 +275,7 @@ function isGeneratedAsset(filePath: string): boolean {
 }
 
 function isFixtureOrSnapshotPath(filePath: string): boolean {
-  return /(^|\/)(__snapshots__|snapshots?|fixtures?)(\/|$)/i.test(filePath);
+  return /(^|\/)(__fixtures__|__snapshots__|snapshots?|fixtures?|test-fixtures)(\/|$)/i.test(filePath);
 }
 
 function isReleasePath(filePath: string): boolean {
@@ -564,6 +565,25 @@ function verificationFor(files: string[], tests: string[], packageScripts: Set<s
   return checks.join("; ") || "focused manual review";
 }
 
+function defaultVerificationChecks(packageScripts: Set<string>): string[] {
+  return [
+    packageScripts.has("build") ? "npm run build" : undefined,
+    packageScripts.has("test") ? "npm test" : undefined,
+    packageScripts.has("lint") ? "npm run lint" : undefined
+  ].filter((check): check is string => check !== undefined);
+}
+
+function focusedVerificationFor(files: string[], tests: string[]): string[] {
+  const checks: string[] = [];
+  if (tests.length > 0) {
+    checks.push(`node --test ${tests.slice(0, 2).join(" ")}`);
+  }
+  if (files.length > 0) {
+    checks.push(`review ${files.slice(0, 2).join(", ")}`);
+  }
+  return checks.length > 0 ? checks : ["focused manual review"];
+}
+
 const categories: Category[] = [
   {
     key: "cli",
@@ -735,6 +755,32 @@ function filesForCategory(files: RepoFile[], category: Category): RepoFile[] {
 
     return category.match(file);
   });
+}
+
+const sourceEvidenceRoots = ["src", "app", "lib", "packages"];
+const domainCategoryKeys = new Set(["auth", "database", "email", "business", "public-staff-pos"]);
+
+function isProductionDomainEvidence(file: RepoFile, category: Category): boolean {
+  if (isTestPath(file.path)
+    || isFixtureOrSnapshotPath(file.path)
+    || isGeneratedOrIgnoredNavigationPath(file.path)
+    || isContextPath(file.path)
+  ) {
+    return false;
+  }
+
+  const root = file.parts[0] ?? "";
+  const isSourceCode = sourceEvidenceRoots.includes(root) && sourceExtensions.has(file.ext);
+  if (isSourceCode) {
+    return true;
+  }
+
+  return category.key === "database" && isDatabasePath(file.path) && /\.(sql|ya?ml|json)$/i.test(file.path);
+}
+
+function categoryHasProductionDomainEvidence(files: RepoFile[], category: Category): boolean {
+  return !domainCategoryKeys.has(category.key)
+    || filesForCategory(files, category).some((file) => isProductionDomainEvidence(file, category));
 }
 
 function relatedTests(sourceFiles: string[], testFiles: string[]): string[] {
@@ -928,6 +974,10 @@ function buildTaskRouting(files: RepoFile[], understanding: RepositoryUnderstand
       return [];
     }
 
+    if (!categoryHasProductionDomainEvidence(files, category)) {
+      return [];
+    }
+
     const matches = filesForCategory(files, category)
       .filter((file) => !isContextPath(file.path) || category.key === "context")
       .filter((file) => category.key === "fixtures" || !isFixtureOrSnapshotPath(file.path));
@@ -997,8 +1047,13 @@ function buildRisks(files: RepoFile[], testFiles: string[], packageScripts: Set<
       return [] as RepoRisk[];
     }
 
+    if (!categoryHasProductionDomainEvidence(files, category)) {
+      return [] as RepoRisk[];
+    }
+
     const matches = filesForCategory(files, category)
       .filter((file) => !isTestPath(file.path))
+      .filter((file) => category.key === "fixtures" || !isFixtureOrSnapshotPath(file.path))
       .map((file) => file.path);
     if (matches.length === 0) {
       return [] as RepoRisk[];
@@ -1007,7 +1062,7 @@ function buildRisks(files: RepoFile[], testFiles: string[], packageScripts: Set<
     return [{
       area: `${category.label}: ${compactList(matches, "none", 3)}`,
       why: riskWhy,
-      checks: verificationFor(matches, relatedTests(matches, testFiles), packageScripts).split("; ")
+      checks: focusedVerificationFor(matches, relatedTests(matches, testFiles))
     }];
   });
 
@@ -1016,7 +1071,7 @@ function buildRisks(files: RepoFile[], testFiles: string[], packageScripts: Set<
     detected.push({
       area: `Fixture/snapshot drift: ${compactList(fixtureFiles, "none", 3)}`,
       why: "Fixtures and expected output can drift from generated map behavior.",
-      checks: verificationFor(fixtureFiles, fixtureFiles.filter(isTestPath), packageScripts).split("; ")
+      checks: focusedVerificationFor(fixtureFiles, fixtureFiles.filter(isTestPath))
     });
   }
 
@@ -1614,11 +1669,17 @@ function renderProjectMap(data: RepoMapData): string {
 }
 
 function renderRisks(data: RepoMapData): string {
-  return table(["Area", "Why risky", "First checks"], data.risks.map((risk) => ({
-    Area: risk.area,
-    "Why risky": risk.why,
-    "First checks": risk.checks.join("; ")
-  })));
+  return [
+    "### Default Checks",
+    bullets(data.riskDefaultChecks.map((check) => `\`${check}\``)),
+    "",
+    "### Focused Risks",
+    table(["Area", "Why risky", "Focused checks"], data.risks.map((risk) => ({
+      Area: risk.area,
+      "Why risky": risk.why,
+      "Focused checks": risk.checks.join("; ")
+    })))
+  ].join("\n");
 }
 
 function renderDependencies(data: RepoMapData): string {
@@ -1723,6 +1784,7 @@ async function buildMapData(cwd: string, maxFiles: number): Promise<RepoMapData>
     root: cwd,
     generatedAt: todayIso(),
     filesScanned: files.length,
+    riskDefaultChecks: defaultVerificationChecks(packageScripts),
     firstFiles: buildFirstFiles(files, understanding),
     taskRouting: buildTaskRouting(files, understanding, packageScripts),
     modules,

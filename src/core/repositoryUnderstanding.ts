@@ -192,7 +192,7 @@ function packageManager(files: string[], packageJson: unknown): PackageManager {
 }
 
 function isFixturePath(filePath: string): boolean {
-  return /(^|\/)fixtures?(\/|$)/i.test(filePath);
+  return /(^|\/)(__fixtures__|fixtures?|test-fixtures)(\/|$)/i.test(filePath);
 }
 
 function isSnapshotPath(filePath: string): boolean {

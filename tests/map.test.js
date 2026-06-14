@@ -356,6 +356,23 @@ test("RISK_REGISTER.md includes auth security only when matching files exist", a
   }
 });
 
+test("RISK_REGISTER.md keeps default checks separate from focused risk checks", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "RISK_REGISTER.md"), "utf8"));
+    const focusedRisks = headingSection(content, "Focused Risks");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /### Default Checks/);
+    assert.match(content, /- `npm run build`/);
+    assert.match(content, /- `npm test`/);
+    assert.match(content, /- `npm run lint`/);
+    assert.match(content, /\| Area \| Why risky \| Focused checks \|/);
+    assert.doesNotMatch(focusedRisks, /npm run build|npm test|npm run lint/);
+    assert.match(focusedRisks, /node --test tests\/auth\/session\.test\.ts/);
+  });
+});
+
 test("DO_NOT_READ.md includes generated folders", async () => {
   await withMappedRepo(async (tempDir) => {
     const result = runCli(tempDir, ["map", "--write"]);
@@ -871,6 +888,40 @@ test("map keeps fixture security files out of auth primary files and task routin
     assert.doesNotMatch(normalRouting, /tests\/fixtures\/project-brain\/complete\/\.project-brain\/security-rules\.md/);
     assert.doesNotMatch(moduleSection(moduleIndex, "Auth/access"), /tests\/fixtures\/project-brain\/complete\/\.project-brain\/security-rules\.md/);
     assert.match(moduleSection(moduleIndex, "Tests / Fixtures"), /tests\/fixtures\/project-brain\/complete\/\.project-brain\/security-rules\.md/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("map keeps test-fixture-only auth and database evidence out of domain routing", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-map-test-fixtures-"));
+
+  try {
+    assert.equal(runCli(tempDir, ["init"]).status, 0);
+    await writeFixture(tempDir, "package.json", JSON.stringify({
+      scripts: {
+        build: "tsc",
+        lint: "eslint .",
+        test: "node --test tests/*.test.js"
+      }
+    }, null, 2));
+    await writeFixture(tempDir, "src/cli/index.ts", "export function runCli() { return true; }\n");
+    await writeFixture(tempDir, "tests/test-fixtures/auth/session.ts", "export const fixtureSession = {};\n");
+    await writeFixture(tempDir, "tests/test-fixtures/migrations/001-create-users.sql", "create table users(id text);\n");
+    await writeFixture(tempDir, "tests/__fixtures__/db/client.ts", "export const dbFixture = {};\n");
+
+    const result = runCli(tempDir, ["map", "--write", "--json"]);
+    const data = JSON.parse(result.stdout);
+    const taskRouting = generatedSection(await readFile(path.join(tempDir, "docs", "ai-context", "TASK_ROUTING.md"), "utf8"));
+    const fixtureRow = tableRow(taskRouting, "Test fixture/snapshot updates");
+
+    assert.equal(result.status, 0);
+    assert.doesNotMatch(taskRouting, /\| Auth\/access \|/);
+    assert.doesNotMatch(taskRouting, /\| Database\/migrations \|/);
+    assert.match(fixtureRow, /tests\/test-fixtures\/auth\/session\.ts/);
+    assert.match(fixtureRow, /tests\/test-fixtures\/migrations\/001-create-users\.sql/);
+    assert.ok(!data.risks.some((risk) => risk.area.includes("Auth/access")));
+    assert.ok(!data.risks.some((risk) => risk.area.includes("Database/migrations")));
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
