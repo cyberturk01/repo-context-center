@@ -1,3 +1,5 @@
+import { readdir, stat } from "node:fs/promises";
+import path from "node:path";
 import { readSuggestContext, type ContextDocument, type SuggestContextFile } from "./contextReader";
 
 export type SuggestMode = "Compact" | "Investigation" | "Detailed";
@@ -34,6 +36,27 @@ const investigationKeywords = [
 ];
 
 const detailedKeywords = ["refactor", "architecture", "performance", "cross-module", "integration"];
+const workflowKeywords = [
+  "action",
+  "actions",
+  "build",
+  "cd",
+  "ci",
+  "deploy",
+  "deployment",
+  "docker",
+  "github",
+  "package",
+  "pipeline",
+  "production",
+  "railway",
+  "release",
+  "workflow",
+  "workflows"
+];
+const sourceRoots = ["src", "app", "lib"];
+const ignoredDirs = new Set(["node_modules", "dist", "build", "coverage", ".next", "target", ".git"]);
+const workflowFiles = ["package.json", "Dockerfile", "railway.json"];
 const stopWords = new Set([
   "a",
   "an",
@@ -90,11 +113,143 @@ function extractBacktickPaths(text: string): string[] {
 }
 
 function isLikelyTestPath(filePath: string): boolean {
-  return /(^|\/)(__tests__|tests?|e2e|cypress)(\/|$)|\.(test|spec)\./i.test(filePath);
+  const parts = filePath.toLowerCase().split("/");
+  return parts.some((part) => part.includes("tests"))
+    || parts.includes("test")
+    || parts.includes("cypress")
+    || parts.includes("e2e")
+    || /\.(test|spec)\.[^.]+$/i.test(filePath);
 }
 
-function isLikelySourcePath(filePath: string): boolean {
-  return !isLikelyTestPath(filePath) && !filePath.startsWith("docs/");
+function isLikelySourceSearchPath(filePath: string): boolean {
+  return sourceRoots.some((root) => filePath === root || filePath.startsWith(`${root}/`));
+}
+
+function isWorkflowTask(tokens: string[]): boolean {
+  return workflowKeywords.some((keyword) => tokens.includes(keyword));
+}
+
+function pathTokens(filePath: string): string[] {
+  return tokenize(filePath.replace(/\.[^.]+$/g, ""));
+}
+
+function pathMatchesTokens(filePath: string, tokens: string[]): boolean {
+  const fileTokens = new Set(pathTokens(filePath));
+  return tokens.some((token) => fileTokens.has(token));
+}
+
+async function listRepoFiles(cwd: string): Promise<string[]> {
+  const files: string[] = [];
+
+  async function walk(relativeDir: string): Promise<void> {
+    const fullDir = path.join(cwd, relativeDir);
+    let entries;
+
+    try {
+      entries = await readdir(fullDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    entries.sort((left, right) => left.name.localeCompare(right.name));
+
+    for (const entry of entries) {
+      const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
+
+      if (entry.isDirectory()) {
+        if (!ignoredDirs.has(entry.name)) {
+          await walk(relativePath);
+        }
+      } else if (entry.isFile()) {
+        files.push(relativePath);
+      }
+    }
+  }
+
+  await walk("");
+  return files;
+}
+
+async function pathExistsInRepo(cwd: string, relativePath: string): Promise<"file" | "directory" | undefined> {
+  try {
+    const fileStat = await stat(path.join(cwd, relativePath));
+    if (fileStat.isFile()) {
+      return "file";
+    }
+    if (fileStat.isDirectory()) {
+      return "directory";
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
+async function expandExistingPathHints(cwd: string, files: string[], pathHints: string[]): Promise<string[]> {
+  const matches: string[] = [];
+
+  for (const hint of uniqueSorted(pathHints)) {
+    const normalized = hint.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/$/, "");
+    if (!normalized || normalized.startsWith("docs/")) {
+      continue;
+    }
+
+    const existingType = await pathExistsInRepo(cwd, normalized);
+    if (existingType === "file") {
+      matches.push(normalized);
+    } else if (existingType === "directory") {
+      matches.push(...files.filter((file) => file.startsWith(`${normalized}/`)));
+    }
+  }
+
+  return matches;
+}
+
+function discoverLikelySourceFiles(
+  files: string[],
+  tokens: string[],
+  existingHintMatches: string[],
+  includeWorkflowFiles: boolean
+): string[] {
+  const sourceMatches = files.filter((file) => {
+    if (isLikelyTestPath(file)) {
+      return false;
+    }
+
+    if (isLikelySourceSearchPath(file)) {
+      return pathMatchesTokens(file, tokens) || existingHintMatches.includes(file);
+    }
+
+    if (includeWorkflowFiles) {
+      return workflowFiles.includes(file) || file.startsWith(".github/workflows/");
+    }
+
+    return false;
+  });
+
+  return uniqueSorted([...sourceMatches, ...existingHintMatches.filter((file) => !isLikelyTestPath(file))]);
+}
+
+function discoverLikelyTests(files: string[], tokens: string[], existingHintMatches: string[]): string[] {
+  return uniqueSorted(files.filter((file) => {
+    if (!isLikelyTestPath(file)) {
+      return false;
+    }
+
+    return pathMatchesTokens(file, tokens) || existingHintMatches.includes(file);
+  }));
+}
+
+function onlyExistingSymbolEntries(symbolEntries: SymbolRecommendation[], files: string[]): SymbolRecommendation[] {
+  const fileSet = new Set(files);
+
+  return symbolEntries
+    .filter((entry) => fileSet.has(entry.file))
+    .map((entry) => ({
+      ...entry,
+      tests: entry.tests.filter((testPath) => fileSet.has(testPath))
+    }));
 }
 
 function findDocument(documents: ContextDocument[], file: SuggestContextFile): ContextDocument | undefined {
@@ -248,6 +403,7 @@ function riskFor(mode: SuggestMode, riskMatches: number, dependencyMatches: numb
 export async function suggestContext(cwd: string, task: string): Promise<ContextSuggestion> {
   const documents = await readSuggestContext(cwd);
   const tokens = tokenize(task);
+  const repoFiles = await listRepoFiles(cwd);
   const taskRouting = findDocument(documents, "docs/ai-context/TASK_ROUTING.md");
   const moduleIndex = findDocument(documents, "docs/ai-context/MODULE_INDEX.md");
   const dependencyMap = findDocument(documents, "docs/ai-context/DEPENDENCY_MAP.md");
@@ -275,8 +431,22 @@ export async function suggestContext(cwd: string, task: string): Promise<Context
     ...extractBacktickPaths(dependencyModuleMatches.join("\n")),
     ...extractBacktickPaths(riskMatches.join("\n"))
   ];
-  const relevantSymbols = matchingSymbolEntries(parseSymbolMap(symbolMap), tokens, candidatePaths);
+  const relevantSymbols = onlyExistingSymbolEntries(
+    matchingSymbolEntries(parseSymbolMap(symbolMap), tokens, candidatePaths),
+    repoFiles
+  );
   const symbolRiskMatches = relevantSymbols.filter((entry) => entry.risk === "high").length;
+  const pathHints = [
+    ...candidatePaths,
+    ...relevantSymbols.map((entry) => entry.file),
+    ...relevantSymbols.flatMap((entry) => entry.tests)
+  ];
+  const existingHintMatches = await expandExistingPathHints(cwd, repoFiles, pathHints);
+  const discoveryTokens = uniqueSorted([
+    ...tokens,
+    ...candidatePaths.flatMap((filePath) => tokenize(filePath)),
+    ...relevantSymbols.flatMap((entry) => [entry.file, ...entry.symbols, ...entry.tests].flatMap((value) => tokenize(value)))
+  ]);
 
   const contextFiles: SuggestContextFile[] = [];
   if (taskRouting) {
@@ -318,15 +488,14 @@ export async function suggestContext(cwd: string, task: string): Promise<Context
     task,
     mode,
     contextFiles: uniqueSorted(contextFiles) as SuggestContextFile[],
-    likelySourceFiles: uniqueSorted([
-      ...candidatePaths.filter(isLikelySourcePath),
-      ...relevantSymbols.map((entry) => entry.file)
-    ]),
+    likelySourceFiles: discoverLikelySourceFiles(
+      repoFiles,
+      discoveryTokens,
+      existingHintMatches,
+      isWorkflowTask(tokens)
+    ),
     relevantSymbols,
-    likelyTests: uniqueSorted([
-      ...candidatePaths.filter(isLikelyTestPath),
-      ...relevantSymbols.flatMap((entry) => entry.tests)
-    ]),
+    likelyTests: discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches),
     riskLevel,
     reasons: uniqueSorted([
       routingMatches.length > 0 ? "task matched routing guidance" : "",
