@@ -1,5 +1,23 @@
 # ChangeLog
 
+## repo-context-center@0.4.0
+
+### Added
+
+* Added `start --copy` to print the generated startup prompt and copy the same content to the system clipboard when a platform clipboard command is available.
+* Added compact AGENTS startup guidance that tells agents to run `repo-context-center start "<task>"` when shell access is available, with fallback docs when it is not.
+* Added README and agent usage guidance for the recommended daily workflow and agent startup flow.
+
+### Improved
+
+* Improved `start` output for edge cases where context guidance matches but no confident source or test files are found.
+* Improved workflow-aware and generic test-task startup guidance without exposing raw recommendation scores.
+* Kept clipboard failures non-fatal: `start --copy` still exits successfully and leaves the prompt printed above.
+
+### Fixed
+
+* Fixed generated AGENTS wording so map output and tests agree on the shell-unavailable fallback guidance.
+
 ## repo-context-center@0.3.3
 
 ### Added

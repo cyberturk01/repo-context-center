@@ -77,11 +77,11 @@ Inside any target repository:
 ```sh
 npx repo-context-center init
 npx repo-context-center map --write
-npx repo-context-center start "fix auth bug"
+npx repo-context-center start "fix auth bug" --copy
 npx repo-context-center estimate --compare-naive
 ```
 
-This installs the context center, generates repo-specific maps, prints a task-specific startup prompt, and estimates the difference between broad repo scanning and compact startup context.
+This installs the context center, generates repo-specific maps, prints a task-specific startup prompt, optionally copies it to your clipboard, and estimates the difference between broad repo scanning and compact startup context.
 
 > Note: `repo-context-center` writes Markdown context files into the target repository. Use `npx repo-context-center init --dry-run` if you want to preview installation first.
 
@@ -99,6 +99,12 @@ Example:
 npx repo-context-center start "fix birthday email delay"
 ```
 
+Add `--copy` to keep the output visible while also copying the same startup prompt to your system clipboard:
+
+```sh
+npx repo-context-center start "fix birthday email delay" --copy
+```
+
 If users only tell an agent to read `AGENTS.md`, the agent gets stable repo instructions and fallback context docs. That does not guarantee the agent will execute shell commands automatically. If shell access or approval is unavailable, the agent should fall back to the context docs listed in `AGENTS.md`.
 
 `repo-context-center` does not run in the background. It updates generated context only when you run commands such as `map --write`, and it prints task startup guidance only when you run `start`.
@@ -109,6 +115,12 @@ Use `start` when you want an agent-ready prompt for a specific task:
 
 ```sh
 npx repo-context-center start "fix auth bug"
+```
+
+Use `--copy` when you want to paste the prompt into another agent UI:
+
+```sh
+npx repo-context-center start "fix auth bug" --copy
 ```
 
 Example excerpt:
@@ -153,7 +165,7 @@ The generated maps are navigation aids, not a replacement for source review. Sou
 
 - `map --write` creates durable repo-level context in `AGENTS.md` and `docs/ai-context/*`.
 - `suggest` returns task-specific recommendations, especially useful with `--json` for tools and integrations.
-- `start` generates a ready-to-paste startup prompt for AI coding agents.
+- `start` generates a ready-to-paste startup prompt for AI coding agents, with optional clipboard copy via `--copy`.
 
 ## Install
 
@@ -293,7 +305,7 @@ repo-context-center validate [--strict]
 repo-context-center archive [--keep <number>] [--dry-run]
 repo-context-center estimate [--mode compact|investigation|detailed] [--task "<task>"] [--compare-naive] [--json] [--max-files <number>]
 repo-context-center scan [--json]
-repo-context-center start "<task>" [--max-files <number>]
+repo-context-center start "<task>" [--max-files <number>] [--copy]
 repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 ```
 
@@ -303,7 +315,7 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 - `archive`: archive older entries from long-running context files; defaults to keeping 50 entries.
 - `estimate`: estimate task-aware source, test, and context token overhead; optionally compare with a naive repo scan.
 - `scan`: inspect only the repository layout and suggest lightweight entries for context maps.
-- `start`: print an agent-ready startup prompt with read-first docs, likely files, likely tests, risk, instructions, and compact recommendation reasons.
+- `start`: print an agent-ready startup prompt with read-first docs, likely files, likely tests, risk, instructions, and compact recommendation reasons. Add `--copy` to also copy the same prompt to the system clipboard when a platform clipboard command is available.
 - `suggest`: recommend low-token context files, real likely files, likely tests, mode, symbols, and risk level for a task. Use `--json` for tool integrations; JSON includes additive startup fields such as recommendation reasons.
 
 | Command | Purpose | When to use |
