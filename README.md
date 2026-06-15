@@ -105,7 +105,7 @@ Add `--copy` to keep the output visible while also copying the same startup prom
 npx repo-context-center start "fix birthday email delay" --copy
 ```
 
-If users only tell an agent to read `AGENTS.md`, the agent gets stable repo instructions and fallback context docs. That does not guarantee the agent will execute shell commands automatically. If shell access or approval is unavailable, the agent should fall back to the context docs listed in `AGENTS.md`.
+If users only tell an agent to read `AGENTS.md`, the agent gets stable repo instructions and fallback context docs. That does not guarantee the agent will execute shell commands automatically. If shell access or approval is unavailable, the agent should fall back to the context docs listed in `AGENTS.md`. this will be deleted
 
 `repo-context-center` does not run in the background. It updates generated context only when you run commands such as `map --write`, and it prints task startup guidance only when you run `start`.
 
