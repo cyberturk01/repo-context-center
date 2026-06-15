@@ -30,7 +30,7 @@ npx repo-context-center init
 
 It installs and maintains small Markdown context files inside your repo.
 
-![Repo Context Center workflow](./repo-context-center-diagram.svg)
+![Repo Context Center workflow](./docs/assets/repo-context-center-diagram.svg)
 
 ## Proven Results
 
