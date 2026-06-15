@@ -67,6 +67,7 @@ const workflowKeywords = [
 const testDiscoveryKeywords = ["test", "unit test", "spec", "failure", "jest", "vitest", "cypress", "e2e"];
 const workflowFiles = ["package.json", "Dockerfile", "railway.json"];
 const defaultSuggestMaxFiles = 50;
+const activeTestPattern = /\.(test|spec)\.[^.]+$/i;
 const stopWords = new Set([
   "a",
   "an",
@@ -154,29 +155,6 @@ function isFallbackTestPath(filePath: string): boolean {
     && !/\.(md|json|sql)$/i.test(filePath);
 }
 
-function testPathRank(filePath: string, directPrimaryHints: Set<string>): number {
-  if (directPrimaryHints.has(filePath)) {
-    return 0;
-  }
-
-  if (/^(tests?|__tests__)\/.*\.(test|spec)\.[^.]+$/i.test(filePath)) {
-    return 1;
-  }
-
-  if (/^(cypress|e2e)\/.*\.(cy|test|spec)\.[^.]+$/i.test(filePath)) {
-    return 2;
-  }
-
-  return 3;
-}
-
-function orderLikelyTests(testPaths: string[], directPrimaryHints: Set<string>): string[] {
-  return uniqueOrdered(testPaths).sort((left, right) => {
-    const rankDifference = testPathRank(left, directPrimaryHints) - testPathRank(right, directPrimaryHints);
-    return rankDifference === 0 ? left.localeCompare(right) : rankDifference;
-  });
-}
-
 function isLikelySourceSearchPath(filePath: string): boolean {
   return classifyRepoFile(filePath).role === "source";
 }
@@ -200,9 +178,138 @@ function pathTokens(filePath: string): string[] {
   return tokenize(filePath.replace(/\.[^.]+$/g, ""));
 }
 
+function basenameWithoutExtensions(filePath: string): string {
+  return path.posix.basename(filePath).replace(/(\.test|\.spec|\.cy)?\.[^.]+$/i, "");
+}
+
+function parentFolder(filePath: string): string {
+  return path.posix.dirname(filePath);
+}
+
+function filenameTokens(filePath: string): string[] {
+  return tokenize(basenameWithoutExtensions(filePath));
+}
+
+function parentTokens(filePath: string): string[] {
+  const parent = parentFolder(filePath);
+  return parent === "." ? [] : tokenize(parent);
+}
+
+function segmentTokens(filePath: string): string[] {
+  return filePath
+    .split("/")
+    .flatMap((segment) => tokenize(segment.replace(/\.[^.]+$/g, "")));
+}
+
+function matchingTokenCount(values: string[], tokens: Set<string>): number {
+  return uniqueOrdered(values).filter((token) => tokens.has(token)).length;
+}
+
 function pathMatchesTokens(filePath: string, tokens: string[]): boolean {
-  const fileTokens = new Set(pathTokens(filePath));
-  return tokens.some((token) => fileTokens.has(token));
+  const tokenSet = new Set(tokens);
+  return matchingTokenCount(segmentTokens(filePath), tokenSet) > 0;
+}
+
+function isPackageLockPath(filePath: string): boolean {
+  return /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb|composer\.lock|poetry\.lock|cargo\.lock)$/i.test(filePath);
+}
+
+function noisePenalty(filePath: string): number {
+  const info = classifyRepoFile(filePath);
+
+  if (info.isNoise || info.role === "generated" || info.role === "fixture" || info.role === "snapshot") {
+    return 200;
+  }
+  if (/(^|\/)(archive|archived|legacy)\//i.test(filePath)) {
+    return 90;
+  }
+  if (info.role === "asset" || isPackageLockPath(filePath)) {
+    return 120;
+  }
+
+  return 0;
+}
+
+function tokenMatchScore(filePath: string, tokens: Set<string>): number {
+  const strongMatches = matchingTokenCount(filenameTokens(filePath), tokens);
+  const mediumMatches = matchingTokenCount(parentTokens(filePath), tokens);
+  const segmentMatches = matchingTokenCount(segmentTokens(filePath), tokens);
+
+  return (strongMatches * 30) + (mediumMatches * 16) + (segmentMatches > 0 ? 4 : 0);
+}
+
+function activeTestScore(filePath: string): number {
+  if (isPrimaryTestPath(filePath)) {
+    return 24;
+  }
+  if (activeTestPattern.test(filePath) || /(^|\/)(test_[^/]+|[^/]+_test)\.py$/i.test(filePath)) {
+    return 16;
+  }
+  return 0;
+}
+
+function pathStem(filePath: string): string {
+  return basenameWithoutExtensions(filePath).toLowerCase();
+}
+
+function packageScopeFor(filePath: string): string | undefined {
+  return classifyRepoFile(filePath).packageScope;
+}
+
+function commonDirectoryDepth(left: string, right: string): number {
+  const leftParts = parentFolder(left).split("/").filter(Boolean);
+  const rightParts = parentFolder(right).split("/").filter(Boolean);
+  let depth = 0;
+
+  while (leftParts[depth] && leftParts[depth] === rightParts[depth]) {
+    depth += 1;
+  }
+
+  return depth;
+}
+
+function pairingScore(filePath: string, selectedPaths: string[]): number {
+  let score = 0;
+  const fileStem = pathStem(filePath);
+  const fileTokens = new Set(filenameTokens(filePath));
+  const filePackageScope = packageScopeFor(filePath);
+
+  for (const selectedPath of selectedPaths) {
+    const selectedStem = pathStem(selectedPath);
+    const selectedTokens = filenameTokens(selectedPath);
+    const sharedFilenameTokens = selectedTokens.filter((token) => fileTokens.has(token)).length;
+    const selectedPackageScope = packageScopeFor(selectedPath);
+
+    if (fileStem === selectedStem || fileStem.includes(selectedStem) || selectedStem.includes(fileStem)) {
+      score = Math.max(score, 34);
+    }
+    if (sharedFilenameTokens > 0) {
+      score = Math.max(score, 18 + (sharedFilenameTokens * 6));
+    }
+    if (filePackageScope && selectedPackageScope && filePackageScope === selectedPackageScope) {
+      score = Math.max(score, 24);
+    }
+    if (commonDirectoryDepth(filePath, selectedPath) > 0) {
+      score = Math.max(score, 8 + Math.min(commonDirectoryDepth(filePath, selectedPath), 3) * 3);
+    }
+  }
+
+  return score;
+}
+
+interface ScoredCandidate {
+  path: string;
+  score: number;
+}
+
+function orderScoredCandidates(candidates: ScoredCandidate[]): string[] {
+  return candidates
+    .filter((candidate) => candidate.score > 0)
+    .sort((left, right) => {
+      const scoreDifference = right.score - left.score;
+      return scoreDifference === 0 ? left.path.localeCompare(right.path) : scoreDifference;
+    })
+    .map((candidate) => candidate.path);
 }
 
 async function listRepoFiles(cwd: string): Promise<string[]> {
@@ -280,56 +387,109 @@ function discoverLikelySourceFiles(
   includeWorkflowFiles: boolean,
   maxFiles: number
 ): string[] {
-  const sourceMatches = files.filter((file) => {
-    if (isLikelyTestPath(file)) {
-      return false;
+  const tokenSet = new Set(tokens);
+  const hintSet = new Set(existingHintMatches);
+  const candidates = files.map((file) => {
+    const info = classifyRepoFile(file);
+    let score = 0;
+    const matchScore = tokenMatchScore(file, tokenSet);
+
+    if (info.role === "source") {
+      if (!hintSet.has(file) && matchScore === 0) {
+        return { path: file, score: 0 };
+      }
+      score += 32;
+      score += matchScore;
+    } else if (includeWorkflowFiles && info.role === "workflow") {
+      score += 80;
+      score += matchScore;
+    } else if (includeWorkflowFiles && workflowFiles.includes(file)) {
+      score += 38;
+      score += matchScore;
+    } else if (hintSet.has(file) && info.role !== "test") {
+      score += 22;
+    } else {
+      return { path: file, score: 0 };
     }
 
-    if (isLikelySourceSearchPath(file)) {
-      return pathMatchesTokens(file, tokens) || existingHintMatches.includes(file);
+    if (hintSet.has(file)) {
+      score += 55;
+    }
+    if (includeWorkflowFiles && info.role === "workflow") {
+      score += 28;
+    }
+    if (info.role === "package") {
+      score -= 16;
+    }
+    if (info.role === "config") {
+      score -= 8;
     }
 
-    if (includeWorkflowFiles) {
-      const info = classifyRepoFile(file);
-      return workflowFiles.includes(file) || info.role === "workflow";
-    }
-
-    return false;
+    score -= noisePenalty(file);
+    return { path: file, score };
   });
 
-  return uniqueSorted([...sourceMatches, ...existingHintMatches.filter((file) => !isLikelyTestPath(file))])
-    .slice(0, maxFiles);
+  return orderScoredCandidates(candidates).slice(0, maxFiles);
 }
 
 function discoverLikelyTests(
   files: string[],
   tokens: string[],
   existingHintMatches: string[],
+  selectedSourceFiles: string[],
   includeAllTests: boolean,
   maxFiles: number
 ): string[] {
-  const directPrimaryHints = new Set(existingHintMatches.filter(isPrimaryTestPath));
-  const primaryTests = files.filter((file) => {
+  const tokenSet = new Set(tokens);
+  const hintSet = new Set(existingHintMatches);
+  const primaryCandidates = files.map((file) => {
     if (!isPrimaryTestPath(file) || isExcludedPrimaryTestPath(file)) {
-      return false;
+      return { path: file, score: 0 };
     }
 
-    return includeAllTests || pathMatchesTokens(file, tokens) || existingHintMatches.includes(file);
-  });
+    let score = 34 + activeTestScore(file) + tokenMatchScore(file, tokenSet);
+    score += pairingScore(file, selectedSourceFiles);
 
-  if (primaryTests.length > 0) {
-    return orderLikelyTests(primaryTests, directPrimaryHints).slice(0, maxFiles);
+    if (hintSet.has(file)) {
+      score += 60;
+    }
+    if (includeAllTests) {
+      score += 8;
+    } else if (!hintSet.has(file) && !pathMatchesTokens(file, tokens) && pairingScore(file, selectedSourceFiles) === 0) {
+      score = 0;
+    }
+
+    score -= noisePenalty(file);
+    return { path: file, score };
+  });
+  const orderedPrimaryTests = orderScoredCandidates(primaryCandidates);
+
+  if (orderedPrimaryTests.length > 0) {
+    return orderedPrimaryTests.slice(0, maxFiles);
   }
 
-  const fallbackTests = files.filter((file) => {
+  const fallbackCandidates = files.map((file) => {
     if (!isFallbackTestPath(file)) {
-      return false;
+      return { path: file, score: 0 };
     }
 
-    return includeAllTests || pathMatchesTokens(file, tokens) || existingHintMatches.includes(file);
+    let score = 16 + activeTestScore(file) + tokenMatchScore(file, tokenSet);
+    score += pairingScore(file, selectedSourceFiles);
+
+    if (hintSet.has(file)) {
+      score += 60;
+    }
+    if (includeAllTests) {
+      score += 4;
+    } else if (!hintSet.has(file) && !pathMatchesTokens(file, tokens) && pairingScore(file, selectedSourceFiles) === 0) {
+      score = 0;
+    }
+
+    score -= noisePenalty(file);
+    return { path: file, score };
   });
 
-  return orderLikelyTests(fallbackTests, directPrimaryHints).slice(0, maxFiles);
+  return orderScoredCandidates(fallbackCandidates).slice(0, maxFiles);
 }
 
 function onlyExistingSymbolEntries(symbolEntries: SymbolRecommendation[], files: string[]): SymbolRecommendation[] {
@@ -685,7 +845,7 @@ export async function buildStartupContext(
     isWorkflowTask(tokens),
     maxFiles
   );
-  const likelyTests = discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches, testRelatedTask, maxFiles);
+  const likelyTests = discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches, likelySourceFiles, testRelatedTask, maxFiles);
   const repoSignalCount = contextFiles.length + likelySourceFiles.length + likelyTests.length + relevantSymbols.length;
   const finalRiskLevel = riskFor(
     mode,
@@ -722,6 +882,7 @@ export async function buildStartupContext(
       relevantSymbols.length > 0 ? "task matched symbol map entries" : "",
       riskMatches.length > 0 ? "risk or hotspot guidance matched" : "",
       testRelatedTask ? "test-related task triggered test discovery" : "",
+      testRelatedTask && likelySourceFiles.length === 0 && likelyTests.length > 0 ? "generic test-task fallback ranked active test files" : "",
       mode === "Investigation" ? "task contains investigation keyword" : "",
       finalRiskLevel === "unknown" ? "insufficient repo signal for risk confidence" : ""
     ].filter(Boolean))

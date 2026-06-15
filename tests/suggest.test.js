@@ -130,6 +130,7 @@ async function withTestDiscoveryRepo(callback) {
 
   try {
     await writeFixtureFile(tempDir, "tests/example.test.js", "test('example', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/archive/example.test.js", "test('archived example', () => {});\n");
     await writeFixtureFile(tempDir, "tests/fixtures/data.json", "{}\n");
     await writeFixtureFile(tempDir, "tests/test-fixtures/helper.ts", "export const fixture = true;\n");
     await writeFixtureFile(tempDir, "tests/__fixtures__/thing.ts", "export const thing = true;\n");
@@ -151,6 +152,8 @@ async function withRealisticSuggestRepo(shape, callback) {
     if (shape === "typescript-app") {
       await writeFixtureFile(tempDir, "src/auth/login.ts", "export function login() {}\n");
       await writeFixtureFile(tempDir, "src/auth/session.ts", "export function createSession() {}\n");
+      await writeFixtureFile(tempDir, "src/billing/invoice.ts", "export function invoice() {}\n");
+      await writeFixtureFile(tempDir, "tests/billing/invoice.test.ts", "test('invoice', () => {});\n");
       await writeFixtureFile(tempDir, "tests/auth/login.test.ts", "test('login', () => {});\n");
       await writeFixtureFile(tempDir, "package.json", "{\"scripts\":{\"test\":\"node --test\"}}\n");
       await writeNoiseFixtureFiles(tempDir);
@@ -159,6 +162,7 @@ async function withRealisticSuggestRepo(shape, callback) {
       await writeFixtureFile(tempDir, "packages/api/tests/users/userService.test.ts", "test('user service', () => {});\n");
       await writeFixtureFile(tempDir, "packages/web/src/components/UserCard.tsx", "export function UserCard() { return null; }\n");
       await writeFixtureFile(tempDir, "packages/web/tests/UserCard.test.tsx", "test('user card', () => {});\n");
+      await writeFixtureFile(tempDir, "packages/web/tests/users/userService.test.ts", "test('wrong workspace user service', () => {});\n");
       await writeNoiseFixtureFiles(tempDir);
     } else if (shape === "python-app") {
       await writeFixtureFile(tempDir, "app/auth/login.py", "def login():\n    return True\n");
@@ -169,6 +173,7 @@ async function withRealisticSuggestRepo(shape, callback) {
       await writeFixtureFile(tempDir, ".github/workflows/ci.yml", "name: ci\n");
       await writeFixtureFile(tempDir, ".github/workflows/release.yml", "name: release\n");
       await writeFixtureFile(tempDir, "package.json", "{\"scripts\":{\"ci\":\"npm test\"}}\n");
+      await writeFixtureFile(tempDir, "package-lock.json", "{}\n");
       await writeFixtureFile(tempDir, "tests/ci/workflow.test.ts", "test('workflow', () => {});\n");
       await writeNoiseFixtureFiles(tempDir);
     } else {
@@ -198,8 +203,10 @@ function assertNoPrimaryNoise(suggestion) {
   assert.ok(primaryFiles.every((filePath) => !filePath.includes("/fixtures/")));
   assert.ok(primaryFiles.every((filePath) => !filePath.includes("/__fixtures__/")));
   assert.ok(primaryFiles.every((filePath) => !filePath.includes("/__snapshots__/")));
+  assert.ok(primaryFiles.every((filePath) => !filePath.includes("/archive/")));
   assert.ok(primaryFiles.every((filePath) => !filePath.endsWith(".snap")));
   assert.ok(primaryFiles.every((filePath) => !filePath.endsWith(".svg")));
+  assert.ok(primaryFiles.every((filePath) => !filePath.endsWith("package-lock.json")));
 }
 
 test("suggest uses compact mode for simple UI task", async () => {
@@ -381,6 +388,7 @@ test("suggest discovers real tests for generic test tasks", async () => {
     assert.equal(result.status, 0);
     assert.ok(suggestion.likelyTests.includes("tests/example.test.js"));
     assert.ok(!suggestion.likelyTests.includes("dist/tests/generated.test.js"));
+    assert.ok(!suggestion.likelyTests.includes("tests/archive/example.test.js"));
     assert.ok(!suggestion.likelyTests.includes("tests/fixtures/data.json"));
     assert.ok(!suggestion.likelyTests.includes("tests/test-fixtures/helper.ts"));
     assert.ok(!suggestion.likelyTests.includes("tests/__fixtures__/thing.ts"));
@@ -399,10 +407,12 @@ test("suggest discovers real tests for unit test failure tasks", async () => {
     assert.equal(result.status, 0);
     assert.ok(suggestion.likelyTests.includes("tests/example.test.js"));
     assert.ok(!suggestion.likelyTests.includes("dist/tests/generated.test.js"));
+    assert.ok(!suggestion.likelyTests.includes("tests/archive/example.test.js"));
     assert.ok(!suggestion.likelyTests.includes("tests/fixtures/data.json"));
     assert.ok(!suggestion.likelyTests.includes("tests/__snapshots__/snap.md"));
     assert.ok(!suggestion.likelyTests.includes("tests/schemas/example.sql"));
     assert.deepEqual(suggestion.likelyTests, ["tests/example.test.js"]);
+    assert.ok(suggestion.reasons.includes("generic test-task fallback ranked active test files"));
     await assertReturnedPathsExist(tempDir, suggestion.likelyTests);
   });
 });
@@ -483,7 +493,7 @@ test("suggest finds TypeScript app login tests for unit test failures", async ()
     const suggestion = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.ok(suggestion.likelyTests.includes("tests/auth/login.test.ts"));
+    assert.deepEqual(suggestion.likelyTests.slice(0, 1), ["tests/auth/login.test.ts"]);
     assertNoPrimaryNoise(suggestion);
     await assertReturnedPathsExist(tempDir, suggestion.likelyTests);
   });
@@ -495,9 +505,9 @@ test("suggest finds TypeScript auth source files and auth tests for auth bugs", 
     const suggestion = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.ok(suggestion.likelySourceFiles.includes("src/auth/login.ts"));
-    assert.ok(suggestion.likelySourceFiles.includes("src/auth/session.ts"));
-    assert.ok(suggestion.likelyTests.includes("tests/auth/login.test.ts"));
+    assert.deepEqual(suggestion.likelySourceFiles.slice(0, 2), ["src/auth/login.ts", "src/auth/session.ts"]);
+    assert.deepEqual(suggestion.likelyTests.slice(0, 1), ["tests/auth/login.test.ts"]);
+    assert.ok(!suggestion.likelySourceFiles.slice(0, 2).includes("src/billing/invoice.ts"));
     assertNoPrimaryNoise(suggestion);
     await assertReturnedPathsExist(tempDir, [...suggestion.likelySourceFiles, ...suggestion.likelyTests]);
   });
@@ -509,8 +519,9 @@ test("suggest finds monorepo package source and package tests", async () => {
     const suggestion = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.ok(suggestion.likelySourceFiles.includes("packages/api/src/users/userService.ts"));
-    assert.ok(suggestion.likelyTests.includes("packages/api/tests/users/userService.test.ts"));
+    assert.deepEqual(suggestion.likelySourceFiles.slice(0, 1), ["packages/api/src/users/userService.ts"]);
+    assert.deepEqual(suggestion.likelyTests.slice(0, 1), ["packages/api/tests/users/userService.test.ts"]);
+    assert.ok(suggestion.likelyTests.indexOf("packages/api/tests/users/userService.test.ts") < suggestion.likelyTests.indexOf("packages/web/tests/users/userService.test.ts"));
     assertNoPrimaryNoise(suggestion);
     await assertReturnedPathsExist(tempDir, [...suggestion.likelySourceFiles, ...suggestion.likelyTests]);
   });
@@ -522,7 +533,7 @@ test("suggest finds Python app login tests for unit test failures", async () => 
     const suggestion = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.ok(suggestion.likelyTests.includes("tests/auth/test_login.py"));
+    assert.deepEqual(suggestion.likelyTests.slice(0, 1), ["tests/auth/test_login.py"]);
     assertNoPrimaryNoise(suggestion);
     await assertReturnedPathsExist(tempDir, suggestion.likelyTests);
   });
@@ -534,8 +545,8 @@ test("suggest finds Python auth source and auth tests for auth bugs", async () =
     const suggestion = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.ok(suggestion.likelySourceFiles.includes("app/auth/login.py"));
-    assert.ok(suggestion.likelyTests.includes("tests/auth/test_login.py"));
+    assert.deepEqual(suggestion.likelySourceFiles.slice(0, 1), ["app/auth/login.py"]);
+    assert.deepEqual(suggestion.likelyTests.slice(0, 1), ["tests/auth/test_login.py"]);
     assertNoPrimaryNoise(suggestion);
     await assertReturnedPathsExist(tempDir, [...suggestion.likelySourceFiles, ...suggestion.likelyTests]);
   });
@@ -547,9 +558,9 @@ test("suggest finds workflow files for GitHub Actions workflow updates", async (
     const suggestion = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.ok(suggestion.likelySourceFiles.includes(".github/workflows/ci.yml"));
-    assert.ok(suggestion.likelySourceFiles.includes(".github/workflows/release.yml"));
+    assert.deepEqual(suggestion.likelySourceFiles.slice(0, 2), [".github/workflows/ci.yml", ".github/workflows/release.yml"]);
     assert.ok(suggestion.likelySourceFiles.includes("package.json"));
+    assert.ok(!suggestion.likelySourceFiles.includes("package-lock.json"));
     assertNoPrimaryNoise(suggestion);
     await assertReturnedPathsExist(tempDir, suggestion.likelySourceFiles);
   });
