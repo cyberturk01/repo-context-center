@@ -1,6 +1,7 @@
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { readSuggestContext, type ContextDocument, type SuggestContextFile } from "./contextReader";
+import { classifyRepoFile, isGeneratedRepoDirectoryName } from "./repoFileClassifier";
 
 export type SuggestMode = "Compact" | "Investigation" | "Detailed";
 export type RiskLevel = "low" | "medium" | "high";
@@ -59,8 +60,6 @@ const workflowKeywords = [
   "workflows"
 ];
 const testDiscoveryKeywords = ["test", "unit test", "spec", "failure", "jest", "vitest", "cypress", "e2e"];
-const sourceRoots = ["src", "app", "lib"];
-const ignoredDirs = new Set(["node_modules", "dist", "build", "coverage", ".next", "target", ".git"]);
 const workflowFiles = ["package.json", "Dockerfile", "railway.json"];
 const defaultSuggestMaxFiles = 50;
 const stopWords = new Set([
@@ -123,27 +122,30 @@ function extractBacktickPaths(text: string): string[] {
 }
 
 function isLikelyTestPath(filePath: string): boolean {
-  const parts = filePath.toLowerCase().split("/");
-  return parts.some((part) => part.includes("tests"))
-    || parts.includes("test")
-    || parts.includes("cypress")
-    || parts.includes("e2e")
-    || /\.(test|spec)\.[^.]+$/i.test(filePath);
+  return classifyRepoFile(filePath).role === "test";
 }
 
 function isPrimaryTestPath(filePath: string): boolean {
-  return /^(tests?|e2e)\/.*\.(test|spec)\.[^.]+$/i.test(filePath)
-    || /^cypress\/.*\.(cy|spec)\.[^.]+$/i.test(filePath);
+  if (classifyRepoFile(filePath).role !== "test") {
+    return false;
+  }
+
+  return /^(tests?|__tests__)\/.*\.(test|spec)\.[^.]+$/i.test(filePath)
+    || /^cypress\/.*\.(cy|spec)\.[^.]+$/i.test(filePath)
+    || /^e2e\/.*\.(cy|test|spec)\.[^.]+$/i.test(filePath)
+    || /^(packages|libs)\/[^/]+\/tests?\/.*\.(test|spec)\.[^.]+$/i.test(filePath)
+    || /(^|\/)(test_[^/]+|[^/]+_test)\.py$/i.test(filePath);
 }
 
 function isExcludedPrimaryTestPath(filePath: string): boolean {
-  return /(^|\/)(fixtures|test-fixtures|__fixtures__|__snapshots__|schemas)\//i.test(filePath)
+  return classifyRepoFile(filePath).isNoise
+    || /(^|\/)schemas\//i.test(filePath)
     || /\.(md|json|sql)$/i.test(filePath);
 }
 
 function isFallbackTestPath(filePath: string): boolean {
-  return /^tests?\//i.test(filePath)
-    && !/(^|\/)(__snapshots__|schemas)\//i.test(filePath)
+  return classifyRepoFile(filePath).role === "test"
+    && !/(^|\/)schemas\//i.test(filePath)
     && !/\.(md|json|sql)$/i.test(filePath);
 }
 
@@ -171,7 +173,7 @@ function orderLikelyTests(testPaths: string[], directPrimaryHints: Set<string>):
 }
 
 function isLikelySourceSearchPath(filePath: string): boolean {
-  return sourceRoots.some((root) => filePath === root || filePath.startsWith(`${root}/`));
+  return classifyRepoFile(filePath).role === "source";
 }
 
 function isWorkflowTask(tokens: string[]): boolean {
@@ -217,7 +219,7 @@ async function listRepoFiles(cwd: string): Promise<string[]> {
       const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
 
       if (entry.isDirectory()) {
-        if (!ignoredDirs.has(entry.name)) {
+        if (entry.name !== ".git" && !isGeneratedRepoDirectoryName(entry.name)) {
           await walk(relativePath);
         }
       } else if (entry.isFile()) {
@@ -283,7 +285,8 @@ function discoverLikelySourceFiles(
     }
 
     if (includeWorkflowFiles) {
-      return workflowFiles.includes(file) || file.startsWith(".github/workflows/");
+      const info = classifyRepoFile(file);
+      return workflowFiles.includes(file) || info.role === "workflow";
     }
 
     return false;

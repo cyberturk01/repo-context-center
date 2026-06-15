@@ -1,0 +1,231 @@
+export type RepoFileRole =
+  | "source"
+  | "test"
+  | "workflow"
+  | "config"
+  | "docs"
+  | "package"
+  | "generated"
+  | "fixture"
+  | "snapshot"
+  | "asset"
+  | "unknown";
+
+export interface RepoFileInfo {
+  path: string;
+  role: RepoFileRole;
+  isNoise: boolean;
+  isLikelyEntrypoint: boolean;
+  language?: string;
+  packageScope?: string;
+  reasons: string[];
+}
+
+const generatedDirs = new Set(["dist", "build", "coverage", ".next", "node_modules", "target", "generated"]);
+const fixtureDirs = new Set(["fixtures", "__fixtures__", "test-fixtures"]);
+const snapshotDirs = new Set(["__snapshots__"]);
+const sourceRoots = new Set(["src", "app", "lib"]);
+const testRoots = new Set(["tests", "test", "__tests__", "cypress", "e2e"]);
+const packageFileNames = new Set([
+  "package.json",
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "yarn.lock",
+  "pyproject.toml",
+  "Cargo.toml",
+  "go.mod",
+  "pom.xml",
+  "build.gradle"
+]);
+const exactConfigFiles = new Set(["tsconfig.json", "docker-compose.yml", "Dockerfile"]);
+const assetExtensions = new Set([
+  ".css",
+  ".gif",
+  ".ico",
+  ".jpeg",
+  ".jpg",
+  ".less",
+  ".png",
+  ".scss",
+  ".svg",
+  ".webp"
+]);
+
+export function isGeneratedRepoDirectoryName(name: string): boolean {
+  return generatedDirs.has(name);
+}
+
+export function classifyRepoFile(filePath: string): RepoFileInfo {
+  const normalizedPath = normalizeRepoPath(filePath);
+  const parts = normalizedPath.split("/").filter(Boolean);
+  const basename = parts[parts.length - 1] ?? normalizedPath;
+  const lowerPath = normalizedPath.toLowerCase();
+  const lowerBase = basename.toLowerCase();
+  const reasons: string[] = [];
+  const packageScope = detectPackageScope(parts);
+  const language = detectLanguage(basename);
+
+  let role: RepoFileRole = "unknown";
+
+  if (parts.some((part) => generatedDirs.has(part))) {
+    role = "generated";
+    reasons.push("path is under a generated, dependency, or build output directory");
+  } else if (parts.some((part) => snapshotDirs.has(part)) || lowerBase.endsWith(".snap")) {
+    role = "snapshot";
+    reasons.push("path is a snapshot file or under a snapshot directory");
+  } else if (parts.some((part) => fixtureDirs.has(part))) {
+    role = "fixture";
+    reasons.push("path is under a fixture directory");
+  } else if (isWorkflowPath(normalizedPath, basename)) {
+    role = "workflow";
+    reasons.push("path is a CI or workflow file");
+  } else if (packageFileNames.has(basename)) {
+    role = "package";
+    reasons.push("path is package or dependency metadata");
+  } else if (isConfigPath(basename)) {
+    role = "config";
+    reasons.push("path is a common project configuration file");
+  } else if (isDocsPath(normalizedPath, basename)) {
+    role = "docs";
+    reasons.push("path is documentation");
+  } else if (isTestPath(parts, basename, lowerPath)) {
+    role = "test";
+    reasons.push("path matches common test layout or test filename pattern");
+  } else if (isSourcePath(parts)) {
+    role = "source";
+    reasons.push("path is under a common source root");
+  } else if (assetExtensions.has(extensionOf(basename).toLowerCase())) {
+    role = "asset";
+    reasons.push("path has a common asset extension");
+  }
+
+  const info: RepoFileInfo = {
+    path: normalizedPath,
+    role,
+    isNoise: role === "generated" || role === "fixture" || role === "snapshot",
+    isLikelyEntrypoint: isLikelyEntrypoint(parts, basename, role),
+    reasons
+  };
+
+  if (language) {
+    info.language = language;
+  }
+  if (packageScope) {
+    info.packageScope = packageScope;
+  }
+
+  return info;
+}
+
+function normalizeRepoPath(filePath: string): string {
+  return filePath.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/g, "");
+}
+
+function detectPackageScope(parts: string[]): string | undefined {
+  if ((parts[0] === "packages" || parts[0] === "libs") && parts[1]) {
+    return `${parts[0]}/${parts[1]}`;
+  }
+
+  return undefined;
+}
+
+function detectLanguage(basename: string): string | undefined {
+  const lowerBase = basename.toLowerCase();
+  const extension = extensionOf(lowerBase);
+
+  switch (extension) {
+    case ".ts":
+      return "typescript";
+    case ".tsx":
+      return "typescriptreact";
+    case ".js":
+      return "javascript";
+    case ".jsx":
+      return "javascriptreact";
+    case ".py":
+      return "python";
+    case ".go":
+      return "go";
+    case ".rs":
+      return "rust";
+    case ".java":
+      return "java";
+    case ".rb":
+      return "ruby";
+    case ".md":
+      return "markdown";
+    case ".json":
+      return "json";
+    case ".yml":
+    case ".yaml":
+      return "yaml";
+    default:
+      return undefined;
+  }
+}
+
+function extensionOf(basename: string): string {
+  const index = basename.lastIndexOf(".");
+  return index >= 0 ? basename.slice(index) : "";
+}
+
+function isWorkflowPath(filePath: string, basename: string): boolean {
+  return filePath.startsWith(".github/workflows/")
+    || basename === ".gitlab-ci.yml"
+    || basename === "Jenkinsfile";
+}
+
+function isConfigPath(basename: string): boolean {
+  if (exactConfigFiles.has(basename)) {
+    return true;
+  }
+
+  return /(^|\.)(eslint|prettier|vite|webpack|rollup)\.config\.[cm]?[jt]s$/i.test(basename)
+    || /^\.?(eslintrc|prettierrc)(\.[a-z0-9]+)?$/i.test(basename);
+}
+
+function isDocsPath(filePath: string, basename: string): boolean {
+  return basename.toLowerCase() === "readme.md"
+    || filePath.startsWith("docs/")
+    || basename.toLowerCase().endsWith(".md");
+}
+
+function isTestPath(parts: string[], basename: string, lowerPath: string): boolean {
+  if (parts.some((part) => testRoots.has(part))) {
+    return true;
+  }
+
+  if ((parts[0] === "packages" || parts[0] === "libs") && parts[1] && (parts[2] === "tests" || parts[2] === "test")) {
+    return true;
+  }
+
+  return /\.(test|spec)\.[^.]+$/i.test(basename)
+    || /(^|\/)test_[^/]+\.py$/i.test(lowerPath)
+    || /(^|\/)[^/]+_test\.py$/i.test(lowerPath);
+}
+
+function isSourcePath(parts: string[]): boolean {
+  if (parts.length === 0) {
+    return false;
+  }
+
+  if (sourceRoots.has(parts[0])) {
+    return true;
+  }
+
+  return (parts[0] === "packages" || parts[0] === "libs") && parts[1] !== undefined && parts[2] === "src";
+}
+
+function isLikelyEntrypoint(parts: string[], basename: string, role: RepoFileRole): boolean {
+  if (role !== "source" && role !== "package") {
+    return false;
+  }
+
+  if (packageFileNames.has(basename)) {
+    return true;
+  }
+
+  return /^(index|main|server|app)\.[cm]?[jt]sx?$/i.test(basename)
+    || /^__init__\.py$/i.test(basename)
+    || (parts[0] === "src" && parts[1] === "cli" && /^index\.[cm]?[jt]s$/i.test(basename));
+}
