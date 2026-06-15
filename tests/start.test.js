@@ -104,6 +104,8 @@ test("start includes high-risk guidance for auth bugs", async () => {
     assert.match(result.stdout, /Risk:\nhigh/);
     assert.match(result.stdout, /Treat this as high risk/);
     assert.match(result.stdout, /Likely source files:\n(?:- .+\n)*- src\/auth\/login\.ts/);
+    assert.match(result.stdout, /Reasons:\n  - matched task token: auth/);
+    assert.doesNotMatch(result.stdout, /score/i);
   });
 });
 
@@ -114,8 +116,26 @@ test("start includes workflow-aware guidance for GitHub Actions tasks", async ()
     assert.equal(result.status, 0);
     assert.match(result.stdout, /- \.github\/workflows\/ci\.yml/);
     assert.match(result.stdout, /- \.github\/workflows\/release\.yml/);
+    assert.match(result.stdout, /Reasons:\n  - matched parent folder: github\n  - workflow task match/);
     assert.match(result.stdout, /For workflow or deployment changes/);
   });
+});
+
+test("start includes generic fallback reason for unit test failures without source signal", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-start-test-fallback-"));
+
+  try {
+    await writeFixtureFile(tempDir, "tests/example.test.js", "test('example', () => {});\n");
+
+    const result = runCli(["start", "fix unit test failure"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Likely source files:\n- none/);
+    assert.match(result.stdout, /Likely tests:\n- tests\/example\.test\.js\n  Reasons:\n  - generic test-task fallback/);
+    assert.doesNotMatch(result.stdout, /score/i);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("startup prompt formats empty source and test lists", () => {
@@ -128,11 +148,34 @@ test("startup prompt formats empty source and test lists", () => {
     likelyTests: [],
     relevantSymbols: [],
     startupInstructions: [],
+    recommendationReasons: {},
     reasons: []
   });
 
   assert.match(output, /Read first:\n- none\n\nLikely source files:\n- none\n\nLikely tests:\n- none/);
   assert.match(output, /Instructions:\n- none\n$/);
+});
+
+test("startup prompt formats compact file reasons", () => {
+  const output = formatStartupPrompt({
+    task: "fix auth bug",
+    mode: "Investigation",
+    riskLevel: "high",
+    readFirstDocs: ["AGENTS.md"],
+    likelySourceFiles: ["src/auth/login.ts"],
+    likelyTests: ["tests/auth/login.test.ts"],
+    relevantSymbols: [],
+    startupInstructions: ["Read AGENTS.md first for repo-specific agent guidance."],
+    recommendationReasons: {
+      "src/auth/login.ts": ["matched task token: auth", "matched filename stem: login"],
+      "tests/auth/login.test.ts": ["paired with source file: src/auth/login.ts", "matched parent folder: auth"]
+    },
+    reasons: []
+  });
+
+  assert.match(output, /Likely source files:\n- src\/auth\/login\.ts\n  Reasons:\n  - matched task token: auth\n  - matched filename stem: login/);
+  assert.match(output, /Likely tests:\n- tests\/auth\/login\.test\.ts\n  Reasons:\n  - paired with source file: src\/auth\/login\.ts\n  - matched parent folder: auth/);
+  assert.doesNotMatch(output, /score/i);
 });
 
 test("suggest text output remains compatible", async () => {

@@ -4,6 +4,27 @@ function formatList(values: string[]): string {
   return values.length > 0 ? values.map((value) => `- ${value}`).join("\n") : "- none";
 }
 
+function formatRecommendedFiles(values: string[], reasonsByFile: Record<string, string[]>): string {
+  if (values.length === 0) {
+    return "- none";
+  }
+
+  return values
+    .map((value) => {
+      const reasons = reasonsByFile[value] ?? [];
+      if (reasons.length === 0) {
+        return `- ${value}`;
+      }
+
+      return [
+        `- ${value}`,
+        "  Reasons:",
+        ...reasons.map((reason) => `  - ${reason}`)
+      ].join("\n");
+    })
+    .join("\n");
+}
+
 export function formatStartupPrompt(startupContext: StartupContext): string {
   return `${[
     "Before starting this task, use Repository Context Center.",
@@ -15,10 +36,10 @@ export function formatStartupPrompt(startupContext: StartupContext): string {
     formatList(startupContext.readFirstDocs),
     "",
     "Likely source files:",
-    formatList(startupContext.likelySourceFiles),
+    formatRecommendedFiles(startupContext.likelySourceFiles, startupContext.recommendationReasons),
     "",
     "Likely tests:",
-    formatList(startupContext.likelyTests),
+    formatRecommendedFiles(startupContext.likelyTests, startupContext.recommendationReasons),
     "",
     "Risk:",
     startupContext.riskLevel,

@@ -15,6 +15,7 @@ export interface StartupContext {
   likelyTests: string[];
   relevantSymbols: SymbolRecommendation[];
   startupInstructions: string[];
+  recommendationReasons: Record<string, string[]>;
   reasons: string[];
 }
 
@@ -95,6 +96,12 @@ function uniqueSorted(values: string[]): string[] {
 
 function uniqueOrdered(values: string[]): string[] {
   return [...new Set(values)];
+}
+
+function addReason(reasons: string[], reason: string): void {
+  if (!reasons.includes(reason)) {
+    reasons.push(reason);
+  }
 }
 
 function tokenize(text: string): string[] {
@@ -297,6 +304,44 @@ function pairingScore(filePath: string, selectedPaths: string[]): number {
   return score;
 }
 
+function pairedSourceReason(filePath: string, selectedSourceFiles: string[]): string | undefined {
+  const fileStem = pathStem(filePath);
+  const fileTokens = new Set(filenameTokens(filePath));
+  const filePackageScope = packageScopeFor(filePath);
+
+  for (const selectedPath of selectedSourceFiles) {
+    const selectedStem = pathStem(selectedPath);
+    const selectedTokens = filenameTokens(selectedPath);
+    const sharedFilenameTokens = selectedTokens.filter((token) => fileTokens.has(token)).length;
+    const selectedPackageScope = packageScopeFor(selectedPath);
+
+    if (
+      fileStem === selectedStem
+      || fileStem.includes(selectedStem)
+      || selectedStem.includes(fileStem)
+      || sharedFilenameTokens > 0
+    ) {
+      return `paired with source file: ${selectedPath}`;
+    }
+    if (filePackageScope && selectedPackageScope && filePackageScope === selectedPackageScope) {
+      return "same monorepo package scope";
+    }
+    if (commonDirectoryDepth(filePath, selectedPath) > 0) {
+      return `paired with source file: ${selectedPath}`;
+    }
+  }
+
+  return undefined;
+}
+
+function hasSamePackageScope(filePath: string, selectedSourceFiles: string[]): boolean {
+  const filePackageScope = packageScopeFor(filePath);
+  return Boolean(
+    filePackageScope
+    && selectedSourceFiles.some((selectedPath) => packageScopeFor(selectedPath) === filePackageScope)
+  );
+}
+
 interface ScoredCandidate {
   path: string;
   score: number;
@@ -490,6 +535,114 @@ function discoverLikelyTests(
   });
 
   return orderScoredCandidates(fallbackCandidates).slice(0, maxFiles);
+}
+
+function firstMatchingTaskToken(filePath: string, taskTokens: string[]): string | undefined {
+  const fileTokenSet = new Set(segmentTokens(filePath));
+  return taskTokens.find((token) => fileTokenSet.has(token));
+}
+
+function firstMatchingFilenameStem(filePath: string, tokens: string[]): string | undefined {
+  const filenameTokenSet = new Set(filenameTokens(filePath));
+  return tokens.find((token) => filenameTokenSet.has(token));
+}
+
+function firstMatchingParentFolder(filePath: string, tokens: string[]): string | undefined {
+  const parentTokenSet = new Set(parentTokens(filePath));
+  return tokens.find((token) => parentTokenSet.has(token));
+}
+
+function reasonsForRecommendedFile(
+  filePath: string,
+  taskTokens: string[],
+  discoveryTokens: string[],
+  existingHintMatches: string[],
+  selectedSourceFiles: string[],
+  includeWorkflowFiles: boolean,
+  genericTestFallback: boolean
+): string[] {
+  const reasons: string[] = [];
+  const info = classifyRepoFile(filePath);
+  const taskToken = firstMatchingTaskToken(filePath, taskTokens);
+  const filenameStem = firstMatchingFilenameStem(filePath, discoveryTokens);
+  const parentFolderMatch = firstMatchingParentFolder(filePath, discoveryTokens);
+
+  if (taskToken) {
+    addReason(reasons, `matched task token: ${taskToken}`);
+  }
+  if (filenameStem) {
+    addReason(reasons, `matched filename stem: ${filenameStem}`);
+  }
+  if (parentFolderMatch) {
+    addReason(reasons, `matched parent folder: ${parentFolderMatch}`);
+  }
+
+  if (existingHintMatches.includes(filePath)) {
+    addReason(reasons, "matched context path hint");
+  }
+
+  if (includeWorkflowFiles && (info.role === "workflow" || workflowFiles.includes(filePath))) {
+    addReason(reasons, "workflow task match");
+  }
+
+  if (info.role === "test") {
+    const pairedReason = pairedSourceReason(filePath, selectedSourceFiles);
+    if (pairedReason) {
+      addReason(reasons, pairedReason);
+    }
+    if (hasSamePackageScope(filePath, selectedSourceFiles)) {
+      addReason(reasons, "same monorepo package scope");
+    }
+    if (genericTestFallback) {
+      addReason(reasons, "generic test-task fallback");
+    }
+  }
+
+  return reasons;
+}
+
+function recommendationReasonsFor(
+  likelySourceFiles: string[],
+  likelyTests: string[],
+  taskTokens: string[],
+  discoveryTokens: string[],
+  existingHintMatches: string[],
+  includeWorkflowFiles: boolean,
+  genericTestFallback: boolean
+): Record<string, string[]> {
+  const reasons: Record<string, string[]> = {};
+
+  for (const filePath of likelySourceFiles) {
+    const fileReasons = reasonsForRecommendedFile(
+      filePath,
+      taskTokens,
+      discoveryTokens,
+      existingHintMatches,
+      likelySourceFiles,
+      includeWorkflowFiles,
+      genericTestFallback
+    );
+    if (fileReasons.length > 0) {
+      reasons[filePath] = fileReasons;
+    }
+  }
+
+  for (const filePath of likelyTests) {
+    const fileReasons = reasonsForRecommendedFile(
+      filePath,
+      taskTokens,
+      discoveryTokens,
+      existingHintMatches,
+      likelySourceFiles,
+      includeWorkflowFiles,
+      genericTestFallback
+    );
+    if (fileReasons.length > 0) {
+      reasons[filePath] = fileReasons;
+    }
+  }
+
+  return reasons;
 }
 
 function onlyExistingSymbolEntries(symbolEntries: SymbolRecommendation[], files: string[]): SymbolRecommendation[] {
@@ -846,6 +999,16 @@ export async function buildStartupContext(
     maxFiles
   );
   const likelyTests = discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches, likelySourceFiles, testRelatedTask, maxFiles);
+  const genericTestFallback = testRelatedTask && likelySourceFiles.length === 0 && likelyTests.length > 0;
+  const recommendationReasons = recommendationReasonsFor(
+    likelySourceFiles,
+    likelyTests,
+    tokens,
+    discoveryTokens,
+    existingHintMatches,
+    isWorkflowTask(tokens),
+    genericTestFallback
+  );
   const repoSignalCount = contextFiles.length + likelySourceFiles.length + likelyTests.length + relevantSymbols.length;
   const finalRiskLevel = riskFor(
     mode,
@@ -875,6 +1038,7 @@ export async function buildStartupContext(
     likelySourceFiles,
     likelyTests,
     relevantSymbols,
+    recommendationReasons,
     reasons: uniqueSorted([
       routingMatches.length > 0 ? "task matched routing guidance" : "",
       moduleMatches.length > 0 ? "task matched module index entries" : "",
@@ -882,7 +1046,7 @@ export async function buildStartupContext(
       relevantSymbols.length > 0 ? "task matched symbol map entries" : "",
       riskMatches.length > 0 ? "risk or hotspot guidance matched" : "",
       testRelatedTask ? "test-related task triggered test discovery" : "",
-      testRelatedTask && likelySourceFiles.length === 0 && likelyTests.length > 0 ? "generic test-task fallback ranked active test files" : "",
+      genericTestFallback ? "generic test-task fallback ranked active test files" : "",
       mode === "Investigation" ? "task contains investigation keyword" : "",
       finalRiskLevel === "unknown" ? "insufficient repo signal for risk confidence" : ""
     ].filter(Boolean))

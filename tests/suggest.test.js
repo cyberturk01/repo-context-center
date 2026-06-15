@@ -236,6 +236,9 @@ test("buildStartupContext generates read-first docs and startup instructions", a
     assert.ok(startupContext.readFirstDocs.includes("docs/ai-context/TASK_ROUTING.md"));
     assert.ok(startupContext.likelySourceFiles.includes("src/auth/authService.ts"));
     assert.ok(startupContext.likelyTests.includes("tests/auth/authService.test.ts"));
+    assert.ok(startupContext.recommendationReasons["src/auth/authService.ts"].includes("matched task token: auth"));
+    assert.ok(startupContext.recommendationReasons["src/auth/authService.ts"].includes("matched parent folder: auth"));
+    assert.ok(startupContext.recommendationReasons["tests/auth/authService.test.ts"].includes("paired with source file: src/auth/authService.ts"));
     assert.ok(startupContext.startupInstructions.some((instruction) => instruction.includes("Read AGENTS.md")));
     assert.ok(startupContext.startupInstructions.some((instruction) => instruction.includes("Open likely source files")));
     assert.ok(startupContext.startupInstructions.some((instruction) => instruction.includes("Open likely tests")));
@@ -253,6 +256,7 @@ test("suggest JSON keeps compatible fields while exposing StartupContext fields"
     assert.ok(Array.isArray(suggestion.contextFiles));
     assert.ok(Array.isArray(suggestion.readFirstDocs));
     assert.ok(Array.isArray(suggestion.startupInstructions));
+    assert.equal(typeof suggestion.recommendationReasons, "object");
     assert.ok(suggestion.contextFiles.includes("docs/ai-context/TASK_ROUTING.md"));
     assert.ok(suggestion.readFirstDocs.includes("AGENTS.md"));
     assert.ok(suggestion.startupInstructions.length > 0);
@@ -266,6 +270,7 @@ test("generic unit test failure gets useful startup instructions without source 
     assert.equal(startupContext.task, "fix unit test failure");
     assert.ok(startupContext.likelyTests.includes("tests/example.test.js"));
     assert.deepEqual(startupContext.likelySourceFiles, []);
+    assert.ok(startupContext.recommendationReasons["tests/example.test.js"].includes("generic test-task fallback"));
     assert.ok(startupContext.startupInstructions.some((instruction) => instruction.includes("No confident source files")));
     assert.ok(startupContext.startupInstructions.some((instruction) => instruction.includes("Open likely tests")));
     assert.ok(startupContext.startupInstructions.some((instruction) => instruction.includes("Expand search only")));
@@ -522,6 +527,7 @@ test("suggest finds monorepo package source and package tests", async () => {
     assert.deepEqual(suggestion.likelySourceFiles.slice(0, 1), ["packages/api/src/users/userService.ts"]);
     assert.deepEqual(suggestion.likelyTests.slice(0, 1), ["packages/api/tests/users/userService.test.ts"]);
     assert.ok(suggestion.likelyTests.indexOf("packages/api/tests/users/userService.test.ts") < suggestion.likelyTests.indexOf("packages/web/tests/users/userService.test.ts"));
+    assert.ok(suggestion.recommendationReasons["packages/api/tests/users/userService.test.ts"].includes("same monorepo package scope"));
     assertNoPrimaryNoise(suggestion);
     await assertReturnedPathsExist(tempDir, [...suggestion.likelySourceFiles, ...suggestion.likelyTests]);
   });
@@ -561,6 +567,8 @@ test("suggest finds workflow files for GitHub Actions workflow updates", async (
     assert.deepEqual(suggestion.likelySourceFiles.slice(0, 2), [".github/workflows/ci.yml", ".github/workflows/release.yml"]);
     assert.ok(suggestion.likelySourceFiles.includes("package.json"));
     assert.ok(!suggestion.likelySourceFiles.includes("package-lock.json"));
+    assert.ok(suggestion.recommendationReasons[".github/workflows/ci.yml"].includes("workflow task match"));
+    assert.ok(!JSON.stringify(suggestion.recommendationReasons).includes("score"));
     assertNoPrimaryNoise(suggestion);
     await assertReturnedPathsExist(tempDir, suggestion.likelySourceFiles);
   });
