@@ -1,0 +1,11 @@
+{
+  "cli": "src/cli",
+  "core": "src/core",
+  "repo": "src/repo",
+  "renderers": "src/renderers",
+  "config": "src/config",
+  "tests": "tests",
+  "workflows": ".github/workflows",
+  "docs": "docs",
+  "templates": "templates"
+}

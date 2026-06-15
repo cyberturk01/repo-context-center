@@ -1,0 +1,5 @@
+- Routing quality can regress when scoring logic changes.
+- Startup output must remain compact and explainable.
+- JSON output compatibility must be preserved.
+- Workflow recommendations should prefer .github/workflows files for workflow tasks.
+- npm package contents must be validated with npm pack --dry-run.
