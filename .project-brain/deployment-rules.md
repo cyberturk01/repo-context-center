@@ -1,0 +1,6 @@
+- Repo Context Center is a public npm CLI package.
+- Release requires build, tests, and npm pack dry run.
+- Minor releases use npm version minor.
+- Publishing must not happen from CI unless explicitly configured.
+- GitHub Actions workflow changes require validation on a branch or pull request.
+- Required checks should remain npm ci, npm run build, npm test.

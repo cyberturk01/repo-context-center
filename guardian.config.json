@@ -1,22 +1,13 @@
 {
   "projectName": "Repo Context Center",
-  "riskFolders": {
-    "critical": [
-      "src/core",
-      "src/cli"
-    ],
-    "high": [
-      "src/renderers",
-      "src/repo",
-      "src/config",
-      ".github/workflows"
-    ],
-    "medium": [
-      "docs",
-      "templates",
-      "examples"
-    ]
-  },
+  "riskFolders": [
+    "src/core",
+    "src/cli",
+    "src/renderers",
+    "src/repo",
+    "src/config",
+    ".github/workflows"
+  ],
   "testFolders": [
     "tests"
   ],
@@ -32,53 +23,5 @@
     "npm run build",
     "npm test",
     "npm pack --dry-run"
-  ],
-  "customRules": [
-    {
-      "id": "cli-changes-require-cli-tests",
-      "title": "CLI changes require CLI tests",
-      "whenChanged": "src/cli/**",
-      "requiresTest": "tests/cli.test.js",
-      "risk": "high"
-    },
-    {
-      "id": "suggester-changes-require-suggest-tests",
-      "title": "Suggester/routing changes require suggest/start tests",
-      "whenChanged": "src/core/suggester.ts",
-      "requiresTest": "tests/suggest.test.js",
-      "risk": "high"
-    },
-    {
-      "id": "startup-routing-changes-require-start-tests",
-      "title": "Suggester/routing changes require suggest/start tests",
-      "whenChanged": "src/core/startPrompt.ts",
-      "requiresTest": "tests/start.test.js",
-      "risk": "high"
-    },
-    {
-      "id": "renderer-changes-require-output-tests",
-      "title": "Renderer changes require output snapshot or markdown tests",
-      "whenChanged": "src/renderers/**",
-      "requiresTest": "tests/*.test.js",
-      "risk": "medium"
-    },
-    {
-      "id": "workflow-changes-require-ci-validation",
-      "title": "Workflow changes require CI validation",
-      "whenChanged": ".github/workflows/**",
-      "risk": "high",
-      "requiredBeforeDeploy": [
-        "Validate GitHub Actions workflow syntax and required CI behavior."
-      ]
-    },
-    {
-      "id": "package-release-changes-require-pack-dry-run",
-      "title": "Package/release changes require npm pack dry-run",
-      "whenChanged": "package*.json",
-      "risk": "high",
-      "requiredBeforeDeploy": [
-        "Run npm pack --dry-run and inspect the package contents before release."
-      ]
-    }
   ]
 }

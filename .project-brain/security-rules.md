@@ -1,0 +1,5 @@
+- Do not commit npm tokens, GitHub tokens, API keys, or registry credentials.
+- Do not add workflow permissions unless required.
+- Do not run untrusted scripts from user input.
+- CLI path handling must avoid unsafe filesystem writes outside intended output paths.
+- Generated context should not expose secrets from .env files or ignored files.
