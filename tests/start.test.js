@@ -8,6 +8,7 @@ const test = require("node:test");
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
 const { formatStartupPrompt } = require("../dist/core/startPrompt.js");
+const { startCommand } = require("../dist/cli/commands/start.js");
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [cliPath, ...args], {
@@ -93,6 +94,74 @@ test("start prints startup instructions as clean text", async () => {
     assert.match(result.stdout, /Read first:\n- AGENTS\.md/);
     assert.match(result.stdout, /Likely tests:\n- tests\/auth\/login\.test\.ts/);
     assert.doesNotMatch(result.stdout, /^\{/);
+  });
+});
+
+test("start default output is unchanged when --copy is omitted", async () => {
+  await withStartRepo(async (tempDir) => {
+    const defaultResult = runCli(["start", "fix auth bug"], { cwd: tempDir });
+    const withMaxFilesResult = runCli(["start", "fix auth bug", "--max-files", "50"], { cwd: tempDir });
+
+    assert.equal(defaultResult.status, 0);
+    assert.equal(defaultResult.stderr, "");
+    assert.equal(defaultResult.stdout, withMaxFilesResult.stdout);
+  });
+});
+
+test("start --copy is accepted and reports copy success", async () => {
+  await withStartRepo(async (tempDir) => {
+    let copiedContent = "";
+    let stdout = "";
+    let stderr = "";
+    const exitCode = await startCommand(
+      {
+        cwd: tempDir,
+        stdout: (message) => {
+          stdout += message;
+        },
+        stderr: (message) => {
+          stderr += message;
+        }
+      },
+      ["fix auth bug", "--copy"],
+      {
+        copyToClipboard: (content) => {
+          copiedContent = content;
+          return true;
+        }
+      }
+    );
+
+    assert.equal(exitCode, 0);
+    assert.match(stdout, /^Before starting this task, use Repository Context Center\./);
+    assert.equal(copiedContent, stdout);
+    assert.equal(stderr, "Copied startup context to clipboard.\n");
+  });
+});
+
+test("start --copy failure warns without failing command", async () => {
+  await withStartRepo(async (tempDir) => {
+    let stdout = "";
+    let stderr = "";
+    const exitCode = await startCommand(
+      {
+        cwd: tempDir,
+        stdout: (message) => {
+          stdout += message;
+        },
+        stderr: (message) => {
+          stderr += message;
+        }
+      },
+      ["fix auth bug", "--copy"],
+      {
+        copyToClipboard: () => false
+      }
+    );
+
+    assert.equal(exitCode, 0);
+    assert.match(stdout, /^Before starting this task, use Repository Context Center\./);
+    assert.equal(stderr, "Could not copy to clipboard; startup context was printed above.\n");
   });
 });
 

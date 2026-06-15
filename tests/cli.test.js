@@ -29,7 +29,7 @@ test("CLI help prints usage", () => {
   assert.match(result.stdout, /Options: --keep <number>, --dry-run/);
   assert.match(result.stdout, /Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>/);
   assert.match(result.stdout, /start\s+Print a startup prompt for an AI coding agent/);
-  assert.match(result.stdout, /Usage: start "<task>" \[--max-files <number>\]/);
+  assert.match(result.stdout, /Usage: start "<task>" \[--max-files <number>\] \[--copy\]/);
 });
 
 test("unknown command returns an error", () => {

@@ -46,7 +46,7 @@ Commands:
   scan      Suggest lightweight context entries from repo layout
             Options: --json
   start     Print a startup prompt for an AI coding agent
-            Usage: start "<task>" [--max-files <number>]
+            Usage: start "<task>" [--max-files <number>] [--copy]
   suggest   Recommend context files for a task
             Usage: suggest "<task>" [--json] [--symbols] [--max-files <number>]
 
