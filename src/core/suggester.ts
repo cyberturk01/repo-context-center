@@ -16,6 +16,10 @@ export interface StartupContext {
   relevantSymbols: SymbolRecommendation[];
   startupInstructions: string[];
   recommendationReasons: Record<string, string[]>;
+  emptyRecommendationReasons: {
+    source?: string;
+    test?: string;
+  };
   reasons: string[];
 }
 
@@ -25,6 +29,7 @@ export interface ContextSuggestion extends StartupContext {
 
 export interface SuggestContextOptions {
   maxFiles?: number;
+  genericFallbackMaxTests?: number;
 }
 
 export interface SymbolRecommendation {
@@ -219,6 +224,10 @@ function pathMatchesTokens(filePath: string, tokens: string[]): boolean {
 
 function isPackageLockPath(filePath: string): boolean {
   return /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb|composer\.lock|poetry\.lock|cargo\.lock)$/i.test(filePath);
+}
+
+function isGithubWorkflowPath(filePath: string): boolean {
+  return /^\.github\/workflows\/[^/]+\.(ya?ml)$/i.test(filePath);
 }
 
 function noisePenalty(filePath: string): number {
@@ -434,6 +443,7 @@ function discoverLikelySourceFiles(
 ): string[] {
   const tokenSet = new Set(tokens);
   const hintSet = new Set(existingHintMatches);
+  const hasGithubWorkflowFiles = includeWorkflowFiles && files.some(isGithubWorkflowPath);
   const candidates = files.map((file) => {
     const info = classifyRepoFile(file);
     let score = 0;
@@ -448,9 +458,15 @@ function discoverLikelySourceFiles(
     } else if (includeWorkflowFiles && info.role === "workflow") {
       score += 80;
       score += matchScore;
+      if (isGithubWorkflowPath(file)) {
+        score += 160;
+      }
     } else if (includeWorkflowFiles && workflowFiles.includes(file)) {
       score += 38;
       score += matchScore;
+      if (hasGithubWorkflowFiles) {
+        score -= 8;
+      }
     } else if (hintSet.has(file) && info.role !== "test") {
       score += 22;
     } else {
@@ -640,6 +656,37 @@ function recommendationReasonsFor(
     if (fileReasons.length > 0) {
       reasons[filePath] = fileReasons;
     }
+  }
+
+  return reasons;
+}
+
+function emptyRecommendationReasonsFor(
+  likelySourceFiles: string[],
+  likelyTests: string[],
+  routingMatches: string[],
+  moduleMatches: string[],
+  dependencyMatches: string[],
+  dependencyModuleMatches: string[],
+  riskMatches: string[],
+  relevantSymbols: SymbolRecommendation[]
+): StartupContext["emptyRecommendationReasons"] {
+  const reasons: StartupContext["emptyRecommendationReasons"] = {};
+  const matchedContextGuidance = routingMatches.length > 0
+    || moduleMatches.length > 0
+    || dependencyMatches.length > 0
+    || dependencyModuleMatches.length > 0
+    || riskMatches.length > 0
+    || relevantSymbols.length > 0;
+
+  if (likelySourceFiles.length === 0) {
+    reasons.source = matchedContextGuidance
+      ? "task tokens matched context guidance but no matching source file was found."
+      : "no matching source file was found.";
+  }
+
+  if (likelyTests.length === 0) {
+    reasons.test = "no matching or paired test file was found.";
   }
 
   return reasons;
@@ -998,7 +1045,11 @@ export async function buildStartupContext(
     isWorkflowTask(tokens),
     maxFiles
   );
-  const likelyTests = discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches, likelySourceFiles, testRelatedTask, maxFiles);
+  const genericFallbackMaxTests = options.genericFallbackMaxTests ?? maxFiles;
+  const likelyTestMaxFiles = testRelatedTask && likelySourceFiles.length === 0
+    ? Math.min(maxFiles, genericFallbackMaxTests)
+    : maxFiles;
+  const likelyTests = discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches, likelySourceFiles, testRelatedTask, likelyTestMaxFiles);
   const genericTestFallback = testRelatedTask && likelySourceFiles.length === 0 && likelyTests.length > 0;
   const recommendationReasons = recommendationReasonsFor(
     likelySourceFiles,
@@ -1008,6 +1059,16 @@ export async function buildStartupContext(
     existingHintMatches,
     isWorkflowTask(tokens),
     genericTestFallback
+  );
+  const emptyRecommendationReasons = emptyRecommendationReasonsFor(
+    likelySourceFiles,
+    likelyTests,
+    routingMatches,
+    moduleMatches,
+    dependencyMatches,
+    dependencyModuleMatches,
+    riskMatches,
+    relevantSymbols
   );
   const repoSignalCount = contextFiles.length + likelySourceFiles.length + likelyTests.length + relevantSymbols.length;
   const finalRiskLevel = riskFor(
@@ -1039,6 +1100,7 @@ export async function buildStartupContext(
     likelyTests,
     relevantSymbols,
     recommendationReasons,
+    emptyRecommendationReasons,
     reasons: uniqueSorted([
       routingMatches.length > 0 ? "task matched routing guidance" : "",
       moduleMatches.length > 0 ? "task matched module index entries" : "",

@@ -3,11 +3,13 @@ import { buildStartupContext } from "../../core/suggester";
 import type { CliIO } from "../index";
 
 interface StartOptions {
+  explicitMaxFiles: boolean;
   maxFiles: number;
   task: string;
 }
 
 function parseStartOptions(args: string[]): StartOptions | undefined {
+  let explicitMaxFiles = false;
   let maxFiles = 50;
   const taskParts: string[] = [];
 
@@ -19,6 +21,7 @@ function parseStartOptions(args: string[]): StartOptions | undefined {
       if (!Number.isInteger(value) || value < 1) {
         return undefined;
       }
+      explicitMaxFiles = true;
       maxFiles = value;
       index += 1;
       continue;
@@ -36,7 +39,7 @@ function parseStartOptions(args: string[]): StartOptions | undefined {
     return undefined;
   }
 
-  return { maxFiles, task };
+  return { explicitMaxFiles, maxFiles, task };
 }
 
 export async function startCommand(io: CliIO, args: string[] = []): Promise<number> {
@@ -46,7 +49,10 @@ export async function startCommand(io: CliIO, args: string[] = []): Promise<numb
     return 1;
   }
 
-  const startupContext = await buildStartupContext(io.cwd, options.task, { maxFiles: options.maxFiles });
+  const startupContext = await buildStartupContext(io.cwd, options.task, {
+    maxFiles: options.maxFiles,
+    genericFallbackMaxTests: options.explicitMaxFiles ? options.maxFiles : 5
+  });
   io.stdout(formatStartupPrompt(startupContext));
   return 0;
 }

@@ -4,9 +4,9 @@ function formatList(values: string[]): string {
   return values.length > 0 ? values.map((value) => `- ${value}`).join("\n") : "- none";
 }
 
-function formatRecommendedFiles(values: string[], reasonsByFile: Record<string, string[]>): string {
+function formatRecommendedFiles(values: string[], reasonsByFile: Record<string, string[]>, emptyReason?: string): string {
   if (values.length === 0) {
-    return "- none";
+    return emptyReason ? `- none\n${emptyReason}` : "- none";
   }
 
   return values
@@ -36,10 +36,22 @@ export function formatStartupPrompt(startupContext: StartupContext): string {
     formatList(startupContext.readFirstDocs),
     "",
     "Likely source files:",
-    formatRecommendedFiles(startupContext.likelySourceFiles, startupContext.recommendationReasons),
+    formatRecommendedFiles(
+      startupContext.likelySourceFiles,
+      startupContext.recommendationReasons,
+      startupContext.emptyRecommendationReasons?.source
+        ? `No source file reason: ${startupContext.emptyRecommendationReasons.source}`
+        : undefined
+    ),
     "",
     "Likely tests:",
-    formatRecommendedFiles(startupContext.likelyTests, startupContext.recommendationReasons),
+    formatRecommendedFiles(
+      startupContext.likelyTests,
+      startupContext.recommendationReasons,
+      startupContext.emptyRecommendationReasons?.test
+        ? `No test reason: ${startupContext.emptyRecommendationReasons.test}`
+        : undefined
+    ),
     "",
     "Risk:",
     startupContext.riskLevel,

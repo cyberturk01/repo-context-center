@@ -116,9 +116,47 @@ test("start includes workflow-aware guidance for GitHub Actions tasks", async ()
     assert.equal(result.status, 0);
     assert.match(result.stdout, /- \.github\/workflows\/ci\.yml/);
     assert.match(result.stdout, /- \.github\/workflows\/release\.yml/);
+    assert.ok(result.stdout.indexOf("- .github/workflows/ci.yml") < result.stdout.indexOf("- package.json"));
+    assert.ok(result.stdout.indexOf("- .github/workflows/release.yml") < result.stdout.indexOf("- package.json"));
     assert.match(result.stdout, /Reasons:\n  - matched parent folder: github\n  - workflow task match/);
     assert.match(result.stdout, /For workflow or deployment changes/);
   });
+});
+
+test("start explains empty file recommendations when context guidance matched", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-start-empty-reasons-"));
+
+  try {
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Auth work: read `src/auth` and `tests/auth/login.test.ts`."
+      ].join("\n")
+    );
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/MODULE_INDEX.md",
+      [
+        "# Module Index",
+        "",
+        "| Path | Owns | Read When |",
+        "| --- | --- | --- |",
+        "| `src/auth` | Auth module | auth work |"
+      ].join("\n")
+    );
+
+    const result = runCli(["start", "fix auth bug"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Likely source files:\n- none\nNo source file reason: task tokens matched context guidance but no matching source file was found\./);
+    assert.match(result.stdout, /Likely tests:\n- none\nNo test reason: no matching or paired test file was found\./);
+    assert.doesNotMatch(result.stdout, /score/i);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("start includes generic fallback reason for unit test failures without source signal", async () => {
@@ -138,6 +176,31 @@ test("start includes generic fallback reason for unit test failures without sour
   }
 });
 
+test("start caps generic test fallback by default but respects explicit max files", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-start-test-cap-"));
+
+  try {
+    for (const name of ["a", "b", "c", "d", "e", "f", "g"]) {
+      await writeFixtureFile(tempDir, `tests/${name}.test.js`, `test('${name}', () => {});\n`);
+    }
+
+    const defaultResult = runCli(["start", "fix unit test failure"], { cwd: tempDir });
+    const explicitResult = runCli(["start", "fix unit test failure", "--max-files", "7"], { cwd: tempDir });
+
+    assert.equal(defaultResult.status, 0);
+    assert.match(defaultResult.stdout, /- tests\/a\.test\.js/);
+    assert.match(defaultResult.stdout, /- tests\/e\.test\.js/);
+    assert.doesNotMatch(defaultResult.stdout, /- tests\/f\.test\.js/);
+    assert.equal((defaultResult.stdout.match(/generic test-task fallback/g) ?? []).length, 5);
+
+    assert.equal(explicitResult.status, 0);
+    assert.match(explicitResult.stdout, /- tests\/g\.test\.js/);
+    assert.equal((explicitResult.stdout.match(/generic test-task fallback/g) ?? []).length, 7);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("startup prompt formats empty source and test lists", () => {
   const output = formatStartupPrompt({
     task: "fix unclear issue",
@@ -149,6 +212,7 @@ test("startup prompt formats empty source and test lists", () => {
     relevantSymbols: [],
     startupInstructions: [],
     recommendationReasons: {},
+    emptyRecommendationReasons: {},
     reasons: []
   });
 
@@ -170,6 +234,7 @@ test("startup prompt formats compact file reasons", () => {
       "src/auth/login.ts": ["matched task token: auth", "matched filename stem: login"],
       "tests/auth/login.test.ts": ["paired with source file: src/auth/login.ts", "matched parent folder: auth"]
     },
+    emptyRecommendationReasons: {},
     reasons: []
   });
 

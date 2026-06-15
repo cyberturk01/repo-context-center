@@ -257,10 +257,43 @@ test("suggest JSON keeps compatible fields while exposing StartupContext fields"
     assert.ok(Array.isArray(suggestion.readFirstDocs));
     assert.ok(Array.isArray(suggestion.startupInstructions));
     assert.equal(typeof suggestion.recommendationReasons, "object");
+    assert.equal(typeof suggestion.emptyRecommendationReasons, "object");
     assert.ok(suggestion.contextFiles.includes("docs/ai-context/TASK_ROUTING.md"));
     assert.ok(suggestion.readFirstDocs.includes("AGENTS.md"));
     assert.ok(suggestion.startupInstructions.length > 0);
   });
+});
+
+test("suggest JSON remains valid with additive empty recommendation reasons", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-suggest-empty-reasons-"));
+
+  try {
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Auth work: read `src/auth` and `tests/auth/login.test.ts`."
+      ].join("\n")
+    );
+
+    const result = runCli(["suggest", "fix auth bug", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(suggestion.likelySourceFiles, []);
+    assert.deepEqual(suggestion.likelyTests, []);
+    assert.deepEqual(suggestion.recommendationReasons, {});
+    assert.equal(
+      suggestion.emptyRecommendationReasons.source,
+      "task tokens matched context guidance but no matching source file was found."
+    );
+    assert.equal(suggestion.emptyRecommendationReasons.test, "no matching or paired test file was found.");
+    assert.ok(!JSON.stringify(suggestion).includes("score"));
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("generic unit test failure gets useful startup instructions without source confidence", async () => {
@@ -458,6 +491,32 @@ test("suggest respects max files for likely tests", async () => {
   }
 });
 
+test("suggest generic test fallback is not capped by startup defaults", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-suggest-no-start-cap-"));
+
+  try {
+    for (const name of ["a", "b", "c", "d", "e", "f", "g"]) {
+      await writeFixtureFile(tempDir, `tests/${name}.test.js`, `test('${name}', () => {});\n`);
+    }
+
+    const result = runCli(["suggest", "fix unit test failure", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(suggestion.likelyTests, [
+      "tests/a.test.js",
+      "tests/b.test.js",
+      "tests/c.test.js",
+      "tests/d.test.js",
+      "tests/e.test.js",
+      "tests/f.test.js",
+      "tests/g.test.js"
+    ]);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("suggest returns empty file arrays for empty repos", async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-suggest-empty-"));
 
@@ -566,6 +625,8 @@ test("suggest finds workflow files for GitHub Actions workflow updates", async (
     assert.equal(result.status, 0);
     assert.deepEqual(suggestion.likelySourceFiles.slice(0, 2), [".github/workflows/ci.yml", ".github/workflows/release.yml"]);
     assert.ok(suggestion.likelySourceFiles.includes("package.json"));
+    assert.ok(suggestion.likelySourceFiles.indexOf(".github/workflows/ci.yml") < suggestion.likelySourceFiles.indexOf("package.json"));
+    assert.ok(suggestion.likelySourceFiles.indexOf(".github/workflows/release.yml") < suggestion.likelySourceFiles.indexOf("package.json"));
     assert.ok(!suggestion.likelySourceFiles.includes("package-lock.json"));
     assert.ok(suggestion.recommendationReasons[".github/workflows/ci.yml"].includes("workflow task match"));
     assert.ok(!JSON.stringify(suggestion.recommendationReasons).includes("score"));
