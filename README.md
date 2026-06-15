@@ -9,7 +9,26 @@ AI coding agents often waste context rediscovering the same repository structure
 
 It works with Codex, Claude Code, Cursor, Copilot-style agents, and other coding assistants that read repository instructions or Markdown docs.
 
-It is not an AI agent and does not call an AI API. It installs and maintains small Markdown context files inside your repo.
+## Install
+
+```bash
+npm install -g repo-context-center
+```
+
+or
+
+```bash
+npx repo-context-center init
+```
+
+> **Local-first by design**
+>
+> - No API keys
+> - No AI service
+> - No model costs
+> - Works entirely on local repository metadata
+
+It installs and maintains small Markdown context files inside your repo.
 
 ![Repo Context Center workflow](./repo-context-center-diagram.svg)
 
