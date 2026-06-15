@@ -32,7 +32,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "repo-context-center-diagram.svg"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/copy-templates.js",
