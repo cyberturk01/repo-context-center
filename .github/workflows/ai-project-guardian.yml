@@ -42,21 +42,42 @@ jobs:
         working-directory: .guardian
         run: npm run build
 
+      - name: Prepare git base
+        run: |
+          git fetch origin main --depth=2 || true
+          git rev-parse HEAD
+          git rev-parse origin/main || true
+          git rev-parse HEAD~1 || true
+
       - name: Run Guardian summary
-        working-directory: .guardian
-        run: npm run guardian -- --repo .. --base origin/main --out guardian-summary.md --summary-only
+        run: |
+          node .guardian/dist/src/cli/index.js \
+            --repo . \
+            --base origin/main \
+            --out guardian-summary.md \
+            --summary-only
 
       - name: Append report to job summary
-        run: cat .guardian/guardian-summary.md >> "$GITHUB_STEP_SUMMARY"
+        if: always()
+        run: |
+          if [ -f guardian-summary.md ]; then
+            cat guardian-summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Guardian summary was not generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Generate full Guardian report
         if: always()
-        working-directory: .guardian
-        run: npm run guardian -- --repo .. --base origin/main --out guardian-report.md --full-report
+        run: |
+          node .guardian/dist/src/cli/index.js \
+            --repo . \
+            --base origin/main \
+            --out guardian-report.md \
+            --full-report
 
       - name: Upload full Guardian report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ai-project-guardian-report
-          path: .guardian/guardian-report.md
+          path: guardian-report.md
