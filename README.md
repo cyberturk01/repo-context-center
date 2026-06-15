@@ -141,20 +141,50 @@ npx repo-context-center init --github-action
 
 ## Example
 
-Recommend context for a specific task:
+Generate repository context:
 
 ```sh
-npx repo-context-center suggest "fix unit test failure" --max-files 8
+npx repo-context-center map --write
+```
+
+Example output:
+
+```text
+repo-context-center map
+
+Files scanned: 500
+Mode: write
+
+Updated files:
+- AGENTS.md (updated)
+- docs/ai-context/TASK_ROUTING.md (updated)
+- docs/ai-context/PROJECT_MAP.md (updated)
+- docs/ai-context/HOTSPOTS.md (updated)
+
+Detected:
+- Task routing rows: 3
+- Modules: 7
+- Risks: 5
+- Dependencies: 4
+- Symbols: 6
+- Hotspots: 7
 ```
 
 Estimate whether the context center is reducing broad repo reads:
 
 ```sh
 npx repo-context-center estimate --compare-naive
-npx repo-context-center estimate --task "fix Cypress test" --mode compact
 ```
 
-Example task routing output is intended to help an agent choose a small starting set: context docs, likely source files, likely tests, mode, symbols, and risk level.
+Example output excerpt from LangChain:
+
+```text
+Naive comparison:
+- Estimated naive scan: 1,189,515 tokens
+- Estimated compact startup: 4,752 tokens
+- Estimated saving: 1,184,763 tokens
+- Estimated saving: 99.6%
+```
 
 ## Who Is This For?
 
