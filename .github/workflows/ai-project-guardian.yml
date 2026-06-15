@@ -1,0 +1,62 @@
+name: AI Project Guardian
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  guardian:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout ai-project-guardian
+        uses: actions/checkout@v4
+        with:
+          repository: cyberturk01/ai-project-guardian
+          path: .guardian
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: .guardian/package-lock.json
+
+      - name: Install Guardian dependencies
+        working-directory: .guardian
+        run: npm ci
+
+      - name: Build Guardian
+        working-directory: .guardian
+        run: npm run build
+
+      - name: Run Guardian summary
+        working-directory: .guardian
+        run: npm run guardian -- --repo .. --base origin/main --out guardian-summary.md --summary-only
+
+      - name: Append report to job summary
+        run: cat .guardian/guardian-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Generate full Guardian report
+        if: always()
+        working-directory: .guardian
+        run: npm run guardian -- --repo .. --base origin/main --out guardian-report.md --full-report
+
+      - name: Upload full Guardian report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-project-guardian-report
+          path: .guardian/guardian-report.md
