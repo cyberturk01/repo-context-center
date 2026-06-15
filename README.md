@@ -85,6 +85,24 @@ This installs the context center, generates repo-specific maps, prints a task-sp
 
 > Note: `repo-context-center` writes Markdown context files into the target repository. Use `npx repo-context-center init --dry-run` if you want to preview installation first.
 
+## Recommended Daily Workflow
+
+1. Run `npx repo-context-center init` once per repo to install `AGENTS.md` and `docs/ai-context/*`.
+2. Run `npx repo-context-center map --write` to create durable repo-level context.
+3. Refresh with `map --write` after meaningful structure changes, such as new source roots, renamed modules, changed test layout, or new generated-output paths.
+4. Let `AGENTS.md` guide agents. If the agent can run shell commands, `AGENTS.md` should tell it to run `npx repo-context-center start "<task>"`.
+5. Use `npx repo-context-center start "<task>"` before each new coding task when possible.
+
+Example:
+
+```sh
+npx repo-context-center start "fix birthday email delay"
+```
+
+If users only tell an agent to read `AGENTS.md`, the agent gets stable repo instructions and fallback context docs. That does not guarantee the agent will execute shell commands automatically. If shell access or approval is unavailable, the agent should fall back to the context docs listed in `AGENTS.md`.
+
+`repo-context-center` does not run in the background. It updates generated context only when you run commands such as `map --write`, and it prints task startup guidance only when you run `start`.
+
 ## Start From A Task
 
 Use `start` when you want an agent-ready prompt for a specific task:
@@ -130,6 +148,12 @@ Repository
 6. `archive` keeps long-running notes small enough to remain useful.
 
 The generated maps are navigation aids, not a replacement for source review. Source code remains the source of truth.
+
+`map`, `suggest`, and `start` serve different moments:
+
+- `map --write` creates durable repo-level context in `AGENTS.md` and `docs/ai-context/*`.
+- `suggest` returns task-specific recommendations, especially useful with `--json` for tools and integrations.
+- `start` generates a ready-to-paste startup prompt for AI coding agents.
 
 ## Install
 
@@ -281,6 +305,14 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 - `scan`: inspect only the repository layout and suggest lightweight entries for context maps.
 - `start`: print an agent-ready startup prompt with read-first docs, likely files, likely tests, risk, instructions, and compact recommendation reasons.
 - `suggest`: recommend low-token context files, real likely files, likely tests, mode, symbols, and risk level for a task. Use `--json` for tool integrations; JSON includes additive startup fields such as recommendation reasons.
+
+| Command | Purpose | When to use |
+| --- | --- | --- |
+| `init` | install context templates | once per repo |
+| `map --write` | refresh repo map | after structure changes |
+| `map --check` | detect stale context | CI / PRs |
+| `suggest` | get task recommendations / JSON | tooling |
+| `start` | generate agent startup prompt | before each task |
 
 ## Main Map Modes
 
@@ -436,13 +468,21 @@ This improves `PROJECT_MAP.md`, `HOTSPOTS.md`, and `DEPENDENCY_MAP.md` by making
 
 Ask the agent to:
 
-1. Run or read the output from `repo-context-center start "<task>"`.
+1. Run or read the output from `repo-context-center start "<task>"` before each new coding task when possible.
 2. Open the read-first docs listed in the startup prompt.
 3. Open the likely source files and tests before broad search.
 4. Treat recommendation reasons as navigation hints, not proof.
 5. Verify source code before changing behavior.
 6. Expand search only when the recommended files are insufficient.
 7. Update context files only when durable repo knowledge changes.
+
+If the agent can run shell commands, `AGENTS.md` should guide it to run:
+
+```sh
+npx repo-context-center start "<task>"
+```
+
+If shell access is unavailable, the agent should read the fallback context docs from `AGENTS.md`, starting with `TASK_ROUTING.md`, `TOKEN_BUDGET.md`, and `DO_NOT_READ.md`.
 
 ## Token-Saving Strategy
 
