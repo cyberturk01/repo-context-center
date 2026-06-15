@@ -71,7 +71,7 @@ const workflowKeywords = [
   "workflows"
 ];
 const testDiscoveryKeywords = ["test", "unit test", "spec", "failure", "jest", "vitest", "cypress", "e2e"];
-const workflowFiles = ["package.json", "Dockerfile", "railway.json"];
+const workflowSupportFiles = ["package.json", "Dockerfile", "railway.json"];
 const defaultSuggestMaxFiles = 50;
 const activeTestPattern = /\.(test|spec)\.[^.]+$/i;
 const stopWords = new Set([
@@ -449,6 +449,10 @@ function discoverLikelySourceFiles(
     let score = 0;
     const matchScore = tokenMatchScore(file, tokenSet);
 
+    if (includeWorkflowFiles && !hasGithubWorkflowFiles && workflowSupportFiles.includes(file)) {
+      return { path: file, score: 0 };
+    }
+
     if (info.role === "source") {
       if (!hintSet.has(file) && matchScore === 0) {
         return { path: file, score: 0 };
@@ -461,12 +465,10 @@ function discoverLikelySourceFiles(
       if (isGithubWorkflowPath(file)) {
         score += 160;
       }
-    } else if (includeWorkflowFiles && workflowFiles.includes(file)) {
+    } else if (includeWorkflowFiles && hasGithubWorkflowFiles && workflowSupportFiles.includes(file)) {
       score += 38;
       score += matchScore;
-      if (hasGithubWorkflowFiles) {
-        score -= 8;
-      }
+      score -= 8;
     } else if (hintSet.has(file) && info.role !== "test") {
       score += 22;
     } else {
@@ -597,7 +599,7 @@ function reasonsForRecommendedFile(
     addReason(reasons, "matched context path hint");
   }
 
-  if (includeWorkflowFiles && (info.role === "workflow" || workflowFiles.includes(filePath))) {
+  if (includeWorkflowFiles && (info.role === "workflow" || workflowSupportFiles.includes(filePath))) {
     addReason(reasons, "workflow task match");
   }
 
@@ -664,6 +666,7 @@ function recommendationReasonsFor(
 function emptyRecommendationReasonsFor(
   likelySourceFiles: string[],
   likelyTests: string[],
+  workflowTaskWithoutGithubWorkflowFiles: boolean,
   routingMatches: string[],
   moduleMatches: string[],
   dependencyMatches: string[],
@@ -680,9 +683,13 @@ function emptyRecommendationReasonsFor(
     || relevantSymbols.length > 0;
 
   if (likelySourceFiles.length === 0) {
-    reasons.source = matchedContextGuidance
-      ? "task tokens matched context guidance but no matching source file was found."
-      : "no matching source file was found.";
+    if (workflowTaskWithoutGithubWorkflowFiles) {
+      reasons.source = "- workflow task detected, but no .github/workflows/*.yml or .yaml files were found.";
+    } else {
+      reasons.source = matchedContextGuidance
+        ? "task tokens matched context guidance but no matching source file was found."
+        : "no matching source file was found.";
+    }
   }
 
   if (likelyTests.length === 0) {
@@ -911,7 +918,7 @@ function startupInstructionsFor(startup: Omit<StartupContext, "startupInstructio
   const instructions: string[] = [];
   const hasWorkflowOrDeploymentFiles = startup.likelySourceFiles.some((file) => {
     return file.startsWith(".github/workflows/")
-      || workflowFiles.includes(file)
+      || workflowSupportFiles.includes(file)
       || /(^|\/)(docker-compose|compose)\.ya?ml$/i.test(file);
   });
 
@@ -1038,11 +1045,13 @@ export async function buildStartupContext(
   }
 
   const mode = modeForTask(task, tokens);
+  const workflowTask = isWorkflowTask(tokens);
+  const hasGithubWorkflowFiles = repoFiles.some(isGithubWorkflowPath);
   const likelySourceFiles = discoverLikelySourceFiles(
     repoFiles,
     discoveryTokens,
     existingHintMatches,
-    isWorkflowTask(tokens),
+    workflowTask,
     maxFiles
   );
   const genericFallbackMaxTests = options.genericFallbackMaxTests ?? maxFiles;
@@ -1057,12 +1066,13 @@ export async function buildStartupContext(
     tokens,
     discoveryTokens,
     existingHintMatches,
-    isWorkflowTask(tokens),
+    workflowTask,
     genericTestFallback
   );
   const emptyRecommendationReasons = emptyRecommendationReasonsFor(
     likelySourceFiles,
     likelyTests,
+    workflowTask && !hasGithubWorkflowFiles,
     routingMatches,
     moduleMatches,
     dependencyMatches,

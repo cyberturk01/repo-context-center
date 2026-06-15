@@ -15,8 +15,8 @@ Include state, concurrency, auth, permissions, serialization, and boundary adapt
 | `src/core/validator.ts` | risky area, core orchestration or shared model, analyzer or risk scoring | npm run build; npm test; npm run lint |
 | `src/cli/commands/scan.ts` | risky area, repository scanner or classifier | npm run build; node --test tests/scan.test.js; npm run lint |
 | `scripts/copy-templates.js` | automation or maintenance script | npm run build; npm test; npm run lint |
+| `tests/agent-startup-adoption.test.js` | test coverage or regression case | npm run build; node --test tests/agent-startup-adoption.test.js; npm run lint |
 | `tests/archive.test.js` | test coverage or regression case | npm run build; node --test tests/archive.test.js; npm run lint |
-| `tests/cli.test.js` | test coverage or regression case | npm run build; node --test tests/cli.test.js; npm run lint |
 | `src/core/templateInstaller.ts` | risky area, core orchestration or shared model, template or context generator | npm run build; npm test; npm run lint |
 | `package-lock.json` | risky area | npm run build; npm test; npm run lint |
 | `package.json` | risky area, package scripts and release metadata | npm run build; npm test; npm run lint |

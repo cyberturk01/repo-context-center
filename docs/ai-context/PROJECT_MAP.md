@@ -16,6 +16,7 @@ A lightweight repository memory layer for AI coding agents.
 ### Key Directories
 - `src/cli` - CLI commands and command entrypoints
 - `src/core` - orchestration and core business logic
+- `docs` - documentation
 - `templates` - templates/prompts/examples
 - `tests` - test coverage, fixtures, and regression cases
 - `scripts` - automation and maintenance scripts
@@ -31,7 +32,7 @@ A lightweight repository memory layer for AI coding agents.
 | --- | --- |
 | Repo understanding level | Medium |
 | Entrypoints detected | 2 |
-| Key directories detected | 7 |
+| Key directories detected | 8 |
 | Modules detected | 3 |
 | Dependency hints mode | Conservative |
 | Generated/noise filtering | Active (1 ignored/noise areas separated) |
@@ -39,7 +40,7 @@ A lightweight repository memory layer for AI coding agents.
 ### Main Execution Flow
 - CLI starts in `src/cli/index.ts`
 - Commands delegate to `src/core/archiver.ts`, `src/core/config.ts`, `src/core/contextFiles.ts`, `src/core/contextReader.ts`
-- Behavior is checked by `tests/archive.test.js`, `tests/cli.test.js`, `tests/estimate.test.js`, `tests/init.test.js`
+- Behavior is checked by `tests/agent-startup-adoption.test.js`, `tests/archive.test.js`, `tests/cli.test.js`, `tests/estimate.test.js`
 
 ### Config
 - `src/core/config.ts`
@@ -48,6 +49,7 @@ A lightweight repository memory layer for AI coding agents.
 - `src/core/validator.ts`
 
 ### Tests
+- `tests/agent-startup-adoption.test.js`
 - `tests/archive.test.js`
 - `tests/cli.test.js`
 - `tests/estimate.test.js`
@@ -55,7 +57,6 @@ A lightweight repository memory layer for AI coding agents.
 - `tests/map.test.js`
 - `tests/repoFileClassifier.test.js`
 - `tests/repositoryUnderstanding.test.js`
-- `tests/scan.test.js`
 
 ### Generated / Ignored Areas
 - `__snapshots__/`

@@ -635,6 +635,45 @@ test("suggest finds workflow files for GitHub Actions workflow updates", async (
   });
 });
 
+test("suggest --json keeps workflow-missing output compatible", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-suggest-no-workflows-"));
+
+  try {
+    await writeFixtureFile(tempDir, "package.json", "{\"scripts\":{\"ci\":\"npm test\"}}\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Workflow work: read `package.json` for scripts."
+      ].join("\n")
+    );
+
+    const result = runCli(["suggest", "update github actions workflow", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(Array.isArray(suggestion.contextFiles));
+    assert.ok(Array.isArray(suggestion.likelySourceFiles));
+    assert.ok(Array.isArray(suggestion.likelyTests));
+    assert.ok(Array.isArray(suggestion.readFirstDocs));
+    assert.ok(Array.isArray(suggestion.startupInstructions));
+    assert.equal(typeof suggestion.recommendationReasons, "object");
+    assert.equal(typeof suggestion.emptyRecommendationReasons, "object");
+    assert.deepEqual(suggestion.likelySourceFiles, []);
+    assert.equal(
+      suggestion.emptyRecommendationReasons.source,
+      "- workflow task detected, but no .github/workflows/*.yml or .yaml files were found."
+    );
+    assert.ok(!suggestion.likelySourceFiles.includes("package.json"));
+    assert.ok(!suggestion.recommendationReasons["package.json"]);
+    assert.ok(!JSON.stringify(suggestion).includes("score"));
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("suggest text output includes symbols with --symbols", async () => {
   await withContextRepo(async (tempDir) => {
     const result = runCli(["suggest", "auth bug", "--symbols"], { cwd: tempDir });

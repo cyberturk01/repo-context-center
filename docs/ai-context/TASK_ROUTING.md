@@ -20,7 +20,7 @@ Before broad search: check `DO_NOT_READ.md`.
 | Repository scanning / classification | `src/core/scanner.ts`, `src/core/fileSystem.ts`, `src/core/contextFiles.ts`, `src/templates/generic/docs/ai-context/SYMBOL_MAP.md` |
 | Template / context generation | `src/templates/generic/AGENTS.md`, `src/templates/generic/docs/ai-context/CHANGE_LOG.md`, `src/templates/generic/docs/ai-context/COMMUNICATION_MODE.md`, `src/templates/generic/docs/ai-context/DEPENDENCY_MAP.md` |
 | CI / release workflow | `package.json` |
-| Tests / fixtures | `tests/archive.test.js`, `tests/cli.test.js`, `tests/estimate.test.js`, `tests/init.test.js` |
+| Tests / fixtures | `tests/agent-startup-adoption.test.js`, `tests/archive.test.js`, `tests/cli.test.js`, `tests/estimate.test.js` |
 
 ### Task Routing
 | Task Type | Start With | Then Check | Tests | Notes |

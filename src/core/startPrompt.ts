@@ -6,7 +6,15 @@ function formatList(values: string[]): string {
 
 function formatRecommendedFiles(values: string[], reasonsByFile: Record<string, string[]>, emptyReason?: string): string {
   if (values.length === 0) {
-    return emptyReason ? `- none\n${emptyReason}` : "- none";
+    if (!emptyReason) {
+      return "- none";
+    }
+
+    if (emptyReason.includes(": - ")) {
+      return `- none\n${emptyReason.replace(": - ", ":\n- ")}`;
+    }
+
+    return `- none\n${emptyReason}`;
   }
 
   return values

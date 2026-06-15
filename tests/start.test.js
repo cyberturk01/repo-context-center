@@ -183,6 +183,7 @@ test("start includes workflow-aware guidance for GitHub Actions tasks", async ()
     const result = runCli(["start", "update github actions workflow"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
+    assert.match(result.stdout, /Likely source files:\n- \.github\/workflows\/ci\.yml/);
     assert.match(result.stdout, /- \.github\/workflows\/ci\.yml/);
     assert.match(result.stdout, /- \.github\/workflows\/release\.yml/);
     assert.ok(result.stdout.indexOf("- .github/workflows/ci.yml") < result.stdout.indexOf("- package.json"));
@@ -190,6 +191,35 @@ test("start includes workflow-aware guidance for GitHub Actions tasks", async ()
     assert.match(result.stdout, /Reasons:\n  - matched parent folder: github\n  - workflow task match/);
     assert.match(result.stdout, /For workflow or deployment changes/);
   });
+});
+
+test("start explains missing workflow files instead of recommending package.json", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-start-no-workflows-"));
+
+  try {
+    await writeFixtureFile(tempDir, "package.json", "{\"scripts\":{\"ci\":\"npm test\"}}\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Workflow work: read `package.json` for scripts."
+      ].join("\n")
+    );
+
+    const result = runCli(["start", "update github actions workflow"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(
+      result.stdout,
+      /Likely source files:\n- none\nNo source file reason:\n- workflow task detected, but no \.github\/workflows\/\*\.yml or \.yaml files were found\./
+    );
+    assert.doesNotMatch(result.stdout, /Likely source files:\n(?:- .+\n)*- package\.json/);
+    assert.doesNotMatch(result.stdout, /- package\.json\n  Reasons:\n  - workflow task match/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("start explains empty file recommendations when context guidance matched", async () => {
