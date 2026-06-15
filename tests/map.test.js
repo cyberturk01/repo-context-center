@@ -423,7 +423,7 @@ test("AGENTS.md generated from scratch contains complete compact startup guidanc
 
     assert.equal(result.status, 0);
     assert.match(generated, /repo-context-center start "<task>"/);
-    assert.match(generated, /If shell access is unavailable/);
+    assert.match(generated, /Otherwise read/);
     assert.match(generated, /COMMUNICATION_MODE\.md/);
     assert.match(generated, /TASK_ROUTING\.md/);
     assert.match(generated, /TOKEN_BUDGET\.md/);
