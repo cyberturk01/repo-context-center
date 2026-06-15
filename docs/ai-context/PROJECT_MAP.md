@@ -1,34 +1,40 @@
 # Project Map
 
-Describe the repository at a glance.
-
-Fill in:
-- Primary language/runtime:
+- Runtime:
 - Package manager:
-- Build command:
-- Test command:
-- Main entrypoints:
-- Generated or vendored paths:
-- Important conventions:
-
-Agent notes:
-- Keep this file factual.
-- Link to files instead of restating long docs.
-- Update when commands or entrypoints change.
+- Build:
+- Test:
+- Entrypoints:
+- Conventions:
 
 <!-- repo-context-center:generated:start -->
 ## Generated Repo Map
 
 ### Main Purpose
-Repository Context Center CLI for installing, validating, mapping, estimating, and suggesting low-token repository context.
+A lightweight repository memory layer for AI coding agents.
 
 ### Key Directories
-- src/ source root
+- `src/cli` - CLI commands and command entrypoints
+- `src/core` - orchestration and core business logic
+- `templates` - templates/prompts/examples
+- `tests` - test coverage, fixtures, and regression cases
+- `scripts` - automation and maintenance scripts
+- `docs/ai-context` - generated agent context
+- `.repo-context-center` - tool config
 
 ### Startup / Entrypoints
-- `package.json`
+- `dist/cli/index.js`
 - `src/cli/index.ts`
-- `src/templates/generic/index.ts`
+
+### Repository Understanding Quality
+| Signal | Value |
+| --- | --- |
+| Repo understanding level | Medium |
+| Entrypoints detected | 2 |
+| Key directories detected | 7 |
+| Modules detected | 3 |
+| Dependency hints mode | Conservative |
+| Generated/noise filtering | Active (1 ignored/noise areas separated) |
 
 ### Main Execution Flow
 - CLI starts in `src/cli/index.ts`
@@ -36,8 +42,10 @@ Repository Context Center CLI for installing, validating, mapping, estimating, a
 - Behavior is checked by `tests/archive.test.js`, `tests/cli.test.js`, `tests/estimate.test.js`, `tests/init.test.js`
 
 ### Config
-- `package-lock.json`
+- `src/core/config.ts`
 - `package.json`
+- `src/cli/commands/validate.ts`
+- `src/core/validator.ts`
 
 ### Tests
 - `tests/archive.test.js`
@@ -45,13 +53,14 @@ Repository Context Center CLI for installing, validating, mapping, estimating, a
 - `tests/estimate.test.js`
 - `tests/init.test.js`
 - `tests/map.test.js`
+- `tests/repoFileClassifier.test.js`
+- `tests/repositoryUnderstanding.test.js`
 - `tests/scan.test.js`
-- `tests/suggest.test.js`
-- `tests/symbols.test.js`
 
 ### Generated / Ignored Areas
 - `__snapshots__/`
 - `.next/`
+- `.repo-context-center/`
 - `build/`
 - `coverage/`
 - `dist/`
@@ -67,11 +76,12 @@ Repository Context Center CLI for installing, validating, mapping, estimating, a
 | --- | --- | --- |
 | CLI: `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/init.ts` | CLI behavior changes can break scripts, help text, JSON output, or exit codes. | npm run build |
 | Configuration: `package-lock.json`, `package.json`, `src/cli/commands/validate.ts` | Config mistakes can misroute agent work or break validation. | npm run build |
-| Repository scanning: `src/cli/commands/scan.ts`, `src/core/scanner.ts`, `src/templates/generic/docs/ai-context/SYMBOL_MAP.md` | File classification changes can cause future agents to read too much or miss important files. | npm run build |
-| Risk rules: `src/cli/commands/validate.ts`, `src/core/validator.ts`, `src/templates/generic/docs/ai-context/HOTSPOTS.md` | Risk guidance affects what agents inspect before changes. | npm run build |
-| Report generation: `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/map.ts` | Report rendering changes can break generated markdown, JSON consumers, or marker preservation. | npm run build |
-| Context docs: `AGENTS.md`, `docs/ai-context/CHANGE_LOG.md`, `docs/ai-context/COMMUNICATION_MODE.md` | Context doc changes affect future agent routing and token use. | npm run build |
-| Fixture/snapshot drift: `tests/archive.test.js`, `tests/cli.test.js`, `tests/estimate.test.js` | Fixtures and expected output can drift from generated map behavior. | npm run build |
+| Analyzers / Risk Rules: `src/core/validator.ts` | Risk guidance affects what agents inspect before changes. | npm run build |
+| Renderers / Reports: `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/map.ts` | Report rendering changes can break generated markdown, JSON consumers, or marker preservation. | npm run build |
+| Repository scanning: `src/cli/commands/scan.ts`, `src/core/contextFiles.ts`, `src/core/fileSystem.ts` | File classification changes can cause future agents to read too much or miss important files. | npm run build |
+| Templates: `src/core/templateInstaller.ts`, `src/templates/generic/AGENTS.md`, `src/templates/generic/docs/ai-context/CHANGE_LOG.md` | Template changes can propagate stale or oversized context into new repos. | npm run build |
+| Staff/POS/public flows: `src/core/repositoryUnderstanding.ts` | Public and staff flows are user-visible and often role-sensitive. | npm run build |
+| Context docs: `.repo-context-center/config.json`, `AGENTS.md`, `docs/ai-context/CHANGE_LOG.md` | Context doc changes affect future agent routing and token use. | npm run build |
 
 _Generated by repo-context-center. Edit outside this section._
 <!-- repo-context-center:generated:end -->

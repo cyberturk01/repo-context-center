@@ -1,34 +1,37 @@
 # Task Routing
 
-Use this map to choose the smallest useful context set.
+- Bug: `PROJECT_MAP.md`, `MODULE_INDEX.md`, `HOTSPOTS.md`, related tests.
+- Feature: `PROJECT_MAP.md`, `MODULE_INDEX.md`, `DEPENDENCY_MAP.md`, examples.
+- Refactor: `DEPENDENCY_MAP.md`, `SYMBOL_MAP.md`, callers.
+- Docs/config: `PROJECT_MAP.md`, target files.
 
-Bug fix:
-- Read `PROJECT_MAP.md`, `MODULE_INDEX.md`, `HOTSPOTS.md`, and related tests.
-
-Feature:
-- Read `PROJECT_MAP.md`, `MODULE_INDEX.md`, `DEPENDENCY_MAP.md`, and nearby examples.
-
-Refactor:
-- Read `DEPENDENCY_MAP.md`, `SYMBOL_MAP.md`, and affected callers.
-
-Docs/config:
-- Read `PROJECT_MAP.md` and the target files.
-
-Before broad search:
-- Check `DO_NOT_READ.md`.
+Before broad search: check `DO_NOT_READ.md`.
 
 <!-- repo-context-center:generated:start -->
 ## Generated Repo Map
 
+### First Files to Open
+| Task Area | Open First |
+| --- | --- |
+| CLI behavior | `src/cli/index.ts`, `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/init.ts` |
+| Configuration | `src/core/config.ts`, `src/core/validator.ts`, `src/core/templateInstaller.ts` |
+| Analyzer / risk scoring | `src/core/validator.ts` |
+| Report rendering | `src/core/repoMapper.ts`, `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/map.ts` |
+| Repository scanning / classification | `src/core/scanner.ts`, `src/core/fileSystem.ts`, `src/core/contextFiles.ts`, `src/templates/generic/docs/ai-context/SYMBOL_MAP.md` |
+| Template / context generation | `src/templates/generic/AGENTS.md`, `src/templates/generic/docs/ai-context/CHANGE_LOG.md`, `src/templates/generic/docs/ai-context/COMMUNICATION_MODE.md`, `src/templates/generic/docs/ai-context/DEPENDENCY_MAP.md` |
+| CI / release workflow | `package.json` |
+| Tests / fixtures | `tests/archive.test.js`, `tests/cli.test.js`, `tests/estimate.test.js`, `tests/init.test.js` |
+
+### Task Routing
 | Task Type | Start With | Then Check | Tests | Notes |
 | --- | --- | --- | --- | --- |
-| CLI flags/output | `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/init.ts`, `src/cli/commands/map.ts` | core command handler, README examples, CLI tests | `tests/archive.test.js`, `tests/estimate.test.js`, `tests/init.test.js` | Keep output stable for tests and scripts. |
-| Config behavior | `package.json`, `src/cli/commands/validate.ts`, `src/core/config.ts`, `src/core/validator.ts` | template installer, validator, init tests | `tests/validate.test.js` | Preserve existing user files unless force behavior is explicit. |
-| File scanning/classification | `src/cli/commands/scan.ts`, `src/core/scanner.ts`, `src/templates/generic/docs/ai-context/SYMBOL_MAP.md` | context file rules, symbol map output, scan tests | `tests/scan.test.js` | Avoid full source reads except bounded symbol extraction. |
-| Rule/scoring changes | `src/cli/commands/validate.ts`, `src/core/validator.ts`, `src/templates/generic/docs/ai-context/HOTSPOTS.md`, `src/templates/generic/docs/ai-context/RISK_REGISTER.md` | validator, hotspots, risk register tests | `tests/validate.test.js` | Risk wording affects future agent read order. |
-| Report output | `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/map.ts`, `src/cli/commands/suggest.ts` | renderers, snapshot-like tests, README examples | `tests/archive.test.js`, `tests/estimate.test.js`, `tests/map.test.js` | Keep generated sections deterministic. |
-| Test fixture updates | `tests/archive.test.js`, `tests/cli.test.js`, `tests/estimate.test.js`, `tests/init.test.js` | affected tests, generated docs, do-not-read rules | `npm test` | Fixture drift can hide broken routing or map output. |
-| Context doc updates | `AGENTS.md`, `docs/ai-context/CHANGE_LOG.md`, `docs/ai-context/COMMUNICATION_MODE.md`, `docs/ai-context/DEPENDENCY_MAP.md` | templates, map tests, validator | `npm test` | Keep generated content compact and factual. |
+| CLI flags/output | `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/init.ts`, `src/cli/commands/map.ts` | core command handler, README examples, CLI tests | `tests/archive.test.js`, `tests/cli.test.js`, `tests/estimate.test.js` | Keep output stable for tests and scripts. |
+| Config behavior | `package.json`, `src/cli/commands/validate.ts`, `src/core/config.ts`, `src/core/validator.ts` | template installer, validator, init tests | `tests/init.test.js`, `tests/validate.test.js` | Preserve existing user files unless force behavior is explicit. |
+| Analyzer/risk rule changes | `src/core/validator.ts` | validator, hotspots, risk register tests | `tests/validate.test.js` | Risk and analyzer wording affects future agent read order. |
+| Report rendering | `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/map.ts`, `src/core/repoMapper.ts` | renderers, snapshot-like tests, README examples | `tests/archive.test.js`, `tests/estimate.test.js`, `tests/map.test.js` | Keep generated sections deterministic. |
+| Repository scanning/classification | `src/cli/commands/scan.ts`, `src/core/contextFiles.ts`, `src/core/fileSystem.ts`, `src/core/scanner.ts` | context file rules, symbol map output, scan tests | `tests/scan.test.js` | Avoid full source reads except bounded symbol extraction. |
+| Template/context generation | `src/templates/generic/AGENTS.md`, `src/templates/generic/docs/ai-context/CHANGE_LOG.md`, `src/templates/generic/docs/ai-context/COMMUNICATION_MODE.md`, `src/templates/generic/docs/ai-context/DEPENDENCY_MAP.md` | template installer, context docs, template tests | none detected | Keep templates compact and aligned with generated context files. |
+| Staff/POS/public flows | `src/core/repositoryUnderstanding.ts` | role checks, route handlers, e2e tests | `tests/repositoryUnderstanding.test.js` | User-visible and often role-sensitive. |
 
 _Generated by repo-context-center. Edit outside this section._
 <!-- repo-context-center:generated:end -->

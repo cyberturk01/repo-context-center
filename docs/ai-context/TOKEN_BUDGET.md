@@ -1,43 +1,37 @@
 # Token Budget
 
-Use context deliberately.
-
 Compact Mode:
-- Read routing, the target file, and the nearest test only.
-- Use when the task is narrow or low risk.
+- routing + target file + nearest test
 
 Investigation Mode:
-- Add maps, related callers, and failure evidence.
-- Use when behavior, ownership, or blast radius is unclear.
+- add maps, callers, failure evidence
 
-Default read order:
+Read:
 1. `AGENTS.md`
 2. `TASK_ROUTING.md`
 3. Relevant map files
 4. Target source and tests
 
 Estimate overhead:
-- Run `repo-context-center estimate`.
-- Use `--compare-naive` to compare startup context with a broad repo pass.
-- Treat results as approximate, not billing data.
+- `--compare-naive` compares startup vs broad pass.
 
-Avoid:
-- Generated output.
-- Lockfiles unless dependency state matters.
-- Large snapshots or fixtures unless failing behavior depends on them.
+Skip:
+- generated output
+- lockfiles unless dependency state matters
+- large snapshots unless failure depends on them
 
-Escalate context only when the first pass leaves a concrete unknown.
+Escalate only for concrete unknowns.
 
 <!-- repo-context-center:generated:start -->
 ## Generated Repo Map
 
-Repo size estimate: 74 scanned files.
+Repo size estimate: 78 scanned files.
 
 | Mode | Use when | Read first | Max files |
 | --- | --- | --- | --- |
 | Compact Mode | small localized task | AGENTS.md, TASK_ROUTING.md, one MODULE_INDEX section | 12 |
 | Investigation Mode | risk, auth, data, release, or bug task | RISK_REGISTER.md, HOTSPOTS.md, DEPENDENCY_MAP.md | 24 |
-| Detailed Mode | cross-module refactor or broad behavior change | CLI, Configuration, Repository scanning sections plus targeted source/tests | 45 |
+| Detailed Mode | cross-module refactor or broad behavior change | CLI, Configuration, Analyzers / Risk Rules sections plus targeted source/tests | 45 |
 
 Suggested max files: Compact 8-16, Investigation 16-32, Detailed 30-60.
 

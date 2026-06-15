@@ -4,6 +4,7 @@ import { estimateCommand } from "./commands/estimate";
 import { initCommand } from "./commands/init";
 import { mapCommand } from "./commands/map";
 import { scanCommand } from "./commands/scan";
+import { startCommand } from "./commands/start";
 import { suggestCommand } from "./commands/suggest";
 import { validateCommand } from "./commands/validate";
 
@@ -22,6 +23,7 @@ const commands: Record<string, CommandHandler> = {
   estimate: estimateCommand,
   map: mapCommand,
   scan: scanCommand,
+  start: startCommand,
   suggest: suggestCommand
 };
 
@@ -43,6 +45,8 @@ Commands:
             Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>
   scan      Suggest lightweight context entries from repo layout
             Options: --json
+  start     Print a startup prompt for an AI coding agent
+            Usage: start "<task>" [--max-files <number>]
   suggest   Recommend context files for a task
             Usage: suggest "<task>" [--json] [--symbols] [--max-files <number>]
 

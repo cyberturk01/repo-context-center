@@ -549,6 +549,11 @@ function readFirstDocsFor(files: string[], contextFiles: SuggestContextFile[], r
 
 function startupInstructionsFor(startup: Omit<StartupContext, "startupInstructions">): string[] {
   const instructions: string[] = [];
+  const hasWorkflowOrDeploymentFiles = startup.likelySourceFiles.some((file) => {
+    return file.startsWith(".github/workflows/")
+      || workflowFiles.includes(file)
+      || /(^|\/)(docker-compose|compose)\.ya?ml$/i.test(file);
+  });
 
   if (startup.readFirstDocs.includes("AGENTS.md")) {
     instructions.push("Read AGENTS.md first for repo-specific agent guidance.");
@@ -574,6 +579,10 @@ function startupInstructionsFor(startup: Omit<StartupContext, "startupInstructio
 
   if (startup.relevantSymbols.length > 0) {
     instructions.push("Use the relevant symbol recommendations to prioritize exact functions and their listed tests.");
+  }
+
+  if (hasWorkflowOrDeploymentFiles) {
+    instructions.push("For workflow or deployment changes, review CI/deploy configuration and package scripts before editing.");
   }
 
   if (startup.riskLevel === "high") {
