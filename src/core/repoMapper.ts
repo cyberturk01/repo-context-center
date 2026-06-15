@@ -1881,6 +1881,11 @@ function renderAgents(): string {
   return [
     "Repo Context Center startup.",
     "",
+    "Before starting a task:",
+    "- If shell access is available, run `npx repo-context-center start \"<task>\"`.",
+    "- Otherwise read `TASK_ROUTING.md`, `MODULE_INDEX.md`, `TOKEN_BUDGET.md`, and `DO_NOT_READ.md`",
+    "- Verify source code before editing behavior.",
+    "",
     "Read:",
     "1. `docs/ai-context/COMMUNICATION_MODE.md`",
     "2. `docs/ai-context/TASK_ROUTING.md`",

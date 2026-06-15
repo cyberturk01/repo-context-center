@@ -15,6 +15,7 @@ export interface TemplateInstallResult {
   path: string;
   action: TemplateInstallAction;
   type: "file" | "directory";
+  preview?: string;
 }
 
 const archiveDir = "docs/ai-context/archive";
@@ -52,7 +53,8 @@ export async function installGenericTemplates(
       await writeTextFile(targetPath, template.content);
     }
 
-    results.push({ path: template.path, action, type: "file" });
+    const preview = options.dryRun && template.path === "AGENTS.md" ? template.content : undefined;
+    results.push({ path: template.path, action, type: "file", preview });
   }
 
   const archivePath = path.join(options.cwd, archiveDir);

@@ -25,7 +25,8 @@ function formatInstallMessage(
       return `Would skip ${result.type}: ${result.path} already exists\n`;
     }
 
-    return `Would ${result.action} ${result.type}: ${result.path}\n`;
+    const preview = result.preview ? `\n${result.preview}\n` : "";
+    return `Would ${result.action} ${result.type}: ${result.path}\n${preview}`;
   }
 
   if (result.action === "skip") {
