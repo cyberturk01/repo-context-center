@@ -30,7 +30,7 @@ npx repo-context-center init
 
 It installs and maintains small Markdown context files inside your repo.
 
-![Repo Context Center workflow](./docs/assets/repo-context-center-diagram.svg)
+![Repo Context Center workflow](https://raw.githubusercontent.com/cyberturk01/repo-context-center/c39f583/docs/assets/repo-context-center-diagram.svg)
 
 ## Proven Results
 
@@ -77,12 +77,39 @@ Inside any target repository:
 ```sh
 npx repo-context-center init
 npx repo-context-center map --write
+npx repo-context-center start "fix auth bug"
 npx repo-context-center estimate --compare-naive
 ```
 
-This installs the context center, generates repo-specific maps, and estimates the difference between broad repo scanning and compact startup context.
+This installs the context center, generates repo-specific maps, prints a task-specific startup prompt, and estimates the difference between broad repo scanning and compact startup context.
 
 > Note: `repo-context-center` writes Markdown context files into the target repository. Use `npx repo-context-center init --dry-run` if you want to preview installation first.
+
+## Start From A Task
+
+Use `start` when you want an agent-ready prompt for a specific task:
+
+```sh
+npx repo-context-center start "fix auth bug"
+```
+
+Example excerpt:
+
+```text
+Likely source files:
+- src/auth/login.ts
+  Reasons:
+  - matched task token: auth
+  - matched filename stem: login
+
+Likely tests:
+- tests/auth/login.test.ts
+  Reasons:
+  - paired with source file: src/auth/login.ts
+  - matched parent folder: auth
+```
+
+The reasons are short deterministic hints. They do not expose raw scores, and they are meant to help agents decide where to look first rather than replace source review.
 
 ## How It Works
 
@@ -90,15 +117,17 @@ This installs the context center, generates repo-specific maps, and estimates th
 Repository
   -> repo-context-center map --write
   -> AGENTS.md + docs/ai-context/*
+  -> repo-context-center start "<task>"
   -> AI coding agent
   -> Relevant source files and tests
 ```
 
 1. `init` installs a generic context center: `AGENTS.md` plus `docs/ai-context/*`.
 2. `map --write` analyzes real files with deterministic heuristics and updates generated sections.
-3. Agents read the small context layer first, then open the source files, tests, and docs most likely to matter.
-4. `map --check` can fail CI when generated context becomes stale.
-5. `archive` keeps long-running notes small enough to remain useful.
+3. `start "<task>"` turns that context into a compact startup prompt with likely files, tests, risk, instructions, and reasons.
+4. Agents read the small context layer first, then open the source files, tests, and docs most likely to matter.
+5. `map --check` can fail CI when generated context becomes stale.
+6. `archive` keeps long-running notes small enough to remain useful.
 
 The generated maps are navigation aids, not a replacement for source review. Source code remains the source of truth.
 
@@ -112,14 +141,7 @@ npx repo-context-center map --write
 npx repo-context-center validate
 ```
 
-Then ask your coding agent to start from the context center:
-
-```text
-Before changing code, read AGENTS.md and follow docs/ai-context/TASK_ROUTING.md.
-Use the smallest relevant context set.
-Check docs/ai-context/DO_NOT_READ.md before broad search.
-When you learn durable repo facts, update LESSONS_LEARNED.md and CHANGE_LOG.md.
-```
+Then run `repo-context-center start "<task>"` and paste the output into your coding agent.
 
 Preview installation without writing files:
 
@@ -139,7 +161,30 @@ Install a PR validation workflow:
 npx repo-context-center init --github-action
 ```
 
-## Example
+## Example: Start A Task
+
+Generate an agent-ready startup prompt:
+
+```sh
+npx repo-context-center start "update github actions workflow"
+```
+
+Example excerpt:
+
+```text
+Likely source files:
+- .github/workflows/ci.yml
+  Reasons:
+  - matched parent folder: github
+  - workflow task match
+
+Risk:
+high
+```
+
+Use `suggest --json` instead when integrating recommendations into another tool.
+
+## Example: Generate Repository Maps
 
 Generate repository context:
 
@@ -169,6 +214,8 @@ Detected:
 - Symbols: 6
 - Hotspots: 7
 ```
+
+## Example: Estimate Token Savings
 
 Estimate whether the context center is reducing broad repo reads:
 
@@ -203,6 +250,8 @@ It works with JavaScript, TypeScript, Python, Go, Rust, Ruby, Java, monorepos, d
 
 - **Repository understanding**: deterministic model of package metadata, entrypoints, key directories, tests, config, ignored areas, and noisy paths.
 - **Task routing**: task-aware guidance for which context docs, source files, and tests to open first.
+- **Agent startup prompt**: `start` produces a compact, task-specific prompt agents can follow before editing.
+- **Explainable recommendations**: likely source, test, and workflow files include short deterministic reasons without exposing raw scores.
 - **Context compression**: compact maps for modules, dependencies, symbols, risks, hotspots, token budgets, and do-not-read paths.
 - **Stale context detection**: `map --check` reports when generated context no longer matches the repository.
 - **Durable knowledge capture**: `LESSONS_LEARNED.md` and `CHANGE_LOG.md` store repo facts that should survive beyond one agent session.
@@ -220,6 +269,7 @@ repo-context-center validate [--strict]
 repo-context-center archive [--keep <number>] [--dry-run]
 repo-context-center estimate [--mode compact|investigation|detailed] [--task "<task>"] [--compare-naive] [--json] [--max-files <number>]
 repo-context-center scan [--json]
+repo-context-center start "<task>" [--max-files <number>]
 repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 ```
 
@@ -229,7 +279,8 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 - `archive`: archive older entries from long-running context files; defaults to keeping 50 entries.
 - `estimate`: estimate task-aware source, test, and context token overhead; optionally compare with a naive repo scan.
 - `scan`: inspect only the repository layout and suggest lightweight entries for context maps.
-- `suggest`: recommend low-token context files, real likely files, likely tests, mode, symbols, and risk level for a task.
+- `start`: print an agent-ready startup prompt with read-first docs, likely files, likely tests, risk, instructions, and compact recommendation reasons.
+- `suggest`: recommend low-token context files, real likely files, likely tests, mode, symbols, and risk level for a task. Use `--json` for tool integrations; JSON includes additive startup fields such as recommendation reasons.
 
 ## Main Map Modes
 
@@ -316,8 +367,6 @@ Then commit the updated `AGENTS.md` and `docs/ai-context/*` files.
 
 > Tip: The default workflow only checks freshness. Auto-commit can be added by users, but it is not the recommended default.
 
-See [docs/github-action.md](docs/github-action.md) for PR validation setup.
-
 ## Installed Files
 
 `repo-context-center init` installs generic templates:
@@ -387,14 +436,13 @@ This improves `PROJECT_MAP.md`, `HOTSPOTS.md`, and `DEPENDENCY_MAP.md` by making
 
 Ask the agent to:
 
-1. Read `AGENTS.md`.
-2. Follow `docs/ai-context/TASK_ROUTING.md`.
-3. Check `docs/ai-context/TOKEN_BUDGET.md` and `docs/ai-context/DO_NOT_READ.md`.
-4. Read only the on-demand context files relevant to the task.
+1. Run or read the output from `repo-context-center start "<task>"`.
+2. Open the read-first docs listed in the startup prompt.
+3. Open the likely source files and tests before broad search.
+4. Treat recommendation reasons as navigation hints, not proof.
 5. Verify source code before changing behavior.
-6. Update context files only when durable repo knowledge changes.
-
-See [docs/agent-usage.md](docs/agent-usage.md).
+6. Expand search only when the recommended files are insufficient.
+7. Update context files only when durable repo knowledge changes.
 
 ## Token-Saving Strategy
 
@@ -414,8 +462,6 @@ When to expand context:
 
 Token estimates use `ceil(characters / 4)`. They are rough planning numbers, not exact tokenizer output and not model billing estimates. Percentages are estimates and actual tokenizer usage may differ. The command is meant to help evaluate whether the context center is reducing broad repo reads enough to justify its own startup cost.
 
-See [docs/token-strategy.md](docs/token-strategy.md).
-
 ## Example: Before/After Session Behavior
 
 Before:
@@ -424,9 +470,7 @@ Before:
 
 After:
 
-> The agent reads `AGENTS.md`, follows task routing, opens the relevant module map, checks hotspots, edits a smaller set of files, runs focused tests, and records durable lessons.
-
-More examples are in [docs/examples.md](docs/examples.md).
+> The agent runs `repo-context-center start "<task>"`, opens the read-first docs, follows explained likely file recommendations, edits a smaller set of files, runs focused tests, and records durable lessons.
 
 ## Why I Built This
 
@@ -443,9 +487,12 @@ Repo Context Center was created to provide a durable repository memory layer tha
 | Generic context installation | Available |
 | Repository understanding | Available |
 | Task routing | Available |
+| Task-specific startup prompt | Available |
+| Explainable recommendation reasons | Available |
+| Task-aware candidate scoring | Available |
 | Context compression | Available |
 | Token estimation | Available |
-| Suggested files for a task | Available |
+| Suggested files and tests for a task | Available |
 | Stale context detection | Available |
 | CI freshness check | Available |
 | Durable knowledge notes | Available |
@@ -462,14 +509,6 @@ Repo Context Center was created to provide a durable repository memory layer tha
 | Context analytics | Planned |
 | Token analytics | Planned |
 | Agent handover improvements | Planned |
-
-## Further Reading
-
-- [Concept](docs/concept.md)
-- [Agent usage](docs/agent-usage.md)
-- [Token strategy](docs/token-strategy.md)
-- [Examples](docs/examples.md)
-- [GitHub Action](docs/github-action.md)
 
 ## Development
 
