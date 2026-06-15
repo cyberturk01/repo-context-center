@@ -143,6 +143,64 @@ async function withTestDiscoveryRepo(callback) {
   }
 }
 
+async function withRealisticSuggestRepo(shape, callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), `repo-context-center-suggest-${shape}-`));
+
+  try {
+    if (shape === "typescript-app") {
+      await writeFixtureFile(tempDir, "src/auth/login.ts", "export function login() {}\n");
+      await writeFixtureFile(tempDir, "src/auth/session.ts", "export function createSession() {}\n");
+      await writeFixtureFile(tempDir, "tests/auth/login.test.ts", "test('login', () => {});\n");
+      await writeFixtureFile(tempDir, "package.json", "{\"scripts\":{\"test\":\"node --test\"}}\n");
+      await writeNoiseFixtureFiles(tempDir);
+    } else if (shape === "monorepo") {
+      await writeFixtureFile(tempDir, "packages/api/src/users/userService.ts", "export function getUser() {}\n");
+      await writeFixtureFile(tempDir, "packages/api/tests/users/userService.test.ts", "test('user service', () => {});\n");
+      await writeFixtureFile(tempDir, "packages/web/src/components/UserCard.tsx", "export function UserCard() { return null; }\n");
+      await writeFixtureFile(tempDir, "packages/web/tests/UserCard.test.tsx", "test('user card', () => {});\n");
+      await writeNoiseFixtureFiles(tempDir);
+    } else if (shape === "python-app") {
+      await writeFixtureFile(tempDir, "app/auth/login.py", "def login():\n    return True\n");
+      await writeFixtureFile(tempDir, "tests/auth/test_login.py", "def test_login():\n    assert True\n");
+      await writeFixtureFile(tempDir, "pyproject.toml", "[project]\nname = \"fixture\"\n");
+      await writeNoiseFixtureFiles(tempDir);
+    } else if (shape === "workflow-heavy") {
+      await writeFixtureFile(tempDir, ".github/workflows/ci.yml", "name: ci\n");
+      await writeFixtureFile(tempDir, ".github/workflows/release.yml", "name: release\n");
+      await writeFixtureFile(tempDir, "package.json", "{\"scripts\":{\"ci\":\"npm test\"}}\n");
+      await writeFixtureFile(tempDir, "tests/ci/workflow.test.ts", "test('workflow', () => {});\n");
+      await writeNoiseFixtureFiles(tempDir);
+    } else {
+      throw new Error(`Unknown realistic suggest repo shape: ${shape}`);
+    }
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+async function writeNoiseFixtureFiles(root) {
+  await writeFixtureFile(root, "dist/auth/generatedLogin.test.ts", "test('generated', () => {});\n");
+  await writeFixtureFile(root, "node_modules/example/index.ts", "export const dependency = true;\n");
+  await writeFixtureFile(root, "tests/fixtures/login.test.ts", "test('fixture', () => {});\n");
+  await writeFixtureFile(root, "tests/__fixtures__/login.ts", "export const fixture = true;\n");
+  await writeFixtureFile(root, "tests/__snapshots__/login.test.ts.snap", "snapshot\n");
+  await writeFixtureFile(root, "src/assets/logo.svg", "<svg />\n");
+}
+
+function assertNoPrimaryNoise(suggestion) {
+  const primaryFiles = [...suggestion.likelySourceFiles, ...suggestion.likelyTests];
+
+  assert.ok(primaryFiles.every((filePath) => !filePath.startsWith("dist/")));
+  assert.ok(primaryFiles.every((filePath) => !filePath.startsWith("node_modules/")));
+  assert.ok(primaryFiles.every((filePath) => !filePath.includes("/fixtures/")));
+  assert.ok(primaryFiles.every((filePath) => !filePath.includes("/__fixtures__/")));
+  assert.ok(primaryFiles.every((filePath) => !filePath.includes("/__snapshots__/")));
+  assert.ok(primaryFiles.every((filePath) => !filePath.endsWith(".snap")));
+  assert.ok(primaryFiles.every((filePath) => !filePath.endsWith(".svg")));
+}
+
 test("suggest uses compact mode for simple UI task", async () => {
   await withContextRepo(async (tempDir) => {
     const result = runCli(["suggest", "adjust UI button spacing", "--json"], { cwd: tempDir });
@@ -365,6 +423,84 @@ test("suggest includes workflow files for deployment tasks", async () => {
     assert.ok(suggestion.likelySourceFiles.includes("package.json"));
     assert.ok(suggestion.likelySourceFiles.includes("Dockerfile"));
     assert.ok(suggestion.likelySourceFiles.includes("railway.json"));
+    await assertReturnedPathsExist(tempDir, suggestion.likelySourceFiles);
+  });
+});
+
+test("suggest finds TypeScript app login tests for unit test failures", async () => {
+  await withRealisticSuggestRepo("typescript-app", async (tempDir) => {
+    const result = runCli(["suggest", "fix login unit test failure", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(suggestion.likelyTests.includes("tests/auth/login.test.ts"));
+    assertNoPrimaryNoise(suggestion);
+    await assertReturnedPathsExist(tempDir, suggestion.likelyTests);
+  });
+});
+
+test("suggest finds TypeScript auth source files and auth tests for auth bugs", async () => {
+  await withRealisticSuggestRepo("typescript-app", async (tempDir) => {
+    const result = runCli(["suggest", "fix auth bug", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(suggestion.likelySourceFiles.includes("src/auth/login.ts"));
+    assert.ok(suggestion.likelySourceFiles.includes("src/auth/session.ts"));
+    assert.ok(suggestion.likelyTests.includes("tests/auth/login.test.ts"));
+    assertNoPrimaryNoise(suggestion);
+    await assertReturnedPathsExist(tempDir, [...suggestion.likelySourceFiles, ...suggestion.likelyTests]);
+  });
+});
+
+test("suggest finds monorepo package source and package tests", async () => {
+  await withRealisticSuggestRepo("monorepo", async (tempDir) => {
+    const result = runCli(["suggest", "fix user service bug", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(suggestion.likelySourceFiles.includes("packages/api/src/users/userService.ts"));
+    assert.ok(suggestion.likelyTests.includes("packages/api/tests/users/userService.test.ts"));
+    assertNoPrimaryNoise(suggestion);
+    await assertReturnedPathsExist(tempDir, [...suggestion.likelySourceFiles, ...suggestion.likelyTests]);
+  });
+});
+
+test("suggest finds Python app login tests for unit test failures", async () => {
+  await withRealisticSuggestRepo("python-app", async (tempDir) => {
+    const result = runCli(["suggest", "fix login unit test failure", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(suggestion.likelyTests.includes("tests/auth/test_login.py"));
+    assertNoPrimaryNoise(suggestion);
+    await assertReturnedPathsExist(tempDir, suggestion.likelyTests);
+  });
+});
+
+test("suggest finds Python auth source and auth tests for auth bugs", async () => {
+  await withRealisticSuggestRepo("python-app", async (tempDir) => {
+    const result = runCli(["suggest", "fix auth bug", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(suggestion.likelySourceFiles.includes("app/auth/login.py"));
+    assert.ok(suggestion.likelyTests.includes("tests/auth/test_login.py"));
+    assertNoPrimaryNoise(suggestion);
+    await assertReturnedPathsExist(tempDir, [...suggestion.likelySourceFiles, ...suggestion.likelyTests]);
+  });
+});
+
+test("suggest finds workflow files for GitHub Actions workflow updates", async () => {
+  await withRealisticSuggestRepo("workflow-heavy", async (tempDir) => {
+    const result = runCli(["suggest", "update github actions workflow", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(suggestion.likelySourceFiles.includes(".github/workflows/ci.yml"));
+    assert.ok(suggestion.likelySourceFiles.includes(".github/workflows/release.yml"));
+    assert.ok(suggestion.likelySourceFiles.includes("package.json"));
+    assertNoPrimaryNoise(suggestion);
     await assertReturnedPathsExist(tempDir, suggestion.likelySourceFiles);
   });
 });
