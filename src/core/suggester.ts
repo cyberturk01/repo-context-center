@@ -4,17 +4,22 @@ import { readSuggestContext, type ContextDocument, type SuggestContextFile } fro
 import { classifyRepoFile, isGeneratedRepoDirectoryName } from "./repoFileClassifier";
 
 export type SuggestMode = "Compact" | "Investigation" | "Detailed";
-export type RiskLevel = "low" | "medium" | "high";
+export type RiskLevel = "unknown" | "low" | "medium" | "high";
 
-export interface ContextSuggestion {
+export interface StartupContext {
   task: string;
   mode: SuggestMode;
-  contextFiles: SuggestContextFile[];
-  likelySourceFiles: string[];
-  relevantSymbols: SymbolRecommendation[];
-  likelyTests: string[];
   riskLevel: RiskLevel;
+  readFirstDocs: string[];
+  likelySourceFiles: string[];
+  likelyTests: string[];
+  relevantSymbols: SymbolRecommendation[];
+  startupInstructions: string[];
   reasons: string[];
+}
+
+export interface ContextSuggestion extends StartupContext {
+  contextFiles: SuggestContextFile[];
 }
 
 export interface SuggestContextOptions {
@@ -342,6 +347,17 @@ function findDocument(documents: ContextDocument[], file: SuggestContextFile): C
   return documents.find((document) => document.path === file);
 }
 
+function isSuggestContextFile(filePath: string): filePath is SuggestContextFile {
+  return [
+    "docs/ai-context/TASK_ROUTING.md",
+    "docs/ai-context/MODULE_INDEX.md",
+    "docs/ai-context/DEPENDENCY_MAP.md",
+    "docs/ai-context/SYMBOL_MAP.md",
+    "docs/ai-context/RISK_REGISTER.md",
+    "docs/ai-context/HOTSPOTS.md"
+  ].includes(filePath);
+}
+
 function matchingLines(document: ContextDocument | undefined, tokens: string[]): string[] {
   if (!document) {
     return [];
@@ -463,34 +479,126 @@ function matchingSymbolEntries(
 }
 
 function modeForTask(task: string, tokens: string[]): SuggestMode {
-  if (investigationKeywords.some((keyword) => tokens.includes(keyword) || task.toLowerCase().includes(keyword))) {
+  const lowerTask = task.toLowerCase();
+  const highRiskKeywords = [
+    ...investigationKeywords,
+    "database",
+    "db",
+    "deployment",
+    "workflow"
+  ];
+
+  if (highRiskKeywords.some((keyword) => tokens.includes(keyword) || lowerTask.includes(keyword))) {
     return "Investigation";
   }
 
-  if (detailedKeywords.some((keyword) => task.toLowerCase().includes(keyword)) || tokens.length > 10) {
+  if (detailedKeywords.some((keyword) => lowerTask.includes(keyword)) || tokens.length > 10) {
     return "Detailed";
   }
 
   return "Compact";
 }
 
-function riskFor(mode: SuggestMode, riskMatches: number, dependencyMatches: number): RiskLevel {
+function riskFor(
+  mode: SuggestMode,
+  riskMatches: number,
+  dependencyMatches: number,
+  repoSignalCount: number,
+  likelySourceFiles: string[],
+  likelyTests: string[]
+): RiskLevel {
   if (mode === "Investigation" || riskMatches > 0) {
     return "high";
+  }
+
+  if (repoSignalCount === 0) {
+    return "unknown";
   }
 
   if (mode === "Detailed" || dependencyMatches > 0) {
     return "medium";
   }
 
+  if (mode !== "Compact" && likelySourceFiles.length > 0 && likelyTests.length > 0) {
+    return "medium";
+  }
+
   return "low";
 }
 
-export async function suggestContext(
+function readFirstDocsFor(files: string[], contextFiles: SuggestContextFile[], routingMatches: number): string[] {
+  const docs: string[] = [];
+  if (files.includes("AGENTS.md")) {
+    docs.push("AGENTS.md");
+  }
+  if (contextFiles.includes("docs/ai-context/TASK_ROUTING.md")) {
+    docs.push("docs/ai-context/TASK_ROUTING.md");
+  }
+  if (contextFiles.includes("docs/ai-context/MODULE_INDEX.md") || (routingMatches === 0 && files.includes("docs/ai-context/MODULE_INDEX.md"))) {
+    docs.push("docs/ai-context/MODULE_INDEX.md");
+  }
+
+  for (const file of contextFiles) {
+    if (!docs.includes(file)) {
+      docs.push(file);
+    }
+  }
+
+  return uniqueOrdered(docs);
+}
+
+function startupInstructionsFor(startup: Omit<StartupContext, "startupInstructions">): string[] {
+  const instructions: string[] = [];
+
+  if (startup.readFirstDocs.includes("AGENTS.md")) {
+    instructions.push("Read AGENTS.md first for repo-specific agent guidance.");
+  }
+  if (startup.readFirstDocs.includes("docs/ai-context/TASK_ROUTING.md")) {
+    instructions.push("Read docs/ai-context/TASK_ROUTING.md for task-specific routing.");
+  }
+  if (startup.readFirstDocs.includes("docs/ai-context/MODULE_INDEX.md")) {
+    instructions.push("Use docs/ai-context/MODULE_INDEX.md if routing is insufficient or the task spans modules.");
+  }
+
+  if (startup.likelySourceFiles.length > 0) {
+    instructions.push(`Open likely source files: ${startup.likelySourceFiles.join(", ")}.`);
+  } else {
+    instructions.push("No confident source files were identified; start from the matched tests or context docs before broad search.");
+  }
+
+  if (startup.likelyTests.length > 0) {
+    instructions.push(`Open likely tests: ${startup.likelyTests.join(", ")}.`);
+  } else {
+    instructions.push("No confident tests were identified; search for nearby test files after reading the source context.");
+  }
+
+  if (startup.relevantSymbols.length > 0) {
+    instructions.push("Use the relevant symbol recommendations to prioritize exact functions and their listed tests.");
+  }
+
+  if (startup.riskLevel === "high") {
+    instructions.push("Treat this as high risk: keep the change narrow and verify the focused tests plus related regression coverage.");
+  } else if (startup.riskLevel === "unknown") {
+    instructions.push("Repo signal is limited; expand search carefully before editing.");
+  }
+
+  instructions.push("Expand search only if the recommended docs, source files, and tests are insufficient.");
+
+  return instructions;
+}
+
+function toContextSuggestion(startupContext: StartupContext): ContextSuggestion {
+  return {
+    ...startupContext,
+    contextFiles: uniqueSorted(startupContext.readFirstDocs.filter(isSuggestContextFile)) as SuggestContextFile[]
+  };
+}
+
+export async function buildStartupContext(
   cwd: string,
   task: string,
   options: SuggestContextOptions = {}
-): Promise<ContextSuggestion> {
+): Promise<StartupContext> {
   const maxFiles = options.maxFiles ?? defaultSuggestMaxFiles;
   const documents = await readSuggestContext(cwd);
   const tokens = tokenize(task);
@@ -561,13 +669,25 @@ export async function suggestContext(
   }
 
   const mode = modeForTask(task, tokens);
-  const riskLevel = riskFor(
+  const likelySourceFiles = discoverLikelySourceFiles(
+    repoFiles,
+    discoveryTokens,
+    existingHintMatches,
+    isWorkflowTask(tokens),
+    maxFiles
+  );
+  const likelyTests = discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches, testRelatedTask, maxFiles);
+  const repoSignalCount = contextFiles.length + likelySourceFiles.length + likelyTests.length + relevantSymbols.length;
+  const finalRiskLevel = riskFor(
     mode,
     riskMatches.length + symbolRiskMatches,
-    dependencyModuleMatches.length + dependencyMatches.length
+    dependencyModuleMatches.length + dependencyMatches.length,
+    repoSignalCount,
+    likelySourceFiles,
+    likelyTests
   );
 
-  if (riskLevel === "high") {
+  if (finalRiskLevel === "high") {
     if (riskRegister) {
       contextFiles.push(riskRegister.path);
     }
@@ -576,20 +696,16 @@ export async function suggestContext(
     }
   }
 
-  return {
+  const uniqueContextFiles = uniqueSorted(contextFiles) as SuggestContextFile[];
+  const readFirstDocs = readFirstDocsFor(repoFiles, uniqueContextFiles, routingMatches.length);
+  const baseStartupContext: Omit<StartupContext, "startupInstructions"> = {
     task,
     mode,
-    contextFiles: uniqueSorted(contextFiles) as SuggestContextFile[],
-    likelySourceFiles: discoverLikelySourceFiles(
-      repoFiles,
-      discoveryTokens,
-      existingHintMatches,
-      isWorkflowTask(tokens),
-      maxFiles
-    ),
+    riskLevel: finalRiskLevel,
+    readFirstDocs,
+    likelySourceFiles,
+    likelyTests,
     relevantSymbols,
-    likelyTests: discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches, testRelatedTask, maxFiles),
-    riskLevel,
     reasons: uniqueSorted([
       routingMatches.length > 0 ? "task matched routing guidance" : "",
       moduleMatches.length > 0 ? "task matched module index entries" : "",
@@ -597,7 +713,21 @@ export async function suggestContext(
       relevantSymbols.length > 0 ? "task matched symbol map entries" : "",
       riskMatches.length > 0 ? "risk or hotspot guidance matched" : "",
       testRelatedTask ? "test-related task triggered test discovery" : "",
-      mode === "Investigation" ? "task contains investigation keyword" : ""
+      mode === "Investigation" ? "task contains investigation keyword" : "",
+      finalRiskLevel === "unknown" ? "insufficient repo signal for risk confidence" : ""
     ].filter(Boolean))
   };
+
+  return {
+    ...baseStartupContext,
+    startupInstructions: startupInstructionsFor(baseStartupContext)
+  };
+}
+
+export async function suggestContext(
+  cwd: string,
+  task: string,
+  options: SuggestContextOptions = {}
+): Promise<ContextSuggestion> {
+  return toContextSuggestion(await buildStartupContext(cwd, task, options));
 }

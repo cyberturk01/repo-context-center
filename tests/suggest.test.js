@@ -7,6 +7,7 @@ const test = require("node:test");
 
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
+const { buildStartupContext } = require("../dist/core/suggester.js");
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [cliPath, ...args], {
@@ -212,6 +213,55 @@ test("suggest uses compact mode for simple UI task", async () => {
     assert.ok(suggestion.contextFiles.includes("docs/ai-context/TASK_ROUTING.md"));
     assert.deepEqual(suggestion.likelySourceFiles, ["src/ui/button.ts"]);
     await assertReturnedPathsExist(tempDir, suggestion.likelySourceFiles);
+  });
+});
+
+test("buildStartupContext generates read-first docs and startup instructions", async () => {
+  await withContextRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+
+    const startupContext = await buildStartupContext(tempDir, "fix auth bug");
+
+    assert.equal(startupContext.task, "fix auth bug");
+    assert.equal(startupContext.mode, "Investigation");
+    assert.equal(startupContext.riskLevel, "high");
+    assert.ok(startupContext.readFirstDocs.includes("AGENTS.md"));
+    assert.ok(startupContext.readFirstDocs.includes("docs/ai-context/TASK_ROUTING.md"));
+    assert.ok(startupContext.likelySourceFiles.includes("src/auth/authService.ts"));
+    assert.ok(startupContext.likelyTests.includes("tests/auth/authService.test.ts"));
+    assert.ok(startupContext.startupInstructions.some((instruction) => instruction.includes("Read AGENTS.md")));
+    assert.ok(startupContext.startupInstructions.some((instruction) => instruction.includes("Open likely source files")));
+    assert.ok(startupContext.startupInstructions.some((instruction) => instruction.includes("Open likely tests")));
+  });
+});
+
+test("suggest JSON keeps compatible fields while exposing StartupContext fields", async () => {
+  await withContextRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+
+    const result = runCli(["suggest", "fix auth bug", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(Array.isArray(suggestion.contextFiles));
+    assert.ok(Array.isArray(suggestion.readFirstDocs));
+    assert.ok(Array.isArray(suggestion.startupInstructions));
+    assert.ok(suggestion.contextFiles.includes("docs/ai-context/TASK_ROUTING.md"));
+    assert.ok(suggestion.readFirstDocs.includes("AGENTS.md"));
+    assert.ok(suggestion.startupInstructions.length > 0);
+  });
+});
+
+test("generic unit test failure gets useful startup instructions without source confidence", async () => {
+  await withTestDiscoveryRepo(async (tempDir) => {
+    const startupContext = await buildStartupContext(tempDir, "fix unit test failure");
+
+    assert.equal(startupContext.task, "fix unit test failure");
+    assert.ok(startupContext.likelyTests.includes("tests/example.test.js"));
+    assert.deepEqual(startupContext.likelySourceFiles, []);
+    assert.ok(startupContext.startupInstructions.some((instruction) => instruction.includes("No confident source files")));
+    assert.ok(startupContext.startupInstructions.some((instruction) => instruction.includes("Open likely tests")));
+    assert.ok(startupContext.startupInstructions.some((instruction) => instruction.includes("Expand search only")));
   });
 });
 
