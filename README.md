@@ -32,15 +32,15 @@ It installs and maintains small Markdown context files inside your repo.
 
 ![Repo Context Center workflow](https://raw.githubusercontent.com/cyberturk01/repo-context-center/c39f583/docs/assets/repo-context-center-diagram.svg)
 
-## Proven Results
+## Example Token Estimates
 
-Verified on this repository:
+Verified estimates on this repository:
 
 | Scenario | Estimate |
 | --- | ---: |
 | Naive scan | 97,917 tokens |
 | Compact startup | 546 tokens |
-| Estimated saving | 99.4% |
+| Estimated reduction | 99.4% |
 
 Validated against larger public repositories with different structures:
 
@@ -49,7 +49,7 @@ Validated against larger public repositories with different structures:
 | FastAPI | 500 | ~936K tokens | ~862 tokens | ~99.9% |
 | LangChain | 500 | ~1.18M tokens | ~4.4K tokens | ~99.6% |
 
-Estimates use `ceil(characters / 4)` and are intended for relative comparison only. Actual tokenizer costs vary by model. No affiliation with or endorsement by FastAPI or LangChain is implied.
+Estimates use `ceil(characters / 4)` and are intended for relative comparison only. Actual tokenizer costs vary by model. `repo-context-center` aims to help reduce broad rediscovery, not guarantee savings. No affiliation with or endorsement by FastAPI or LangChain is implied.
 
 ## Early Adoption
 
@@ -90,8 +90,11 @@ This installs the context center, generates repo-specific maps, prints a task-sp
 1. Run `npx repo-context-center init` once per repo to install `AGENTS.md` and `docs/ai-context/*`.
 2. Run `npx repo-context-center map --write` to create durable repo-level context.
 3. Refresh with `map --write` after meaningful structure changes, such as new source roots, renamed modules, changed test layout, or new generated-output paths.
-4. Let `AGENTS.md` guide agents. If the agent can run shell commands, `AGENTS.md` should tell it to run `npx repo-context-center start "<task>"`.
-5. Use `npx repo-context-center start "<task>"` before each new coding task when possible.
+4. Read `AGENTS.md` at the start of an AI coding session.
+5. Run `npx repo-context-center start "<task>"` before each new coding task when possible.
+6. Use `npx repo-context-center find "<query>"` only when startup output is insufficient.
+7. Run `npx repo-context-center log "<summary>" --files <path,path>` after meaningful completed work.
+8. Use `npx repo-context-center decision add "<decision>" --reason "<reason>"` for durable project decisions.
 
 Example:
 
@@ -105,7 +108,7 @@ Add `--copy` to keep the output visible while also copying the same startup prom
 npx repo-context-center start "fix birthday email delay" --copy
 ```
 
-If users only tell an agent to read `AGENTS.md`, the agent gets stable repo instructions and fallback context docs. That does not guarantee the agent will execute shell commands automatically. If shell access or approval is unavailable, the agent should fall back to the context docs listed in `AGENTS.md`. this will be deleted
+`AGENTS.md` is intentionally compact. It is a startup pointer, not a full repo guide: task-specific routing belongs in `start` output and generated `docs/ai-context/*` files. If users only tell an agent to read `AGENTS.md`, the agent gets stable repo instructions and fallback context docs. That does not guarantee the agent will execute shell commands automatically. If shell access or approval is unavailable, the agent should fall back to the context docs listed in `AGENTS.md`.
 
 `repo-context-center` does not run in the background. It updates generated context only when you run commands such as `map --write`, and it prints task startup guidance only when you run `start`.
 
@@ -139,7 +142,29 @@ Likely tests:
   - matched parent folder: auth
 ```
 
-The reasons are short deterministic hints. They do not expose raw scores, and they are meant to help agents decide where to look first rather than replace source review.
+The reasons are short deterministic hints meant to help agents decide where to look first rather than replace source review.
+
+## Targeted Fallback Search
+
+Use `find` when `start` gives useful direction but you still need a focused fallback before broad grep or repository-wide search:
+
+```sh
+npx repo-context-center find "decision command"
+```
+
+`find "<query>"` returns focused file candidates with short reasons. It is meant for the gap between task startup guidance and broad manual search.
+
+## Decision Memory
+
+Decision Memory preserves durable project decisions across AI sessions:
+
+```sh
+npx repo-context-center decision add "Keep AGENTS.md compact" --reason "Reduce startup token overhead" --files AGENTS.md
+npx repo-context-center decision list
+npx repo-context-center decision search "agents"
+```
+
+Decisions are stored in `docs/ai-context/DECISIONS.md`. `decision add` creates the file when needed, records date, decision, reason, status, and files, and avoids duplicating identical decisions.
 
 ## How It Works
 
@@ -156,14 +181,17 @@ Repository
 2. `map --write` analyzes real files with deterministic heuristics and updates generated sections.
 3. `start "<task>"` turns that context into a compact startup prompt with likely files, tests, risk, instructions, and reasons.
 4. Agents read the small context layer first, then open the source files, tests, and docs most likely to matter.
-5. `map --check` can fail CI when generated context becomes stale.
-6. `archive` keeps long-running notes small enough to remain useful.
+5. `find "<query>"` provides targeted fallback candidates when startup output is not enough.
+6. `log` and `decision` preserve manual memory across sessions.
+7. `map --check` can fail CI when generated context becomes stale.
+8. `archive` keeps long-running notes small enough to remain useful.
 
 The generated maps are navigation aids, not a replacement for source review. Source code remains the source of truth.
 
 `map`, `suggest`, and `start` serve different moments:
 
 - `map --write` creates durable repo-level context in `AGENTS.md` and `docs/ai-context/*`.
+- `find` returns targeted fallback file candidates before broad search.
 - `suggest` returns task-specific recommendations, especially useful with `--json` for tools and integrations.
 - `start` generates a ready-to-paste startup prompt for AI coding agents, with optional clipboard copy via `--copy`.
 
@@ -253,7 +281,7 @@ Detected:
 
 ## Example: Estimate Token Savings
 
-Estimate whether the context center is reducing broad repo reads:
+Estimate whether the context center is helping reduce broad repo reads:
 
 ```sh
 npx repo-context-center estimate --compare-naive
@@ -287,10 +315,10 @@ It works with JavaScript, TypeScript, Python, Go, Rust, Ruby, Java, monorepos, d
 - **Repository understanding**: deterministic model of package metadata, entrypoints, key directories, tests, config, ignored areas, and noisy paths.
 - **Task routing**: task-aware guidance for which context docs, source files, and tests to open first.
 - **Agent startup prompt**: `start` produces a compact, task-specific prompt agents can follow before editing.
-- **Explainable recommendations**: likely source, test, and workflow files include short deterministic reasons without exposing raw scores.
+- **Explainable recommendations**: likely source, test, and workflow files include short deterministic reasons.
 - **Context compression**: compact maps for modules, dependencies, symbols, risks, hotspots, token budgets, and do-not-read paths.
 - **Stale context detection**: `map --check` reports when generated context no longer matches the repository.
-- **Durable knowledge capture**: `LESSONS_LEARNED.md` and `CHANGE_LOG.md` store repo facts that should survive beyond one agent session.
+- **Durable knowledge capture**: `log` and Decision Memory preserve manual work notes and project decisions across AI sessions.
 - **Token planning**: `estimate` compares compact startup context with broad naive scans.
 - **Agent entrypoint**: `AGENTS.md` gives coding agents a predictable first file to read.
 - **No AI dependency**: no model calls, no API keys, no runtime AI service.
@@ -304,6 +332,11 @@ repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <n
 repo-context-center validate [--strict]
 repo-context-center archive [--keep <number>] [--dry-run]
 repo-context-center estimate [--mode compact|investigation|detailed] [--task "<task>"] [--compare-naive] [--json] [--max-files <number>]
+repo-context-center find "<query>" [--limit <number>]
+repo-context-center log "<summary>" [--files <path,path>] [--dry-run]
+repo-context-center decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
+repo-context-center decision list
+repo-context-center decision search "<query>"
 repo-context-center scan [--json]
 repo-context-center start "<task>" [--max-files <number>] [--copy]
 repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
@@ -314,6 +347,9 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 - `validate`: check that required context files exist and report warnings. Missing `.repo-context-center/config.json` is a warning by default and a failure with `--strict`.
 - `archive`: archive older entries from long-running context files; defaults to keeping 50 entries.
 - `estimate`: estimate task-aware source, test, and context token overhead; optionally compare with a naive repo scan.
+- `find`: return focused file candidates for a concept or query when startup guidance is not enough.
+- `log`: add a durable task entry to `docs/ai-context/CHANGE_LOG.md`; generated map updates preserve these entries.
+- `decision`: add, list, or search durable project decisions in `docs/ai-context/DECISIONS.md`; markdown remains the source of truth.
 - `scan`: inspect only the repository layout and suggest lightweight entries for context maps.
 - `start`: print an agent-ready startup prompt with read-first docs, likely files, likely tests, risk, instructions, and compact recommendation reasons. Add `--copy` to also copy the same prompt to the system clipboard when a platform clipboard command is available.
 - `suggest`: recommend low-token context files, real likely files, likely tests, mode, symbols, and risk level for a task. Use `--json` for tool integrations; JSON includes additive startup fields such as recommendation reasons.
@@ -323,6 +359,9 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 | `init` | install context templates | once per repo |
 | `map --write` | refresh repo map | after structure changes |
 | `map --check` | detect stale context | CI / PRs |
+| `find` | locate focused candidate files | when startup guidance is insufficient |
+| `log` | record durable task change | after meaningful changes |
+| `decision` | record durable project decision | after architectural or workflow decisions |
 | `suggest` | get task recommendations / JSON | tooling |
 | `start` | generate agent startup prompt | before each task |
 
@@ -480,13 +519,14 @@ This improves `PROJECT_MAP.md`, `HOTSPOTS.md`, and `DEPENDENCY_MAP.md` by making
 
 Ask the agent to:
 
-1. Run or read the output from `repo-context-center start "<task>"` before each new coding task when possible.
-2. Open the read-first docs listed in the startup prompt.
-3. Open the likely source files and tests before broad search.
-4. Treat recommendation reasons as navigation hints, not proof.
-5. Verify source code before changing behavior.
-6. Expand search only when the recommended files are insufficient.
-7. Update context files only when durable repo knowledge changes.
+1. Read `AGENTS.md`.
+2. Run or read the output from `npx repo-context-center start "<task>"`.
+3. Use `npx repo-context-center find "<query>"` only if startup output is insufficient.
+4. Open likely source files and tests before broad search.
+5. Treat recommendation reasons as navigation hints, not proof.
+6. Verify source code before changing behavior.
+7. Run `npx repo-context-center log "<summary>" --files <paths>` after meaningful completed work.
+8. Use `npx repo-context-center decision add "<decision>" --reason "<reason>"` for durable project decisions.
 
 If the agent can run shell commands, `AGENTS.md` should guide it to run:
 
@@ -494,7 +534,23 @@ If the agent can run shell commands, `AGENTS.md` should guide it to run:
 npx repo-context-center start "<task>"
 ```
 
-If shell access is unavailable, the agent should read the fallback context docs from `AGENTS.md`, starting with `TASK_ROUTING.md`, `TOKEN_BUDGET.md`, and `DO_NOT_READ.md`.
+`AGENTS.md` is intentionally a short entrypoint; task-specific routing stays in the `start` output and `docs/ai-context/*`.
+
+After meaningful changes, it should record the durable task entry:
+
+```sh
+npx repo-context-center log "Fixed auth routing" --files src/auth.ts,tests/auth.test.ts
+```
+
+After durable architecture, workflow, or project-direction decisions, it should record the decision:
+
+```sh
+npx repo-context-center decision add "Keep AGENTS.md compact" --reason "Reduce startup token overhead" --files AGENTS.md
+```
+
+If shell access is unavailable, the agent should read the fallback context docs from `AGENTS.md`: `COMMUNICATION_MODE.md`, `TASK_ROUTING.md`, `TOKEN_BUDGET.md`, and `DO_NOT_READ.md`. It should use `MODULE_INDEX.md` only when routing is missing or the task spans modules.
+
+Generated sections are updated by `map --write` between repo-context-center markers. Manual notes, logs, and decisions outside generated sections are preserved.
 
 ## Token-Saving Strategy
 
@@ -541,13 +597,14 @@ Repo Context Center was created to provide a durable repository memory layer tha
 | Task routing | Available |
 | Task-specific startup prompt | Available |
 | Explainable recommendation reasons | Available |
-| Task-aware candidate scoring | Available |
+| Task-aware candidate suggestions | Available |
 | Context compression | Available |
 | Token estimation | Available |
 | Suggested files and tests for a task | Available |
+| Targeted fallback search | Available |
 | Stale context detection | Available |
 | CI freshness check | Available |
-| Durable knowledge notes | Available |
+| Durable work logs and decision memory | Available |
 | Context archiving | Available |
 
 ## Future Roadmap

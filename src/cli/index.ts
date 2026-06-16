@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 import { archiveCommand } from "./commands/archive";
+import { decisionCommand } from "./commands/decision";
 import { estimateCommand } from "./commands/estimate";
+import { findCommand } from "./commands/find";
 import { initCommand } from "./commands/init";
+import { logCommand } from "./commands/log";
 import { mapCommand } from "./commands/map";
 import { scanCommand } from "./commands/scan";
 import { startCommand } from "./commands/start";
@@ -20,7 +23,10 @@ const commands: Record<string, CommandHandler> = {
   init: initCommand,
   validate: validateCommand,
   archive: archiveCommand,
+  decision: decisionCommand,
   estimate: estimateCommand,
+  find: findCommand,
+  log: logCommand,
   map: mapCommand,
   scan: scanCommand,
   start: startCommand,
@@ -39,8 +45,16 @@ Commands:
             Options: --strict
   archive   Archive older CHANGE_LOG and LESSONS_LEARNED entries
             Options: --keep <number>, --dry-run
+  decision  Add a durable project decision to docs/ai-context/DECISIONS.md
+            Usage: decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
+                   decision list
+                   decision search "<query>"
   estimate  Estimate context token costs and rough savings
             Options: --json, --mode <mode>, --task <text>, --compare-naive, --max-files <number>
+  find      Find focused file candidates for a concept or query
+            Usage: find "<query>" [--limit <number>]
+  log       Add a durable entry to docs/ai-context/CHANGE_LOG.md
+            Usage: log "<summary>" [--files <path,path>] [--dry-run]
   map       Generate repo-specific context maps
             Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>
   scan      Suggest lightweight context entries from repo layout

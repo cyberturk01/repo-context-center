@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { formatStartupPrompt } from "../../core/startPrompt";
-import { buildStartupContext } from "../../core/suggester";
+import { buildStartupContext, focusStartupContextForStart } from "../../core/suggester";
 import type { CliIO } from "../index";
 
 interface StartOptions {
@@ -128,7 +128,11 @@ export async function startCommand(
     maxFiles: options.maxFiles,
     genericFallbackMaxTests: options.explicitMaxFiles ? options.maxFiles : 5
   });
-  const output = formatStartupPrompt(startupContext);
+  const focusedStartupContext = focusStartupContextForStart(startupContext, {
+    maxSourceFiles: Math.min(options.maxFiles, 10),
+    maxTestFiles: Math.min(options.explicitMaxFiles ? options.maxFiles : 8, 8)
+  });
+  const output = formatStartupPrompt(focusedStartupContext);
   io.stdout(output);
 
   if (options.copy) {
