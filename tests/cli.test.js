@@ -29,6 +29,8 @@ test("CLI help prints usage", () => {
   assert.match(result.stdout, /Options: --keep <number>, --dry-run/);
   assert.match(result.stdout, /decision\s+Add a durable project decision to docs\/ai-context\/DECISIONS\.md/);
   assert.match(result.stdout, /Usage: decision add "<decision>" --reason "<reason>" \[--status <status>\] \[--files <path,path>\]/);
+  assert.match(result.stdout, /decision list/);
+  assert.match(result.stdout, /decision search "<query>"/);
   assert.match(result.stdout, /log\s+Add a durable entry to docs\/ai-context\/CHANGE_LOG\.md/);
   assert.match(result.stdout, /Usage: log "<summary>" \[--files <path,path>\] \[--dry-run\]/);
   assert.match(result.stdout, /Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>/);

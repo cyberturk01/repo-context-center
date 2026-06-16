@@ -45,6 +45,8 @@ Commands:
             Options: --keep <number>, --dry-run
   decision  Add a durable project decision to docs/ai-context/DECISIONS.md
             Usage: decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
+                   decision list
+                   decision search "<query>"
   estimate  Estimate context token costs and rough savings
             Options: --json, --mode <mode>, --task <text>, --compare-naive, --max-files <number>
   log       Add a durable entry to docs/ai-context/CHANGE_LOG.md

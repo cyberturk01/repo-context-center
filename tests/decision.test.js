@@ -32,6 +32,26 @@ async function withDecisionRepo(callback) {
   }
 }
 
+async function writeDecisions(root) {
+  await writeFixture(
+    root,
+    "docs/ai-context/DECISIONS.md",
+    [
+      "# Decisions",
+      "",
+      "Durable project decisions preserved across AI sessions.",
+      "",
+      "<!-- repo-context-center:manual-decisions:start -->",
+      "| Date | Decision | Reason | Status | Files |",
+      "| --- | --- | --- | --- | --- |",
+      "| 2026-01-01 | Keep AGENTS.md compact | Reduce startup token overhead | Active | AGENTS.md |",
+      "| 2026-01-02 | Use markdown decision memory | Keep decisions reviewable in git | Proposed | src/cli/commands/decision.ts, tests/decision.test.js |",
+      "<!-- repo-context-center:manual-decisions:end -->",
+      ""
+    ].join("\n")
+  );
+}
+
 test("decision add creates DECISIONS.md with a manual decisions table", async () => {
   await withDecisionRepo(async (tempDir) => {
     const result = runCli(tempDir, [
@@ -174,5 +194,99 @@ test("decision add does not overwrite generated context", async () => {
     assert.equal(result.status, 0);
     assert.match(content, /Generated context stays here\./);
     assert.match(content, /Keep generated context/);
+  });
+});
+
+test("decision list shows active decisions", async () => {
+  await withDecisionRepo(async (tempDir) => {
+    await writeDecisions(tempDir);
+
+    const result = runCli(tempDir, ["decision", "list"]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /2026-01-01 \| Active \| Keep AGENTS\.md compact \| Reduce startup token overhead \| AGENTS\.md/);
+    assert.match(result.stdout, /2026-01-02 \| Proposed \| Use markdown decision memory \| Keep decisions reviewable in git \| src\/cli\/commands\/decision\.ts, tests\/decision\.test\.js/);
+    assert.equal(result.stderr, "");
+  });
+});
+
+test("decision search finds by decision text", async () => {
+  await withDecisionRepo(async (tempDir) => {
+    await writeDecisions(tempDir);
+
+    const result = runCli(tempDir, ["decision", "search", "markdown decision"]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Use markdown decision memory/);
+    assert.doesNotMatch(result.stdout, /Keep AGENTS\.md compact/);
+  });
+});
+
+test("decision search finds by reason", async () => {
+  await withDecisionRepo(async (tempDir) => {
+    await writeDecisions(tempDir);
+
+    const result = runCli(tempDir, ["decision", "search", "startup token"]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Keep AGENTS\.md compact/);
+    assert.doesNotMatch(result.stdout, /Use markdown decision memory/);
+  });
+});
+
+test("decision search finds by file name", async () => {
+  await withDecisionRepo(async (tempDir) => {
+    await writeDecisions(tempDir);
+
+    const result = runCli(tempDir, ["decision", "search", "decision.test.js"]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Use markdown decision memory/);
+    assert.doesNotMatch(result.stdout, /Keep AGENTS\.md compact/);
+  });
+});
+
+test("decision list gives helpful empty state when DECISIONS.md is missing", async () => {
+  await withDecisionRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["decision", "list"]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /No decisions recorded yet/);
+    assert.match(result.stdout, /repo-context-center decision add/);
+  });
+});
+
+test("decision search gives helpful no-match message", async () => {
+  await withDecisionRepo(async (tempDir) => {
+    await writeDecisions(tempDir);
+
+    const result = runCli(tempDir, ["decision", "search", "database"]);
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, 'No decisions matched "database".\n');
+  });
+});
+
+test("decision list handles malformed manual section without crashing", async () => {
+  await withDecisionRepo(async (tempDir) => {
+    await writeFixture(
+      tempDir,
+      "docs/ai-context/DECISIONS.md",
+      [
+        "# Decisions",
+        "",
+        "<!-- repo-context-center:manual-decisions:start -->",
+        "| Date | Decision | Reason |",
+        "| 2026-01-01 | Missing cells | Still malformed |",
+        "<!-- repo-context-center:manual-decisions:end -->",
+        ""
+      ].join("\n")
+    );
+
+    const result = runCli(tempDir, ["decision", "list"]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /No decisions recorded yet/);
+    assert.equal(result.stderr, "");
   });
 });

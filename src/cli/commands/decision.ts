@@ -9,11 +9,24 @@ interface DecisionAddOptions {
   status: string;
 }
 
+interface DecisionEntry {
+  date: string;
+  decision: string;
+  files: string;
+  reason: string;
+  status: string;
+}
+
 const decisionsPath = "docs/ai-context/DECISIONS.md";
 const manualStart = "<!-- repo-context-center:manual-decisions:start -->";
 const manualEnd = "<!-- repo-context-center:manual-decisions:end -->";
 const manualHeader = "| Date | Decision | Reason | Status | Files |";
 const manualDivider = "| --- | --- | --- | --- | --- |";
+const usage = [
+  'Usage: repo-context-center decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]',
+  "       repo-context-center decision list",
+  '       repo-context-center decision search "<query>"'
+].join("\n");
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -81,6 +94,10 @@ function escapeCell(value: string): string {
   return value.replace(/\|/g, "\\|").replace(/\r?\n/g, " ").trim();
 }
 
+function unescapeCell(value: string): string {
+  return value.replace(/\\\|/g, "|").replace(/`/g, "").trim();
+}
+
 function formatStatus(status: string): string {
   const normalized = escapeCell(status || "active").toLowerCase();
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
@@ -144,10 +161,65 @@ function insertDecision(content: string, options: DecisionAddOptions): string {
   return `${normalized.trimEnd()}\n\n${manualSection(row)}\n`;
 }
 
-export async function decisionCommand(io: CliIO, args: string[] = []): Promise<number> {
+function splitMarkdownTableRow(line: string): string[] {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) {
+    return [];
+  }
+
+  const cells: string[] = [];
+  let cell = "";
+  const inner = trimmed.slice(1, -1);
+
+  for (let index = 0; index < inner.length; index += 1) {
+    const char = inner[index];
+    if (char === "|" && inner[index - 1] !== "\\") {
+      cells.push(unescapeCell(cell));
+      cell = "";
+      continue;
+    }
+
+    cell += char;
+  }
+
+  cells.push(unescapeCell(cell));
+  return cells;
+}
+
+function parseDecisions(content: string): DecisionEntry[] {
+  const startIndex = content.indexOf(manualStart);
+  const endIndex = content.indexOf(manualEnd);
+  if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
+    return [];
+  }
+
+  return content
+    .slice(startIndex + manualStart.length, endIndex)
+    .split(/\r?\n/)
+    .map((line) => splitMarkdownTableRow(line))
+    .filter((cells) => cells.length === 5 && cells[0] !== "Date" && !cells.every((cell) => /^-+$/.test(cell.trim())))
+    .map(([date, decision, reason, status, files]) => ({ date, decision, files, reason, status }));
+}
+
+function formatDecisionEntries(entries: DecisionEntry[]): string {
+  return `${entries
+    .map((entry) => `${entry.date} | ${entry.status} | ${entry.decision} | ${entry.reason} | ${entry.files}`)
+    .join("\n")}\n`;
+}
+
+async function readDecisionEntries(cwd: string): Promise<DecisionEntry[] | undefined> {
+  const targetPath = path.join(cwd, decisionsPath);
+  if (!(await pathExists(targetPath))) {
+    return undefined;
+  }
+
+  return parseDecisions(await readTextFile(targetPath));
+}
+
+async function addDecision(io: CliIO, args: string[]): Promise<number> {
   const options = parseDecisionAddOptions(args);
   if (!options) {
-    io.stderr('Usage: repo-context-center decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]\n');
+    io.stderr(`${usage}\n`);
     return 1;
   }
 
@@ -162,4 +234,62 @@ export async function decisionCommand(io: CliIO, args: string[] = []): Promise<n
 
   io.stdout(`Updated ${decisionsPath}\n`);
   return 0;
+}
+
+async function listDecisions(io: CliIO): Promise<number> {
+  const entries = await readDecisionEntries(io.cwd);
+  if (!entries || entries.length === 0) {
+    io.stdout(`No decisions recorded yet. Add one with repo-context-center decision add "<decision>" --reason "<reason>".\n`);
+    return 0;
+  }
+
+  io.stdout(formatDecisionEntries(entries));
+  return 0;
+}
+
+async function searchDecisions(io: CliIO, args: string[]): Promise<number> {
+  const query = args.slice(1).join(" ").trim();
+  if (!query) {
+    io.stderr(`${usage}\n`);
+    return 1;
+  }
+
+  const entries = await readDecisionEntries(io.cwd);
+  if (!entries || entries.length === 0) {
+    io.stdout(`No decisions recorded yet. Add one with repo-context-center decision add "<decision>" --reason "<reason>".\n`);
+    return 0;
+  }
+
+  const normalizedQuery = query.toLowerCase();
+  const matches = entries.filter((entry) => [
+    entry.decision,
+    entry.reason,
+    entry.status,
+    entry.files
+  ].some((value) => value.toLowerCase().includes(normalizedQuery)));
+
+  if (matches.length === 0) {
+    io.stdout(`No decisions matched "${query}".\n`);
+    return 0;
+  }
+
+  io.stdout(formatDecisionEntries(matches));
+  return 0;
+}
+
+export async function decisionCommand(io: CliIO, args: string[] = []): Promise<number> {
+  if (args[0] === "add") {
+    return addDecision(io, args);
+  }
+
+  if (args[0] === "list") {
+    return listDecisions(io);
+  }
+
+  if (args[0] === "search") {
+    return searchDecisions(io, args);
+  }
+
+  io.stderr(`${usage}\n`);
+  return 1;
 }

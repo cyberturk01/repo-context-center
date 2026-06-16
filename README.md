@@ -306,6 +306,8 @@ repo-context-center archive [--keep <number>] [--dry-run]
 repo-context-center estimate [--mode compact|investigation|detailed] [--task "<task>"] [--compare-naive] [--json] [--max-files <number>]
 repo-context-center log "<summary>" [--files <path,path>] [--dry-run]
 repo-context-center decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
+repo-context-center decision list
+repo-context-center decision search "<query>"
 repo-context-center scan [--json]
 repo-context-center start "<task>" [--max-files <number>] [--copy]
 repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
@@ -317,7 +319,7 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 - `archive`: archive older entries from long-running context files; defaults to keeping 50 entries.
 - `estimate`: estimate task-aware source, test, and context token overhead; optionally compare with a naive repo scan.
 - `log`: add a durable task entry to `docs/ai-context/CHANGE_LOG.md`; generated map updates preserve these entries.
-- `decision`: add a durable project decision to `docs/ai-context/DECISIONS.md`; manual decision entries are preserved across sessions.
+- `decision`: add, list, or search durable project decisions in `docs/ai-context/DECISIONS.md`; markdown remains the source of truth.
 - `scan`: inspect only the repository layout and suggest lightweight entries for context maps.
 - `start`: print an agent-ready startup prompt with read-first docs, likely files, likely tests, risk, instructions, and compact recommendation reasons. Add `--copy` to also copy the same prompt to the system clipboard when a platform clipboard command is available.
 - `suggest`: recommend low-token context files, real likely files, likely tests, mode, symbols, and risk level for a task. Use `--json` for tool integrations; JSON includes additive startup fields such as recommendation reasons.
