@@ -83,9 +83,12 @@ test("work accepts a task string and recommends focused files", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Task intent:\nfix login bug/);
+    assert.match(result.stdout, /Map freshness:\n- (fresh|stale)\. /);
     assert.match(result.stdout, /Recommended files to inspect first:\n- src\/auth\/login\.ts/);
     assert.match(result.stdout, /Relevant tests or test folders:\n- tests\/auth\/login\.test\.ts/);
-    assert.match(result.stdout, /Recent decisions \/ memory:\n- Decision: 2026-06-16 \| Keep login flow server-side/);
+    assert.match(result.stdout, /Relevant decisions:\n- 2026-06-16 \| Keep login flow server-side/);
+    assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
+    assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Known risks:\n- high/);
     assert.match(result.stdout, /Next command after meaningful work:\nrcc done --summary "<summary>" --files "<files>" --verify "<check>"/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
@@ -101,7 +104,10 @@ test("work handles missing RCC files gracefully", async () => {
     const result = runCli(["work", "unknown task"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Recent decisions \/ memory:\n- none found/);
+    assert.match(result.stdout, /Map freshness:\n- unknown\. run npx repo-context-center init to generate context\./);
+    assert.match(result.stdout, /Relevant decisions:\n- none\. no matching decision was found\./);
+    assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
+    assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Read first:\n- no RCC context files found; run npx repo-context-center init to install them/);
     assert.match(result.stdout, /rcc done --summary "<summary>" --files "<files>" --verify "<check>"/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
@@ -189,7 +195,11 @@ test("work output is concise and agent-oriented", async () => {
     assert.ok(lines.length <= 40, `work output has ${lines.length} lines`);
     assert.doesNotMatch(result.stdout, /score/i);
     assert.doesNotMatch(result.stdout, /generate code/i);
+    assert.match(result.stdout, /Map freshness:/);
     assert.match(result.stdout, /Recommended files to inspect first:/);
+    assert.match(result.stdout, /Relevant decisions:/);
+    assert.match(result.stdout, /Recent logs:/);
+    assert.match(result.stdout, /Token estimate:/);
     assert.match(result.stdout, /Suggested|Next command after meaningful work:/);
   });
 });
