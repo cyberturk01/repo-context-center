@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { archiveCommand } from "./commands/archive";
 import { decisionCommand } from "./commands/decision";
+import { doneCommand } from "./commands/done";
 import { estimateCommand } from "./commands/estimate";
 import { findCommand } from "./commands/find";
 import { initCommand } from "./commands/init";
@@ -25,6 +26,7 @@ const commands: Record<string, CommandHandler> = {
   validate: validateCommand,
   archive: archiveCommand,
   decision: decisionCommand,
+  done: doneCommand,
   estimate: estimateCommand,
   find: findCommand,
   log: logCommand,
@@ -43,6 +45,8 @@ Usage:
 Commands:
   work      Print a concise work brief for an AI coding agent
             Usage: work ["<task>"] [--max-files <number>]
+  done      Save lightweight memory after completed agent work
+            Usage: done --summary "<summary>" [--tests "<command/result>"] [--risk <level>] [--follow-ups "<notes>"] [--files <path,path>]
   init      Install generic context templates and config
             Options: --dry-run, --force, --github-action
   validate  Validate required context files and warnings

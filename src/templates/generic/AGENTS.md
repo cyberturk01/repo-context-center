@@ -10,4 +10,4 @@ Read this file first.
 - Verify source before editing; keep changes focused.
 - Run the smallest useful verification.
 - Do not manually edit generated sections.
-- After meaningful completed work: `rcc done "<summary>" --files <files>` when available.
+- After meaningful completed work: `rcc done --summary "<summary>"` when available.

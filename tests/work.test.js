@@ -74,7 +74,7 @@ test("work runs without arguments", async () => {
     assert.equal(result.stderr, "");
     assert.match(result.stdout, /repo-context-center work brief/);
     assert.match(result.stdout, /Task intent:\nUnspecified task/);
-    assert.match(result.stdout, /Next command after meaningful work:\nrcc done "<summary>" --files <path,path>/);
+    assert.match(result.stdout, /Next command after meaningful work:\nrcc done --summary "<summary>"/);
   });
 });
 
@@ -102,7 +102,7 @@ test("work handles missing RCC files gracefully", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Recent decisions \/ memory:\n- none found/);
     assert.match(result.stdout, /Read first:\n- no RCC context files found; run npx repo-context-center init to install them/);
-    assert.match(result.stdout, /rcc done "<summary>" --files <path,path>/);
+    assert.match(result.stdout, /rcc done --summary "<summary>"/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

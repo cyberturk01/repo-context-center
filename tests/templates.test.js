@@ -74,7 +74,7 @@ test("AGENTS template keeps low-token startup references", async () => {
 
   assert.match(content, /rcc work "<task>"/);
   assert.match(content, /repo-context-center work "<task>"/);
-  assert.match(content, /rcc done "<summary>"/);
+  assert.match(content, /rcc done --summary "<summary>"/);
   assert.match(content, /No shell: read/);
   assert.match(content, /Read this file first\./);
   assert.match(content, /Verify source before editing; keep changes focused\./);
@@ -143,7 +143,7 @@ test("generated AGENTS template keeps core startup rules", async () => {
 
   assert.match(content, /rcc work "<task>"/);
   assert.match(content, /repo-context-center work "<task>"/);
-  assert.match(content, /rcc done "<summary>"/);
+  assert.match(content, /rcc done --summary "<summary>"/);
   assert.match(content, /No shell: read/);
   assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
   assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);

@@ -10,6 +10,7 @@ interface WorkOptions {
 
 const defaultTaskIntent = "Unspecified task";
 const decisionsPath = "docs/ai-context/DECISIONS.md";
+const workLogPath = "docs/ai-context/WORK_LOG.md";
 const lessonsPath = "docs/ai-context/LESSONS_LEARNED.md";
 const changeLogPath = "docs/ai-context/CHANGE_LOG.md";
 const memoryLimit = 3;
@@ -131,9 +132,20 @@ function recentBulletLines(content: string, limit: number): string[] {
     .map((line) => line.replace(/^- /, ""));
 }
 
+function recentWorkSummaryLines(content: string, limit: number): string[] {
+  return content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("- Summary: "))
+    .slice(-limit)
+    .reverse()
+    .map((line) => line.replace(/^- Summary: /, ""));
+}
+
 async function readRecentMemory(cwd: string): Promise<string[]> {
   const entries: string[] = [];
   const memoryFiles = [
+    { label: "Work", path: workLogPath, reader: recentWorkSummaryLines },
     { label: "Decision", path: decisionsPath, reader: recentTableRows },
     { label: "Lesson", path: lessonsPath, reader: recentBulletLines },
     { label: "Log", path: changeLogPath, reader: recentTableRows }
@@ -208,7 +220,7 @@ function formatWorkBrief(startup: StartupContext, memory: string[], taskProvided
     ...formatList(readFirst, "no RCC context files found; run npx repo-context-center init to install them"),
     "",
     "Next command after meaningful work:",
-    'rcc done "<summary>" --files <path,path>'
+    'rcc done --summary "<summary>"'
   ];
 
   return `${lines.join("\n")}\n`;
