@@ -91,7 +91,7 @@ This installs the context center, generates repo-specific maps, prints a task-sp
 2. Run `npx repo-context-center map --write` to create durable repo-level context.
 3. Refresh with `map --write` after meaningful structure changes, such as new source roots, renamed modules, changed test layout, or new generated-output paths.
 4. Read `AGENTS.md` at the start of an AI coding session.
-5. Run `npx repo-context-center start "<task>"` before each new coding task when possible.
+5. Agents run `rcc work "<task>"` before each new coding task when possible.
 6. Use `npx repo-context-center find "<query>"` only when startup output is insufficient.
 7. Run `npx repo-context-center log "<summary>" --files <path,path>` after meaningful completed work.
 8. Use `npx repo-context-center decision add "<decision>" --reason "<reason>"` for durable project decisions.
@@ -191,6 +191,7 @@ The generated maps are navigation aids, not a replacement for source review. Sou
 `map`, `suggest`, and `start` serve different moments:
 
 - `map --write` creates durable repo-level context in `AGENTS.md` and `docs/ai-context/*`.
+- `work` prints a concise agent-focused work brief for the current task.
 - `find` returns targeted fallback file candidates before broad search.
 - `suggest` returns task-specific recommendations, especially useful with `--json` for tools and integrations.
 - `start` generates a ready-to-paste startup prompt for AI coding agents, with optional clipboard copy via `--copy`.
@@ -327,6 +328,7 @@ It works with JavaScript, TypeScript, Python, Go, Rust, Ruby, Java, monorepos, d
 
 ```sh
 repo-context-center --help
+repo-context-center work ["<task>"] [--max-files <number>]
 repo-context-center init [--dry-run] [--force] [--github-action]
 repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <number>]
 repo-context-center validate [--strict]
@@ -343,6 +345,7 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 ```
 
 - `init`: install the generic context templates.
+- `work`: print a concise work brief with task intent, first files, tests, memory, risks, and the next `rcc done` command.
 - `map`: analyze repo layout and generate repo-specific context sections.
 - `validate`: check that required context files exist and report warnings. Missing `.repo-context-center/config.json` is a warning by default and a failure with `--strict`.
 - `archive`: archive older entries from long-running context files; defaults to keeping 50 entries.
@@ -356,6 +359,7 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 
 | Command | Purpose | When to use |
 | --- | --- | --- |
+| `work` | print an agent work brief | before each agent task |
 | `init` | install context templates | once per repo |
 | `map --write` | refresh repo map | after structure changes |
 | `map --check` | detect stale context | CI / PRs |
@@ -520,7 +524,7 @@ This improves `PROJECT_MAP.md`, `HOTSPOTS.md`, and `DEPENDENCY_MAP.md` by making
 Ask the agent to:
 
 1. Read `AGENTS.md`.
-2. Run or read the output from `npx repo-context-center start "<task>"`.
+2. Run or read the output from `rcc work "<task>"`.
 3. Use `npx repo-context-center find "<query>"` only if startup output is insufficient.
 4. Open likely source files and tests before broad search.
 5. Treat recommendation reasons as navigation hints, not proof.
@@ -531,7 +535,7 @@ Ask the agent to:
 If the agent can run shell commands, `AGENTS.md` should guide it to run:
 
 ```sh
-npx repo-context-center start "<task>"
+rcc work "<task>"
 ```
 
 `AGENTS.md` is intentionally a short entrypoint; task-specific routing stays in the `start` output and `docs/ai-context/*`.

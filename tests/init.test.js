@@ -85,7 +85,8 @@ test("init overwrites existing files with --force", async () => {
     assert.equal(result.status, 0);
     assert.notEqual(content, "custom\n");
     assert.match(content, /Repo Context Center startup\./);
-    assert.match(content, /repo-context-center start "<task>"/);
+    assert.match(content, /rcc work "<task>"/);
+    assert.match(content, /repo-context-center work "<task>"/);
     assert.match(content, /No shell: read/);
     assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
@@ -105,7 +106,8 @@ test("init dry-run does not write files", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Dry run complete/);
-    assert.match(result.stdout, /repo-context-center start "<task>"/);
+    assert.match(result.stdout, /rcc work "<task>"/);
+    assert.match(result.stdout, /repo-context-center work "<task>"/);
     assert.match(result.stdout, /No shell: read/);
     assert.match(result.stdout, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(result.stdout, /docs\/ai-context\/TASK_ROUTING\.md/);

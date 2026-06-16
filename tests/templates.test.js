@@ -72,8 +72,9 @@ test("AGENTS template keeps low-token startup references", async () => {
   const content = await readFile(path.join(templateRoot, "AGENTS.md"), "utf8");
   const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
 
-  assert.match(content, /repo-context-center start "<task>"/);
-  assert.match(content, /repo-context-center log "<summary>"/);
+  assert.match(content, /rcc work "<task>"/);
+  assert.match(content, /repo-context-center work "<task>"/);
+  assert.match(content, /rcc done "<summary>"/);
   assert.match(content, /No shell: read/);
   assert.match(content, /Read this file first\./);
   assert.match(content, /Verify source before editing; keep changes focused\./);
@@ -140,8 +141,9 @@ test("generated AGENTS template keeps core startup rules", async () => {
   const content = await readFile(path.join(distTemplateRoot, "AGENTS.md"), "utf8");
   const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
 
-  assert.match(content, /repo-context-center start "<task>"/);
-  assert.match(content, /repo-context-center log "<summary>"/);
+  assert.match(content, /rcc work "<task>"/);
+  assert.match(content, /repo-context-center work "<task>"/);
+  assert.match(content, /rcc done "<summary>"/);
   assert.match(content, /No shell: read/);
   assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
   assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
