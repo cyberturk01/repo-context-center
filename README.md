@@ -64,7 +64,7 @@ rcc work "fix login bug"
 After meaningful completed work, the agent records lightweight work memory:
 
 ```sh
-rcc done
+rcc done --summary "fixed login bug"
 ```
 
 If a durable project decision was made, record that separately with the `decision` command described in Advanced Commands.

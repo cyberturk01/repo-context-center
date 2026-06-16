@@ -40,7 +40,8 @@
     "build": "tsc -p tsconfig.json && node scripts/copy-templates.js",
     "lint": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "npm run build && npm test",
-    "test": "npm run build && node --test tests/*.test.js"
+    "test": "npm run build && node --test tests/*.test.js",
+    "test:cli": "npm run build && node --test tests/cli.test.js tests/work.test.js tests/done.test.js tests/v07-release.test.js"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",
