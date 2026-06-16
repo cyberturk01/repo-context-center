@@ -32,6 +32,15 @@ export interface SuggestContextOptions {
   genericFallbackMaxTests?: number;
 }
 
+export interface FindFocusedFile {
+  path: string;
+  reasons: string[];
+}
+
+export interface FindFocusedFilesOptions {
+  limit?: number;
+}
+
 export interface SymbolRecommendation {
   file: string;
   symbols: string[];
@@ -72,8 +81,82 @@ const workflowKeywords = [
 ];
 const testDiscoveryKeywords = ["test", "unit test", "spec", "failure", "jest", "vitest", "cypress", "e2e"];
 const workflowSupportFiles = ["package.json", "Dockerfile", "railway.json"];
+const decisionsFile = "docs/ai-context/DECISIONS.md";
+const decisionMemoryReason = "decision memory relevant to architecture/context task";
+const documentationOnlyReason = "documentation-only change";
+const explicitDocumentationTargetReason = "explicit documentation target";
+const decisionMemoryTokens = new Set([
+  "agent",
+  "architecture",
+  "context",
+  "decide",
+  "decision",
+  "framework",
+  "migration",
+  "refactor",
+  "routing",
+  "startup",
+  "strategy"
+]);
+const highRiskOverrideTokens = new Set([
+  "auth",
+  "authentication",
+  "config",
+  "configuration",
+  "dependency",
+  "dependencies",
+  "migration",
+  "package",
+  "release",
+  "security",
+  "workflow",
+  "workflows"
+]);
 const defaultSuggestMaxFiles = 50;
+const defaultFindLimit = 10;
+const defaultStartMaxSourceFiles = 10;
+const defaultStartMaxTestFiles = 8;
 const activeTestPattern = /\.(test|spec)\.[^.]+$/i;
+const commandTaskKeywords = new Set([
+  "cli",
+  "command",
+  "commands",
+  "flag",
+  "flags",
+  "option",
+  "options",
+  "stdout",
+  "stderr",
+  "usage"
+]);
+const logStyleCommandKeywords = new Set([
+  "changelog",
+  "decision",
+  "entries",
+  "entry",
+  "history",
+  "log",
+  "manual",
+  "memory",
+  "persist",
+  "persistent",
+  "record",
+  "remember"
+]);
+const weakStructuralTokens = new Set([
+  "cli",
+  "command",
+  "commands",
+  "context",
+  "core",
+  "file",
+  "files",
+  "helper",
+  "helpers",
+  "source",
+  "sources",
+  "storage"
+]);
 const stopWords = new Set([
   "a",
   "an",
@@ -175,6 +258,10 @@ function isWorkflowTask(tokens: string[]): boolean {
   return workflowKeywords.some((keyword) => tokens.includes(keyword));
 }
 
+function isCommandTask(tokens: string[]): boolean {
+  return tokens.some((token) => commandTaskKeywords.has(token));
+}
+
 function isTestRelatedTask(task: string): boolean {
   const lowerTask = task.toLowerCase();
   return testDiscoveryKeywords.some((keyword) => {
@@ -184,6 +271,78 @@ function isTestRelatedTask(task: string): boolean {
 
     return new RegExp(`(^|[^a-z0-9])${keyword}([^a-z0-9]|$)`).test(lowerTask);
   });
+}
+
+function isMarkdownDocumentationPath(filePath: string): boolean {
+  return /(^|\/)(README|CHANGELOG|AGENTS)\.md$/i.test(filePath)
+    || /^docs\/.+\.md$/i.test(filePath);
+}
+
+function taskMentionsWord(task: string, word: string): boolean {
+  return new RegExp(`(^|[^a-z0-9])${word}([^a-z0-9]|$)`, "i").test(task);
+}
+
+function normalizedTaskMarkdownPaths(task: string): string[] {
+  const paths: string[] = [];
+  const markdownPathPattern = /(?:^|[\s('"`])((?:\.\/)?(?:docs\/[^\s'"`)]+|AGENTS\.md|README\.md|CHANGELOG\.md))/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = markdownPathPattern.exec(task)) !== null) {
+    paths.push(match[1].replace(/^\.\//, "").replace(/[),.;:]+$/u, ""));
+  }
+
+  return paths.filter(isMarkdownDocumentationPath);
+}
+
+function explicitDocumentationTargets(task: string, files: string[]): string[] {
+  const fileSet = new Set(files);
+  const targets: string[] = [];
+
+  for (const filePath of normalizedTaskMarkdownPaths(task)) {
+    if (fileSet.has(filePath)) {
+      targets.push(filePath);
+    }
+  }
+
+  if (taskMentionsWord(task, "readme") && fileSet.has("README.md")) {
+    targets.push("README.md");
+  }
+
+  if (taskMentionsWord(task, "changelog")) {
+    if (fileSet.has("CHANGELOG.md")) {
+      targets.push("CHANGELOG.md");
+    }
+    if (fileSet.has("docs/ai-context/CHANGE_LOG.md")) {
+      targets.push("docs/ai-context/CHANGE_LOG.md");
+    }
+  }
+
+  if (taskMentionsWord(task, "agents") && fileSet.has("AGENTS.md")) {
+    targets.push("AGENTS.md");
+  }
+
+  return uniqueOrdered(targets);
+}
+
+function isDocumentationOnlyTask(task: string, tokens: string[], explicitDocsTargets: string[]): boolean {
+  if (explicitDocsTargets.length === 0) {
+    return false;
+  }
+
+  if (tokens.includes("decide") || tokens.includes("decision")) {
+    return false;
+  }
+
+  if (tokens.some((token) => highRiskOverrideTokens.has(token))) {
+    return false;
+  }
+
+  return taskMentionsWord(task, "typo")
+    || taskMentionsWord(task, "readme")
+    || taskMentionsWord(task, "changelog")
+    || tokens.includes("docs")
+    || tokens.includes("documentation")
+    || explicitDocsTargets.every(isMarkdownDocumentationPath);
 }
 
 function pathTokens(filePath: string): string[] {
@@ -228,6 +387,44 @@ function isPackageLockPath(filePath: string): boolean {
 
 function isGithubWorkflowPath(filePath: string): boolean {
   return /^\.github\/workflows\/[^/]+\.(ya?ml)$/i.test(filePath);
+}
+
+function isCliCommandFile(filePath: string): boolean {
+  return /^src\/cli\/commands\/[^/]+\.[^.]+$/i.test(filePath);
+}
+
+function isCliRegistryFile(filePath: string): boolean {
+  return /^src\/cli\/index\.[^.]+$/i.test(filePath);
+}
+
+function isLogStyleCommandTask(tokens: string[]): boolean {
+  return tokens.some((token) => logStyleCommandKeywords.has(token));
+}
+
+function commandTaskScore(filePath: string, tokens: string[], commandTask: boolean): number {
+  if (!commandTask) {
+    return 0;
+  }
+
+  if (isCliRegistryFile(filePath)) {
+    return 96;
+  }
+
+  if (isCliCommandFile(filePath)) {
+    let score = 44;
+    const stem = pathStem(filePath);
+
+    if (tokens.includes(stem)) {
+      score += 36;
+    }
+    if (stem === "log" && isLogStyleCommandTask(tokens)) {
+      score += 48;
+    }
+
+    return score;
+  }
+
+  return 0;
 }
 
 function noisePenalty(filePath: string): number {
@@ -438,27 +635,32 @@ function discoverLikelySourceFiles(
   files: string[],
   tokens: string[],
   existingHintMatches: string[],
+  explicitDocsTargets: string[],
   includeWorkflowFiles: boolean,
+  includeCommandFiles: boolean,
   maxFiles: number
 ): string[] {
   const tokenSet = new Set(tokens);
   const hintSet = new Set(existingHintMatches);
+  const docsTargetSet = new Set(explicitDocsTargets);
   const hasGithubWorkflowFiles = includeWorkflowFiles && files.some(isGithubWorkflowPath);
   const candidates = files.map((file) => {
     const info = classifyRepoFile(file);
     let score = 0;
     const matchScore = tokenMatchScore(file, tokenSet);
+    const commandScore = commandTaskScore(file, tokens, includeCommandFiles);
 
     if (includeWorkflowFiles && !hasGithubWorkflowFiles && workflowSupportFiles.includes(file)) {
       return { path: file, score: 0 };
     }
 
     if (info.role === "source") {
-      if (!hintSet.has(file) && matchScore === 0) {
+      if (!hintSet.has(file) && matchScore === 0 && commandScore === 0) {
         return { path: file, score: 0 };
       }
       score += 32;
       score += matchScore;
+      score += commandScore;
     } else if (includeWorkflowFiles && info.role === "workflow") {
       score += 80;
       score += matchScore;
@@ -469,6 +671,9 @@ function discoverLikelySourceFiles(
       score += 38;
       score += matchScore;
       score -= 8;
+    } else if (docsTargetSet.has(file)) {
+      score += 180;
+      score += matchScore;
     } else if (hintSet.has(file) && info.role !== "test") {
       score += 22;
     } else {
@@ -575,8 +780,10 @@ function reasonsForRecommendedFile(
   taskTokens: string[],
   discoveryTokens: string[],
   existingHintMatches: string[],
+  explicitDocsTargets: string[],
   selectedSourceFiles: string[],
   includeWorkflowFiles: boolean,
+  includeCommandFiles: boolean,
   genericTestFallback: boolean
 ): string[] {
   const reasons: string[] = [];
@@ -598,9 +805,23 @@ function reasonsForRecommendedFile(
   if (existingHintMatches.includes(filePath)) {
     addReason(reasons, "matched context path hint");
   }
+  if (explicitDocsTargets.includes(filePath)) {
+    addReason(reasons, explicitDocumentationTargetReason);
+  }
 
   if (includeWorkflowFiles && (info.role === "workflow" || workflowSupportFiles.includes(filePath))) {
     addReason(reasons, "workflow task match");
+  }
+
+  if (includeCommandFiles) {
+    if (isCliRegistryFile(filePath)) {
+      addReason(reasons, "known CLI command registry");
+    } else if (isCliCommandFile(filePath)) {
+      addReason(reasons, "same command family");
+      if (pathStem(filePath) === "log" && isLogStyleCommandTask(taskTokens)) {
+        addReason(reasons, "similar command file: log-style durable entry");
+      }
+    }
   }
 
   if (info.role === "test") {
@@ -625,7 +846,9 @@ function recommendationReasonsFor(
   taskTokens: string[],
   discoveryTokens: string[],
   existingHintMatches: string[],
+  explicitDocsTargets: string[],
   includeWorkflowFiles: boolean,
+  includeCommandFiles: boolean,
   genericTestFallback: boolean
 ): Record<string, string[]> {
   const reasons: Record<string, string[]> = {};
@@ -636,8 +859,10 @@ function recommendationReasonsFor(
       taskTokens,
       discoveryTokens,
       existingHintMatches,
+      explicitDocsTargets,
       likelySourceFiles,
       includeWorkflowFiles,
+      includeCommandFiles,
       genericTestFallback
     );
     if (fileReasons.length > 0) {
@@ -651,8 +876,10 @@ function recommendationReasonsFor(
       taskTokens,
       discoveryTokens,
       existingHintMatches,
+      explicitDocsTargets,
       likelySourceFiles,
       includeWorkflowFiles,
+      includeCommandFiles,
       genericTestFallback
     );
     if (fileReasons.length > 0) {
@@ -663,10 +890,156 @@ function recommendationReasonsFor(
   return reasons;
 }
 
+interface ScoredFindCandidate extends FindFocusedFile {
+  score: number;
+}
+
+function addFindSignal(candidate: ScoredFindCandidate, score: number, reason: string): void {
+  candidate.score += score;
+  addReason(candidate.reasons, reason);
+}
+
+function isChangelogPath(filePath: string): boolean {
+  return /(^|\/)(CHANGE_LOG|CHANGELOG)\.md$/i.test(filePath);
+}
+
+function isChangelogQuery(tokens: string[]): boolean {
+  return tokens.some((token) => ["changelog", "change_log"].includes(token))
+    || (tokens.includes("change") && tokens.includes("log"));
+}
+
+function isCliRegistrationQuery(tokens: string[]): boolean {
+  return tokens.some((token) => ["register", "registered", "registration", "registry"].includes(token));
+}
+
+function expandFindTokens(tokens: string[]): string[] {
+  const expanded = [...tokens];
+
+  if (isChangelogQuery(tokens)) {
+    expanded.push("change", "log", "change_log", "changelog");
+  }
+  if (isCliRegistrationQuery(tokens)) {
+    expanded.push("index", "registry", "register");
+  }
+
+  return uniqueSorted(expanded);
+}
+
+function baseFindCandidate(filePath: string): ScoredFindCandidate {
+  return { path: filePath, reasons: [], score: 0 };
+}
+
+function scoreFindFile(
+  filePath: string,
+  taskTokens: string[],
+  discoveryTokens: string[],
+  existingHintMatches: string[],
+  explicitDocsTargets: string[],
+  selectedSourceFiles: string[],
+  commandTask: boolean,
+  changelogQuery: boolean,
+  cliRegistrationQuery: boolean
+): ScoredFindCandidate {
+  const candidate = baseFindCandidate(filePath);
+  const info = classifyRepoFile(filePath);
+  const taskToken = firstMatchingTaskToken(filePath, taskTokens);
+  const filenameStem = firstMatchingFilenameStem(filePath, taskTokens);
+  const parentFolderMatch = firstMatchingParentFolder(filePath, taskTokens);
+
+  if (
+    info.isNoise
+    || info.role === "generated"
+    || info.role === "fixture"
+    || info.role === "snapshot"
+    || info.role === "asset"
+    || isPackageLockPath(filePath)
+  ) {
+    return candidate;
+  }
+
+  if (taskToken) {
+    addFindSignal(candidate, weakStructuralTokens.has(taskToken) ? 12 : 32, `matched task token: ${taskToken}`);
+  }
+  if (filenameStem) {
+    addFindSignal(candidate, 70, `matched filename stem: ${filenameStem}`);
+  }
+  if (parentFolderMatch) {
+    addFindSignal(candidate, 28, `matched parent folder: ${parentFolderMatch}`);
+  }
+  if (existingHintMatches.includes(filePath)) {
+    addFindSignal(candidate, 78, "matched context path hint");
+  }
+  if (explicitDocsTargets.includes(filePath)) {
+    addFindSignal(candidate, 82, explicitDocumentationTargetReason);
+  }
+
+  if (commandTask || cliRegistrationQuery) {
+    if (isCliRegistryFile(filePath)) {
+      addFindSignal(candidate, cliRegistrationQuery ? 150 : 110, "known CLI command registry");
+    } else if (isCliCommandFile(filePath)) {
+      addFindSignal(candidate, commandTaskScore(filePath, taskTokens, true), "same command family");
+      if (taskTokens.includes(pathStem(filePath))) {
+        addFindSignal(candidate, 120, "matched command name");
+      }
+      if (pathStem(filePath) === "log" && isLogStyleCommandTask(taskTokens)) {
+        addFindSignal(candidate, 70, "similar command file: log-style durable entry");
+      }
+    }
+  }
+
+  if (changelogQuery) {
+    if (filePath === "src/cli/commands/log.ts") {
+      addFindSignal(candidate, 150, "similar command file: log-style durable entry");
+    } else if (isChangelogPath(filePath)) {
+      addFindSignal(candidate, 95, "changelog context file");
+    }
+  }
+
+  if (info.role === "test") {
+    const pairedReason = pairedSourceReason(filePath, selectedSourceFiles);
+    if (pairedReason) {
+      addFindSignal(candidate, 76, pairedReason);
+    }
+    if (hasSamePackageScope(filePath, selectedSourceFiles)) {
+      addFindSignal(candidate, 34, "same monorepo package scope");
+    }
+    if (activeTestScore(filePath) > 0 && candidate.score > 0) {
+      addFindSignal(candidate, activeTestScore(filePath), "nearby active test");
+    }
+  }
+
+  candidate.score -= noisePenalty(filePath);
+  return candidate;
+}
+
+function orderFindCandidates(candidates: ScoredFindCandidate[], limit: number): FindFocusedFile[] {
+  return candidates
+    .filter((candidate) => candidate.score >= 40 && candidate.reasons.length > 0)
+    .sort((left, right) => {
+      const scoreDifference = right.score - left.score;
+      return scoreDifference === 0 ? left.path.localeCompare(right.path) : scoreDifference;
+    })
+    .slice(0, limit)
+    .map(({ path: filePath, reasons }) => ({ path: filePath, reasons }));
+}
+
+function hasStrongFindSourceSignal(candidate: FindFocusedFile): boolean {
+  return candidate.reasons.some((reason) => (
+    reason.startsWith("matched task token:")
+    || reason.startsWith("matched filename stem:")
+    || reason === "matched command name"
+    || reason === "known CLI command registry"
+    || reason.startsWith("similar command file:")
+    || reason === "changelog context file"
+    || reason === explicitDocumentationTargetReason
+  ));
+}
+
 function emptyRecommendationReasonsFor(
   likelySourceFiles: string[],
   likelyTests: string[],
   workflowTaskWithoutGithubWorkflowFiles: boolean,
+  documentationOnlyTask: boolean,
   routingMatches: string[],
   moduleMatches: string[],
   dependencyMatches: string[],
@@ -693,7 +1066,7 @@ function emptyRecommendationReasonsFor(
   }
 
   if (likelyTests.length === 0) {
-    reasons.test = "no matching or paired test file was found.";
+    reasons.test = documentationOnlyTask ? documentationOnlyReason : "no matching or paired test file was found.";
   }
 
   return reasons;
@@ -872,8 +1245,13 @@ function riskFor(
   dependencyMatches: number,
   repoSignalCount: number,
   likelySourceFiles: string[],
-  likelyTests: string[]
+  likelyTests: string[],
+  documentationOnlyTask: boolean
 ): RiskLevel {
+  if (documentationOnlyTask) {
+    return "low";
+  }
+
   if (mode === "Investigation" || riskMatches > 0) {
     return "high";
   }
@@ -914,6 +1292,17 @@ function readFirstDocsFor(files: string[], contextFiles: SuggestContextFile[], r
   return uniqueOrdered(docs);
 }
 
+function shouldReadDecisionMemory(files: string[], taskTokens: string[], documentationOnlyTask: boolean): boolean {
+  if (!files.includes(decisionsFile) || documentationOnlyTask) {
+    return false;
+  }
+
+  return taskTokens.includes("decide")
+    || taskTokens.includes("decision")
+    || taskTokens.some((token) => decisionMemoryTokens.has(token) && token !== "context" && token !== "routing" && token !== "startup")
+    || (taskTokens.includes("context") && taskTokens.some((token) => ["architecture", "decision", "memory", "strategy"].includes(token)));
+}
+
 function startupInstructionsFor(startup: Omit<StartupContext, "startupInstructions">): string[] {
   const instructions: string[] = [];
   const hasWorkflowOrDeploymentFiles = startup.likelySourceFiles.some((file) => {
@@ -931,6 +1320,9 @@ function startupInstructionsFor(startup: Omit<StartupContext, "startupInstructio
   if (startup.readFirstDocs.includes("docs/ai-context/MODULE_INDEX.md")) {
     instructions.push("Use docs/ai-context/MODULE_INDEX.md if routing is insufficient or the task spans modules.");
   }
+  if (startup.readFirstDocs.includes(decisionsFile)) {
+    instructions.push(`Read ${decisionsFile}; ${decisionMemoryReason}.`);
+  }
 
   if (startup.likelySourceFiles.length > 0) {
     instructions.push(`Open likely source files: ${startup.likelySourceFiles.join(", ")}.`);
@@ -940,6 +1332,8 @@ function startupInstructionsFor(startup: Omit<StartupContext, "startupInstructio
 
   if (startup.likelyTests.length > 0) {
     instructions.push(`Open likely tests: ${startup.likelyTests.join(", ")}.`);
+  } else if (startup.emptyRecommendationReasons.test === documentationOnlyReason) {
+    instructions.push("No tests are expected for this documentation-only change.");
   } else {
     instructions.push("No confident tests were identified; search for nearby test files after reading the source context.");
   }
@@ -963,6 +1357,201 @@ function startupInstructionsFor(startup: Omit<StartupContext, "startupInstructio
   return instructions;
 }
 
+function pairedSourceFromReason(reason: string): string | undefined {
+  return reason.startsWith("paired with source file: ")
+    ? reason.slice("paired with source file: ".length)
+    : undefined;
+}
+
+function isStrongStartReason(reason: string, taskTokens: Set<string>, retainedSourceFiles?: Set<string>): boolean {
+  if (
+    reason === "same monorepo package scope"
+    || reason === "workflow task match"
+    || reason === "known CLI command registry"
+    || reason === explicitDocumentationTargetReason
+    || reason.startsWith("similar command file:")
+    || reason === "generic test-task fallback"
+  ) {
+    return true;
+  }
+
+  const filenameStem = /^matched filename stem: (.+)$/.exec(reason);
+  if (filenameStem) {
+    return taskTokens.has(filenameStem[1]);
+  }
+
+  const pairedSource = pairedSourceFromReason(reason);
+  if (pairedSource) {
+    return retainedSourceFiles ? retainedSourceFiles.has(pairedSource) : true;
+  }
+
+  const taskToken = /^matched task token: (.+)$/.exec(reason);
+  return Boolean(taskToken && !weakStructuralTokens.has(taskToken[1]));
+}
+
+function isFocusedCommandSource(filePath: string, taskTokens: Set<string>, commandTask: boolean): boolean {
+  if (!commandTask || !isCliCommandFile(filePath)) {
+    return true;
+  }
+
+  const stem = pathStem(filePath);
+  return taskTokens.has(stem) || (stem === "log" && isLogStyleCommandTask([...taskTokens]));
+}
+
+function hasStrongStartSignal(
+  filePath: string,
+  reasonsByFile: Record<string, string[]>,
+  taskTokens: Set<string>,
+  retainedSourceFiles?: Set<string>
+): boolean {
+  const reasons = reasonsByFile[filePath] ?? [];
+  return reasons.some((reason) => isStrongStartReason(reason, taskTokens, retainedSourceFiles));
+}
+
+function compactReasonsForFiles(
+  retainedFiles: string[],
+  reasonsByFile: Record<string, string[]>
+): Record<string, string[]> {
+  const retained = new Set(retainedFiles);
+  return Object.fromEntries(
+    Object.entries(reasonsByFile).filter(([filePath]) => retained.has(filePath))
+  );
+}
+
+export function focusStartupContextForStart(
+  startupContext: StartupContext,
+  limits: { maxSourceFiles?: number; maxTestFiles?: number } = {}
+): StartupContext {
+  const maxSourceFiles = limits.maxSourceFiles ?? defaultStartMaxSourceFiles;
+  const maxTestFiles = limits.maxTestFiles ?? defaultStartMaxTestFiles;
+  const taskTokens = new Set(tokenize(startupContext.task));
+  const commandTask = isCommandTask([...taskTokens]);
+  const likelySourceFiles = startupContext.likelySourceFiles
+    .filter((filePath) => {
+      return isFocusedCommandSource(filePath, taskTokens, commandTask)
+        && hasStrongStartSignal(filePath, startupContext.recommendationReasons, taskTokens);
+    })
+    .slice(0, maxSourceFiles);
+  const retainedSourceFiles = new Set(likelySourceFiles);
+  const likelyTests = startupContext.likelyTests
+    .filter((filePath) => hasStrongStartSignal(filePath, startupContext.recommendationReasons, taskTokens, retainedSourceFiles))
+    .slice(0, maxTestFiles);
+  const retainedFiles = [...likelySourceFiles, ...likelyTests];
+  const recommendationReasons = compactReasonsForFiles(retainedFiles, startupContext.recommendationReasons);
+  const emptyRecommendationReasons = {
+    ...startupContext.emptyRecommendationReasons
+  };
+
+  if (likelySourceFiles.length === 0 && startupContext.likelySourceFiles.length > 0) {
+    emptyRecommendationReasons.source = "only weak source signals matched; no focused source files were identified.";
+  }
+  if (likelyTests.length === 0 && startupContext.likelyTests.length > 0) {
+    emptyRecommendationReasons.test = "only weak test signals matched; no focused test files were identified.";
+  }
+
+  const focusedContext: Omit<StartupContext, "startupInstructions"> = {
+    ...startupContext,
+    likelySourceFiles,
+    likelyTests,
+    recommendationReasons,
+    emptyRecommendationReasons
+  };
+
+  return {
+    ...focusedContext,
+    startupInstructions: startupInstructionsFor(focusedContext)
+  };
+}
+
+export async function findFocusedFiles(
+  cwd: string,
+  query: string,
+  options: FindFocusedFilesOptions = {}
+): Promise<FindFocusedFile[]> {
+  const limit = options.limit ?? defaultFindLimit;
+  const documents = await readSuggestContext(cwd);
+  const repoFiles = await listRepoFiles(cwd);
+  const tokens = expandFindTokens(tokenize(query));
+  const explicitDocsTargets = explicitDocumentationTargets(query, repoFiles);
+  const taskRouting = findDocument(documents, "docs/ai-context/TASK_ROUTING.md");
+  const moduleIndex = findDocument(documents, "docs/ai-context/MODULE_INDEX.md");
+  const dependencyMap = findDocument(documents, "docs/ai-context/DEPENDENCY_MAP.md");
+  const symbolMap = findDocument(documents, "docs/ai-context/SYMBOL_MAP.md");
+  const riskRegister = findDocument(documents, "docs/ai-context/RISK_REGISTER.md");
+  const hotspots = findDocument(documents, "docs/ai-context/HOTSPOTS.md");
+  const routingMatches = matchingLines(taskRouting, tokens);
+  const moduleMatches = matchingLines(moduleIndex, tokens);
+  const dependencyMatches = matchingLines(dependencyMap, tokens);
+  const matchedModulePaths = extractBacktickPaths(moduleMatches.join("\n"));
+  const dependencyModuleMatches = dependencyMap
+    ? matchingLines(dependencyMap, [...tokens, ...matchedModulePaths.flatMap((filePath) => tokenize(filePath))])
+    : [];
+  const riskMatches = [
+    ...matchingLines(riskRegister, tokens),
+    ...matchingLines(hotspots, tokens),
+    ...matchingLines(riskRegister, matchedModulePaths.flatMap((filePath) => tokenize(filePath))),
+    ...matchingLines(hotspots, matchedModulePaths.flatMap((filePath) => tokenize(filePath)))
+  ];
+  const candidatePaths = [
+    ...extractBacktickPaths(routingMatches.join("\n")),
+    ...extractBacktickPaths(moduleMatches.join("\n")),
+    ...extractBacktickPaths(dependencyMatches.join("\n")),
+    ...extractBacktickPaths(dependencyModuleMatches.join("\n")),
+    ...extractBacktickPaths(riskMatches.join("\n"))
+  ];
+  const relevantSymbols = onlyExistingSymbolEntries(
+    matchingSymbolEntries(parseSymbolMap(symbolMap), tokens, candidatePaths),
+    repoFiles
+  );
+  const pathHints = [
+    ...explicitDocsTargets,
+    ...candidatePaths,
+    ...relevantSymbols.map((entry) => entry.file),
+    ...relevantSymbols.flatMap((entry) => entry.tests)
+  ];
+  const existingHintMatches = await expandExistingPathHints(cwd, repoFiles, pathHints);
+  const discoveryTokens = uniqueSorted([
+    ...tokens,
+    ...explicitDocsTargets.flatMap((filePath) => tokenize(filePath)),
+    ...candidatePaths.flatMap((filePath) => tokenize(filePath)),
+    ...relevantSymbols.flatMap((entry) => [entry.file, ...entry.symbols, ...entry.tests].flatMap((value) => tokenize(value)))
+  ]);
+  const commandTask = isCommandTask(tokens);
+  const changelogQuery = isChangelogQuery(tokens);
+  const cliRegistrationQuery = isCliRegistrationQuery(tokens);
+  const nonTestCandidates = repoFiles
+    .filter((filePath) => classifyRepoFile(filePath).role !== "test")
+    .map((filePath) => scoreFindFile(
+      filePath,
+      tokens,
+      discoveryTokens,
+      existingHintMatches,
+      explicitDocsTargets,
+      [],
+      commandTask,
+      changelogQuery,
+      cliRegistrationQuery
+    ));
+  const selectedSourceFiles = orderFindCandidates(nonTestCandidates, Math.max(limit, 20))
+    .filter((candidate) => classifyRepoFile(candidate.path).role === "source" && hasStrongFindSourceSignal(candidate))
+    .map((candidate) => candidate.path);
+  const testCandidates = repoFiles
+    .filter((filePath) => classifyRepoFile(filePath).role === "test")
+    .map((filePath) => scoreFindFile(
+      filePath,
+      tokens,
+      discoveryTokens,
+      existingHintMatches,
+      explicitDocsTargets,
+      selectedSourceFiles,
+      commandTask,
+      changelogQuery,
+      cliRegistrationQuery
+    ));
+
+  return orderFindCandidates([...nonTestCandidates, ...testCandidates], limit);
+}
+
 function toContextSuggestion(startupContext: StartupContext): ContextSuggestion {
   return {
     ...startupContext,
@@ -980,6 +1569,8 @@ export async function buildStartupContext(
   const tokens = tokenize(task);
   const testRelatedTask = isTestRelatedTask(task);
   const repoFiles = await listRepoFiles(cwd);
+  const explicitDocsTargets = explicitDocumentationTargets(task, repoFiles);
+  const documentationOnlyTask = isDocumentationOnlyTask(task, tokens, explicitDocsTargets);
   const taskRouting = findDocument(documents, "docs/ai-context/TASK_ROUTING.md");
   const moduleIndex = findDocument(documents, "docs/ai-context/MODULE_INDEX.md");
   const dependencyMap = findDocument(documents, "docs/ai-context/DEPENDENCY_MAP.md");
@@ -987,14 +1578,14 @@ export async function buildStartupContext(
   const riskRegister = findDocument(documents, "docs/ai-context/RISK_REGISTER.md");
   const hotspots = findDocument(documents, "docs/ai-context/HOTSPOTS.md");
 
-  const routingMatches = matchingLines(taskRouting, tokens);
-  const moduleMatches = matchingLines(moduleIndex, tokens);
-  const dependencyMatches = matchingLines(dependencyMap, tokens);
+  const routingMatches = documentationOnlyTask ? [] : matchingLines(taskRouting, tokens);
+  const moduleMatches = documentationOnlyTask ? [] : matchingLines(moduleIndex, tokens);
+  const dependencyMatches = documentationOnlyTask ? [] : matchingLines(dependencyMap, tokens);
   const matchedModulePaths = extractBacktickPaths(moduleMatches.join("\n"));
-  const dependencyModuleMatches = dependencyMap
+  const dependencyModuleMatches = dependencyMap && !documentationOnlyTask
     ? matchingLines(dependencyMap, [...tokens, ...matchedModulePaths.flatMap((filePath) => tokenize(filePath))])
     : [];
-  const riskMatches = [
+  const riskMatches = documentationOnlyTask ? [] : [
     ...matchingLines(riskRegister, tokens),
     ...matchingLines(hotspots, tokens),
     ...matchingLines(riskRegister, matchedModulePaths.flatMap((filePath) => tokenize(filePath))),
@@ -1013,6 +1604,7 @@ export async function buildStartupContext(
   );
   const symbolRiskMatches = relevantSymbols.filter((entry) => entry.risk === "high").length;
   const pathHints = [
+    ...explicitDocsTargets,
     ...candidatePaths,
     ...relevantSymbols.map((entry) => entry.file),
     ...relevantSymbols.flatMap((entry) => entry.tests)
@@ -1020,6 +1612,7 @@ export async function buildStartupContext(
   const existingHintMatches = await expandExistingPathHints(cwd, repoFiles, pathHints);
   const discoveryTokens = uniqueSorted([
     ...tokens,
+    ...explicitDocsTargets.flatMap((filePath) => tokenize(filePath)),
     ...candidatePaths.flatMap((filePath) => tokenize(filePath)),
     ...relevantSymbols.flatMap((entry) => [entry.file, ...entry.symbols, ...entry.tests].flatMap((value) => tokenize(value)))
   ]);
@@ -1046,19 +1639,27 @@ export async function buildStartupContext(
 
   const mode = modeForTask(task, tokens);
   const workflowTask = isWorkflowTask(tokens);
+  const commandTask = isCommandTask(tokens);
   const hasGithubWorkflowFiles = repoFiles.some(isGithubWorkflowPath);
-  const likelySourceFiles = discoverLikelySourceFiles(
+  const discoveredLikelySourceFiles = discoverLikelySourceFiles(
     repoFiles,
     discoveryTokens,
     existingHintMatches,
+    explicitDocsTargets,
     workflowTask,
+    commandTask,
     maxFiles
   );
+  const likelySourceFiles = documentationOnlyTask
+    ? explicitDocsTargets.filter((filePath) => repoFiles.includes(filePath)).slice(0, maxFiles)
+    : discoveredLikelySourceFiles;
   const genericFallbackMaxTests = options.genericFallbackMaxTests ?? maxFiles;
   const likelyTestMaxFiles = testRelatedTask && likelySourceFiles.length === 0
     ? Math.min(maxFiles, genericFallbackMaxTests)
     : maxFiles;
-  const likelyTests = discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches, likelySourceFiles, testRelatedTask, likelyTestMaxFiles);
+  const likelyTests = documentationOnlyTask
+    ? []
+    : discoverLikelyTests(repoFiles, discoveryTokens, existingHintMatches, likelySourceFiles, testRelatedTask, likelyTestMaxFiles);
   const genericTestFallback = testRelatedTask && likelySourceFiles.length === 0 && likelyTests.length > 0;
   const recommendationReasons = recommendationReasonsFor(
     likelySourceFiles,
@@ -1066,13 +1667,16 @@ export async function buildStartupContext(
     tokens,
     discoveryTokens,
     existingHintMatches,
+    explicitDocsTargets,
     workflowTask,
+    commandTask,
     genericTestFallback
   );
   const emptyRecommendationReasons = emptyRecommendationReasonsFor(
     likelySourceFiles,
     likelyTests,
     workflowTask && !hasGithubWorkflowFiles,
+    documentationOnlyTask,
     routingMatches,
     moduleMatches,
     dependencyMatches,
@@ -1087,7 +1691,8 @@ export async function buildStartupContext(
     dependencyModuleMatches.length + dependencyMatches.length,
     repoSignalCount,
     likelySourceFiles,
-    likelyTests
+    likelyTests,
+    documentationOnlyTask
   );
 
   if (finalRiskLevel === "high") {
@@ -1101,6 +1706,9 @@ export async function buildStartupContext(
 
   const uniqueContextFiles = uniqueSorted(contextFiles) as SuggestContextFile[];
   const readFirstDocs = readFirstDocsFor(repoFiles, uniqueContextFiles, routingMatches.length);
+  if (shouldReadDecisionMemory(repoFiles, tokens, documentationOnlyTask)) {
+    readFirstDocs.push(decisionsFile);
+  }
   const baseStartupContext: Omit<StartupContext, "startupInstructions"> = {
     task,
     mode,
@@ -1119,6 +1727,8 @@ export async function buildStartupContext(
       riskMatches.length > 0 ? "risk or hotspot guidance matched" : "",
       testRelatedTask ? "test-related task triggered test discovery" : "",
       genericTestFallback ? "generic test-task fallback ranked active test files" : "",
+      readFirstDocs.includes(decisionsFile) ? decisionMemoryReason : "",
+      documentationOnlyTask ? documentationOnlyReason : "",
       mode === "Investigation" ? "task contains investigation keyword" : "",
       finalRiskLevel === "unknown" ? "insufficient repo signal for risk confidence" : ""
     ].filter(Boolean))
