@@ -31,12 +31,32 @@ function runInit(cwd, args = []) {
   });
 }
 
+function runCli(cwd, args = []) {
+  return spawnSync(process.execPath, [cliPath, ...args], {
+    cwd,
+    encoding: "utf8"
+  });
+}
+
 async function createTempRepo() {
   return mkdtemp(path.join(os.tmpdir(), "repo-context-center-init-"));
 }
 
 function countOccurrences(content, value) {
   return (content.match(new RegExp(value, "g")) ?? []).length;
+}
+
+async function writeFixtureFile(root, relativePath, content) {
+  const fullPath = path.join(root, relativePath);
+  await mkdir(path.dirname(fullPath), { recursive: true });
+  await writeFile(fullPath, content, "utf8");
+}
+
+function workflowSection(content) {
+  const start = content.indexOf("<!-- repo-context-center:workflow:start -->");
+  const end = content.indexOf("<!-- repo-context-center:workflow:end -->");
+  assert.ok(start !== -1 && end !== -1 && end > start);
+  return content.slice(start, end);
 }
 
 test("init installs all generic templates into a temp repo", async () => {
@@ -50,6 +70,48 @@ test("init installs all generic templates into a temp repo", async () => {
       const content = await readFile(path.join(tempDir, file), "utf8");
       assert.notEqual(content.trim(), "", file);
     }
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init creates missing context files and populates real map content", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeFixtureFile(tempDir, "src/auth/login.ts", "export function login() {}\n");
+    await writeFixtureFile(tempDir, "tests/auth/login.test.ts", "test('login', () => {});\n");
+
+    const result = runInit(tempDir);
+    const taskRouting = await readFile(path.join(tempDir, "docs/ai-context/TASK_ROUTING.md"), "utf8");
+    const moduleIndex = await readFile(path.join(tempDir, "docs/ai-context/MODULE_INDEX.md"), "utf8");
+    const agents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Generated repository context: \d+ files updated \(\d+ files scanned\)\./);
+    assert.match(taskRouting, /<!-- repo-context-center:generated:start -->/);
+    assert.match(taskRouting, /src\/auth\/login\.ts/);
+    assert.match(moduleIndex, /tests\/auth\/login\.test\.ts/);
+    assert.match(agents, /Compact generated entrypoint\./);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init does not require a separate map --write call for work guidance", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeFixtureFile(tempDir, "src/auth/login.ts", "export function login() {}\n");
+    await writeFixtureFile(tempDir, "tests/auth/login.test.ts", "test('login', () => {});\n");
+
+    const initResult = runInit(tempDir);
+    const workResult = runCli(tempDir, ["work", "fix login bug"]);
+
+    assert.equal(initResult.status, 0);
+    assert.equal(workResult.status, 0);
+    assert.match(workResult.stdout, /src\/auth\/login\.ts/);
+    assert.match(workResult.stdout, /tests\/auth\/login\.test\.ts/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -120,16 +182,41 @@ test("init does not duplicate RCC workflow section", async () => {
   }
 });
 
+test("init is idempotent after repeated runs", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeFixtureFile(tempDir, "src/auth/login.ts", "export function login() {}\n");
+    await writeFixtureFile(tempDir, "tests/auth/login.test.ts", "test('login', () => {});\n");
+
+    const first = runInit(tempDir);
+    const afterFirstAgents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
+    const afterFirstRouting = await readFile(path.join(tempDir, "docs/ai-context/TASK_ROUTING.md"), "utf8");
+    const second = runInit(tempDir);
+    const afterSecondAgents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
+    const afterSecondRouting = await readFile(path.join(tempDir, "docs/ai-context/TASK_ROUTING.md"), "utf8");
+
+    assert.equal(first.status, 0);
+    assert.equal(second.status, 0);
+    assert.equal(afterSecondAgents, afterFirstAgents);
+    assert.equal(afterSecondRouting, afterFirstRouting);
+    assert.equal(countOccurrences(afterSecondAgents, "<!-- repo-context-center:workflow:start -->"), 1);
+    assert.equal(countOccurrences(afterSecondAgents, "<!-- repo-context-center:generated:start -->"), 1);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("init keeps AGENTS.md workflow concise", async () => {
   const tempDir = await createTempRepo();
 
   try {
     const result = runInit(tempDir);
     const content = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
-    const words = content.trim().split(/\s+/).filter(Boolean);
+    const words = workflowSection(content).trim().split(/\s+/).filter(Boolean);
 
     assert.equal(result.status, 0);
-    assert.ok(words.length <= 95, `AGENTS.md has ${words.length} words`);
+    assert.ok(words.length <= 55, `AGENTS workflow has ${words.length} words`);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

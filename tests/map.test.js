@@ -261,7 +261,8 @@ test("map --dry-run prints proposed updates without writing", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Proposed updates:/);
     assert.equal(after, before);
-    assert.doesNotMatch(after, /repo-context-center:generated:start/);
+    assert.match(after, /repo-context-center:generated:start/);
+    assert.doesNotMatch(after, /CLI flags\/output/);
   });
 });
 
@@ -339,7 +340,8 @@ test("map --check does not write files", async () => {
     assert.equal(result.status, 1);
     assert.match(result.stdout, /Generated context files are stale or missing\./);
     assert.equal(after, before);
-    assert.doesNotMatch(after, /repo-context-center:generated:start/);
+    assert.match(after, /repo-context-center:generated:start/);
+    assert.doesNotMatch(after, /CLI flags\/output/);
   });
 });
 
