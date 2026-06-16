@@ -1,5 +1,28 @@
 # ChangeLog
 
+## repo-context-center@0.6.0
+
+### Added
+
+* Decision Memory commands: `decision add`, `decision list`, `decision search`.
+* Targeted fallback search command: `find "<query>"`.
+* Persistent manual work logging with `log`.
+* Compact AGENTS.md startup guidance.
+* Decision-aware startup recommendations.
+
+### Improved
+
+* Reduced noisy start output.
+* Better docs-only routing for README, CHANGELOG, and documentation tasks.
+* Better separation between generated context and manual persistent notes.
+* More focused candidate suggestions and explainable reasons.
+
+### Fixed
+
+* Avoided duplicate startup guidance in AGENTS.md.
+* Prevented documentation-only tasks from opening unrelated source or core files.
+* Preserved manual content outside generated sections.
+
 ## repo-context-center@0.4.0
 
 ### Added
@@ -11,7 +34,7 @@
 ### Improved
 
 * Improved `start` output for edge cases where context guidance matches but no confident source or test files are found.
-* Improved workflow-aware and generic test-task startup guidance without exposing raw recommendation scores.
+* Improved workflow-aware and generic test-task startup guidance with concise recommendation reasons.
 * Kept clipboard failures non-fatal: `start --copy` still exits successfully and leaves the prompt printed above.
 
 ### Fixed
