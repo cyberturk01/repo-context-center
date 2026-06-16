@@ -1395,7 +1395,7 @@ export async function buildStartupContext(
   const workflowTask = isWorkflowTask(tokens);
   const commandTask = isCommandTask(tokens);
   const hasGithubWorkflowFiles = repoFiles.some(isGithubWorkflowPath);
-  const likelySourceFiles = discoverLikelySourceFiles(
+  const discoveredLikelySourceFiles = discoverLikelySourceFiles(
     repoFiles,
     discoveryTokens,
     existingHintMatches,
@@ -1404,6 +1404,9 @@ export async function buildStartupContext(
     commandTask,
     maxFiles
   );
+  const likelySourceFiles = documentationOnlyTask
+    ? explicitDocsTargets.filter((filePath) => repoFiles.includes(filePath)).slice(0, maxFiles)
+    : discoveredLikelySourceFiles;
   const genericFallbackMaxTests = options.genericFallbackMaxTests ?? maxFiles;
   const likelyTestMaxFiles = testRelatedTask && likelySourceFiles.length === 0
     ? Math.min(maxFiles, genericFallbackMaxTests)

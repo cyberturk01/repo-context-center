@@ -209,13 +209,44 @@ test("start recommends README for README typo tasks", async () => {
 
 test("start recommends README and CHANGELOG for documentation update tasks", async () => {
   await withStartRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "src/core/fileSystem.ts", "export function readFile() {}\n");
+    await writeFixtureFile(tempDir, "src/core/repoFileClassifier.ts", "export function classifyFile() {}\n");
+
     const result = runCli(["start", "Check latest 5 git history and update readme file and Changelog.md file"], { cwd: tempDir });
     const likelySourceFiles = promptSectionItems(result.stdout, "Likely source files", "Likely tests");
 
     assert.equal(result.status, 0);
     assert.ok(likelySourceFiles.includes("README.md"));
-    assert.ok(likelySourceFiles.includes("CHANGELOG.md"));
+    assert.ok(likelySourceFiles.includes("CHANGELOG.md") || likelySourceFiles.includes("docs/ai-context/CHANGE_LOG.md"));
+    assert.ok(!likelySourceFiles.includes("src/core/fileSystem.ts"));
+    assert.ok(!likelySourceFiles.includes("src/core/repoFileClassifier.ts"));
+    assert.doesNotMatch(result.stdout, /Open likely source files: .*src\/core\/fileSystem\.ts/);
+    assert.doesNotMatch(result.stdout, /Open likely source files: .*src\/core\/repoFileClassifier\.ts/);
     assert.match(result.stdout, /Risk:\nlow/);
+  });
+});
+
+test("start still recommends file system source for non-docs tasks", async () => {
+  await withStartRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "src/core/fileSystem.ts", "export function readFile() {}\n");
+
+    const result = runCli(["start", "add file system helper"], { cwd: tempDir });
+    const likelySourceFiles = promptSectionItems(result.stdout, "Likely source files", "Likely tests");
+
+    assert.equal(result.status, 0);
+    assert.ok(likelySourceFiles.includes("src/core/fileSystem.ts"));
+  });
+});
+
+test("start still recommends repo file classifier source for non-docs tasks", async () => {
+  await withStartRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "src/core/repoFileClassifier.ts", "export function classifyFile() {}\n");
+
+    const result = runCli(["start", "update repo file classifier"], { cwd: tempDir });
+    const likelySourceFiles = promptSectionItems(result.stdout, "Likely source files", "Likely tests");
+
+    assert.equal(result.status, 0);
+    assert.ok(likelySourceFiles.includes("src/core/repoFileClassifier.ts"));
   });
 });
 
