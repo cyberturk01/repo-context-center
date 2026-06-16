@@ -304,6 +304,7 @@ repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <n
 repo-context-center validate [--strict]
 repo-context-center archive [--keep <number>] [--dry-run]
 repo-context-center estimate [--mode compact|investigation|detailed] [--task "<task>"] [--compare-naive] [--json] [--max-files <number>]
+repo-context-center find "<query>" [--limit <number>]
 repo-context-center log "<summary>" [--files <path,path>] [--dry-run]
 repo-context-center decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
 repo-context-center decision list
@@ -318,6 +319,7 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 - `validate`: check that required context files exist and report warnings. Missing `.repo-context-center/config.json` is a warning by default and a failure with `--strict`.
 - `archive`: archive older entries from long-running context files; defaults to keeping 50 entries.
 - `estimate`: estimate task-aware source, test, and context token overhead; optionally compare with a naive repo scan.
+- `find`: return focused file candidates for a concept or query when startup guidance is not enough.
 - `log`: add a durable task entry to `docs/ai-context/CHANGE_LOG.md`; generated map updates preserve these entries.
 - `decision`: add, list, or search durable project decisions in `docs/ai-context/DECISIONS.md`; markdown remains the source of truth.
 - `scan`: inspect only the repository layout and suggest lightweight entries for context maps.
@@ -329,6 +331,7 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 | `init` | install context templates | once per repo |
 | `map --write` | refresh repo map | after structure changes |
 | `map --check` | detect stale context | CI / PRs |
+| `find` | locate focused candidate files | when startup guidance is insufficient |
 | `log` | record durable task change | after meaningful changes |
 | `decision` | record durable project decision | after architectural or workflow decisions |
 | `suggest` | get task recommendations / JSON | tooling |

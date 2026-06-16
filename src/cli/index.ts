@@ -2,6 +2,7 @@
 import { archiveCommand } from "./commands/archive";
 import { decisionCommand } from "./commands/decision";
 import { estimateCommand } from "./commands/estimate";
+import { findCommand } from "./commands/find";
 import { initCommand } from "./commands/init";
 import { logCommand } from "./commands/log";
 import { mapCommand } from "./commands/map";
@@ -24,6 +25,7 @@ const commands: Record<string, CommandHandler> = {
   archive: archiveCommand,
   decision: decisionCommand,
   estimate: estimateCommand,
+  find: findCommand,
   log: logCommand,
   map: mapCommand,
   scan: scanCommand,
@@ -49,6 +51,8 @@ Commands:
                    decision search "<query>"
   estimate  Estimate context token costs and rough savings
             Options: --json, --mode <mode>, --task <text>, --compare-naive, --max-files <number>
+  find      Find focused file candidates for a concept or query
+            Usage: find "<query>" [--limit <number>]
   log       Add a durable entry to docs/ai-context/CHANGE_LOG.md
             Usage: log "<summary>" [--files <path,path>] [--dry-run]
   map       Generate repo-specific context maps
