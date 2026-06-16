@@ -304,6 +304,7 @@ repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <n
 repo-context-center validate [--strict]
 repo-context-center archive [--keep <number>] [--dry-run]
 repo-context-center estimate [--mode compact|investigation|detailed] [--task "<task>"] [--compare-naive] [--json] [--max-files <number>]
+repo-context-center log "<summary>" [--files <path,path>] [--dry-run]
 repo-context-center scan [--json]
 repo-context-center start "<task>" [--max-files <number>] [--copy]
 repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
@@ -314,6 +315,7 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 - `validate`: check that required context files exist and report warnings. Missing `.repo-context-center/config.json` is a warning by default and a failure with `--strict`.
 - `archive`: archive older entries from long-running context files; defaults to keeping 50 entries.
 - `estimate`: estimate task-aware source, test, and context token overhead; optionally compare with a naive repo scan.
+- `log`: add a durable task entry to `docs/ai-context/CHANGE_LOG.md`; generated map updates preserve these entries.
 - `scan`: inspect only the repository layout and suggest lightweight entries for context maps.
 - `start`: print an agent-ready startup prompt with read-first docs, likely files, likely tests, risk, instructions, and compact recommendation reasons. Add `--copy` to also copy the same prompt to the system clipboard when a platform clipboard command is available.
 - `suggest`: recommend low-token context files, real likely files, likely tests, mode, symbols, and risk level for a task. Use `--json` for tool integrations; JSON includes additive startup fields such as recommendation reasons.
@@ -323,6 +325,7 @@ repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 | `init` | install context templates | once per repo |
 | `map --write` | refresh repo map | after structure changes |
 | `map --check` | detect stale context | CI / PRs |
+| `log` | record durable task change | after meaningful changes |
 | `suggest` | get task recommendations / JSON | tooling |
 | `start` | generate agent startup prompt | before each task |
 
@@ -486,12 +489,19 @@ Ask the agent to:
 4. Treat recommendation reasons as navigation hints, not proof.
 5. Verify source code before changing behavior.
 6. Expand search only when the recommended files are insufficient.
-7. Update context files only when durable repo knowledge changes.
+7. Run `repo-context-center log "<summary>" --files <paths>` after meaningful changes.
+8. Update other context files only when durable repo knowledge changes.
 
 If the agent can run shell commands, `AGENTS.md` should guide it to run:
 
 ```sh
 npx repo-context-center start "<task>"
+```
+
+After meaningful changes, it should record the durable task entry:
+
+```sh
+npx repo-context-center log "Fixed auth routing" --files src/auth.ts,tests/auth.test.ts
 ```
 
 If shell access is unavailable, the agent should read the fallback context docs from `AGENTS.md`, starting with `TASK_ROUTING.md`, `TOKEN_BUDGET.md`, and `DO_NOT_READ.md`.

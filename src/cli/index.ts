@@ -2,6 +2,7 @@
 import { archiveCommand } from "./commands/archive";
 import { estimateCommand } from "./commands/estimate";
 import { initCommand } from "./commands/init";
+import { logCommand } from "./commands/log";
 import { mapCommand } from "./commands/map";
 import { scanCommand } from "./commands/scan";
 import { startCommand } from "./commands/start";
@@ -21,6 +22,7 @@ const commands: Record<string, CommandHandler> = {
   validate: validateCommand,
   archive: archiveCommand,
   estimate: estimateCommand,
+  log: logCommand,
   map: mapCommand,
   scan: scanCommand,
   start: startCommand,
@@ -41,6 +43,8 @@ Commands:
             Options: --keep <number>, --dry-run
   estimate  Estimate context token costs and rough savings
             Options: --json, --mode <mode>, --task <text>, --compare-naive, --max-files <number>
+  log       Add a durable entry to docs/ai-context/CHANGE_LOG.md
+            Usage: log "<summary>" [--files <path,path>] [--dry-run]
   map       Generate repo-specific context maps
             Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>
   scan      Suggest lightweight context entries from repo layout

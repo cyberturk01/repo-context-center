@@ -2,11 +2,12 @@
 
 Repo Context Center startup.
 
-Before starting a task:
-- If shell access is available, run `npx repo-context-center start "<task>"`.
-- Use output for read-first docs, likely source/tests, risk level, and task instructions.
-- If shell access is unavailable, read `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/MODULE_INDEX.md`, `docs/ai-context/TOKEN_BUDGET.md`, and `docs/ai-context/DO_NOT_READ.md`.
-- Verify source code before editing behavior.
+Before a task:
+- Shell: `npx repo-context-center start "<task>"`.
+- Use output for docs, files, tests, risk, instructions.
+- No shell: read `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/MODULE_INDEX.md`, `docs/ai-context/TOKEN_BUDGET.md`, `docs/ai-context/DO_NOT_READ.md`.
+- Verify source before editing.
+- After meaningful changes: `npx repo-context-center log "<summary>" --files <paths>`.
 
 Read:
 1. `docs/ai-context/COMMUNICATION_MODE.md`

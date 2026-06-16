@@ -54,11 +54,11 @@ test("v0.5 adoption flow generates AGENTS.md task startup guidance", async () =>
     const agents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
 
     assert.match(agents, /Repo Context Center startup\./);
-    assert.match(agents, /Before starting a task:/);
+    assert.match(agents, /Before a task:/);
     assert.match(agents, /npx repo-context-center start "<task>"/);
-    assert.match(agents, /If shell access is available/);
-    assert.match(agents, /If shell access is unavailable/);
-    assert.match(agents, /Use output for read-first docs, likely source\/tests, risk level, and task instructions\./);
+    assert.match(agents, /Shell:/);
+    assert.match(agents, /No shell: read/);
+    assert.match(agents, /Use output for docs, files, tests, risk, instructions\./);
     assert.match(agents, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(agents, /docs\/ai-context\/MODULE_INDEX\.md/);
     assert.match(agents, /docs\/ai-context\/TOKEN_BUDGET\.md/);

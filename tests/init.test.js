@@ -85,7 +85,7 @@ test("init overwrites existing files with --force", async () => {
     assert.notEqual(content, "custom\n");
     assert.match(content, /Repo Context Center startup\./);
     assert.match(content, /repo-context-center start "<task>"/);
-    assert.match(content, /If shell access is unavailable/);
+    assert.match(content, /No shell: read/);
     assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(content, /docs\/ai-context\/DO_NOT_READ\.md/);
   } finally {
@@ -102,7 +102,7 @@ test("init dry-run does not write files", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Dry run complete/);
     assert.match(result.stdout, /repo-context-center start "<task>"/);
-    assert.match(result.stdout, /If shell access is unavailable/);
+    assert.match(result.stdout, /No shell: read/);
     assert.match(result.stdout, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(result.stdout, /docs\/ai-context\/DO_NOT_READ\.md/);
 

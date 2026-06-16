@@ -72,7 +72,8 @@ test("AGENTS template keeps low-token startup references", async () => {
   const content = await readFile(path.join(templateRoot, "AGENTS.md"), "utf8");
 
   assert.match(content, /repo-context-center start "<task>"/);
-  assert.match(content, /If shell access is unavailable/);
+  assert.match(content, /repo-context-center log "<summary>"/);
+  assert.match(content, /No shell: read/);
   assert.match(content, /TOKEN_BUDGET\.md/);
   assert.match(content, /DO_NOT_READ\.md/);
   assert.match(content, /TASK_ROUTING\.md/);
@@ -131,7 +132,8 @@ test("generated AGENTS template keeps core startup rules", async () => {
   const content = await readFile(path.join(distTemplateRoot, "AGENTS.md"), "utf8");
 
   assert.match(content, /repo-context-center start "<task>"/);
-  assert.match(content, /If shell access is unavailable/);
+  assert.match(content, /repo-context-center log "<summary>"/);
+  assert.match(content, /No shell: read/);
   assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
   assert.match(content, /docs\/ai-context\/DO_NOT_READ\.md/);
   assert.match(content, /Code is source of truth\./);

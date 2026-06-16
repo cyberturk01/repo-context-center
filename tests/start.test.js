@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdir, mkdtemp, rm, writeFile } = require("node:fs/promises");
+const { mkdir, mkdtemp, readFile, rm, writeFile } = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
@@ -21,6 +21,16 @@ async function writeFixtureFile(root, relativePath, content) {
   const fullPath = path.join(root, relativePath);
   await mkdir(path.dirname(fullPath), { recursive: true });
   await writeFile(fullPath, content, "utf8");
+}
+
+async function readFixtureFiles(root, relativePaths) {
+  const contents = {};
+
+  for (const relativePath of relativePaths) {
+    contents[relativePath] = await readFile(path.join(root, relativePath), "utf8");
+  }
+
+  return contents;
 }
 
 async function withStartRepo(callback) {
@@ -105,6 +115,26 @@ test("start default output is unchanged when --copy is omitted", async () => {
     assert.equal(defaultResult.status, 0);
     assert.equal(defaultResult.stderr, "");
     assert.equal(defaultResult.stdout, withMaxFilesResult.stdout);
+  });
+});
+
+test("start does not rewrite agent context files", async () => {
+  await withStartRepo(async (tempDir) => {
+    const contextFiles = [
+      "AGENTS.md",
+      "docs/ai-context/TASK_ROUTING.md",
+      "docs/ai-context/MODULE_INDEX.md",
+      "docs/ai-context/RISK_REGISTER.md",
+      "docs/ai-context/HOTSPOTS.md"
+    ];
+    const before = await readFixtureFiles(tempDir, contextFiles);
+
+    const result = runCli(["start", "fix auth bug"], { cwd: tempDir });
+    const after = await readFixtureFiles(tempDir, contextFiles);
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.deepEqual(after, before);
   });
 });
 
