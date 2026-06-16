@@ -111,6 +111,28 @@ function formatFiles(files: string[]): string {
   return files.map(escapeCell).join(", ");
 }
 
+function normalizeText(value: string): string {
+  return value.trim();
+}
+
+function normalizeFiles(value: string): string {
+  return value.split(",").map((file) => file.trim()).filter(Boolean).join(", ");
+}
+
+function isDuplicateDecision(entries: DecisionEntry[], options: DecisionAddOptions): boolean {
+  const decision = normalizeText(options.decision);
+  const reason = normalizeText(options.reason);
+  const status = normalizeText(unescapeCell(formatStatus(options.status)));
+  const files = normalizeFiles(unescapeCell(formatFiles(options.files)));
+
+  return entries.some((entry) => (
+    normalizeText(entry.decision) === decision
+    && normalizeText(entry.reason) === reason
+    && normalizeText(entry.status) === status
+    && normalizeFiles(entry.files) === files
+  ));
+}
+
 function formatRow(options: DecisionAddOptions): string {
   return [
     "|",
@@ -227,6 +249,11 @@ async function addDecision(io: CliIO, args: string[]): Promise<number> {
   const existing = (await pathExists(targetPath))
     ? await readTextFile(targetPath)
     : defaultDecisionsContent();
+  if (isDuplicateDecision(parseDecisions(existing), options)) {
+    io.stdout(`Decision already exists in ${decisionsPath}\n`);
+    return 0;
+  }
+
   const nextContent = insertDecision(existing, options);
 
   await ensureDir(path.dirname(targetPath));

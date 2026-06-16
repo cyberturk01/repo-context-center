@@ -52,6 +52,10 @@ async function writeDecisions(root) {
   );
 }
 
+function countOccurrences(content, text) {
+  return content.split(text).length - 1;
+}
+
 test("decision add creates DECISIONS.md with a manual decisions table", async () => {
   await withDecisionRepo(async (tempDir) => {
     const result = runCli(tempDir, [
@@ -111,6 +115,111 @@ test("decision add appends rows and preserves existing decisions", async () => {
     assert.match(content, /Document durable decisions/);
     assert.ok(content.indexOf("Keep CLI stable") < content.indexOf("Document durable decisions"));
     assert.ok(content.indexOf("Document durable decisions") < content.indexOf("<!-- repo-context-center:manual-decisions:end -->"));
+  });
+});
+
+test("decision add skips duplicate decisions", async () => {
+  await withDecisionRepo(async (tempDir) => {
+    const args = [
+      "decision",
+      "add",
+      "Keep AGENTS.md compact",
+      "--reason",
+      "Reduce startup token overhead and avoid duplicate guidance",
+      "--files",
+      "AGENTS.md,src/core/repoMapper.ts"
+    ];
+
+    const firstResult = runCli(tempDir, args);
+    const secondResult = runCli(tempDir, args);
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "DECISIONS.md"), "utf8");
+
+    assert.equal(firstResult.status, 0);
+    assert.equal(secondResult.status, 0);
+    assert.equal(secondResult.stdout, "Decision already exists in docs/ai-context/DECISIONS.md\n");
+    assert.equal(countOccurrences(content, "Keep AGENTS.md compact"), 1);
+  });
+});
+
+test("decision add duplicate check ignores extra whitespace", async () => {
+  await withDecisionRepo(async (tempDir) => {
+    await writeFixture(
+      tempDir,
+      "docs/ai-context/DECISIONS.md",
+      [
+        "# Decisions",
+        "",
+        "Durable project decisions preserved across AI sessions.",
+        "",
+        "<!-- repo-context-center:manual-decisions:start -->",
+        "| Date | Decision | Reason | Status | Files |",
+        "| --- | --- | --- | --- | --- |",
+        "| 2026-01-01 |  Keep AGENTS.md compact  |  Reduce startup token overhead  |  Active  |  AGENTS.md , src/core/repoMapper.ts  |",
+        "<!-- repo-context-center:manual-decisions:end -->",
+        ""
+      ].join("\n")
+    );
+
+    const result = runCli(tempDir, [
+      "decision",
+      "add",
+      "Keep AGENTS.md compact",
+      "--reason",
+      "Reduce startup token overhead",
+      "--status",
+      "active",
+      "--files",
+      " AGENTS.md, src/core/repoMapper.ts "
+    ]);
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "DECISIONS.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, "Decision already exists in docs/ai-context/DECISIONS.md\n");
+    assert.equal(countOccurrences(content, "Keep AGENTS.md compact"), 1);
+  });
+});
+
+test("decision add allows the same decision with a different reason", async () => {
+  await withDecisionRepo(async (tempDir) => {
+    await writeDecisions(tempDir);
+
+    const result = runCli(tempDir, [
+      "decision",
+      "add",
+      "Keep AGENTS.md compact",
+      "--reason",
+      "Avoid duplicate guidance",
+      "--files",
+      "AGENTS.md"
+    ]);
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "DECISIONS.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, "Updated docs/ai-context/DECISIONS.md\n");
+    assert.equal(countOccurrences(content, "Keep AGENTS.md compact"), 2);
+    assert.match(content, /Avoid duplicate guidance/);
+  });
+});
+
+test("decision add allows the same decision with different files", async () => {
+  await withDecisionRepo(async (tempDir) => {
+    await writeDecisions(tempDir);
+
+    const result = runCli(tempDir, [
+      "decision",
+      "add",
+      "Keep AGENTS.md compact",
+      "--reason",
+      "Reduce startup token overhead",
+      "--files",
+      "AGENTS.md,src/core/repoMapper.ts"
+    ]);
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "DECISIONS.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, "Updated docs/ai-context/DECISIONS.md\n");
+    assert.equal(countOccurrences(content, "Keep AGENTS.md compact"), 2);
+    assert.match(content, /AGENTS\.md, src\/core\/repoMapper\.ts/);
   });
 });
 
