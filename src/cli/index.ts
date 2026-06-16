@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { archiveCommand } from "./commands/archive";
+import { decisionCommand } from "./commands/decision";
 import { estimateCommand } from "./commands/estimate";
 import { initCommand } from "./commands/init";
 import { logCommand } from "./commands/log";
@@ -21,6 +22,7 @@ const commands: Record<string, CommandHandler> = {
   init: initCommand,
   validate: validateCommand,
   archive: archiveCommand,
+  decision: decisionCommand,
   estimate: estimateCommand,
   log: logCommand,
   map: mapCommand,
@@ -41,6 +43,8 @@ Commands:
             Options: --strict
   archive   Archive older CHANGE_LOG and LESSONS_LEARNED entries
             Options: --keep <number>, --dry-run
+  decision  Add a durable project decision to docs/ai-context/DECISIONS.md
+            Usage: decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
   estimate  Estimate context token costs and rough savings
             Options: --json, --mode <mode>, --task <text>, --compare-naive, --max-files <number>
   log       Add a durable entry to docs/ai-context/CHANGE_LOG.md
