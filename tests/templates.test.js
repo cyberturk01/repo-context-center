@@ -70,22 +70,30 @@ test("generic templates are non-empty and compact", async () => {
 
 test("AGENTS template keeps low-token startup references", async () => {
   const content = await readFile(path.join(templateRoot, "AGENTS.md"), "utf8");
+  const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
 
   assert.match(content, /repo-context-center start "<task>"/);
   assert.match(content, /repo-context-center log "<summary>"/);
   assert.match(content, /No shell: read/);
+  assert.match(content, /Read this file first\./);
+  assert.match(content, /Verify source before editing; keep changes focused\./);
+  assert.match(content, /Run the smallest useful verification\./);
+  assert.match(content, /Do not manually edit generated sections\./);
+  assert.match(noShellLine, /COMMUNICATION_MODE\.md/);
   assert.match(content, /TOKEN_BUDGET\.md/);
   assert.match(content, /DO_NOT_READ\.md/);
   assert.match(content, /TASK_ROUTING\.md/);
-  assert.match(content, /archive\/\*/);
-  assert.match(content, /\.repo-context-center\/config\.json/);
+  assert.doesNotMatch(noShellLine, /MODULE_INDEX\.md/);
+  assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
 });
 
 test("AGENTS template remains startup-only", async () => {
   const content = await readFile(path.join(templateRoot, "AGENTS.md"), "utf8");
   const words = content.trim().split(/\s+/).filter(Boolean);
 
-  assert.ok(words.length < 120, `AGENTS.md has ${words.length} words`);
+  assert.ok(words.length < 80, `AGENTS.md has ${words.length} words`);
+  assert.doesNotMatch(content, /^Read:$/m);
+  assert.doesNotMatch(content, /^Modes:$/m);
   assert.doesNotMatch(content, /# Task Routing/);
   assert.doesNotMatch(content, /# Project Map/);
   assert.doesNotMatch(content, /# Module Index/);
@@ -130,14 +138,20 @@ test("generated AGENTS template avoids verbose meta headings", async () => {
 
 test("generated AGENTS template keeps core startup rules", async () => {
   const content = await readFile(path.join(distTemplateRoot, "AGENTS.md"), "utf8");
+  const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
 
   assert.match(content, /repo-context-center start "<task>"/);
   assert.match(content, /repo-context-center log "<summary>"/);
   assert.match(content, /No shell: read/);
+  assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
   assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
   assert.match(content, /docs\/ai-context\/DO_NOT_READ\.md/);
-  assert.match(content, /Code is source of truth\./);
-  assert.match(content, /Use `TASK_ROUTING\.md` before opening repo files\./);
+  assert.doesNotMatch(noShellLine, /docs\/ai-context\/MODULE_INDEX\.md/);
+  assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
+  assert.match(content, /Read this file first\./);
+  assert.match(content, /Run the smallest useful verification\./);
+  assert.doesNotMatch(content, /^Read:$/m);
+  assert.doesNotMatch(content, /^Modes:$/m);
 });
 
 test("generic template loader exposes the required set", async () => {

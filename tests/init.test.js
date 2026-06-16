@@ -80,14 +80,18 @@ test("init overwrites existing files with --force", async () => {
 
     const result = runInit(tempDir, ["--force"]);
     const content = await readFile(agentsPath, "utf8");
+    const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
 
     assert.equal(result.status, 0);
     assert.notEqual(content, "custom\n");
     assert.match(content, /Repo Context Center startup\./);
     assert.match(content, /repo-context-center start "<task>"/);
     assert.match(content, /No shell: read/);
+    assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(content, /docs\/ai-context\/DO_NOT_READ\.md/);
+    assert.doesNotMatch(noShellLine, /docs\/ai-context\/MODULE_INDEX\.md/);
+    assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -103,8 +107,10 @@ test("init dry-run does not write files", async () => {
     assert.match(result.stdout, /Dry run complete/);
     assert.match(result.stdout, /repo-context-center start "<task>"/);
     assert.match(result.stdout, /No shell: read/);
+    assert.match(result.stdout, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(result.stdout, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(result.stdout, /docs\/ai-context\/DO_NOT_READ\.md/);
+    assert.match(result.stdout, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
 
     for (const file of requiredTemplates) {
       await assert.rejects(() => stat(path.join(tempDir, file)), { code: "ENOENT" });

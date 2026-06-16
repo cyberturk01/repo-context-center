@@ -1877,49 +1877,39 @@ function renderChangeLog(data: RepoMapData): string {
   }]);
 }
 
-function renderAgents(): string {
-  return [
-    "Repo Context Center startup.",
-    "",
-    "Before a task:",
-    "- Shell: `npx repo-context-center start \"<task>\"`.",
-    "- Use output for docs, files, tests, risk, instructions.",
-    "- No shell: read `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/MODULE_INDEX.md`, `docs/ai-context/TOKEN_BUDGET.md`, `docs/ai-context/DO_NOT_READ.md`.",
-    "- Verify source before editing.",
-    "- After meaningful changes: `npx repo-context-center log \"<summary>\" --files <paths>`.",
-    "",
-    "Read:",
-    "1. `docs/ai-context/COMMUNICATION_MODE.md`",
-    "2. `docs/ai-context/TASK_ROUTING.md`",
-    "3. `docs/ai-context/TOKEN_BUDGET.md`",
-    "4. `docs/ai-context/DO_NOT_READ.md`",
-    "",
-    "Use `TASK_ROUTING.md` before opening repo files.",
-    "",
-    "Modes:",
-    "- Compact: default for small localized tasks.",
-    "- Investigation: security/auth, release, migrations, high-risk bugs.",
-    "- Detailed: explicit request or broad cross-module change.",
-    "",
-    "On demand:",
-    "- `MODULE_INDEX.md`",
-    "- `PROJECT_MAP.md`",
-    "- `DEPENDENCY_MAP.md`",
-    "- `RISK_REGISTER.md`",
-    "- `HOTSPOTS.md`",
-    "- `SYMBOL_MAP.md`",
-    "- `LESSONS_LEARNED.md`",
-    "",
-    "Skip:",
-    "- `docs/ai-context/archive/*`",
-    "- paths in `DO_NOT_READ.md`",
-    "- `.repo-context-center/config.json` unless debugging install",
-    "",
-    "Code is source of truth."
-  ].join("\n");
+function manualContentWithoutGeneratedSection(existing: string | undefined): string {
+  if (!existing) {
+    return "";
+  }
+
+  const start = existing.indexOf(generatedStart);
+  const end = existing.indexOf(generatedEnd);
+  if (start === -1 || end === -1 || end <= start) {
+    return existing;
+  }
+
+  return `${existing.slice(0, start)}\n${existing.slice(end + generatedEnd.length)}`;
 }
 
-const renderers: Record<RequiredContextFile, { title: string; render: (data: RepoMapData) => string }> = {
+function renderAgents(_data: RepoMapData, existing?: string): string {
+  const manualHasStartupCommand = manualContentWithoutGeneratedSection(existing).includes(
+    'repo-context-center start "<task>"'
+  );
+  const lines = [
+    "Compact generated entrypoint.",
+    "",
+    "- Generated repo maps live in `docs/ai-context/*`.",
+    "- Keep manual guidance outside generated markers."
+  ];
+
+  if (!manualHasStartupCommand) {
+    lines.splice(2, 0, "- Start tasks with `npx repo-context-center start \"<task>\"` when shell access is available.");
+  }
+
+  return lines.join("\n");
+}
+
+const renderers: Record<RequiredContextFile, { title: string; render: (data: RepoMapData, existing?: string) => string }> = {
   "AGENTS.md": {
     title: "AGENTS.md",
     render: renderAgents
@@ -1985,7 +1975,7 @@ async function buildChanges(cwd: string, data: RepoMapData): Promise<RepoMapChan
     const targetPath = path.join(cwd, file);
     const renderer = renderers[file];
     const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : undefined;
-    const content = upsertGeneratedSection(existing, renderer.title, renderer.render(data));
+    const content = upsertGeneratedSection(existing, renderer.title, renderer.render(data, existing));
     changes.push({
       path: file,
       action: existing === undefined ? "create" : "update",

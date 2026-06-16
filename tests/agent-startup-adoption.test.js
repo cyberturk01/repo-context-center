@@ -52,17 +52,20 @@ test("v0.5 adoption flow generates AGENTS.md task startup guidance", async () =>
     assert.equal(mapResult.status, 0);
 
     const agents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
+    const noShellLine = agents.split("\n").find((line) => line.includes("No shell: read")) ?? "";
 
-    assert.match(agents, /Repo Context Center startup\./);
-    assert.match(agents, /Before a task:/);
+    assert.match(agents, /Compact generated entrypoint\./);
     assert.match(agents, /npx repo-context-center start "<task>"/);
-    assert.match(agents, /Shell:/);
-    assert.match(agents, /No shell: read/);
-    assert.match(agents, /Use output for docs, files, tests, risk, instructions\./);
-    assert.match(agents, /docs\/ai-context\/TASK_ROUTING\.md/);
-    assert.match(agents, /docs\/ai-context\/MODULE_INDEX\.md/);
-    assert.match(agents, /docs\/ai-context\/TOKEN_BUDGET\.md/);
-    assert.match(agents, /docs\/ai-context\/DO_NOT_READ\.md/);
+    assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
+    assert.match(noShellLine, /docs\/ai-context\/TASK_ROUTING\.md/);
+    assert.match(noShellLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
+    assert.match(noShellLine, /docs\/ai-context\/DO_NOT_READ\.md/);
+    assert.doesNotMatch(noShellLine, /docs\/ai-context\/MODULE_INDEX\.md/);
+    assert.match(agents, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
+    assert.match(agents, /Generated repo maps live in `docs\/ai-context\/\*`/);
+    assert.doesNotMatch(agents, /^Before a task:$/m);
+    assert.doesNotMatch(agents, /^Read:$/m);
+    assert.doesNotMatch(agents, /^Modes:$/m);
   });
 });
 

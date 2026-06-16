@@ -33,6 +33,10 @@ function generatedSection(content) {
   return content.slice(start, end + generatedEnd.length);
 }
 
+function countMatches(content, pattern) {
+  return (content.match(pattern) ?? []).length;
+}
+
 async function withMappedRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-map-"));
 
@@ -411,7 +415,7 @@ test("map preserves manual content before and after generated markers", async ()
   });
 });
 
-test("AGENTS.md generated from scratch contains complete compact startup guidance", async () => {
+test("AGENTS.md generated from scratch contains compact startup guidance", async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-map-agents-"));
 
   try {
@@ -422,31 +426,41 @@ test("AGENTS.md generated from scratch contains complete compact startup guidanc
     const generated = generatedSection(content);
 
     assert.equal(result.status, 0);
+    assert.match(generated, /Compact generated entrypoint\./);
     assert.match(generated, /repo-context-center start "<task>"/);
-    assert.match(generated, /repo-context-center log "<summary>"/);
-    assert.match(generated, /No shell: read/);
-    assert.match(generated, /COMMUNICATION_MODE\.md/);
-    assert.match(generated, /TASK_ROUTING\.md/);
-    assert.match(generated, /TOKEN_BUDGET\.md/);
-    assert.match(generated, /DO_NOT_READ\.md/);
-    assert.match(generated, /Compact: default/);
-    assert.match(generated, /Investigation: security\/auth/);
-    assert.match(generated, /Detailed: explicit request/);
-    assert.match(generated, /MODULE_INDEX\.md/);
-    assert.match(generated, /PROJECT_MAP\.md/);
-    assert.match(generated, /DEPENDENCY_MAP\.md/);
-    assert.match(generated, /RISK_REGISTER\.md/);
-    assert.match(generated, /HOTSPOTS\.md/);
-    assert.match(generated, /SYMBOL_MAP\.md/);
-    assert.match(generated, /LESSONS_LEARNED\.md/);
-    assert.match(generated, /docs\/ai-context\/archive\/\*/);
-    assert.match(generated, /paths in `DO_NOT_READ\.md`/);
-    assert.match(generated, /\.repo-context-center\/config\.json/);
-    assert.match(generated, /Code is source of truth\./);
+    assert.match(generated, /Generated repo maps live in `docs\/ai-context\/\*`/);
+    assert.match(generated, /Keep manual guidance outside generated markers\./);
+    assert.doesNotMatch(content, /^Before a task:$/m);
+    assert.doesNotMatch(content, /^Read:$/m);
+    assert.doesNotMatch(content, /^Modes:$/m);
     assert.doesNotMatch(generated, /\| Task Type \||src\/api\/main\.py|FastAPI|Repository purpose/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+});
+
+test("AGENTS.md avoids duplicate startup guidance after init and map write", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
+    const generated = generatedSection(content);
+    const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
+
+    assert.equal(result.status, 0);
+    assert.equal(countMatches(content, /repo-context-center start "<task>"/g), 1);
+    assert.match(content, /Read this file first\./);
+    assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
+    assert.match(noShellLine, /docs\/ai-context\/TASK_ROUTING\.md/);
+    assert.match(noShellLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
+    assert.match(noShellLine, /docs\/ai-context\/DO_NOT_READ\.md/);
+    assert.doesNotMatch(noShellLine, /docs\/ai-context\/MODULE_INDEX\.md/);
+    assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
+    assert.match(generated, /Compact generated entrypoint\./);
+    assert.doesNotMatch(generated, /repo-context-center start "<task>"/);
+    assert.doesNotMatch(content, /^Before a task:$/m);
+    assert.doesNotMatch(content, /^Read:$/m);
+    assert.doesNotMatch(content, /^Modes:$/m);
+  });
 });
 
 test("AGENTS.md preserves manual content and updates only generated markers", async () => {
@@ -471,8 +485,11 @@ test("AGENTS.md preserves manual content and updates only generated markers", as
     assert.equal(result.status, 0);
     assert.match(content, /Manual before marker\./);
     assert.match(content, /Manual after marker\./);
-    assert.match(generated, /COMMUNICATION_MODE\.md/);
-    assert.match(generated, /Code is source of truth\./);
+    assert.match(generated, /Compact generated entrypoint\./);
+    assert.match(generated, /docs\/ai-context\/\*/);
+    assert.doesNotMatch(generated, /^Before a task:$/m);
+    assert.doesNotMatch(generated, /^Read:$/m);
+    assert.doesNotMatch(generated, /^Modes:$/m);
     assert.doesNotMatch(content, /old minimal generated content/);
   });
 });
@@ -487,7 +504,7 @@ test("AGENTS.md preserves existing markerless content when adding generated star
 
     assert.equal(result.status, 0);
     assert.match(content, /Manual owner guidance\./);
-    assert.match(generatedSection(content), /TASK_ROUTING\.md/);
+    assert.match(generatedSection(content), /Compact generated entrypoint\./);
   });
 });
 

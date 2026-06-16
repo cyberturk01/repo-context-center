@@ -498,13 +498,15 @@ If the agent can run shell commands, `AGENTS.md` should guide it to run:
 npx repo-context-center start "<task>"
 ```
 
+`AGENTS.md` is intentionally a short entrypoint; task-specific routing stays in the `start` output and `docs/ai-context/*`.
+
 After meaningful changes, it should record the durable task entry:
 
 ```sh
 npx repo-context-center log "Fixed auth routing" --files src/auth.ts,tests/auth.test.ts
 ```
 
-If shell access is unavailable, the agent should read the fallback context docs from `AGENTS.md`, starting with `TASK_ROUTING.md`, `TOKEN_BUDGET.md`, and `DO_NOT_READ.md`.
+If shell access is unavailable, the agent should read the fallback context docs from `AGENTS.md`: `COMMUNICATION_MODE.md`, `TASK_ROUTING.md`, `TOKEN_BUDGET.md`, and `DO_NOT_READ.md`. It should use `MODULE_INDEX.md` only when routing is missing or the task spans modules.
 
 ## Token-Saving Strategy
 
