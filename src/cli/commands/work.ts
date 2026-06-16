@@ -68,6 +68,10 @@ function compactReason(reasons: string[] | undefined): string {
 
 function formatRecommendedFiles(startup: StartupContext): string[] {
   if (startup.likelySourceFiles.length === 0) {
+    if (startup.readFirstDocs.length > 0) {
+      return startup.readFirstDocs.map((file) => `- ${file}`);
+    }
+
     const reason = startup.emptyRecommendationReasons.source
       ? ` ${startup.emptyRecommendationReasons.source}`
       : " Start from RCC context docs before broad search.";
@@ -242,7 +246,7 @@ function formatWorkBrief(startup: StartupContext, memory: string[]): string {
     ...formatList(readFirst, "no RCC context files found; run npx repo-context-center init to install them"),
     "",
     "Next command after meaningful work:",
-    'rcc done "<summary>" --files <files> --verify "<check>"'
+    'rcc done --summary "<summary>" --files "<files>" --verify "<check>"'
   ];
 
   return `${lines.join("\n")}\n`;

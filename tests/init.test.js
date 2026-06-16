@@ -76,7 +76,7 @@ test("init updates existing AGENTS.md without overwriting content", async () => 
     assert.match(content, /Avoid broad repo scanning unless necessary\./);
     assert.match(content, /After coding:/);
     assert.match(content, /Run relevant tests\./);
-    assert.match(content, /Run `rcc done "<summary>" --files <files> --verify "<check>"`\./);
+    assert.match(content, /Run `rcc done --summary "<summary>" --files "<files>" --verify "<check>"`\./);
     assert.match(result.stdout, /Updated file: AGENTS\.md/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -150,7 +150,7 @@ test("init preserves existing AGENTS.md content with --force", async () => {
     assert.match(content, /custom/);
     assert.match(content, /## RCC Workflow/);
     assert.match(content, /Run `rcc work "<task>"`\./);
-    assert.match(content, /Run `rcc done "<summary>" --files <files> --verify "<check>"`\./);
+    assert.match(content, /Run `rcc done --summary "<summary>" --files "<files>" --verify "<check>"`\./);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -165,7 +165,7 @@ test("init dry-run does not write files", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Dry run complete/);
     assert.match(result.stdout, /Run `rcc work "<task>"`\./);
-    assert.match(result.stdout, /Run `rcc done "<summary>" --files <files> --verify "<check>"`\./);
+    assert.match(result.stdout, /Run `rcc done --summary "<summary>" --files "<files>" --verify "<check>"`\./);
     assert.match(result.stdout, /No shell: read/);
     assert.match(result.stdout, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(result.stdout, /docs\/ai-context\/TASK_ROUTING\.md/);

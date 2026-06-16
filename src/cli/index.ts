@@ -46,7 +46,7 @@ Agent workflow:
   work      Print a concise work brief for an AI coding agent
             Usage: work "<task>"
   done      Save lightweight memory after completed agent work
-            Usage: done "<summary>" [--files <path,path>] [--verify "<command/result>"] [--dry-run]
+            Usage: done --summary "<summary>" [--files "<path,path>"] [--verify "<command/result>"] [--dry-run]
 
 Commands:
   init      Install generic context templates and config

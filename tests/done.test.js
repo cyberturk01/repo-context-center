@@ -108,7 +108,7 @@ test("done validates empty summary", async () => {
     const result = runCli(["done", "   "], { cwd: tempDir });
 
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /Usage: rcc done "<summary>"/);
+    assert.match(result.stderr, /Usage: rcc done --summary "<summary>"/);
   });
 });
 

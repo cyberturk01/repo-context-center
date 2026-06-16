@@ -15,7 +15,7 @@ interface DoneOptions {
 const workLogPath = "docs/ai-context/WORK_LOG.md";
 const memoryStart = "<!-- repo-context-center:work-log:start -->";
 const memoryEnd = "<!-- repo-context-center:work-log:end -->";
-const usage = 'Usage: rcc done "<summary>" [--files <path,path>] [--verify "<command/result>"] [--dry-run]';
+const usage = 'Usage: rcc done --summary "<summary>" [--files "<path,path>"] [--verify "<command/result>"] [--dry-run]';
 
 function parseDoneOptions(args: string[]): DoneOptions | undefined {
   let dryRun = false;

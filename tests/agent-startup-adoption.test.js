@@ -58,7 +58,7 @@ test("v0.5 adoption flow generates AGENTS.md task startup guidance", async () =>
     assert.match(agents, /## RCC Workflow/);
     assert.match(agents, /Run `rcc work "<task>"`\./);
     assert.match(agents, /Read the focused context\./);
-    assert.match(agents, /Run `rcc done "<summary>" --files <files> --verify "<check>"`\./);
+    assert.match(agents, /Run `rcc done --summary "<summary>" --files "<files>" --verify "<check>"`\./);
     assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(noShellLine, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(noShellLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);

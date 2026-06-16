@@ -87,7 +87,8 @@ test("work accepts a task string and recommends focused files", async () => {
     assert.match(result.stdout, /Relevant tests or test folders:\n- tests\/auth\/login\.test\.ts/);
     assert.match(result.stdout, /Recent decisions \/ memory:\n- Decision: 2026-06-16 \| Keep login flow server-side/);
     assert.match(result.stdout, /Known risks:\n- high/);
-    assert.match(result.stdout, /Next command after meaningful work:\nrcc done "<summary>" --files <files> --verify "<check>"/);
+    assert.match(result.stdout, /Next command after meaningful work:\nrcc done --summary "<summary>" --files "<files>" --verify "<check>"/);
+    assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
   });
 });
 
@@ -102,7 +103,55 @@ test("work handles missing RCC files gracefully", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Recent decisions \/ memory:\n- none found/);
     assert.match(result.stdout, /Read first:\n- no RCC context files found; run npx repo-context-center init to install them/);
-    assert.match(result.stdout, /rcc done "<summary>" --files <files> --verify "<check>"/);
+    assert.match(result.stdout, /rcc done --summary "<summary>" --files "<files>" --verify "<check>"/);
+    assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work recommends RCC context files when context matches but source is missing", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-context-fallback-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Billing work: read `src/billing/missing.ts`, `tests/billing/missing.test.ts`, and `docs/ai-context/MODULE_INDEX.md`."
+      ].join("\n")
+    );
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/MODULE_INDEX.md",
+      [
+        "# Module Index",
+        "",
+        "| Path | Owns | Read When |",
+        "| --- | --- | --- |",
+        "| `src/billing` | Billing module | billing, invoice work |"
+      ].join("\n")
+    );
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/HOTSPOTS.md",
+      [
+        "# Hotspots",
+        "",
+        "| Hotspot | Why | Safer Move |",
+        "| --- | --- | --- |",
+        "| `src/billing/missing.ts` | Billing changes are sensitive | Read billing context first |"
+      ].join("\n")
+    );
+
+    const result = runCli(["work", "fix billing issue"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Recommended files to inspect first:\n- AGENTS\.md\n- docs\/ai-context\/TASK_ROUTING\.md\n- docs\/ai-context\/MODULE_INDEX\.md\n- docs\/ai-context\/HOTSPOTS\.md/);
+    assert.doesNotMatch(result.stdout, /Recommended files to inspect first:\n- none/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

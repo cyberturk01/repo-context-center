@@ -12,7 +12,7 @@ Before coding:
 
 After coding:
 - Run relevant tests.
-- Run `rcc done "<summary>" --files <files> --verify "<check>"`.
+- Run `rcc done --summary "<summary>" --files "<files>" --verify "<check>"`.
 <!-- repo-context-center:workflow:end -->
 
 - No shell: read `docs/ai-context/COMMUNICATION_MODE.md`, `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/TOKEN_BUDGET.md`, and `docs/ai-context/DO_NOT_READ.md`.
