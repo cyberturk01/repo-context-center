@@ -55,7 +55,10 @@ test("v0.5 adoption flow generates AGENTS.md task startup guidance", async () =>
     const noShellLine = agents.split("\n").find((line) => line.includes("No shell: read")) ?? "";
 
     assert.match(agents, /Compact generated entrypoint\./);
-    assert.match(agents, /rcc work "<task>"/);
+    assert.match(agents, /## RCC Workflow/);
+    assert.match(agents, /Run `rcc work`\./);
+    assert.match(agents, /Read the focused context\./);
+    assert.match(agents, /Run `rcc done --summary "<summary>"`\./);
     assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(noShellLine, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(noShellLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);

@@ -1893,7 +1893,7 @@ function manualContentWithoutGeneratedSection(existing: string | undefined): str
 
 function renderAgents(_data: RepoMapData, existing?: string): string {
   const manualHasStartupCommand = manualContentWithoutGeneratedSection(existing).includes(
-    'rcc work "<task>"'
+    "rcc work"
   );
   const lines = [
     "Compact generated entrypoint.",

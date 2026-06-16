@@ -33,7 +33,11 @@ function formatInstallMessage(
     return `Skipped ${result.type}: ${result.path} already exists\n`;
   }
 
-  const verb = result.action === "overwrite" ? "Overwrote" : "Created";
+  const verb = result.action === "overwrite"
+    ? "Overwrote"
+    : result.action === "update"
+      ? "Updated"
+      : "Created";
   return `${verb} ${result.type}: ${result.path}\n`;
 }
 

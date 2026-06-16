@@ -35,6 +35,10 @@ async function createTempRepo() {
   return mkdtemp(path.join(os.tmpdir(), "repo-context-center-init-"));
 }
 
+function countOccurrences(content, value) {
+  return (content.match(new RegExp(value, "g")) ?? []).length;
+}
+
 test("init installs all generic templates into a temp repo", async () => {
   const tempDir = await createTempRepo();
 
@@ -51,26 +55,87 @@ test("init installs all generic templates into a temp repo", async () => {
   }
 });
 
-test("init does not overwrite existing files", async () => {
+test("init updates existing AGENTS.md without overwriting content", async () => {
   const tempDir = await createTempRepo();
   const agentsPath = path.join(tempDir, "AGENTS.md");
 
   try {
     await mkdir(path.dirname(agentsPath), { recursive: true });
-    await require("node:fs/promises").writeFile(agentsPath, "custom\n", "utf8");
+    await require("node:fs/promises").writeFile(agentsPath, "# Existing Agents\n\nKeep this project-specific guidance.\n", "utf8");
 
     const result = runInit(tempDir);
     const content = await readFile(agentsPath, "utf8");
 
     assert.equal(result.status, 0);
-    assert.equal(content, "custom\n");
-    assert.match(result.stdout, /Skipped file: AGENTS\.md already exists/);
+    assert.match(content, /# Existing Agents/);
+    assert.match(content, /Keep this project-specific guidance\./);
+    assert.match(content, /<!-- repo-context-center:workflow:start -->/);
+    assert.match(content, /Before coding:/);
+    assert.match(content, /Run `rcc work`\./);
+    assert.match(content, /Read the focused context\./);
+    assert.match(content, /Avoid broad repo scanning unless necessary\./);
+    assert.match(content, /After coding:/);
+    assert.match(content, /Run relevant tests\./);
+    assert.match(content, /Run `rcc done --summary "<summary>"`\./);
+    assert.match(result.stdout, /Updated file: AGENTS\.md/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
 });
 
-test("init overwrites existing files with --force", async () => {
+test("init creates AGENTS.md if missing", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    const result = runInit(tempDir);
+    const content = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /# AGENTS\.md/);
+    assert.match(content, /## RCC Workflow/);
+    assert.match(content, /Before coding:/);
+    assert.match(content, /After coding:/);
+    assert.match(result.stdout, /Created file: AGENTS\.md/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init does not duplicate RCC workflow section", async () => {
+  const tempDir = await createTempRepo();
+  const agentsPath = path.join(tempDir, "AGENTS.md");
+
+  try {
+    const first = runInit(tempDir);
+    const second = runInit(tempDir);
+    const content = await readFile(agentsPath, "utf8");
+
+    assert.equal(first.status, 0);
+    assert.equal(second.status, 0);
+    assert.equal(countOccurrences(content, "<!-- repo-context-center:workflow:start -->"), 1);
+    assert.equal(countOccurrences(content, "<!-- repo-context-center:workflow:end -->"), 1);
+    assert.equal(countOccurrences(content, "## RCC Workflow"), 1);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init keeps AGENTS.md workflow concise", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    const result = runInit(tempDir);
+    const content = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
+    const words = content.trim().split(/\s+/).filter(Boolean);
+
+    assert.equal(result.status, 0);
+    assert.ok(words.length <= 95, `AGENTS.md has ${words.length} words`);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init preserves existing AGENTS.md content with --force", async () => {
   const tempDir = await createTempRepo();
   const agentsPath = path.join(tempDir, "AGENTS.md");
 
@@ -80,19 +145,12 @@ test("init overwrites existing files with --force", async () => {
 
     const result = runInit(tempDir, ["--force"]);
     const content = await readFile(agentsPath, "utf8");
-    const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
 
     assert.equal(result.status, 0);
-    assert.notEqual(content, "custom\n");
-    assert.match(content, /Repo Context Center startup\./);
-    assert.match(content, /rcc work "<task>"/);
-    assert.match(content, /repo-context-center work "<task>"/);
-    assert.match(content, /No shell: read/);
-    assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
-    assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
-    assert.match(content, /docs\/ai-context\/DO_NOT_READ\.md/);
-    assert.doesNotMatch(noShellLine, /docs\/ai-context\/MODULE_INDEX\.md/);
-    assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
+    assert.match(content, /custom/);
+    assert.match(content, /## RCC Workflow/);
+    assert.match(content, /Run `rcc work`\./);
+    assert.match(content, /Run `rcc done --summary "<summary>"`\./);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -106,8 +164,8 @@ test("init dry-run does not write files", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Dry run complete/);
-    assert.match(result.stdout, /rcc work "<task>"/);
-    assert.match(result.stdout, /repo-context-center work "<task>"/);
+    assert.match(result.stdout, /Run `rcc work`\./);
+    assert.match(result.stdout, /Run `rcc done --summary "<summary>"`\./);
     assert.match(result.stdout, /No shell: read/);
     assert.match(result.stdout, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(result.stdout, /docs\/ai-context\/TASK_ROUTING\.md/);

@@ -447,7 +447,7 @@ test("AGENTS.md avoids duplicate startup guidance after init and map write", asy
     const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
 
     assert.equal(result.status, 0);
-    assert.equal(countMatches(content, /rcc work "<task>"/g), 1);
+    assert.equal(countMatches(content, /rcc work/g), 1);
     assert.match(content, /Read this file first\./);
     assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(noShellLine, /docs\/ai-context\/TASK_ROUTING\.md/);
@@ -456,7 +456,7 @@ test("AGENTS.md avoids duplicate startup guidance after init and map write", asy
     assert.doesNotMatch(noShellLine, /docs\/ai-context\/MODULE_INDEX\.md/);
     assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
     assert.match(generated, /Compact generated entrypoint\./);
-    assert.doesNotMatch(generated, /rcc work "<task>"/);
+    assert.doesNotMatch(generated, /rcc work/);
     assert.doesNotMatch(content, /^Before a task:$/m);
     assert.doesNotMatch(content, /^Read:$/m);
     assert.doesNotMatch(content, /^Modes:$/m);
