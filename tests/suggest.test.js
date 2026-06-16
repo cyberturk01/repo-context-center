@@ -245,6 +245,22 @@ test("buildStartupContext generates read-first docs and startup instructions", a
   });
 });
 
+test("buildStartupContext recommends decision memory only for relevant tasks", async () => {
+  await withContextRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/DECISIONS.md", "# Decisions\n\n| Date | Decision | Reason | Status | Files |\n");
+
+    const decisionTask = await buildStartupContext(tempDir, "plan architecture refactor strategy");
+    const typoTask = await buildStartupContext(tempDir, "fix typo in README");
+
+    assert.ok(decisionTask.readFirstDocs.includes("docs/ai-context/DECISIONS.md"));
+    assert.ok(decisionTask.reasons.includes("decision memory relevant to architecture/context task"));
+    assert.ok(decisionTask.startupInstructions.some((instruction) => instruction.includes("decision memory relevant to architecture/context task")));
+    assert.ok(!typoTask.readFirstDocs.includes("docs/ai-context/DECISIONS.md"));
+    assert.ok(!typoTask.reasons.includes("decision memory relevant to architecture/context task"));
+  });
+});
+
 test("suggest JSON keeps compatible fields while exposing StartupContext fields", async () => {
   await withContextRepo(async (tempDir) => {
     await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
@@ -261,6 +277,21 @@ test("suggest JSON keeps compatible fields while exposing StartupContext fields"
     assert.ok(suggestion.contextFiles.includes("docs/ai-context/TASK_ROUTING.md"));
     assert.ok(suggestion.readFirstDocs.includes("AGENTS.md"));
     assert.ok(suggestion.startupInstructions.length > 0);
+  });
+});
+
+test("suggest JSON includes decision read-first docs additively without raw scores", async () => {
+  await withContextRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/DECISIONS.md", "# Decisions\n");
+
+    const result = runCli(["suggest", "add decision memory command", "--json"], { cwd: tempDir });
+    const suggestion = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(suggestion.readFirstDocs.includes("docs/ai-context/DECISIONS.md"));
+    assert.ok(suggestion.reasons.includes("decision memory relevant to architecture/context task"));
+    assert.ok(!JSON.stringify(suggestion).includes("score"));
   });
 });
 

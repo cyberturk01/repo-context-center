@@ -90,6 +90,22 @@ async function withStartRepo(callback) {
         "| `src/auth/session.ts` | Session state is easy to regress | Add auth tests |"
       ].join("\n")
     );
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/DECISIONS.md",
+      [
+        "# Decisions",
+        "",
+        "Durable project decisions preserved across AI sessions.",
+        "",
+        "<!-- repo-context-center:manual-decisions:start -->",
+        "| Date | Decision | Reason | Status | Files |",
+        "| --- | --- | --- | --- | --- |",
+        "| 2026-06-16 | Keep AGENTS.md compact | Reduce startup token overhead | Active | AGENTS.md |",
+        "<!-- repo-context-center:manual-decisions:end -->",
+        ""
+      ].join("\n")
+    );
     await writeFixtureFile(tempDir, "src/auth/login.ts", "export function login() {}\n");
     await writeFixtureFile(tempDir, "src/auth/session.ts", "export const session = {};\n");
     await writeFixtureFile(tempDir, "tests/auth/login.test.ts", "test('login', () => {});\n");
@@ -125,6 +141,39 @@ test("start default output is unchanged when --copy is omitted", async () => {
     assert.equal(defaultResult.status, 0);
     assert.equal(defaultResult.stderr, "");
     assert.equal(defaultResult.stdout, withMaxFilesResult.stdout);
+  });
+});
+
+test("start recommends decision memory for decision-related tasks", async () => {
+  await withStartRepo(async (tempDir) => {
+    const result = runCli(["start", "add decision memory command"], { cwd: tempDir });
+    const readFirstDocs = promptSectionItems(result.stdout, "Read first", "Likely source files");
+
+    assert.equal(result.status, 0);
+    assert.ok(readFirstDocs.includes("docs/ai-context/DECISIONS.md"));
+    assert.match(result.stdout, /decision memory relevant to architecture\/context task/);
+    assert.doesNotMatch(result.stdout, /score/i);
+  });
+});
+
+test("start treats decide tasks as decision-memory relevant", async () => {
+  await withStartRepo(async (tempDir) => {
+    const result = runCli(["start", "decide whether to keep compact AGENTS"], { cwd: tempDir });
+    const readFirstDocs = promptSectionItems(result.stdout, "Read first", "Likely source files");
+
+    assert.equal(result.status, 0);
+    assert.ok(readFirstDocs.includes("docs/ai-context/DECISIONS.md"));
+  });
+});
+
+test("start does not recommend decision memory for small unrelated tasks", async () => {
+  await withStartRepo(async (tempDir) => {
+    const result = runCli(["start", "fix typo in README"], { cwd: tempDir });
+    const readFirstDocs = promptSectionItems(result.stdout, "Read first", "Likely source files");
+
+    assert.equal(result.status, 0);
+    assert.ok(!readFirstDocs.includes("docs/ai-context/DECISIONS.md"));
+    assert.doesNotMatch(result.stdout, /decision memory relevant to architecture\/context task/);
   });
 });
 

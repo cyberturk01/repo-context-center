@@ -72,6 +72,21 @@ const workflowKeywords = [
 ];
 const testDiscoveryKeywords = ["test", "unit test", "spec", "failure", "jest", "vitest", "cypress", "e2e"];
 const workflowSupportFiles = ["package.json", "Dockerfile", "railway.json"];
+const decisionsFile = "docs/ai-context/DECISIONS.md";
+const decisionMemoryReason = "decision memory relevant to architecture/context task";
+const decisionMemoryTokens = new Set([
+  "agent",
+  "architecture",
+  "context",
+  "decide",
+  "decision",
+  "framework",
+  "migration",
+  "refactor",
+  "routing",
+  "startup",
+  "strategy"
+]);
 const defaultSuggestMaxFiles = 50;
 const defaultStartMaxSourceFiles = 10;
 const defaultStartMaxTestFiles = 8;
@@ -1014,6 +1029,10 @@ function readFirstDocsFor(files: string[], contextFiles: SuggestContextFile[], r
   return uniqueOrdered(docs);
 }
 
+function shouldReadDecisionMemory(files: string[], taskTokens: string[]): boolean {
+  return files.includes(decisionsFile) && taskTokens.some((token) => decisionMemoryTokens.has(token));
+}
+
 function startupInstructionsFor(startup: Omit<StartupContext, "startupInstructions">): string[] {
   const instructions: string[] = [];
   const hasWorkflowOrDeploymentFiles = startup.likelySourceFiles.some((file) => {
@@ -1030,6 +1049,9 @@ function startupInstructionsFor(startup: Omit<StartupContext, "startupInstructio
   }
   if (startup.readFirstDocs.includes("docs/ai-context/MODULE_INDEX.md")) {
     instructions.push("Use docs/ai-context/MODULE_INDEX.md if routing is insufficient or the task spans modules.");
+  }
+  if (startup.readFirstDocs.includes(decisionsFile)) {
+    instructions.push(`Read ${decisionsFile}; ${decisionMemoryReason}.`);
   }
 
   if (startup.likelySourceFiles.length > 0) {
@@ -1309,6 +1331,9 @@ export async function buildStartupContext(
 
   const uniqueContextFiles = uniqueSorted(contextFiles) as SuggestContextFile[];
   const readFirstDocs = readFirstDocsFor(repoFiles, uniqueContextFiles, routingMatches.length);
+  if (shouldReadDecisionMemory(repoFiles, tokens)) {
+    readFirstDocs.push(decisionsFile);
+  }
   const baseStartupContext: Omit<StartupContext, "startupInstructions"> = {
     task,
     mode,
@@ -1327,6 +1352,7 @@ export async function buildStartupContext(
       riskMatches.length > 0 ? "risk or hotspot guidance matched" : "",
       testRelatedTask ? "test-related task triggered test discovery" : "",
       genericTestFallback ? "generic test-task fallback ranked active test files" : "",
+      readFirstDocs.includes(decisionsFile) ? decisionMemoryReason : "",
       mode === "Investigation" ? "task contains investigation keyword" : "",
       finalRiskLevel === "unknown" ? "insufficient repo signal for risk confidence" : ""
     ].filter(Boolean))
