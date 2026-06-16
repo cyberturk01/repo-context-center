@@ -73,7 +73,47 @@ const workflowKeywords = [
 const testDiscoveryKeywords = ["test", "unit test", "spec", "failure", "jest", "vitest", "cypress", "e2e"];
 const workflowSupportFiles = ["package.json", "Dockerfile", "railway.json"];
 const defaultSuggestMaxFiles = 50;
+const defaultStartMaxSourceFiles = 10;
+const defaultStartMaxTestFiles = 8;
 const activeTestPattern = /\.(test|spec)\.[^.]+$/i;
+const commandTaskKeywords = new Set([
+  "cli",
+  "command",
+  "commands",
+  "flag",
+  "flags",
+  "option",
+  "options",
+  "stdout",
+  "stderr",
+  "usage"
+]);
+const logStyleCommandKeywords = new Set([
+  "decision",
+  "entry",
+  "history",
+  "log",
+  "manual",
+  "memory",
+  "persist",
+  "persistent",
+  "record",
+  "remember"
+]);
+const weakStructuralTokens = new Set([
+  "cli",
+  "command",
+  "commands",
+  "context",
+  "core",
+  "file",
+  "files",
+  "helper",
+  "helpers",
+  "source",
+  "sources",
+  "storage"
+]);
 const stopWords = new Set([
   "a",
   "an",
@@ -175,6 +215,10 @@ function isWorkflowTask(tokens: string[]): boolean {
   return workflowKeywords.some((keyword) => tokens.includes(keyword));
 }
 
+function isCommandTask(tokens: string[]): boolean {
+  return tokens.some((token) => commandTaskKeywords.has(token));
+}
+
 function isTestRelatedTask(task: string): boolean {
   const lowerTask = task.toLowerCase();
   return testDiscoveryKeywords.some((keyword) => {
@@ -228,6 +272,44 @@ function isPackageLockPath(filePath: string): boolean {
 
 function isGithubWorkflowPath(filePath: string): boolean {
   return /^\.github\/workflows\/[^/]+\.(ya?ml)$/i.test(filePath);
+}
+
+function isCliCommandFile(filePath: string): boolean {
+  return /^src\/cli\/commands\/[^/]+\.[^.]+$/i.test(filePath);
+}
+
+function isCliRegistryFile(filePath: string): boolean {
+  return /^src\/cli\/index\.[^.]+$/i.test(filePath);
+}
+
+function isLogStyleCommandTask(tokens: string[]): boolean {
+  return tokens.some((token) => logStyleCommandKeywords.has(token));
+}
+
+function commandTaskScore(filePath: string, tokens: string[], commandTask: boolean): number {
+  if (!commandTask) {
+    return 0;
+  }
+
+  if (isCliRegistryFile(filePath)) {
+    return 96;
+  }
+
+  if (isCliCommandFile(filePath)) {
+    let score = 44;
+    const stem = pathStem(filePath);
+
+    if (tokens.includes(stem)) {
+      score += 36;
+    }
+    if (stem === "log" && isLogStyleCommandTask(tokens)) {
+      score += 48;
+    }
+
+    return score;
+  }
+
+  return 0;
 }
 
 function noisePenalty(filePath: string): number {
@@ -439,6 +521,7 @@ function discoverLikelySourceFiles(
   tokens: string[],
   existingHintMatches: string[],
   includeWorkflowFiles: boolean,
+  includeCommandFiles: boolean,
   maxFiles: number
 ): string[] {
   const tokenSet = new Set(tokens);
@@ -448,17 +531,19 @@ function discoverLikelySourceFiles(
     const info = classifyRepoFile(file);
     let score = 0;
     const matchScore = tokenMatchScore(file, tokenSet);
+    const commandScore = commandTaskScore(file, tokens, includeCommandFiles);
 
     if (includeWorkflowFiles && !hasGithubWorkflowFiles && workflowSupportFiles.includes(file)) {
       return { path: file, score: 0 };
     }
 
     if (info.role === "source") {
-      if (!hintSet.has(file) && matchScore === 0) {
+      if (!hintSet.has(file) && matchScore === 0 && commandScore === 0) {
         return { path: file, score: 0 };
       }
       score += 32;
       score += matchScore;
+      score += commandScore;
     } else if (includeWorkflowFiles && info.role === "workflow") {
       score += 80;
       score += matchScore;
@@ -577,6 +662,7 @@ function reasonsForRecommendedFile(
   existingHintMatches: string[],
   selectedSourceFiles: string[],
   includeWorkflowFiles: boolean,
+  includeCommandFiles: boolean,
   genericTestFallback: boolean
 ): string[] {
   const reasons: string[] = [];
@@ -603,6 +689,17 @@ function reasonsForRecommendedFile(
     addReason(reasons, "workflow task match");
   }
 
+  if (includeCommandFiles) {
+    if (isCliRegistryFile(filePath)) {
+      addReason(reasons, "known CLI command registry");
+    } else if (isCliCommandFile(filePath)) {
+      addReason(reasons, "same command family");
+      if (pathStem(filePath) === "log" && isLogStyleCommandTask(taskTokens)) {
+        addReason(reasons, "similar command file: log-style durable entry");
+      }
+    }
+  }
+
   if (info.role === "test") {
     const pairedReason = pairedSourceReason(filePath, selectedSourceFiles);
     if (pairedReason) {
@@ -626,6 +723,7 @@ function recommendationReasonsFor(
   discoveryTokens: string[],
   existingHintMatches: string[],
   includeWorkflowFiles: boolean,
+  includeCommandFiles: boolean,
   genericTestFallback: boolean
 ): Record<string, string[]> {
   const reasons: Record<string, string[]> = {};
@@ -638,6 +736,7 @@ function recommendationReasonsFor(
       existingHintMatches,
       likelySourceFiles,
       includeWorkflowFiles,
+      includeCommandFiles,
       genericTestFallback
     );
     if (fileReasons.length > 0) {
@@ -653,6 +752,7 @@ function recommendationReasonsFor(
       existingHintMatches,
       likelySourceFiles,
       includeWorkflowFiles,
+      includeCommandFiles,
       genericTestFallback
     );
     if (fileReasons.length > 0) {
@@ -963,6 +1063,111 @@ function startupInstructionsFor(startup: Omit<StartupContext, "startupInstructio
   return instructions;
 }
 
+function pairedSourceFromReason(reason: string): string | undefined {
+  return reason.startsWith("paired with source file: ")
+    ? reason.slice("paired with source file: ".length)
+    : undefined;
+}
+
+function isStrongStartReason(reason: string, taskTokens: Set<string>, retainedSourceFiles?: Set<string>): boolean {
+  if (
+    reason === "same monorepo package scope"
+    || reason === "workflow task match"
+    || reason === "known CLI command registry"
+    || reason.startsWith("similar command file:")
+    || reason === "generic test-task fallback"
+  ) {
+    return true;
+  }
+
+  const filenameStem = /^matched filename stem: (.+)$/.exec(reason);
+  if (filenameStem) {
+    return taskTokens.has(filenameStem[1]);
+  }
+
+  const pairedSource = pairedSourceFromReason(reason);
+  if (pairedSource) {
+    return retainedSourceFiles ? retainedSourceFiles.has(pairedSource) : true;
+  }
+
+  const taskToken = /^matched task token: (.+)$/.exec(reason);
+  return Boolean(taskToken && !weakStructuralTokens.has(taskToken[1]));
+}
+
+function isFocusedCommandSource(filePath: string, taskTokens: Set<string>, commandTask: boolean): boolean {
+  if (!commandTask || !isCliCommandFile(filePath)) {
+    return true;
+  }
+
+  const stem = pathStem(filePath);
+  return taskTokens.has(stem) || (stem === "log" && isLogStyleCommandTask([...taskTokens]));
+}
+
+function hasStrongStartSignal(
+  filePath: string,
+  reasonsByFile: Record<string, string[]>,
+  taskTokens: Set<string>,
+  retainedSourceFiles?: Set<string>
+): boolean {
+  const reasons = reasonsByFile[filePath] ?? [];
+  return reasons.some((reason) => isStrongStartReason(reason, taskTokens, retainedSourceFiles));
+}
+
+function compactReasonsForFiles(
+  retainedFiles: string[],
+  reasonsByFile: Record<string, string[]>
+): Record<string, string[]> {
+  const retained = new Set(retainedFiles);
+  return Object.fromEntries(
+    Object.entries(reasonsByFile).filter(([filePath]) => retained.has(filePath))
+  );
+}
+
+export function focusStartupContextForStart(
+  startupContext: StartupContext,
+  limits: { maxSourceFiles?: number; maxTestFiles?: number } = {}
+): StartupContext {
+  const maxSourceFiles = limits.maxSourceFiles ?? defaultStartMaxSourceFiles;
+  const maxTestFiles = limits.maxTestFiles ?? defaultStartMaxTestFiles;
+  const taskTokens = new Set(tokenize(startupContext.task));
+  const commandTask = isCommandTask([...taskTokens]);
+  const likelySourceFiles = startupContext.likelySourceFiles
+    .filter((filePath) => {
+      return isFocusedCommandSource(filePath, taskTokens, commandTask)
+        && hasStrongStartSignal(filePath, startupContext.recommendationReasons, taskTokens);
+    })
+    .slice(0, maxSourceFiles);
+  const retainedSourceFiles = new Set(likelySourceFiles);
+  const likelyTests = startupContext.likelyTests
+    .filter((filePath) => hasStrongStartSignal(filePath, startupContext.recommendationReasons, taskTokens, retainedSourceFiles))
+    .slice(0, maxTestFiles);
+  const retainedFiles = [...likelySourceFiles, ...likelyTests];
+  const recommendationReasons = compactReasonsForFiles(retainedFiles, startupContext.recommendationReasons);
+  const emptyRecommendationReasons = {
+    ...startupContext.emptyRecommendationReasons
+  };
+
+  if (likelySourceFiles.length === 0 && startupContext.likelySourceFiles.length > 0) {
+    emptyRecommendationReasons.source = "only weak source signals matched; no focused source files were identified.";
+  }
+  if (likelyTests.length === 0 && startupContext.likelyTests.length > 0) {
+    emptyRecommendationReasons.test = "only weak test signals matched; no focused test files were identified.";
+  }
+
+  const focusedContext: Omit<StartupContext, "startupInstructions"> = {
+    ...startupContext,
+    likelySourceFiles,
+    likelyTests,
+    recommendationReasons,
+    emptyRecommendationReasons
+  };
+
+  return {
+    ...focusedContext,
+    startupInstructions: startupInstructionsFor(focusedContext)
+  };
+}
+
 function toContextSuggestion(startupContext: StartupContext): ContextSuggestion {
   return {
     ...startupContext,
@@ -1046,12 +1251,14 @@ export async function buildStartupContext(
 
   const mode = modeForTask(task, tokens);
   const workflowTask = isWorkflowTask(tokens);
+  const commandTask = isCommandTask(tokens);
   const hasGithubWorkflowFiles = repoFiles.some(isGithubWorkflowPath);
   const likelySourceFiles = discoverLikelySourceFiles(
     repoFiles,
     discoveryTokens,
     existingHintMatches,
     workflowTask,
+    commandTask,
     maxFiles
   );
   const genericFallbackMaxTests = options.genericFallbackMaxTests ?? maxFiles;
@@ -1067,6 +1274,7 @@ export async function buildStartupContext(
     discoveryTokens,
     existingHintMatches,
     workflowTask,
+    commandTask,
     genericTestFallback
   );
   const emptyRecommendationReasons = emptyRecommendationReasonsFor(

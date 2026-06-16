@@ -17,6 +17,16 @@ function runCli(args, options = {}) {
   });
 }
 
+function promptSectionItems(output, heading, nextHeading) {
+  const pattern = new RegExp(`${heading}:\\n([\\s\\S]*?)\\n\\n${nextHeading}:`);
+  const match = pattern.exec(output);
+  assert.ok(match, `missing prompt section: ${heading}`);
+  return match[1]
+    .split("\n")
+    .filter((line) => line.startsWith("- "))
+    .map((line) => line.slice(2));
+}
+
 async function writeFixtureFile(root, relativePath, content) {
   const fullPath = path.join(root, relativePath);
   await mkdir(path.dirname(fullPath), { recursive: true });
@@ -221,6 +231,47 @@ test("start includes workflow-aware guidance for GitHub Actions tasks", async ()
     assert.match(result.stdout, /Reasons:\n  - matched parent folder: github\n  - workflow task match/);
     assert.match(result.stdout, /For workflow or deployment changes/);
   });
+});
+
+test("start keeps command task file suggestions focused", () => {
+  const result = runCli(["start", "add decision memory command"]);
+
+  assert.equal(result.status, 0);
+
+  const sourceFiles = promptSectionItems(result.stdout, "Likely source files", "Likely tests");
+  const testFiles = promptSectionItems(result.stdout, "Likely tests", "Risk");
+
+  assert.ok(sourceFiles.includes("src/cli/index.ts"));
+  assert.ok(sourceFiles.includes("src/cli/commands/log.ts"));
+  assert.ok(testFiles.includes("tests/log.test.js"));
+  assert.ok(sourceFiles.length <= 10);
+  assert.ok(testFiles.length <= 8);
+  assert.ok(sourceFiles.filter((filePath) => filePath.startsWith("src/core/")).length <= 1);
+  assert.doesNotMatch(result.stdout, /- src\/core\/[^\n]+\n  Reasons:\n  - matched parent folder: core\n(?!  -)/);
+  assert.doesNotMatch(result.stdout, /score/i);
+});
+
+test("start caps focused source files and tests", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-start-focused-cap-"));
+
+  try {
+    for (let index = 1; index <= 12; index += 1) {
+      await writeFixtureFile(tempDir, `src/auth/file${index}.ts`, `export const file${index} = true;\n`);
+      await writeFixtureFile(tempDir, `tests/auth/file${index}.test.ts`, `test('file${index}', () => {});\n`);
+    }
+
+    const result = runCli(["start", "fix auth bug", "--max-files", "20"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+
+    const sourceFiles = promptSectionItems(result.stdout, "Likely source files", "Likely tests");
+    const testFiles = promptSectionItems(result.stdout, "Likely tests", "Risk");
+
+    assert.equal(sourceFiles.length, 10);
+    assert.equal(testFiles.length, 8);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("start explains missing workflow files instead of recommending package.json", async () => {
