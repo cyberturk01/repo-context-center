@@ -6,13 +6,13 @@ Read this file first.
 ## RCC Workflow
 
 Before coding:
-- Run `rcc work`.
+- Run `rcc work "<task>"`.
 - Read the focused context.
 - Avoid broad repo scanning unless necessary.
 
 After coding:
 - Run relevant tests.
-- Run `rcc done --summary "<summary>"`.
+- Run `rcc done "<summary>" --files <files> --verify "<check>"`.
 <!-- repo-context-center:workflow:end -->
 
 - No shell: read `docs/ai-context/COMMUNICATION_MODE.md`, `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/TOKEN_BUDGET.md`, and `docs/ai-context/DO_NOT_READ.md`.

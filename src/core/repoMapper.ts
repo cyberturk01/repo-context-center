@@ -1905,7 +1905,7 @@ function renderAgents(_data: RepoMapData, existing?: string): string {
   if (!manualHasStartupCommand) {
     lines.splice(2, 0, "- Start tasks with `rcc work \"<task>\"` when shell access is available.");
   }
-  lines.splice(3, 0, "- Save completed-work memory with `rcc done --summary \"<summary>\"`.");
+  lines.splice(3, 0, "- Save completed-work memory with `rcc done \"<summary>\" --files <files> --verify \"<check>\"`.");
 
   return lines.join("\n");
 }

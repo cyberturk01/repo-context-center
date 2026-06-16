@@ -74,12 +74,12 @@ test("AGENTS template keeps low-token startup references", async () => {
 
   assert.match(content, /## RCC Workflow/);
   assert.match(content, /Before coding:/);
-  assert.match(content, /Run `rcc work`\./);
+  assert.match(content, /Run `rcc work "<task>"`\./);
   assert.match(content, /Read the focused context\./);
   assert.match(content, /Avoid broad repo scanning unless necessary\./);
   assert.match(content, /After coding:/);
   assert.match(content, /Run relevant tests\./);
-  assert.match(content, /rcc done --summary "<summary>"/);
+  assert.match(content, /rcc done "<summary>" --files <files> --verify "<check>"/);
   assert.match(content, /No shell: read/);
   assert.match(content, /Read this file first\./);
   assert.match(content, /Verify source; keep changes focused\./);
@@ -148,12 +148,12 @@ test("generated AGENTS template keeps core startup rules", async () => {
 
   assert.match(content, /## RCC Workflow/);
   assert.match(content, /Before coding:/);
-  assert.match(content, /Run `rcc work`\./);
+  assert.match(content, /Run `rcc work "<task>"`\./);
   assert.match(content, /Read the focused context\./);
   assert.match(content, /Avoid broad repo scanning unless necessary\./);
   assert.match(content, /After coding:/);
   assert.match(content, /Run relevant tests\./);
-  assert.match(content, /rcc done --summary "<summary>"/);
+  assert.match(content, /rcc done "<summary>" --files <files> --verify "<check>"/);
   assert.match(content, /No shell: read/);
   assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
   assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);

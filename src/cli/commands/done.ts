@@ -4,27 +4,35 @@ import { pathExists, readTextFile, writeTextFile } from "../../core/fileSystem";
 import type { CliIO } from "../index";
 
 interface DoneOptions {
+  dryRun: boolean;
   files: string[];
   followUps: string;
   risk: string;
   summary: string;
-  tests: string;
+  verify: string;
 }
 
 const workLogPath = "docs/ai-context/WORK_LOG.md";
 const memoryStart = "<!-- repo-context-center:work-log:start -->";
 const memoryEnd = "<!-- repo-context-center:work-log:end -->";
-const usage = 'Usage: repo-context-center done --summary "<summary>" [--tests "<command/result>"] [--risk <level>] [--follow-ups "<notes>"] [--files <path,path>]';
+const usage = 'Usage: rcc done "<summary>" [--files <path,path>] [--verify "<command/result>"] [--dry-run]';
 
 function parseDoneOptions(args: string[]): DoneOptions | undefined {
+  let dryRun = false;
   let followUps = "";
   let risk = "";
   let summary = "";
-  let tests = "";
+  let verify = "";
   const files: string[] = [];
+  const summaryParts: string[] = [];
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+
+    if (arg === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
 
     if (arg === "--summary") {
       const value = args[index + 1];
@@ -36,12 +44,12 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
       continue;
     }
 
-    if (arg === "--tests") {
+    if (arg === "--tests" || arg === "--verify") {
       const value = args[index + 1];
       if (!value) {
         return undefined;
       }
-      tests = value.trim();
+      verify = value.trim();
       index += 1;
       continue;
     }
@@ -76,6 +84,16 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
       continue;
     }
 
+    if (arg.startsWith("--")) {
+      return undefined;
+    }
+
+    summaryParts.push(arg);
+  }
+
+  if (!summary) {
+    summary = summaryParts.join(" ").trim();
+  } else if (summaryParts.length > 0) {
     return undefined;
   }
 
@@ -83,7 +101,7 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
     return undefined;
   }
 
-  return { files, followUps, risk, summary, tests };
+  return { dryRun, files, followUps, risk, summary, verify };
 }
 
 function cleanInline(value: string, maxLength = 300): string {
@@ -150,8 +168,8 @@ function formatEntry(options: DoneOptions, files: string[], timestamp = new Date
     `- Changed files: ${formatFiles(files)}`
   ];
 
-  if (options.tests) {
-    lines.push(`- Tests: ${cleanInline(options.tests)}`);
+  if (options.verify) {
+    lines.push(`- Verification: ${cleanInline(options.verify)}`);
   }
   if (options.risk) {
     lines.push(`- Risk: ${cleanInline(options.risk, 80)}`);
@@ -179,13 +197,13 @@ function appendEntry(content: string, entry: string): string {
 
 function formatSavedMessage(options: DoneOptions, files: string[]): string {
   const lines = [
-    `Saved work memory to ${workLogPath}`,
+    `${options.dryRun ? "Would save" : "Saved"} work memory to ${workLogPath}`,
     `Summary: ${cleanInline(options.summary)}`,
     `Changed files: ${files.length > 0 ? files.slice(0, 10).join(", ") : "not detected"}`
   ];
 
-  if (options.tests) {
-    lines.push(`Tests: ${cleanInline(options.tests)}`);
+  if (options.verify) {
+    lines.push(`Verification: ${cleanInline(options.verify)}`);
   }
   if (options.risk) {
     lines.push(`Risk: ${cleanInline(options.risk, 80)}`);
@@ -209,7 +227,10 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
   const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : defaultContent();
   const nextContent = appendEntry(existing, formatEntry(options, files));
 
-  await writeTextFile(targetPath, nextContent);
+  if (!options.dryRun) {
+    await writeTextFile(targetPath, nextContent);
+  }
+
   io.stdout(formatSavedMessage(options, files));
   return 0;
 }

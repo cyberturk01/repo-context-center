@@ -80,7 +80,7 @@ function countOccurrences(content, text) {
 test("v0.7 release: rcc work exists", async () => {
   const packageJson = JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8"));
   const cliStat = await stat(cliPath);
-  const result = runCli(["work"]);
+  const result = runCli(["work", "inspect release workflow"]);
 
   assert.equal(packageJson.bin.rcc, "dist/cli/index.js");
   assert.equal(cliStat.isFile(), true);
@@ -98,7 +98,7 @@ test("v0.7 release: rcc work produces useful focused output", async () => {
     assert.match(result.stdout, /Relevant tests or test folders:\n- tests\/auth\/login\.test\.ts/);
     assert.match(result.stdout, /Recent decisions \/ memory:\n- Decision: 2026-06-16 \| Keep login server-side/);
     assert.match(result.stdout, /Known risks:\n- high/);
-    assert.match(result.stdout, /Next command after meaningful work:\nrcc done --summary "<summary>"/);
+    assert.match(result.stdout, /Next command after meaningful work:\nrcc done "<summary>" --files <files> --verify "<check>"/);
     assert.doesNotMatch(result.stdout, /score/i);
   });
 });
@@ -112,14 +112,14 @@ test("v0.7 release: rcc work works with missing context files", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Recent decisions \/ memory:\n- none found/);
     assert.match(result.stdout, /Read first:\n- no RCC context files found; run npx repo-context-center init to install them/);
-    assert.match(result.stdout, /rcc done --summary "<summary>"/);
+    assert.match(result.stdout, /rcc done "<summary>" --files <files> --verify "<check>"/);
   });
 });
 
 test("v0.7 release: rcc done creates and appends memory", async () => {
   await withTempRepo("repo-context-center-v07-done-", async (tempDir) => {
-    const first = runCli(["done", "--summary", "Fixed login bug", "--files", "src/auth/login.ts"], { cwd: tempDir });
-    const second = runCli(["done", "--summary", "Added login regression test", "--tests", "npm test -- login"], { cwd: tempDir });
+    const first = runCli(["done", "Fixed login bug", "--files", "src/auth/login.ts"], { cwd: tempDir });
+    const second = runCli(["done", "Added login regression test", "--verify", "npm test -- login"], { cwd: tempDir });
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
 
     assert.equal(first.status, 0);
@@ -129,17 +129,17 @@ test("v0.7 release: rcc done creates and appends memory", async () => {
     assert.match(content, /- Summary: Fixed login bug/);
     assert.match(content, /- Changed files: `src\/auth\/login\.ts`/);
     assert.match(content, /- Summary: Added login regression test/);
-    assert.match(content, /- Tests: npm test -- login/);
+    assert.match(content, /- Verification: npm test -- login/);
     assert.ok(content.indexOf("Fixed login bug") < content.indexOf("Added login regression test"));
   });
 });
 
 test("v0.7 release: rcc done rejects empty summaries", async () => {
   await withTempRepo("repo-context-center-v07-done-empty-", async (tempDir) => {
-    const result = runCli(["done", "--summary", "   "], { cwd: tempDir });
+    const result = runCli(["done", "   "], { cwd: tempDir });
 
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /Usage: repo-context-center done --summary "<summary>"/);
+    assert.match(result.stderr, /Usage: rcc done "<summary>"/);
   });
 });
 
@@ -150,7 +150,7 @@ test("v0.7 release: init creates or updates AGENTS.md", async () => {
 
     assert.equal(created.status, 0);
     assert.match(createdAgents, /## RCC Workflow/);
-    assert.match(createdAgents, /Run `rcc work`\./);
+    assert.match(createdAgents, /Run `rcc work "<task>"`\./);
 
     await writeFixtureFile(tempDir, "AGENTS.md", "# Existing Agents\n\nKeep this guidance.\n");
     const updated = runCli(["init"], { cwd: tempDir });
@@ -160,7 +160,7 @@ test("v0.7 release: init creates or updates AGENTS.md", async () => {
     assert.match(updatedAgents, /# Existing Agents/);
     assert.match(updatedAgents, /Keep this guidance\./);
     assert.match(updatedAgents, /## RCC Workflow/);
-    assert.match(updatedAgents, /Run `rcc done --summary "<summary>"`\./);
+    assert.match(updatedAgents, /Run `rcc done "<summary>" --files <files> --verify "<check>"`\./);
   });
 });
 
@@ -184,8 +184,8 @@ test("v0.7 release: help output shows the new agent workflow clearly", () => {
   assert.equal(result.status, 0);
   assert.match(result.stdout, /Agent workflow:/);
   assert.match(result.stdout, /work\s+Print a concise work brief for an AI coding agent/);
-  assert.match(result.stdout, /Usage: work \["<task>"\] \[--max-files <number>\]/);
+  assert.match(result.stdout, /Usage: work "<task>"/);
   assert.match(result.stdout, /done\s+Save lightweight memory after completed agent work/);
-  assert.match(result.stdout, /Usage: done --summary "<summary>"/);
+  assert.match(result.stdout, /Usage: done "<summary>" \[--files <path,path>\] \[--verify "<command\/result>"\] \[--dry-run\]/);
   assert.ok(result.stdout.indexOf("Agent workflow:") < result.stdout.indexOf("Commands:"));
 });

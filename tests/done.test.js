@@ -34,7 +34,7 @@ async function withDoneRepo(callback) {
 
 test("done creates memory file if missing", async () => {
   await withDoneRepo(async (tempDir) => {
-    const result = runCli(["done", "--summary", "Fixed login redirect bug"], { cwd: tempDir });
+    const result = runCli(["done", "Fixed login redirect bug"], { cwd: tempDir });
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
 
     assert.equal(result.status, 0);
@@ -49,14 +49,14 @@ test("done creates memory file if missing", async () => {
 
 test("done appends new entry", async () => {
   await withDoneRepo(async (tempDir) => {
-    const first = runCli(["done", "--summary", "Fixed login redirect bug"], { cwd: tempDir });
-    const second = runCli(["done", "--summary", "Added coupon redemption tests", "--tests", "npm test -- coupons"], { cwd: tempDir });
+    const first = runCli(["done", "Fixed login redirect bug"], { cwd: tempDir });
+    const second = runCli(["done", "Added coupon redemption tests", "--verify", "npm test -- coupons"], { cwd: tempDir });
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
 
     assert.equal(first.status, 0);
     assert.equal(second.status, 0);
     assert.ok(content.indexOf("Fixed login redirect bug") < content.indexOf("Added coupon redemption tests"));
-    assert.match(content, /- Tests: npm test -- coupons/);
+    assert.match(content, /- Verification: npm test -- coupons/);
   });
 });
 
@@ -79,7 +79,7 @@ test("done preserves existing entries", async () => {
       ].join("\n")
     );
 
-    const result = runCli(["done", "--summary", "Updated routing docs", "--risk", "low"], { cwd: tempDir });
+    const result = runCli(["done", "Updated routing docs", "--risk", "low"], { cwd: tempDir });
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
 
     assert.equal(result.status, 0);
@@ -94,7 +94,7 @@ test("done works without git", async () => {
   await withDoneRepo(async (tempDir) => {
     await writeFixtureFile(tempDir, "src/index.ts", "export const ok = true;\n");
 
-    const result = runCli(["done", "--summary", "Finished non-git task"], { cwd: tempDir });
+    const result = runCli(["done", "Finished non-git task"], { cwd: tempDir });
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
 
     assert.equal(result.status, 0);
@@ -105,10 +105,10 @@ test("done works without git", async () => {
 
 test("done validates empty summary", async () => {
   await withDoneRepo(async (tempDir) => {
-    const result = runCli(["done", "--summary", "   "], { cwd: tempDir });
+    const result = runCli(["done", "   "], { cwd: tempDir });
 
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /Usage: repo-context-center done --summary "<summary>"/);
+    assert.match(result.stderr, /Usage: rcc done "<summary>"/);
   });
 });
 
@@ -116,9 +116,8 @@ test("done output tells agent what was saved", async () => {
   await withDoneRepo(async (tempDir) => {
     const result = runCli([
       "done",
-      "--summary",
       "Updated routing docs",
-      "--tests",
+      "--verify",
       "npm test -- routing",
       "--risk",
       "low",
@@ -132,8 +131,18 @@ test("done output tells agent what was saved", async () => {
     assert.match(result.stdout, /Saved work memory to docs\/ai-context\/WORK_LOG\.md/);
     assert.match(result.stdout, /Summary: Updated routing docs/);
     assert.match(result.stdout, /Changed files: docs\/ai-context\/TASK_ROUTING\.md, AGENTS\.md/);
-    assert.match(result.stdout, /Tests: npm test -- routing/);
+    assert.match(result.stdout, /Verification: npm test -- routing/);
     assert.match(result.stdout, /Risk: low/);
     assert.match(result.stdout, /Follow-ups: Refresh map after docs settle/);
+  });
+});
+
+test("done dry-run does not write work log", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli(["done", "Preview routing docs", "--verify", "npm test -- routing", "--dry-run"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Would save work memory to docs\/ai-context\/WORK_LOG\.md/);
+    await assert.rejects(() => readFile(path.join(tempDir, workLogPath), "utf8"), { code: "ENOENT" });
   });
 });

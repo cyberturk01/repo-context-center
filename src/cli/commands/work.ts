@@ -8,12 +8,12 @@ interface WorkOptions {
   task: string;
 }
 
-const defaultTaskIntent = "Unspecified task";
 const decisionsPath = "docs/ai-context/DECISIONS.md";
 const workLogPath = "docs/ai-context/WORK_LOG.md";
 const lessonsPath = "docs/ai-context/LESSONS_LEARNED.md";
 const changeLogPath = "docs/ai-context/CHANGE_LOG.md";
 const memoryLimit = 3;
+const usage = 'Usage: rcc work "<task>"';
 
 function parseWorkOptions(args: string[]): WorkOptions | undefined {
   let maxFiles = 50;
@@ -39,9 +39,14 @@ function parseWorkOptions(args: string[]): WorkOptions | undefined {
     taskParts.push(arg);
   }
 
+  const task = taskParts.join(" ").trim();
+  if (!task) {
+    return undefined;
+  }
+
   return {
     maxFiles,
-    task: taskParts.join(" ").trim()
+    task
   };
 }
 
@@ -152,25 +157,45 @@ async function readRecentMemory(cwd: string): Promise<string[]> {
   ];
 
   for (const file of memoryFiles) {
-    if (entries.length >= memoryLimit) {
-      break;
-    }
-
     const fullPath = path.join(cwd, file.path);
     if (!(await pathExists(fullPath))) {
       continue;
     }
 
     const content = await readTextFile(fullPath);
-    for (const entry of file.reader(content, memoryLimit)) {
+    for (const entry of file.reader(content, memoryLimit * 3)) {
       entries.push(`${file.label}: ${entry}`);
-      if (entries.length >= memoryLimit) {
-        break;
-      }
     }
   }
 
-  return entries;
+  return dedupeMemory(entries).slice(0, memoryLimit);
+}
+
+function normalizeMemoryEntry(entry: string): string {
+  return entry
+    .replace(/^[^:]+:\s*/, "")
+    .replace(/^\d{4}-\d{2}-\d{2}(?:T[^\s|]+)?\s*\|\s*/, "")
+    .replace(/`/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function dedupeMemory(entries: string[]): string[] {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+
+  for (const entry of entries) {
+    const key = normalizeMemoryEntry(entry);
+    if (!key || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    deduped.push(entry);
+  }
+
+  return deduped;
 }
 
 function riskLines(startup: StartupContext): string[] {
@@ -193,16 +218,13 @@ function riskLines(startup: StartupContext): string[] {
   return lines;
 }
 
-function formatWorkBrief(startup: StartupContext, memory: string[], taskProvided: boolean): string {
-  const taskIntent = taskProvided
-    ? startup.task
-    : `${defaultTaskIntent}; use this brief to choose a focused starting point.`;
+function formatWorkBrief(startup: StartupContext, memory: string[]): string {
   const readFirst = startup.readFirstDocs.slice(0, 4);
   const lines = [
     "repo-context-center work brief",
     "",
     "Task intent:",
-    taskIntent,
+    startup.task,
     "",
     "Recommended files to inspect first:",
     ...formatRecommendedFiles(startup).slice(0, 8),
@@ -220,7 +242,7 @@ function formatWorkBrief(startup: StartupContext, memory: string[], taskProvided
     ...formatList(readFirst, "no RCC context files found; run npx repo-context-center init to install them"),
     "",
     "Next command after meaningful work:",
-    'rcc done --summary "<summary>"'
+    'rcc done "<summary>" --files <files> --verify "<check>"'
   ];
 
   return `${lines.join("\n")}\n`;
@@ -229,11 +251,10 @@ function formatWorkBrief(startup: StartupContext, memory: string[], taskProvided
 export async function workCommand(io: CliIO, args: string[] = []): Promise<number> {
   const options = parseWorkOptions(args);
   if (!options) {
-    io.stderr('Usage: repo-context-center work ["<task>"] [--max-files <number>]\n');
+    io.stderr(`${usage}\n`);
     return 1;
   }
 
-  const taskProvided = options.task.length > 0;
   const startupContext = await buildStartupContext(io.cwd, options.task, {
     maxFiles: options.maxFiles,
     genericFallbackMaxTests: 5
@@ -244,6 +265,6 @@ export async function workCommand(io: CliIO, args: string[] = []): Promise<numbe
   });
   const memory = await readRecentMemory(io.cwd);
 
-  io.stdout(formatWorkBrief(focusedStartupContext, memory, taskProvided));
+  io.stdout(formatWorkBrief(focusedStartupContext, memory));
   return 0;
 }

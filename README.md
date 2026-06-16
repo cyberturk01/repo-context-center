@@ -48,7 +48,6 @@ npx repo-context-center init --force
 The primary v0.7 workflow is intentionally small:
 
 ```sh
-rcc work
 rcc work "fix login bug"
 ```
 
@@ -64,7 +63,7 @@ rcc work "fix login bug"
 After meaningful completed work, the agent records lightweight work memory:
 
 ```sh
-rcc done --summary "fixed login bug"
+rcc done "fixed login bug" --files src/auth/login.ts --verify "npm test -- login"
 ```
 
 If a durable project decision was made, record that separately with the `decision` command described in Advanced Commands.
@@ -254,8 +253,8 @@ Prefer `rcc work` and `rcc done` for new agent workflows.
 ```sh
 repo-context-center --help
 repo-context-center init [--dry-run] [--force] [--github-action]
-repo-context-center work ["<task>"] [--max-files <number>]
-repo-context-center done
+repo-context-center work "<task>"
+repo-context-center done "<summary>" [--files <path,path>] [--verify "<command/result>"] [--dry-run]
 repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <number>]
 repo-context-center validate [--strict]
 repo-context-center archive [--keep <number>] [--dry-run]

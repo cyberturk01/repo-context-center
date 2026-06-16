@@ -70,11 +70,10 @@ test("work runs without arguments", async () => {
   await withWorkRepo(async (tempDir) => {
     const result = runCli(["work"], { cwd: tempDir });
 
-    assert.equal(result.status, 0);
-    assert.equal(result.stderr, "");
-    assert.match(result.stdout, /repo-context-center work brief/);
-    assert.match(result.stdout, /Task intent:\nUnspecified task/);
-    assert.match(result.stdout, /Next command after meaningful work:\nrcc done --summary "<summary>"/);
+    assert.notEqual(result.status, 0);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /^Usage: rcc work "<task>"/);
+    assert.doesNotMatch(result.stdout, /Unspecified task/);
   });
 });
 
@@ -88,6 +87,7 @@ test("work accepts a task string and recommends focused files", async () => {
     assert.match(result.stdout, /Relevant tests or test folders:\n- tests\/auth\/login\.test\.ts/);
     assert.match(result.stdout, /Recent decisions \/ memory:\n- Decision: 2026-06-16 \| Keep login flow server-side/);
     assert.match(result.stdout, /Known risks:\n- high/);
+    assert.match(result.stdout, /Next command after meaningful work:\nrcc done "<summary>" --files <files> --verify "<check>"/);
   });
 });
 
@@ -102,10 +102,33 @@ test("work handles missing RCC files gracefully", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Recent decisions \/ memory:\n- none found/);
     assert.match(result.stdout, /Read first:\n- no RCC context files found; run npx repo-context-center init to install them/);
-    assert.match(result.stdout, /rcc done --summary "<summary>"/);
+    assert.match(result.stdout, /rcc done "<summary>" --files <files> --verify "<check>"/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+});
+
+test("work shows duplicate decisions only once", async () => {
+  await withWorkRepo(async (tempDir) => {
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/DECISIONS.md",
+      [
+        "# Decisions",
+        "",
+        "| Date | Decision | Reason | Status | Files |",
+        "| --- | --- | --- | --- | --- |",
+        "| 2026-06-16 | Keep login flow server-side | Avoid leaking session state | Active | src/auth/login.ts |",
+        "| 2026-06-17 | Keep login flow server-side | Avoid leaking session state | Active | src/auth/login.ts |"
+      ].join("\n")
+    );
+
+    const result = runCli(["work", "fix login bug"], { cwd: tempDir });
+    const matches = result.stdout.match(/Keep login flow server-side/g) ?? [];
+
+    assert.equal(result.status, 0);
+    assert.equal(matches.length, 1);
+  });
 });
 
 test("work output is concise and agent-oriented", async () => {
