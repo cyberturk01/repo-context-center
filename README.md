@@ -23,7 +23,7 @@ Repo Context Center installs and maintains small context files inside your repos
 
 ## Quick Start
 
-Humans only need to initialize the repository:
+Users only need to initialize the repository:
 
 ```sh
 npx repo-context-center init
@@ -125,7 +125,7 @@ Estimates use `ceil(characters / 4)` and are intended for relative comparison on
 
 ## Advanced Commands
 
-Most humans should start with only:
+User should start with only:
 
 ```sh
 npx repo-context-center init
