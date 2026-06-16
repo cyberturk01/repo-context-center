@@ -106,6 +106,9 @@ async function withContextRepo(callback) {
     await writeFixtureFile(tempDir, "tests/ui.test.ts", "test('ui', () => {});\n");
     await writeFixtureFile(tempDir, "tests/auth.test.ts", "test('auth', () => {});\n");
     await writeFixtureFile(tempDir, "tests/auth/authService.test.ts", "test('refresh', () => {});\n");
+    await writeFixtureFile(tempDir, "README.md", "# Fixture\n");
+    await writeFixtureFile(tempDir, "CHANGELOG.md", "# Changelog\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/CHANGE_LOG.md", "# Change Log\n");
 
     return await callback(tempDir);
   } finally {
@@ -258,6 +261,50 @@ test("buildStartupContext recommends decision memory only for relevant tasks", a
     assert.ok(decisionTask.startupInstructions.some((instruction) => instruction.includes("decision memory relevant to architecture/context task")));
     assert.ok(!typoTask.readFirstDocs.includes("docs/ai-context/DECISIONS.md"));
     assert.ok(!typoTask.reasons.includes("decision memory relevant to architecture/context task"));
+  });
+});
+
+test("buildStartupContext treats explicit documentation targets as docs-only work", async () => {
+  await withContextRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/DECISIONS.md", "# Decisions\n");
+
+    const startupContext = await buildStartupContext(
+      tempDir,
+      "Documentation task routing: fix typo in README → README.md"
+    );
+
+    assert.deepEqual(startupContext.likelySourceFiles, ["README.md"]);
+    assert.deepEqual(startupContext.likelyTests, []);
+    assert.equal(startupContext.riskLevel, "low");
+    assert.equal(startupContext.emptyRecommendationReasons.test, "documentation-only change");
+    assert.ok(!startupContext.readFirstDocs.includes("docs/ai-context/DECISIONS.md"));
+    assert.ok(!startupContext.startupInstructions.some((instruction) => instruction.includes("search for nearby test files")));
+  });
+});
+
+test("buildStartupContext recommends changelog documentation targets when present", async () => {
+  await withContextRepo(async (tempDir) => {
+    const startupContext = await buildStartupContext(
+      tempDir,
+      "Check latest 5 git history and update readme file and Changelog.md file"
+    );
+
+    assert.ok(startupContext.likelySourceFiles.includes("README.md"));
+    assert.ok(startupContext.likelySourceFiles.includes("CHANGELOG.md"));
+    assert.equal(startupContext.riskLevel, "low");
+  });
+});
+
+test("buildStartupContext recommends exact docs ai context changelog target", async () => {
+  await withContextRepo(async (tempDir) => {
+    const startupContext = await buildStartupContext(
+      tempDir,
+      "fix typo in docs/ai-context/CHANGE_LOG.md"
+    );
+
+    assert.deepEqual(startupContext.likelySourceFiles, ["docs/ai-context/CHANGE_LOG.md"]);
+    assert.equal(startupContext.riskLevel, "low");
+    assert.equal(startupContext.emptyRecommendationReasons.test, "documentation-only change");
   });
 });
 

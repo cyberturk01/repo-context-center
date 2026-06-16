@@ -109,6 +109,8 @@ async function withStartRepo(callback) {
     await writeFixtureFile(tempDir, "src/auth/login.ts", "export function login() {}\n");
     await writeFixtureFile(tempDir, "src/auth/session.ts", "export const session = {};\n");
     await writeFixtureFile(tempDir, "tests/auth/login.test.ts", "test('login', () => {});\n");
+    await writeFixtureFile(tempDir, "README.md", "# Fixture\n");
+    await writeFixtureFile(tempDir, "CHANGELOG.md", "# Changelog\n");
     await writeFixtureFile(tempDir, ".github/workflows/ci.yml", "name: ci\n");
     await writeFixtureFile(tempDir, ".github/workflows/release.yml", "name: release\n");
     await writeFixtureFile(tempDir, "package.json", "{\"scripts\":{\"ci\":\"npm test\"}}\n");
@@ -174,6 +176,46 @@ test("start does not recommend decision memory for small unrelated tasks", async
     assert.equal(result.status, 0);
     assert.ok(!readFirstDocs.includes("docs/ai-context/DECISIONS.md"));
     assert.doesNotMatch(result.stdout, /decision memory relevant to architecture\/context task/);
+  });
+});
+
+test("start treats explicit README typo routing prompt as low-risk docs-only work", async () => {
+  await withStartRepo(async (tempDir) => {
+    const task = "Documentation task routing: fix typo in README → README.md";
+    const result = runCli(["start", task], { cwd: tempDir });
+    const readFirstDocs = promptSectionItems(result.stdout, "Read first", "Likely source files");
+    const likelySourceFiles = promptSectionItems(result.stdout, "Likely source files", "Likely tests");
+
+    assert.equal(result.status, 0);
+    assert.ok(likelySourceFiles.includes("README.md"));
+    assert.ok(!readFirstDocs.includes("docs/ai-context/DECISIONS.md"));
+    assert.match(result.stdout, /Risk:\nlow/);
+    assert.match(result.stdout, /Likely tests:\n- none\nNo test reason: documentation-only change/);
+    assert.doesNotMatch(result.stdout, /search for nearby test files/);
+    assert.doesNotMatch(result.stdout, /decision memory relevant to architecture\/context task/);
+  });
+});
+
+test("start recommends README for README typo tasks", async () => {
+  await withStartRepo(async (tempDir) => {
+    const result = runCli(["start", "fix typo in README"], { cwd: tempDir });
+    const likelySourceFiles = promptSectionItems(result.stdout, "Likely source files", "Likely tests");
+
+    assert.equal(result.status, 0);
+    assert.ok(likelySourceFiles.includes("README.md"));
+    assert.match(result.stdout, /Risk:\nlow/);
+  });
+});
+
+test("start recommends README and CHANGELOG for documentation update tasks", async () => {
+  await withStartRepo(async (tempDir) => {
+    const result = runCli(["start", "Check latest 5 git history and update readme file and Changelog.md file"], { cwd: tempDir });
+    const likelySourceFiles = promptSectionItems(result.stdout, "Likely source files", "Likely tests");
+
+    assert.equal(result.status, 0);
+    assert.ok(likelySourceFiles.includes("README.md"));
+    assert.ok(likelySourceFiles.includes("CHANGELOG.md"));
+    assert.match(result.stdout, /Risk:\nlow/);
   });
 });
 
