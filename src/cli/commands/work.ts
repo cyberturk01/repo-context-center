@@ -17,10 +17,22 @@ interface TargetedLookupHint {
   path: string;
   term: string;
   reason: string;
+  signal: TargetedLookupSignal;
   confidence: "high" | "medium" | "low";
   score: number;
   index: number;
 }
+
+type TargetedLookupSignal =
+  | "exact-filename-match"
+  | "command-name-match"
+  | "filename-match"
+  | "paired-test"
+  | "task-routing"
+  | "decision-memory"
+  | "work-log"
+  | "path-match"
+  | "semantic-match";
 
 interface WorkRecommendation {
   path: string;
@@ -174,9 +186,16 @@ function tokenize(value: string): string[] {
 }
 
 function targetedLookupTerms(task: string): string[] {
-  return tokenize(task)
+  const filenameTerms = task
+    .toLowerCase()
+    .match(/\b[a-z0-9_-]+\.[a-z0-9][a-z0-9._-]*\b/g) ?? [];
+
+  return [...new Set([
+    ...filenameTerms,
+    ...tokenize(task)
     .filter((token) => token.length > 2)
-    .filter((token) => !lowSignalTaskTerms.has(token));
+    .filter((token) => !lowSignalTaskTerms.has(token))
+  ])];
 }
 
 function compactReason(reasons: string[] | undefined): string {
@@ -279,11 +298,19 @@ function hintConfidence(score: number): TargetedLookupHint["confidence"] {
   return "low";
 }
 
-function makeLookupHint(path: string, term: string, score: number, reason: string, index: number): TargetedLookupHint {
+function makeLookupHint(
+  path: string,
+  term: string,
+  score: number,
+  reason: string,
+  signal: TargetedLookupSignal,
+  index: number
+): TargetedLookupHint {
   return {
     path,
     term,
     reason,
+    signal,
     confidence: hintConfidence(score),
     score,
     index
@@ -306,6 +333,24 @@ function routingReferencedPaths(startup: StartupContext): Set<string> {
   ]);
 }
 
+function sourceToPairedTestStems(files: string[]): Set<string> {
+  const sourceStems = sourceStemMap(files);
+  const stems = new Set<string>();
+
+  for (const file of files) {
+    if (classifyRepoFile(file).role !== "test") {
+      continue;
+    }
+
+    const stem = basenameWithoutExtensions(file);
+    if (sourceStems.has(stem)) {
+      stems.add(stem);
+    }
+  }
+
+  return stems;
+}
+
 function sourceStemMap(files: string[]): Map<string, string> {
   const map = new Map<string, string>();
 
@@ -323,12 +368,82 @@ function sourceStemMap(files: string[]): Map<string, string> {
   return map;
 }
 
+function taskAllowsLockFile(task: string): boolean {
+  return targetedLookupTerms(task).some((term) => [
+    "dependency",
+    "dependencies",
+    "install",
+    "lock",
+    "lockfile",
+    "package",
+    "packages",
+    "script",
+    "scripts",
+    "npm",
+    "pnpm",
+    "yarn",
+    "bun"
+  ].includes(term));
+}
+
+function lookupPenalty(filePath: string, task: string): number {
+  const info = classifyRepoFile(filePath);
+  let penalty = 0;
+
+  if (filePath.startsWith("docs/ai-context/")) {
+    penalty += 70;
+  }
+  if (filePath.startsWith(".repo-context-center/")) {
+    penalty += 70;
+  }
+  if (info.role === "fixture") {
+    penalty += 70;
+  }
+  if (info.role === "snapshot") {
+    penalty += 70;
+  }
+  if (info.role === "generated") {
+    penalty += 70;
+  }
+  if (/\/archive\//i.test(filePath) || filePath.startsWith("archive/") || filePath.startsWith("archives/")) {
+    penalty += 60;
+  }
+  if (isLockFile(filePath) && !taskAllowsLockFile(task)) {
+    penalty += 70;
+  }
+
+  return penalty;
+}
+
+function applyLookupPenalty(hint: TargetedLookupHint, task: string): TargetedLookupHint {
+  const penalty = lookupPenalty(hint.path, task);
+  if (penalty === 0) {
+    return hint;
+  }
+
+  const score = Math.max(0, hint.score - penalty);
+  return {
+    ...hint,
+    score,
+    confidence: hintConfidence(score)
+  };
+}
+
+function chooseBetterHint(left: TargetedLookupHint | undefined, right: TargetedLookupHint): TargetedLookupHint {
+  if (!left || right.score > left.score) {
+    return right;
+  }
+
+  return left;
+}
+
 function bestPathMatch(
   filePath: string,
   terms: string[],
   index: number,
   startupReferenced: Set<string>,
-  sourceStems: Map<string, string>
+  pairedTestStems: Set<string>,
+  task: string
 ): TargetedLookupHint | undefined {
   const lowerPath = filePath.toLowerCase();
   const basenameStem = basenameWithoutExtensions(filePath);
@@ -339,34 +454,45 @@ function bestPathMatch(
   for (const term of terms) {
     let score = 0;
     let reason = "";
+    let signal: TargetedLookupSignal | undefined;
 
     if (path.posix.basename(lowerPath) === term) {
       score = 100;
+      signal = "exact-filename-match";
       reason = `exact filename matched "${term}"`;
     } else if (isCliCommandPath(filePath) && basenameStem === term) {
       score = 94;
+      signal = "command-name-match";
       reason = `matched command name "${term}"`;
-    } else if (classifyRepoFile(filePath).role === "test" && sourceStems.has(basenameStem) && terms.includes(basenameStem)) {
+    } else if (classifyRepoFile(filePath).role === "test" && pairedTestStems.has(basenameStem) && terms.includes(basenameStem)) {
       score = 88;
+      signal = "paired-test";
       reason = `paired test for ${basenameStem} source file`;
     } else if (basenameStem === term) {
       score = 90;
+      signal = "filename-match";
       reason = `matched filename stem "${term}"`;
     } else if (startupReferenced.has(filePath)) {
       score = 76;
+      signal = "task-routing";
       reason = "referenced by task routing guidance";
     } else if (parts.includes(term)) {
       score = parentParts.includes(term) ? 58 : 52;
+      signal = "path-match";
       reason = parentParts.includes(term)
         ? `matched parent folder "${term}"`
         : `matched path segment "${term}"`;
     } else if (lowerPath.includes(term)) {
       score = 38;
+      signal = "path-match";
       reason = `weak path match for "${term}"`;
     }
 
-    if (score > (best?.score ?? 0)) {
-      best = makeLookupHint(filePath, term, score, reason, index);
+    if (score > 0 && signal) {
+      best = chooseBetterHint(best, applyLookupPenalty(
+        makeLookupHint(filePath, term, score, reason, signal, index),
+        task
+      ));
     }
   }
 
@@ -397,20 +523,102 @@ async function contentMatch(
   return best && best.matches > 0 ? best : undefined;
 }
 
-function shouldScanForTargetedLookup(filePath: string): boolean {
+function extractRepoPaths(value: string): string[] {
+  const paths = new Set<string>();
+  const patterns = [
+    /`([^`]+\.[a-z0-9][a-z0-9.-]*)`/gi,
+    /\b((?:src|app|lib|tests?|docs|\.github|\.repo-context-center|fixtures|dist|build|coverage|packages|libs)\/[^\s,;|)]+|package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb|tsconfig\.json)\b/gi
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of value.matchAll(pattern)) {
+      const candidate = (match[1] ?? "").replace(/[.,;:)]+$/g, "");
+      if (candidate && !candidate.includes("*")) {
+        paths.add(candidate);
+      }
+    }
+  }
+
+  return [...paths];
+}
+
+async function lookupMemorySignals(cwd: string, terms: string[]): Promise<Map<string, TargetedLookupSignal>> {
+  const signals = new Map<string, TargetedLookupSignal>();
+  const files = [
+    { path: decisionsPath, signal: "decision-memory" as const },
+    { path: workLogPath, signal: "work-log" as const },
+    { path: changeLogPath, signal: "work-log" as const },
+    { path: lessonsPath, signal: "work-log" as const }
+  ];
+
+  for (const file of files) {
+    const fullPath = path.join(cwd, file.path);
+    if (!(await pathExists(fullPath))) {
+      continue;
+    }
+
+    const content = await readTextFile(fullPath);
+    const relevantLines = content
+      .split(/\r?\n/)
+      .filter((line) => terms.some((term) => termPattern(term).test(line)))
+      .slice(-10);
+
+    for (const line of relevantLines) {
+      for (const repoPath of extractRepoPaths(line)) {
+        if (!(await pathExists(path.join(cwd, repoPath)))) {
+          continue;
+        }
+        if (!signals.has(repoPath) || file.signal === "decision-memory") {
+          signals.set(repoPath, file.signal);
+        }
+      }
+    }
+  }
+
+  return signals;
+}
+
+function memoryHint(
+  filePath: string,
+  signal: TargetedLookupSignal,
+  terms: string[],
+  index: number,
+  task: string
+): TargetedLookupHint | undefined {
+  const term = terms.find((candidate) => termPattern(candidate).test(filePath)) ?? terms[0];
+  if (!term) {
+    return undefined;
+  }
+
+  return applyLookupPenalty(makeLookupHint(
+    filePath,
+    term,
+    signal === "decision-memory" ? 70 : 64,
+    signal === "decision-memory"
+      ? "matched recent decision memory"
+      : "matched recent work log",
+    signal,
+    index
+  ), task);
+}
+
+function shouldScanForTargetedLookup(filePath: string, task: string): boolean {
   const info = classifyRepoFile(filePath);
 
-  if (info.isNoise || info.role === "asset" || info.role === "generated" || info.role === "snapshot") {
+  if (info.role === "asset" || filePath.startsWith(".git/") || filePath.includes("/node_modules/") || filePath.startsWith("node_modules/")) {
     return false;
   }
 
-  if (
-    filePath.startsWith(".git/")
-    || filePath.startsWith(".repo-context-center/")
-    || filePath.startsWith("docs/ai-context/")
-    || isLockFile(filePath)
-  ) {
-    return false;
+  if (isLockFile(filePath) && !taskAllowsLockFile(task)) {
+    return true;
+  }
+
+  if (info.isNoise) {
+    return true;
+  }
+
+  if (filePath.startsWith(".repo-context-center/") || filePath.startsWith("docs/ai-context/")) {
+    return true;
   }
 
   return ["source", "test", "workflow", "config", "package", "docs", "unknown"].includes(info.role);
@@ -422,27 +630,40 @@ async function targetedLookupHints(cwd: string, task: string, startup: StartupCo
     return [];
   }
 
-  const repoFiles = (await listFilesRecursive(cwd)).filter(shouldScanForTargetedLookup);
+  const repoFiles = (await listFilesRecursive(cwd)).filter((file) => shouldScanForTargetedLookup(file, task));
   const startupReferenced = routingReferencedPaths(startup);
-  const sourceStems = sourceStemMap(repoFiles);
+  const pairedTestStems = sourceToPairedTestStems(repoFiles);
+  const memorySignals = await lookupMemorySignals(cwd, terms);
   const candidates: TargetedLookupHint[] = [];
 
   for (let index = 0; index < repoFiles.length; index += 1) {
     const filePath = repoFiles[index];
-    let hint = bestPathMatch(filePath, terms, index, startupReferenced, sourceStems);
+    let hint = bestPathMatch(filePath, terms, index, startupReferenced, pairedTestStems, task);
+    const memorySignal = memorySignals.get(filePath);
+    if (memorySignal) {
+      const candidate = memoryHint(filePath, memorySignal, terms, index, task);
+      if (candidate) {
+        hint = chooseBetterHint(hint, candidate);
+      }
+    }
 
     try {
       const content = await contentMatch(cwd, filePath, terms);
       if (content) {
         const contentScore = Math.min(48, 24 + content.matches * 4);
-        if (!hint || contentScore > hint.score) {
-          hint = makeLookupHint(
+        const contentHint = applyLookupPenalty(
+          makeLookupHint(
             filePath,
             content.term,
             contentScore,
             `weak semantic match for "${content.term}"`,
+            "semantic-match",
             index
-          );
+          ),
+          task
+        );
+        if (!hint || contentHint.score > hint.score) {
+          hint = contentHint;
         } else {
           hint.score += Math.min(4, content.matches);
           hint.confidence = hintConfidence(hint.score);
@@ -489,7 +710,7 @@ async function targetedLookupHints(cwd: string, task: string, startup: StartupCo
     });
   const qualityHints = sortedHints.filter((hint) => hint.confidence !== "low");
 
-  return (qualityHints.length >= 3 ? qualityHints : sortedHints).slice(0, targetedLookupLimit);
+  return (qualityHints.length >= targetedLookupLimit ? qualityHints : sortedHints).slice(0, targetedLookupLimit);
 }
 
 function splitMarkdownTableRow(line: string): string[] {
@@ -1113,6 +1334,7 @@ function buildWorkBrief(
       path: hint.path,
       term: hint.term,
       reason: hint.reason,
+      signal: hint.signal,
       confidence: hint.confidence,
       score: hint.score
     })),

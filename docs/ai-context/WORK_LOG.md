@@ -43,4 +43,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Improve rcc work recommended file ranking for task-specific matches
 - Changed files: `src/cli/commands/work.ts`, `src/core/suggester.ts`, `tests/work.test.js`
 - Verification: npm run build; npm test; npm run test:cli; manual node dist/cli/index.js work checks for package scripts, work command, and build configuration
+
+## 2026-06-17T13:01:59.388Z
+- Summary: Improve rcc work targeted lookup hint scoring and JSON signals
+- Changed files: `auto`
+- Verification: npm test; npm run test:cli; node dist/cli/index.js work improve package scripts; node dist/cli/index.js work improve work command lookup hints
 <!-- repo-context-center:work-log:end -->

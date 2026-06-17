@@ -149,6 +149,10 @@ async function withLookupRankingRepo(callback) {
     await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", "- Summary: work command history\n");
     await writeFixtureFile(tempDir, ".repo-context-center/config.json", "{\"work\":true}\n");
     await writeFixtureFile(tempDir, "fixtures/work.ts", "export const fixture = true;\n");
+    await writeFixtureFile(tempDir, "dist/work.js", "export const generated = true;\n");
+    await writeFixtureFile(tempDir, "tests/__snapshots__/work.test.js.snap", "work snapshot\n");
+    await writeFixtureFile(tempDir, "archive/work.ts", "export const archived = true;\n");
+    await writeFixtureFile(tempDir, "package.json", "{\"scripts\":{\"test\":\"node --test\"}}\n");
     await writeFixtureFile(tempDir, "package-lock.json", "{\"name\":\"fixture\"}\n");
 
     return await callback(tempDir);
@@ -286,6 +290,7 @@ test("work --json returns a valid machine-readable brief", async () => {
       hint.path === "src/auth/login.ts"
       && hint.term === "login"
       && hint.reason
+      && hint.signal
       && hint.confidence
       && typeof hint.score === "number"
     )));
@@ -554,6 +559,7 @@ test("work --json ranks exact command hints above folder and weak matches", asyn
       paths.join("\n")
     );
     assert.equal(brief.targetedLookupHints[0].reason, 'matched command name "work"');
+    assert.equal(brief.targetedLookupHints[0].signal, "command-name-match");
     assert.equal(brief.targetedLookupHints[0].confidence, "high");
     assert.equal(typeof brief.targetedLookupHints[0].score, "number");
   });
@@ -572,11 +578,12 @@ test("work --json keeps paired tests near source hints", async () => {
     assert.notEqual(testIndex, -1, paths.join("\n"));
     assert.ok(testIndex - sourceIndex <= 2, paths.join("\n"));
     assert.match(brief.targetedLookupHints[testIndex].reason, /paired test/);
+    assert.equal(brief.targetedLookupHints[testIndex].signal, "paired-test");
     assert.equal(brief.targetedLookupHints[testIndex].confidence, "high");
   });
 });
 
-test("work --json excludes context, generated, fixture, snapshot, lock, and duplicate lookup paths", async () => {
+test("work --json penalizes context, generated, fixture, snapshot, archive, lock, and duplicate lookup paths", async () => {
   await withLookupRankingRepo(async (tempDir) => {
     const result = runCli(["work", "--json", "Improve work command lookup hints"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
@@ -587,9 +594,32 @@ test("work --json excludes context, generated, fixture, snapshot, lock, and dupl
     assert.ok(!paths.some((file) => file.startsWith("docs/ai-context/")), paths.join("\n"));
     assert.ok(!paths.some((file) => file.startsWith(".repo-context-center/")), paths.join("\n"));
     assert.ok(!paths.some((file) => file.startsWith("fixtures/")), paths.join("\n"));
+    assert.ok(!paths.some((file) => file.startsWith("dist/")), paths.join("\n"));
+    assert.ok(!paths.some((file) => file.startsWith("archive/")), paths.join("\n"));
     assert.ok(!paths.some((file) => file.includes("__snapshots__")), paths.join("\n"));
     assert.ok(!paths.includes("package-lock.json"), paths.join("\n"));
-    assert.ok(brief.targetedLookupHints.every((hint) => hint.reason && hint.confidence && typeof hint.score === "number"));
+    assert.ok(brief.targetedLookupHints.every((hint) => (
+      hint.reason
+      && hint.signal
+      && hint.confidence
+      && typeof hint.score === "number"
+    )));
+  });
+});
+
+test("work --json ranks exact filename above weak semantic matches", async () => {
+  await withLookupRankingRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "src/notes/unrelated.ts", "export const text = 'package package package package package';\n");
+
+    const result = runCli(["work", "--json", "improve package scripts"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const paths = brief.targetedLookupHints.map((hint) => hint.path);
+
+    assert.equal(result.status, 0);
+    assert.equal(paths[0], "package.json", paths.join("\n"));
+    assert.equal(brief.targetedLookupHints[0].signal, "filename-match");
+    assert.ok(paths.indexOf("package.json") < paths.indexOf("src/notes/unrelated.ts"), paths.join("\n"));
+    assert.equal(brief.targetedLookupHints.find((hint) => hint.path === "src/notes/unrelated.ts").signal, "semantic-match");
   });
 });
 
