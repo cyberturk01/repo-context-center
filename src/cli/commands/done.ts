@@ -17,6 +17,14 @@ const workLogPath = "docs/ai-context/WORK_LOG.md";
 const memoryStart = "<!-- repo-context-center:work-log:start -->";
 const memoryEnd = "<!-- repo-context-center:work-log:end -->";
 const usage = 'Usage: rcc done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]';
+const helpText = [
+  usage,
+  "",
+  "File modes:",
+  "  --files auto  Detect changed files from git status (default)",
+  "  --files none  Record no changed files",
+  '  --files "<path,path>"  Record explicit comma-separated files'
+].join("\n");
 
 function parseDoneOptions(args: string[]): DoneOptions | undefined {
   let dryRun = false;
@@ -230,7 +238,7 @@ function formatSavedMessage(options: DoneOptions, files: string[]): string {
 
 export async function doneCommand(io: CliIO, args: string[] = []): Promise<number> {
   if (args.length === 1 && (args[0] === "--help" || args[0] === "-h")) {
-    io.stdout(`${usage}\n`);
+    io.stdout(`${helpText}\n`);
     return 0;
   }
 

@@ -186,5 +186,7 @@ test("done help documents auto and none file modes", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /--files auto\|none\|"<path,path>"/);
+    assert.match(result.stdout, /--files auto\s+Detect changed files from git status/);
+    assert.match(result.stdout, /--files none\s+Record no changed files/);
   });
 });

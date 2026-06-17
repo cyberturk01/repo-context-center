@@ -5,12 +5,16 @@ Read this file first.
 <!-- repo-context-center:workflow:start -->
 ## RCC Workflow
 
-Before broad scanning, opening many files, or searching the repository:
-1. Run `rcc work "<task>"`.
-2. Follow the read-first files from the work brief.
-3. For targeted lookup, prefer `rcc find "<keyword>"` before broad grep/search.
-4. Do not replace `rcc work` with manually reading `docs/ai-context` files.
-5. Do not ask the human to run RCC commands.
+For any coding task, the first shell command must be:
+
+`rcc work "<task>"`
+
+- Do not begin repository exploration, manual file reading, or broad searching before running `rcc work`.
+- Follow the read-first files from the work brief.
+- For targeted lookup, prefer `rcc find "<keyword>"` before - broad grep/search.
+- Do not ask the human to run RCC commands.
+- After meaningful changes and verification, run:
+`rcc done --summary "<summary>" --files auto --verify "<checks>"`
 
 After meaningful changes:
 - Run relevant tests.

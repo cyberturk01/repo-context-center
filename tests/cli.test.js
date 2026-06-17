@@ -66,3 +66,29 @@ test("init dispatch creates a basic config", async () => {
     await rm(tempDir, { recursive: true, force: true });
   }
 });
+
+test("rcc decision dispatch records a durable decision", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-cli-decision-"));
+
+  try {
+    const result = runCli([
+      "decision",
+      "add",
+      "Keep CLI decision command covered",
+      "--reason",
+      "Prevent command dispatch regressions",
+      "--files",
+      "tests/cli.test.js"
+    ], { cwd: tempDir });
+    const decisions = await readFile(path.join(tempDir, "docs", "ai-context", "DECISIONS.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, "Updated docs/ai-context/DECISIONS.md\n");
+    assert.match(
+      decisions,
+      /\| \d{4}-\d{2}-\d{2} \| Keep CLI decision command covered \| Prevent command dispatch regressions \| Active \| tests\/cli\.test\.js \|/
+    );
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
