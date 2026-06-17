@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdir, mkdtemp, rm, writeFile } = require("node:fs/promises");
+const { mkdir, mkdtemp, rm, utimes, writeFile } = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
@@ -26,6 +26,55 @@ async function writeFixtureFile(root, relativePath, content) {
   const fullPath = path.join(root, relativePath);
   await mkdir(path.dirname(fullPath), { recursive: true });
   await writeFile(fullPath, content, "utf8");
+}
+
+async function setFixtureMtime(root, relativePath, date) {
+  const fullPath = path.join(root, relativePath);
+  await utimes(fullPath, date, date);
+}
+
+async function withFreshnessRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-freshness-"));
+  const contextDate = new Date("2026-06-17T12:00:00.000Z");
+  const oldDate = new Date("2026-06-17T11:00:00.000Z");
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      "# Task Routing\n\n- CLI work: read `src/index.ts` and `tests/index.test.js`.\n"
+    );
+    await writeFixtureFile(tempDir, "docs/ai-context/MODULE_INDEX.md", "# Module Index\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/PROJECT_MAP.md", "# Project Map\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/CHANGE_LOG.md", [
+      "# Change Log",
+      "",
+      "| Date | Command | Files updated | Reason |",
+      "| --- | --- | --- | --- |",
+      "| 2026-06-17 | `repo-context-center map --write` | 13 context files | generated repo-specific context map |"
+    ].join("\n"));
+    await writeFixtureFile(tempDir, "src/index.ts", "export const ok = true;\n");
+    await writeFixtureFile(tempDir, "tests/index.test.js", "test('ok', () => {});\n");
+    await writeFixtureFile(tempDir, "README.md", "# Fixture\n");
+
+    for (const file of [
+      "AGENTS.md",
+      "docs/ai-context/TASK_ROUTING.md",
+      "docs/ai-context/MODULE_INDEX.md",
+      "docs/ai-context/PROJECT_MAP.md",
+      "docs/ai-context/CHANGE_LOG.md"
+    ]) {
+      await setFixtureMtime(tempDir, file, contextDate);
+    }
+    for (const file of ["src/index.ts", "tests/index.test.js", "README.md"]) {
+      await setFixtureMtime(tempDir, file, oldDate);
+    }
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 }
 
 async function withWorkRepo(callback) {
@@ -90,7 +139,7 @@ test("work accepts a task string and recommends focused files", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Task intent:\nfix login bug/);
-    assert.match(result.stdout, /Map freshness:\n- (fresh|stale)\. /);
+    assert.match(result.stdout, /Map freshness:\nStatus: (fresh|maybe_stale|stale|unknown)\nScore: \d+\/100\nReason: /);
     assert.match(result.stdout, /Recommended files to inspect first:\n- src\/auth\/login\.ts/);
     assert.match(result.stdout, /Relevant tests or test folders:\n- tests\/auth\/login\.test\.ts/);
     assert.match(result.stdout, /Relevant decisions:\n- 2026-06-16 \| Keep login flow server-side/);
@@ -132,7 +181,10 @@ test("work --json returns a valid machine-readable brief", async () => {
       ]
     );
     assert.equal(typeof brief.mapFreshness.status, "string");
-    assert.match(brief.mapFreshness.message, /^(fresh|stale)\. /);
+    assert.equal(typeof brief.mapFreshness.score, "number");
+    assert.equal(typeof brief.mapFreshness.reason, "string");
+    assert.ok("latestContextUpdate" in brief.mapFreshness);
+    assert.ok("latestRelevantSourceChange" in brief.mapFreshness);
     assert.ok(brief.recommendedFiles.some((file) => file.path === "src/auth/login.ts"));
     assert.ok(brief.relevantTests.some((file) => file.path === "tests/auth/login.test.ts"));
     assert.ok(brief.targetedLookupHints.some((hint) => (
@@ -156,7 +208,8 @@ test("work handles missing RCC files gracefully", async () => {
     const result = runCli(["work", "unknown task"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Map freshness:\n- unknown\. run npx repo-context-center init to generate context\./);
+    assert.match(result.stdout, /Map freshness:\nStatus: unknown\nScore: 0\/100\nReason: Run npx repo-context-center init to generate context\./);
+    assert.match(result.stdout, /Recommended:\nrcc map --write/);
     assert.match(result.stdout, /Relevant decisions:\n- none\. no matching decision was found\./);
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
@@ -183,7 +236,10 @@ test("work --json keeps stable fields when RCC data is missing", async () => {
     assert.equal(result.status, 0);
     assert.equal(result.stderr, "");
     assert.equal(brief.mapFreshness.status, "unknown");
-    assert.match(brief.mapFreshness.message, /^unknown\. run npx repo-context-center init/);
+    assert.equal(brief.mapFreshness.score, 0);
+    assert.match(brief.mapFreshness.reason, /^Run npx repo-context-center init/);
+    assert.equal(brief.mapFreshness.latestContextUpdate, null);
+    assert.equal(brief.mapFreshness.latestRelevantSourceChange, null);
     assert.deepEqual(brief.relevantDecisions, []);
     assert.deepEqual(brief.recentLogs, []);
     assert.deepEqual(brief.readFirst, []);
@@ -195,6 +251,74 @@ test("work --json keeps stable fields when RCC data is missing", async () => {
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+});
+
+test("work reports fresh map freshness when context is newer than repo changes", async () => {
+  await withFreshnessRepo(async (tempDir) => {
+    const result = runCli(["work", "update cli"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Map freshness:\nStatus: fresh\nScore: 100\/100/);
+    assert.match(result.stdout, /Reason: Context is newer than recent source, config, workflow, package, and test changes\./);
+    assert.doesNotMatch(result.stdout, /Recommended:\nrcc map --write/);
+  });
+});
+
+test("work reports stale map freshness when important source files changed", async () => {
+  await withFreshnessRepo(async (tempDir) => {
+    await setFixtureMtime(tempDir, "src/index.ts", new Date("2026-06-17T13:00:00.000Z"));
+
+    const result = runCli(["work", "update cli"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Map freshness:\nStatus: stale\nScore: 35\/100/);
+    assert.match(result.stdout, /Reason: Important source, config, workflow, package, or test files changed after the last context generation\./);
+    assert.match(result.stdout, /Recommended:\nrcc map --write/);
+  });
+});
+
+test("work reports maybe_stale map freshness when unclear repo files changed", async () => {
+  await withFreshnessRepo(async (tempDir) => {
+    await setFixtureMtime(tempDir, "README.md", new Date("2026-06-17T13:00:00.000Z"));
+
+    const result = runCli(["work", "update cli"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Map freshness:\nStatus: maybe_stale\nScore: 68\/100/);
+    assert.match(result.stdout, /Reason: Repository files changed after the last context generation, but their impact on context is unclear\./);
+    assert.match(result.stdout, /Recommended:\nrcc map --write/);
+  });
+});
+
+test("work --json includes structured freshness output", async () => {
+  await withFreshnessRepo(async (tempDir) => {
+    await setFixtureMtime(tempDir, "src/index.ts", new Date("2026-06-17T13:00:00.000Z"));
+
+    const result = runCli(["work", "--json", "update cli"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.mapFreshness.status, "stale");
+    assert.equal(brief.mapFreshness.score, 35);
+    assert.match(brief.mapFreshness.reason, /Important source/);
+    assert.equal(brief.mapFreshness.latestContextUpdate, "2026-06-17T12:00:00.000Z");
+    assert.equal(brief.mapFreshness.latestRelevantSourceChange, "2026-06-17T13:00:00.000Z");
+    assert.deepEqual(brief.mapFreshness.affectedFiles, ["src/index.ts"]);
+    assert.ok(brief.mapFreshness.affectedContextFiles.includes("docs/ai-context/TASK_ROUTING.md"));
+  });
+});
+
+test("work freshness changes after touching a source file", async () => {
+  await withFreshnessRepo(async (tempDir) => {
+    const fresh = JSON.parse(runCli(["work", "--json", "update cli"], { cwd: tempDir }).stdout);
+    assert.equal(fresh.mapFreshness.status, "fresh");
+
+    await setFixtureMtime(tempDir, "src/index.ts", new Date("2026-06-17T13:00:00.000Z"));
+
+    const stale = JSON.parse(runCli(["work", "--json", "update cli"], { cwd: tempDir }).stdout);
+    assert.equal(stale.mapFreshness.status, "stale");
+    assert.ok(stale.mapFreshness.affectedFiles.includes("src/index.ts"));
+  });
 });
 
 test("work output recommends done with auto file detection", async () => {
@@ -316,7 +440,6 @@ test("work output is concise and agent-oriented", async () => {
 
     assert.equal(result.status, 0);
     assert.ok(lines.length <= 50, `work output has ${lines.length} lines`);
-    assert.doesNotMatch(result.stdout, /score/i);
     assert.doesNotMatch(result.stdout, /generate code/i);
     assert.match(result.stdout, /Map freshness:/);
     assert.match(result.stdout, /Recommended files to inspect first:/);

@@ -23,4 +23,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Add JSON output mode to rcc work
 - Changed files: `auto`
 - Verification: npm run build; node --test tests/work.test.js; npm run test:cli; npm test
+
+## 2026-06-17T12:09:51.470Z
+- Summary: Improve rcc work map freshness reporting
+- Changed files: `auto`
+- Verification: npm run build; node --test tests/work.test.js; npm run test:cli; npm test; tests/work.test.js covers touching a source file and observing freshness change
 <!-- repo-context-center:work-log:end -->

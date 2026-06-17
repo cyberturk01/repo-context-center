@@ -94,7 +94,7 @@ test("v0.7 release: rcc work produces useful focused output", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Task intent:\nfix login bug/);
-    assert.match(result.stdout, /Map freshness:\n- (fresh|stale)\. /);
+    assert.match(result.stdout, /Map freshness:\nStatus: (fresh|maybe_stale|stale|unknown)\nScore: \d+\/100\nReason: /);
     assert.match(result.stdout, /Recommended files to inspect first:\n- src\/auth\/login\.ts/);
     assert.match(result.stdout, /Relevant tests or test folders:\n- tests\/auth\/login\.test\.ts/);
     assert.match(result.stdout, /Relevant decisions:\n- 2026-06-16 \| Keep login server-side/);
@@ -104,7 +104,6 @@ test("v0.7 release: rcc work produces useful focused output", async () => {
     assert.match(result.stdout, /Fast lookup:\n- For targeted lookup, use: rcc find "<keyword>"/);
     assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
-    assert.doesNotMatch(result.stdout, /score/i);
   });
 });
 
@@ -115,7 +114,8 @@ test("v0.7 release: rcc work works with missing context files", async () => {
     const result = runCli(["work", "small change"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Map freshness:\n- unknown\. run npx repo-context-center init to generate context\./);
+    assert.match(result.stdout, /Map freshness:\nStatus: unknown\nScore: 0\/100\nReason: Run npx repo-context-center init to generate context\./);
+    assert.match(result.stdout, /Recommended:\nrcc map --write/);
     assert.match(result.stdout, /Relevant decisions:\n- none\. no matching decision was found\./);
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);

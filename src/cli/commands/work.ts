@@ -1,5 +1,6 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
+import { requiredContextFiles } from "../../core/contextFiles";
 import { classifyRepoFile } from "../../core/repoFileClassifier";
 import { listFilesRecursive, pathExists, readTextFile } from "../../core/fileSystem";
 import { buildStartupContext, focusStartupContextForStart, type StartupContext } from "../../core/suggester";
@@ -24,7 +25,13 @@ interface WorkRecommendation {
 }
 
 interface WorkMapFreshness {
-  status: "fresh" | "stale" | "unknown";
+  status: "fresh" | "maybe_stale" | "stale" | "unknown";
+  score: number;
+  reason: string;
+  latestContextUpdate: string | null;
+  latestRelevantSourceChange: string | null;
+  affectedFiles: string[];
+  affectedContextFiles: string[];
   message: string;
 }
 
@@ -53,22 +60,13 @@ const lessonsPath = "docs/ai-context/LESSONS_LEARNED.md";
 const changeLogPath = "docs/ai-context/CHANGE_LOG.md";
 const logLimit = 3;
 const decisionLimit = 3;
-const targetedLookupLimit = 5;
+const targetedLookupLimit = 8;
 const targetedContentReadLimit = 64 * 1024;
 const usage = 'Usage: rcc work "<task>" [--json] [--max-files <number>]';
 const nextCommand = 'rcc done --summary "<summary>" --files auto --verify "<check>"';
-const contextFiles = [
-  "AGENTS.md",
-  "docs/ai-context/TASK_ROUTING.md",
-  "docs/ai-context/MODULE_INDEX.md",
-  "docs/ai-context/PROJECT_MAP.md",
-  "docs/ai-context/RISK_REGISTER.md",
-  "docs/ai-context/DEPENDENCY_MAP.md",
-  "docs/ai-context/SYMBOL_MAP.md",
-  "docs/ai-context/TOKEN_BUDGET.md",
-  "docs/ai-context/DO_NOT_READ.md",
-  "docs/ai-context/HOTSPOTS.md"
-];
+const freshnessAffectedFileLimit = 5;
+const freshnessImportantRoles = new Set(["source", "test", "workflow", "config", "package"]);
+const contextFiles = requiredContextFiles;
 const lowSignalTaskTerms = new Set([
   "add",
   "bug",
@@ -512,45 +510,143 @@ async function fileMtimeMs(cwd: string, filePath: string): Promise<number | unde
   }
 }
 
-async function mapFreshnessLine(cwd: string): Promise<string> {
-  const existingContextTimes = (await Promise.all(contextFiles.map((file) => fileMtimeMs(cwd, file))))
-    .filter((value): value is number => typeof value === "number");
+function isoFromMs(value: number | undefined): string | null {
+  return typeof value === "number" ? new Date(value).toISOString() : null;
+}
 
-  if (existingContextTimes.length === 0) {
-    return "unknown. run npx repo-context-center init to generate context.";
+function statusMessage(freshness: Omit<WorkMapFreshness, "message">): string {
+  return `${freshness.status}. ${freshness.reason}`;
+}
+
+function parsedMapGeneratedAt(content: string): number | undefined {
+  const generatedRow = content
+    .split(/\r?\n/)
+    .map((line) => splitMarkdownTableRow(line))
+    .find((cells) => cells.length >= 4 && cells[1] === "repo-context-center map --write");
+
+  const date = generatedRow?.[0];
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return undefined;
   }
 
-  const contextTime = Math.max(...existingContextTimes);
+  const parsed = Date.parse(`${date}T00:00:00.000Z`);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+async function contextFileUpdate(cwd: string, filePath: string): Promise<{ path: string; time: number } | undefined> {
+  const mtime = await fileMtimeMs(cwd, filePath);
+  if (mtime === undefined) {
+    return undefined;
+  }
+
+  if (filePath !== changeLogPath) {
+    return { path: filePath, time: mtime };
+  }
+
+  try {
+    const metadataTime = parsedMapGeneratedAt(await readTextFile(path.join(cwd, filePath)));
+    return { path: filePath, time: Math.max(mtime, metadataTime ?? 0) };
+  } catch {
+    return { path: filePath, time: mtime };
+  }
+}
+
+function isFreshnessRelevantRepoFile(filePath: string): boolean {
+  if (filePath.startsWith(".git/") || filePath.startsWith("docs/ai-context/archive/")) {
+    return false;
+  }
+
+  const info = classifyRepoFile(filePath);
+  return !info.isNoise && info.role !== "asset" && info.role !== "generated" && !contextFiles.includes(filePath as typeof contextFiles[number]);
+}
+
+function isImportantFreshnessFile(filePath: string): boolean {
+  return freshnessImportantRoles.has(classifyRepoFile(filePath).role);
+}
+
+async function assessMapFreshness(cwd: string): Promise<WorkMapFreshness> {
+  const contextUpdates = (await Promise.all(contextFiles.map((file) => contextFileUpdate(cwd, file))))
+    .filter((value): value is { path: string; time: number } => value !== undefined);
+
+  if (contextUpdates.length === 0) {
+    const base = {
+      status: "unknown" as const,
+      score: 0,
+      reason: "Run npx repo-context-center init to generate context.",
+      latestContextUpdate: null,
+      latestRelevantSourceChange: null,
+      affectedFiles: [],
+      affectedContextFiles: []
+    };
+    return { ...base, message: statusMessage(base) };
+  }
+
+  const latestContext = contextUpdates.reduce((latest, entry) => entry.time > latest.time ? entry : latest);
   const repoFiles = await listFilesRecursive(cwd);
-  const sourceTimes = (await Promise.all(repoFiles
-    .filter((file) => {
-      const role = classifyRepoFile(file).role;
-      return role === "source" || role === "test";
-    })
-    .map((file) => fileMtimeMs(cwd, file))))
-    .filter((value): value is number => typeof value === "number");
-  const latestSourceTime = sourceTimes.length > 0 ? Math.max(...sourceTimes) : 0;
+  const relevantChanges = (await Promise.all(repoFiles
+    .filter(isFreshnessRelevantRepoFile)
+    .map(async (file) => {
+      const time = await fileMtimeMs(cwd, file);
+      return time === undefined ? undefined : { path: file, time };
+    })))
+    .filter((value): value is { path: string; time: number } => value !== undefined);
+  const newerChanges = relevantChanges
+    .filter((entry) => entry.time > latestContext.time + 1000)
+    .sort((left, right) => right.time - left.time || left.path.localeCompare(right.path));
+  const importantChanges = newerChanges.filter((entry) => isImportantFreshnessFile(entry.path));
+  const latestRelevantSource = newerChanges[0] ?? relevantChanges
+    .sort((left, right) => right.time - left.time || left.path.localeCompare(right.path))[0];
 
-  if (latestSourceTime > contextTime + 1000) {
-    return "stale. source files changed after context generation.";
+  if (importantChanges.length > 0) {
+    const base = {
+      status: "stale" as const,
+      score: 35,
+      reason: "Important source, config, workflow, package, or test files changed after the last context generation.",
+      latestContextUpdate: isoFromMs(latestContext.time),
+      latestRelevantSourceChange: isoFromMs(latestRelevantSource?.time),
+      affectedFiles: importantChanges.slice(0, freshnessAffectedFileLimit).map((entry) => entry.path),
+      affectedContextFiles: contextUpdates.map((entry) => entry.path)
+    };
+    return { ...base, message: statusMessage(base) };
   }
 
-  return "fresh. generated context is available.";
+  if (newerChanges.length > 0) {
+    const base = {
+      status: "maybe_stale" as const,
+      score: 68,
+      reason: "Repository files changed after the last context generation, but their impact on context is unclear.",
+      latestContextUpdate: isoFromMs(latestContext.time),
+      latestRelevantSourceChange: isoFromMs(latestRelevantSource?.time),
+      affectedFiles: newerChanges.slice(0, freshnessAffectedFileLimit).map((entry) => entry.path),
+      affectedContextFiles: contextUpdates.map((entry) => entry.path)
+    };
+    return { ...base, message: statusMessage(base) };
+  }
+
+  const base = {
+    status: "fresh" as const,
+    score: 100,
+    reason: "Context is newer than recent source, config, workflow, package, and test changes.",
+    latestContextUpdate: isoFromMs(latestContext.time),
+    latestRelevantSourceChange: isoFromMs(latestRelevantSource?.time),
+    affectedFiles: [],
+    affectedContextFiles: contextUpdates.map((entry) => entry.path)
+  };
+  return { ...base, message: statusMessage(base) };
 }
 
-function normalizeMapFreshness(value: string): WorkMapFreshness {
-  if (value.startsWith("fresh.")) {
-    return { status: "fresh", message: value };
-  }
-  if (value.startsWith("stale.")) {
-    return { status: "stale", message: value };
+function mapFreshnessLines(mapFreshness: WorkMapFreshness): string[] {
+  const lines = [
+    `Status: ${mapFreshness.status}`,
+    `Score: ${mapFreshness.score}/100`,
+    `Reason: ${mapFreshness.reason}`
+  ];
+
+  if (mapFreshness.status !== "fresh") {
+    lines.push("", "Recommended:", "rcc map --write");
   }
 
-  return { status: "unknown", message: value || "unknown" };
-}
-
-function formatMapFreshness(mapFreshness: WorkMapFreshness): string {
-  return mapFreshness.message || mapFreshness.status || "unknown";
+  return lines;
 }
 
 function riskLines(startup: StartupContext): string[] {
@@ -593,7 +689,7 @@ function renderWorkBriefLines(brief: WorkBrief): string[] {
     brief.task,
     "",
     "Map freshness:",
-    `- ${formatMapFreshness(brief.mapFreshness)}`,
+    ...mapFreshnessLines(brief.mapFreshness),
     "",
     "Recommended files to inspect first:",
     ...formatRecommendedFiles(brief.startupContext).slice(0, 8),
@@ -655,14 +751,14 @@ function buildBriefWithTokenEstimate(brief: WorkBrief): WorkBrief {
 
 function buildWorkBrief(
   startup: StartupContext,
-  mapFreshness: string,
+  mapFreshness: WorkMapFreshness,
   decisions: string[],
   logs: string[],
   lookupHints: TargetedLookupHint[]
 ): WorkBrief {
   const brief: WorkBrief = {
     task: startup.task,
-    mapFreshness: normalizeMapFreshness(mapFreshness),
+    mapFreshness,
     routingGuidance: startup.startupInstructions,
     startupContext: startup,
     recommendedFiles: recommendationItems(startup.likelySourceFiles, startup),
@@ -701,7 +797,7 @@ export async function workCommand(io: CliIO, args: string[] = []): Promise<numbe
     maxTestFiles: Math.min(options.maxFiles, 6)
   });
   const [mapFreshness, decisions, logs, lookupHints] = await Promise.all([
-    mapFreshnessLine(io.cwd),
+    assessMapFreshness(io.cwd),
     readRelevantDecisions(io.cwd, focusedStartupContext),
     readRecentLogs(io.cwd),
     targetedLookupHints(io.cwd, options.task)
