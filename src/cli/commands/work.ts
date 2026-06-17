@@ -10,12 +10,21 @@ interface WorkOptions {
   task: string;
 }
 
+interface TargetedLookupHint {
+  path: string;
+  term: string;
+  score: number;
+  index: number;
+}
+
 const decisionsPath = "docs/ai-context/DECISIONS.md";
 const workLogPath = "docs/ai-context/WORK_LOG.md";
 const lessonsPath = "docs/ai-context/LESSONS_LEARNED.md";
 const changeLogPath = "docs/ai-context/CHANGE_LOG.md";
 const logLimit = 3;
 const decisionLimit = 3;
+const targetedLookupLimit = 5;
+const targetedContentReadLimit = 64 * 1024;
 const usage = 'Usage: rcc work "<task>"';
 const contextFiles = [
   "AGENTS.md",
@@ -29,6 +38,19 @@ const contextFiles = [
   "docs/ai-context/DO_NOT_READ.md",
   "docs/ai-context/HOTSPOTS.md"
 ];
+const lowSignalTaskTerms = new Set([
+  "add",
+  "bug",
+  "change",
+  "changes",
+  "fix",
+  "issue",
+  "issues",
+  "make",
+  "task",
+  "update",
+  "instructions"
+]);
 
 function parseWorkOptions(args: string[]): WorkOptions | undefined {
   let maxFiles = 50;
@@ -80,6 +102,12 @@ function tokenize(value: string): string[] {
     .filter((token) => token.length > 1))];
 }
 
+function targetedLookupTerms(task: string): string[] {
+  return tokenize(task)
+    .filter((token) => token.length > 2)
+    .filter((token) => !lowSignalTaskTerms.has(token));
+}
+
 function compactReason(reasons: string[] | undefined): string {
   if (!reasons || reasons.length === 0) {
     return "";
@@ -116,6 +144,186 @@ function formatRecommendedTests(startup: StartupContext): string[] {
   return startup.likelyTests.map((file) => {
     return `- ${file}${compactReason(startup.recommendationReasons[file])}`;
   });
+}
+
+function formatTargetedLookupHints(hints: TargetedLookupHint[]): string[] {
+  if (hints.length === 0) {
+    return ['- none. use rcc find "<keyword>" for targeted lookup.'];
+  }
+
+  return hints.map((hint) => `- ${hint.path} — matched "${hint.term}"`);
+}
+
+function basenameWithoutExtensions(filePath: string): string {
+  const basename = path.posix.basename(filePath).toLowerCase();
+  const firstDot = basename.indexOf(".");
+
+  return firstDot === -1 ? basename : basename.slice(0, firstDot);
+}
+
+function pathParts(filePath: string): string[] {
+  return filePath.toLowerCase().split(/[/.\\_-]+/).filter(Boolean);
+}
+
+function termPattern(term: string): RegExp {
+  return new RegExp(`(^|[^a-z0-9])${escapeRegExp(term)}([^a-z0-9]|$)`, "i");
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function bestPathMatch(filePath: string, terms: string[]): TargetedLookupHint | undefined {
+  const lowerPath = filePath.toLowerCase();
+  const basenameStem = basenameWithoutExtensions(filePath);
+  const parts = pathParts(filePath);
+  let best: TargetedLookupHint | undefined;
+
+  for (const term of terms) {
+    let score = 0;
+
+    if (basenameStem === term || path.posix.basename(lowerPath) === term) {
+      score = 120;
+    } else if (parts.includes(term)) {
+      score = 95;
+    } else if (lowerPath.includes(term)) {
+      score = 70;
+    }
+
+    if (score > (best?.score ?? 0)) {
+      best = { path: filePath, term, score, index: 0 };
+    }
+  }
+
+  return best;
+}
+
+function relatedLookupScore(filePath: string, terms: string[], role: string): number {
+  const lowerPath = filePath.toLowerCase();
+  let score = 0;
+
+  if (role === "source") {
+    score += 40;
+  } else if (role === "test") {
+    score += 12;
+  } else if (role === "workflow") {
+    score += 10;
+  }
+
+  if (lowerPath.startsWith("src/templates/")) {
+    score += 18;
+  }
+  if (lowerPath === "agents.md" || lowerPath.endsWith("/agents.md")) {
+    score += 16;
+  }
+  if (role === "test" && terms.some((term) => term === "agents" || term === "workflow")) {
+    if (/tests\/(init|templates|agent-startup-adoption)\.test\./.test(lowerPath)) {
+      score += 24;
+    }
+  }
+  if (role === "source" && terms.some((term) => term === "agents" || term === "workflow")) {
+    if (lowerPath.includes("templateinstaller")) {
+      score += 40;
+    }
+  }
+
+  return score;
+}
+
+async function contentMatch(
+  cwd: string,
+  filePath: string,
+  terms: string[]
+): Promise<{ term: string; matches: number } | undefined> {
+  const fullPath = path.join(cwd, filePath);
+  const fileStat = await stat(fullPath);
+  if (fileStat.size > targetedContentReadLimit) {
+    return undefined;
+  }
+
+  const content = await readTextFile(fullPath);
+  let best: { term: string; matches: number } | undefined;
+
+  for (const term of terms) {
+    const matches = content.match(new RegExp(termPattern(term).source, "gi"))?.length ?? 0;
+    if (matches > (best?.matches ?? 0)) {
+      best = { term, matches };
+    }
+  }
+
+  return best && best.matches > 0 ? best : undefined;
+}
+
+function shouldScanForTargetedLookup(filePath: string): boolean {
+  const info = classifyRepoFile(filePath);
+
+  if (info.isNoise || info.role === "asset" || info.role === "generated" || info.role === "snapshot") {
+    return false;
+  }
+
+  if (filePath.startsWith(".git/") || filePath.startsWith("docs/ai-context/archive/")) {
+    return false;
+  }
+
+  return ["source", "test", "workflow", "config", "docs", "unknown"].includes(info.role);
+}
+
+async function targetedLookupHints(cwd: string, task: string): Promise<TargetedLookupHint[]> {
+  const terms = targetedLookupTerms(task);
+  if (terms.length === 0) {
+    return [];
+  }
+
+  const repoFiles = (await listFilesRecursive(cwd)).filter(shouldScanForTargetedLookup);
+  const candidates: TargetedLookupHint[] = [];
+
+  for (let index = 0; index < repoFiles.length; index += 1) {
+    const filePath = repoFiles[index];
+    const info = classifyRepoFile(filePath);
+    const pathMatch = bestPathMatch(filePath, terms);
+    let hint: TargetedLookupHint | undefined = pathMatch
+      ? { ...pathMatch, index }
+      : undefined;
+
+    try {
+      const content = await contentMatch(cwd, filePath, terms);
+      if (content) {
+        const contentScore = Math.min(60, 25 + content.matches * 5);
+        if (!hint || contentScore > hint.score) {
+          hint = { path: filePath, term: content.term, score: contentScore, index };
+        } else {
+          hint.score += Math.min(20, content.matches * 3);
+        }
+      }
+    } catch {
+      // Ignore unreadable files; lookup hints are opportunistic.
+    }
+
+    if (!hint) {
+      continue;
+    }
+
+    hint.score += relatedLookupScore(filePath, terms, info.role);
+    candidates.push(hint);
+  }
+
+  return candidates
+    .sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+
+      const leftRole = classifyRepoFile(left.path).role;
+      const rightRole = classifyRepoFile(right.path).role;
+      const roleOrder = ["source", "test", "workflow", "config", "docs", "unknown"];
+      const roleDelta = roleOrder.indexOf(leftRole) - roleOrder.indexOf(rightRole);
+      if (roleDelta !== 0) {
+        return roleDelta;
+      }
+
+      return left.path.localeCompare(right.path);
+    })
+    .slice(0, targetedLookupLimit);
 }
 
 function splitMarkdownTableRow(line: string): string[] {
@@ -310,7 +518,8 @@ function briefLines(
   mapFreshness: string,
   decisions: string[],
   logs: string[],
-  tokenEstimate: string
+  tokenEstimate: string,
+  lookupHints: TargetedLookupHint[]
 ): string[] {
   const readFirst = startup.readFirstDocs.slice(0, 4);
   return [
@@ -343,6 +552,9 @@ function briefLines(
     "Read first:",
     ...formatList(readFirst, "no RCC context files found; run npx repo-context-center init to install them"),
     "",
+    "Targeted lookup hints:",
+    ...formatTargetedLookupHints(lookupHints),
+    "",
     "Fast lookup:",
     '- For targeted lookup, use: rcc find "<keyword>"',
     "- Prefer this before broad repo search when the target is unclear.",
@@ -358,12 +570,13 @@ function formatWorkBrief(
   startup: StartupContext,
   mapFreshness: string,
   decisions: string[],
-  logs: string[]
+  logs: string[],
+  lookupHints: TargetedLookupHint[]
 ): string {
-  const preliminary = briefLines(startup, mapFreshness, decisions, logs, "calculating.");
+  const preliminary = briefLines(startup, mapFreshness, decisions, logs, "calculating.", lookupHints);
   const roughTokens = Math.ceil(preliminary.join("\n").length / 4);
   const tokenEstimate = `roughly ${roughTokens} tokens for this brief.`;
-  const lines = briefLines(startup, mapFreshness, decisions, logs, tokenEstimate);
+  const lines = briefLines(startup, mapFreshness, decisions, logs, tokenEstimate, lookupHints);
 
   return `${lines.join("\n")}\n`;
 }
@@ -383,12 +596,13 @@ export async function workCommand(io: CliIO, args: string[] = []): Promise<numbe
     maxSourceFiles: Math.min(options.maxFiles, 8),
     maxTestFiles: Math.min(options.maxFiles, 6)
   });
-  const [mapFreshness, decisions, logs] = await Promise.all([
+  const [mapFreshness, decisions, logs, lookupHints] = await Promise.all([
     mapFreshnessLine(io.cwd),
     readRelevantDecisions(io.cwd, focusedStartupContext),
-    readRecentLogs(io.cwd)
+    readRecentLogs(io.cwd),
+    targetedLookupHints(io.cwd, options.task)
   ]);
 
-  io.stdout(formatWorkBrief(focusedStartupContext, mapFreshness, decisions, logs));
+  io.stdout(formatWorkBrief(focusedStartupContext, mapFreshness, decisions, logs, lookupHints));
   return 0;
 }

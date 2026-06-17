@@ -15,6 +15,13 @@ function runCli(args, options = {}) {
   });
 }
 
+function sectionItems(output, heading, nextHeading) {
+  const pattern = new RegExp(`${heading}:\\n(?<body>[\\s\\S]*?)\\n\\n${nextHeading}:`);
+  const body = output.match(pattern)?.groups?.body ?? "";
+
+  return body.split(/\r?\n/).filter((line) => line.startsWith("- "));
+}
+
 async function writeFixtureFile(root, relativePath, content) {
   const fullPath = path.join(root, relativePath);
   await mkdir(path.dirname(fullPath), { recursive: true });
@@ -90,6 +97,7 @@ test("work accepts a task string and recommends focused files", async () => {
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Known risks:\n- high/);
+    assert.match(result.stdout, /Targeted lookup hints:\n- src\/auth\/login\.ts — matched "login"/);
     assert.match(result.stdout, /Fast lookup:\n- For targeted lookup, use: rcc find "<keyword>"/);
     assert.match(result.stdout, /Prefer this before broad repo search when the target is unclear\./);
     assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
@@ -111,6 +119,7 @@ test("work handles missing RCC files gracefully", async () => {
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Read first:\n- no RCC context files found; run npx repo-context-center init to install them/);
+    assert.match(result.stdout, /Targeted lookup hints:\n- none\. use rcc find "<keyword>" for targeted lookup\./);
     assert.match(result.stdout, /Fast lookup:/);
     assert.match(result.stdout, /rcc find "<keyword>"/);
     assert.match(result.stdout, /```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
@@ -128,6 +137,25 @@ test("work output recommends done with auto file detection", async () => {
     assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /--files "<files>"/);
   });
+});
+
+test("work includes deterministic targeted lookup hints for duplicate AGENTS workflow tasks", () => {
+  const result = runCli(["work", "Fix duplicate AGENTS workflow instructions"]);
+  const hints = sectionItems(result.stdout, "Targeted lookup hints", "Fast lookup");
+
+  assert.equal(result.status, 0);
+  assert.ok(result.stdout.includes("Read first:\n"), result.stdout);
+  assert.ok(result.stdout.indexOf("Read first:") < result.stdout.indexOf("Targeted lookup hints:"));
+  assert.ok(result.stdout.indexOf("Targeted lookup hints:") < result.stdout.indexOf("Fast lookup:"));
+  assert.ok(hints.length <= 8, `targeted lookup hints has ${hints.length} entries`);
+  assert.ok(hints.some((line) => line.includes("AGENTS.md — matched \"agents\"")), hints.join("\n"));
+  assert.ok(hints.some((line) => line.includes("src/templates/generic/AGENTS.md")), hints.join("\n"));
+  assert.ok(hints.some((line) => line.includes("src/core/templateInstaller.ts")), hints.join("\n"));
+  assert.ok(
+    hints.some((line) => line.includes("tests/init.test.js"))
+      || hints.some((line) => line.includes("tests/templates.test.js")),
+    hints.join("\n")
+  );
 });
 
 test("work suggests --files auto in the next done command", async () => {
@@ -218,7 +246,7 @@ test("work output is concise and agent-oriented", async () => {
     const lines = result.stdout.trim().split(/\r?\n/);
 
     assert.equal(result.status, 0);
-    assert.ok(lines.length <= 44, `work output has ${lines.length} lines`);
+    assert.ok(lines.length <= 50, `work output has ${lines.length} lines`);
     assert.doesNotMatch(result.stdout, /score/i);
     assert.doesNotMatch(result.stdout, /generate code/i);
     assert.match(result.stdout, /Map freshness:/);

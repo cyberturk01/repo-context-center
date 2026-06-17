@@ -13,4 +13,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: fixed duplicate AGENTS workflow cleanup
 - Changed files: `src/core/templateInstaller.ts`, `tests/init.test.js`
 - Verification: npm test
+
+## 2026-06-17T11:30:52.451Z
+- Summary: Added targeted lookup hints to rcc work
+- Changed files: `auto`
+- Verification: npm run test:cli; npm test
 <!-- repo-context-center:work-log:end -->
