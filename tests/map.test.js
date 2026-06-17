@@ -431,7 +431,6 @@ test("AGENTS.md generated from scratch contains compact startup guidance", async
     assert.match(generated, /Compact generated entrypoint\./);
     assert.match(generated, /rcc work "<task>"/);
     assert.match(generated, /rcc find "<keyword>"/);
-    assert.match(generated, /Do not replace `rcc work` with manually reading `docs\/ai-context` files\./);
     assert.match(generated, /Do not ask the human to run RCC commands\./);
     assert.match(generated, /rcc done --summary "<summary>" --files auto --verify "<checks>"/);
     assert.match(generated, /Generated repo maps live in `docs\/ai-context\/\*`/);
@@ -453,7 +452,7 @@ test("AGENTS.md avoids duplicate startup guidance after init and map write", asy
     const noShellLine = content.split("\n").find((line) => line.includes("shell commands are unavailable")) ?? "";
 
     assert.equal(result.status, 0);
-    assert.equal(countMatches(content, /Run `rcc work "<task>"`/g), 1);
+    assert.equal(countMatches(content, /`rcc work "<task>"`/g), 1);
     assert.match(content, /Read this file first\./);
     assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(noShellLine, /docs\/ai-context\/TASK_ROUTING\.md/);

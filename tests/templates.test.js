@@ -27,6 +27,23 @@ const requiredTemplates = [
   "docs/ai-context/CHANGE_LOG.md"
 ];
 
+const expectedWorkflowSection = `<!-- repo-context-center:workflow:start -->
+## RCC Workflow
+
+For any coding task, the first shell command must be:
+
+\`rcc work "<task>"\`
+
+- Do not begin repository exploration, manual file reading, or broad searching before running \`rcc work\`.
+- Follow the read-first files from the work brief.
+- For targeted lookup, prefer \`rcc find "<keyword>"\` before broad grep/search.
+- Do not ask the human to run RCC commands.
+
+After meaningful changes:
+1. Run relevant tests.
+2. Run \`rcc done --summary "<summary>" --files auto --verify "<checks>"\`.
+<!-- repo-context-center:workflow:end -->`;
+
 const templateTitles = {
   "AGENTS.md": "# AGENTS.md",
   "docs/ai-context/COMMUNICATION_MODE.md": "# Communication Mode",
@@ -45,6 +62,15 @@ const templateTitles = {
 
 function shellFallbackLine(content) {
   return content.split("\n").find((line) => line.includes("shell commands are unavailable")) ?? "";
+}
+
+function workflowSection(content) {
+  const startMarker = "<!-- repo-context-center:workflow:start -->";
+  const endMarker = "<!-- repo-context-center:workflow:end -->";
+  const start = content.indexOf(startMarker);
+  const end = content.indexOf(endMarker);
+  assert.ok(start !== -1 && end !== -1 && end > start);
+  return content.slice(start, end + endMarker.length);
 }
 
 test("all required generic templates exist", async () => {
@@ -76,16 +102,7 @@ test("AGENTS template keeps low-token startup references", async () => {
   const content = await readFile(path.join(templateRoot, "AGENTS.md"), "utf8");
   const noShellLine = shellFallbackLine(content);
 
-  assert.match(content, /## RCC Workflow/);
-  assert.match(content, /Before broad scanning, opening many files, or searching the repository:/);
-  assert.match(content, /Run `rcc work "<task>"`\./);
-  assert.match(content, /Follow the read-first files from the work brief\./);
-  assert.match(content, /rcc find "<keyword>"/);
-  assert.match(content, /Do not replace `rcc work` with manually reading `docs\/ai-context` files\./);
-  assert.match(content, /Do not ask the human to run RCC commands\./);
-  assert.match(content, /After meaningful changes:/);
-  assert.match(content, /Run relevant tests\./);
-  assert.match(content, /rcc done --summary "<summary>" --files auto --verify "<checks>"/);
+  assert.equal(workflowSection(content), expectedWorkflowSection);
   assert.match(content, /If shell commands are unavailable, fallback to reading/);
   assert.match(content, /Read this file first\./);
   assert.match(content, /Verify source; keep changes focused\./);
@@ -152,16 +169,7 @@ test("generated AGENTS template keeps core startup rules", async () => {
   const content = await readFile(path.join(distTemplateRoot, "AGENTS.md"), "utf8");
   const noShellLine = shellFallbackLine(content);
 
-  assert.match(content, /## RCC Workflow/);
-  assert.match(content, /Before broad scanning, opening many files, or searching the repository:/);
-  assert.match(content, /Run `rcc work "<task>"`\./);
-  assert.match(content, /Follow the read-first files from the work brief\./);
-  assert.match(content, /rcc find "<keyword>"/);
-  assert.match(content, /Do not replace `rcc work` with manually reading `docs\/ai-context` files\./);
-  assert.match(content, /Do not ask the human to run RCC commands\./);
-  assert.match(content, /After meaningful changes:/);
-  assert.match(content, /Run relevant tests\./);
-  assert.match(content, /rcc done --summary "<summary>" --files auto --verify "<checks>"/);
+  assert.equal(workflowSection(content), expectedWorkflowSection);
   assert.match(content, /If shell commands are unavailable, fallback to reading/);
   assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
   assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);

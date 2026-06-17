@@ -11,14 +11,12 @@ For any coding task, the first shell command must be:
 
 - Do not begin repository exploration, manual file reading, or broad searching before running `rcc work`.
 - Follow the read-first files from the work brief.
-- For targeted lookup, prefer `rcc find "<keyword>"` before - broad grep/search.
+- For targeted lookup, prefer `rcc find "<keyword>"` before broad grep/search.
 - Do not ask the human to run RCC commands.
-- After meaningful changes and verification, run:
-`rcc done --summary "<summary>" --files auto --verify "<checks>"`
 
 After meaningful changes:
-- Run relevant tests.
-- Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`.
+1. Run relevant tests.
+2. Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`.
 <!-- repo-context-center:workflow:end -->
 
 - If shell commands are unavailable, fallback to reading `docs/ai-context/COMMUNICATION_MODE.md`, `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/TOKEN_BUDGET.md`, and `docs/ai-context/DO_NOT_READ.md`.

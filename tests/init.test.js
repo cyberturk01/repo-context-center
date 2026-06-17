@@ -24,6 +24,23 @@ const requiredTemplates = [
   "docs/ai-context/CHANGE_LOG.md"
 ];
 
+const expectedWorkflowSection = `<!-- repo-context-center:workflow:start -->
+## RCC Workflow
+
+For any coding task, the first shell command must be:
+
+\`rcc work "<task>"\`
+
+- Do not begin repository exploration, manual file reading, or broad searching before running \`rcc work\`.
+- Follow the read-first files from the work brief.
+- For targeted lookup, prefer \`rcc find "<keyword>"\` before broad grep/search.
+- Do not ask the human to run RCC commands.
+
+After meaningful changes:
+1. Run relevant tests.
+2. Run \`rcc done --summary "<summary>" --files auto --verify "<checks>"\`.
+<!-- repo-context-center:workflow:end -->`;
+
 function runInit(cwd, args = []) {
   return spawnSync(process.execPath, [cliPath, "init", ...args], {
     cwd,
@@ -56,7 +73,7 @@ function workflowSection(content) {
   const start = content.indexOf("<!-- repo-context-center:workflow:start -->");
   const end = content.indexOf("<!-- repo-context-center:workflow:end -->");
   assert.ok(start !== -1 && end !== -1 && end > start);
-  return content.slice(start, end);
+  return content.slice(start, end + "<!-- repo-context-center:workflow:end -->".length);
 }
 
 test("init installs all generic templates into a temp repo", async () => {
@@ -131,16 +148,7 @@ test("init updates existing AGENTS.md without overwriting content", async () => 
     assert.equal(result.status, 0);
     assert.match(content, /# Existing Agents/);
     assert.match(content, /Keep this project-specific guidance\./);
-    assert.match(content, /<!-- repo-context-center:workflow:start -->/);
-    assert.match(content, /Before broad scanning, opening many files, or searching the repository:/);
-    assert.match(content, /Run `rcc work "<task>"`\./);
-    assert.match(content, /Follow the read-first files from the work brief\./);
-    assert.match(content, /rcc find "<keyword>"/);
-    assert.match(content, /Do not replace `rcc work` with manually reading `docs\/ai-context` files\./);
-    assert.match(content, /Do not ask the human to run RCC commands\./);
-    assert.match(content, /After meaningful changes:/);
-    assert.match(content, /Run relevant tests\./);
-    assert.match(content, /Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
+    assert.equal(workflowSection(content), expectedWorkflowSection);
     assert.match(result.stdout, /Updated file: AGENTS\.md/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -156,9 +164,7 @@ test("init creates AGENTS.md if missing", async () => {
 
     assert.equal(result.status, 0);
     assert.match(content, /# AGENTS\.md/);
-    assert.match(content, /## RCC Workflow/);
-    assert.match(content, /Before broad scanning, opening many files, or searching the repository:/);
-    assert.match(content, /After meaningful changes:/);
+    assert.equal(workflowSection(content), expectedWorkflowSection);
     assert.match(result.stdout, /Created file: AGENTS\.md/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -238,9 +244,7 @@ test("init preserves existing AGENTS.md content with --force", async () => {
 
     assert.equal(result.status, 0);
     assert.match(content, /custom/);
-    assert.match(content, /## RCC Workflow/);
-    assert.match(content, /Run `rcc work "<task>"`\./);
-    assert.match(content, /Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
+    assert.equal(workflowSection(content), expectedWorkflowSection);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -254,10 +258,12 @@ test("init dry-run does not write files", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Dry run complete/);
-    assert.match(result.stdout, /Run `rcc work "<task>"`\./);
+    assert.match(result.stdout, /For any coding task, the first shell command must be:/);
+    assert.match(result.stdout, /`rcc work "<task>"`/);
+    assert.match(result.stdout, /Do not begin repository exploration, manual file reading, or broad searching before running `rcc work`\./);
     assert.match(result.stdout, /rcc find "<keyword>"/);
     assert.match(result.stdout, /Do not ask the human to run RCC commands\./);
-    assert.match(result.stdout, /Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
+    assert.match(result.stdout, /2\. Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
     assert.match(result.stdout, /If shell commands are unavailable, fallback to reading/);
     assert.match(result.stdout, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(result.stdout, /docs\/ai-context\/TASK_ROUTING\.md/);

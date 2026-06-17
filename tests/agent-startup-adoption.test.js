@@ -56,12 +56,13 @@ test("v0.5 adoption flow generates AGENTS.md task startup guidance", async () =>
 
     assert.match(agents, /Compact generated entrypoint\./);
     assert.match(agents, /## RCC Workflow/);
-    assert.match(agents, /Run `rcc work "<task>"`\./);
+    assert.match(agents, /For any coding task, the first shell command must be:/);
+    assert.match(agents, /`rcc work "<task>"`/);
+    assert.match(agents, /Do not begin repository exploration, manual file reading, or broad searching before running `rcc work`\./);
     assert.match(agents, /Follow the read-first files from the work brief\./);
     assert.match(agents, /rcc find "<keyword>"/);
-    assert.match(agents, /Do not replace `rcc work` with manually reading `docs\/ai-context` files\./);
     assert.match(agents, /Do not ask the human to run RCC commands\./);
-    assert.match(agents, /Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
+    assert.match(agents, /2\. Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
     assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(noShellLine, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(noShellLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
