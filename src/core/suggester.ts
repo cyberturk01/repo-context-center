@@ -48,18 +48,6 @@ export interface SymbolRecommendation {
   risk: RiskLevel | "unknown";
 }
 
-const investigationKeywords = [
-  "auth",
-  "security",
-  "migration",
-  "payment",
-  "consent",
-  "audit",
-  "production",
-  "release",
-  "bug"
-];
-
 const detailedKeywords = ["refactor", "architecture", "performance", "cross-module", "integration"];
 const workflowKeywords = [
   "action",
@@ -100,15 +88,30 @@ const decisionMemoryTokens = new Set([
   "startup",
   "strategy"
 ]);
-const highRiskOverrideTokens = new Set([
+const docsOnlyHighRiskTokens = new Set([
+  "action",
+  "actions",
+  "audit",
   "auth",
+  "authorization",
   "authentication",
-  "config",
-  "configuration",
-  "dependency",
-  "dependencies",
+  "ci",
+  "cd",
+  "deploy",
+  "deployment",
+  "docker",
+  "github",
+  "infra",
+  "infrastructure",
   "migration",
-  "package",
+  "payment",
+  "payments",
+  "permission",
+  "permissions",
+  "pipeline",
+  "consent",
+  "production",
+  "railway",
   "release",
   "security",
   "workflow",
@@ -293,6 +296,31 @@ function isPackageBuildTask(tokens: string[]): boolean {
   ].includes(token));
 }
 
+function hasHighRiskTaskSignal(tokens: string[]): boolean {
+  return tokens.some((token) => docsOnlyHighRiskTokens.has(token))
+    || tokens.includes("database")
+    || tokens.includes("db");
+}
+
+function hasMediumRiskTaskSignal(tokens: string[]): boolean {
+  return tokens.some((token) => [
+    "build",
+    "configuration",
+    "config",
+    "dependency",
+    "dependencies",
+    "integration",
+    "package",
+    "packages",
+    "script",
+    "scripts"
+  ].includes(token));
+}
+
+function hasHighRiskContextSignal(lines: string[]): boolean {
+  return lines.some((line) => hasHighRiskTaskSignal(tokenize(line)));
+}
+
 function isCommandTask(tokens: string[]): boolean {
   return tokens.some((token) => commandTaskKeywords.has(token));
 }
@@ -368,7 +396,7 @@ function isDocumentationOnlyTask(task: string, tokens: string[], explicitDocsTar
     return false;
   }
 
-  if (tokens.some((token) => highRiskOverrideTokens.has(token))) {
+  if (tokens.some((token) => docsOnlyHighRiskTokens.has(token))) {
     return false;
   }
 
@@ -1456,15 +1484,8 @@ function matchingSymbolEntries(
 
 function modeForTask(task: string, tokens: string[]): SuggestMode {
   const lowerTask = task.toLowerCase();
-  const highRiskKeywords = [
-    ...investigationKeywords,
-    "database",
-    "db",
-    "deployment",
-    "workflow"
-  ];
 
-  if (highRiskKeywords.some((keyword) => tokens.includes(keyword) || lowerTask.includes(keyword))) {
+  if (hasHighRiskTaskSignal(tokens)) {
     return "Investigation";
   }
 
@@ -1478,17 +1499,20 @@ function modeForTask(task: string, tokens: string[]): SuggestMode {
 function riskFor(
   mode: SuggestMode,
   riskMatches: number,
+  highRiskContextMatch: boolean,
   dependencyMatches: number,
   repoSignalCount: number,
   likelySourceFiles: string[],
   likelyTests: string[],
-  documentationOnlyTask: boolean
+  documentationOnlyTask: boolean,
+  highRiskTaskSignal: boolean,
+  mediumRiskTaskSignal: boolean
 ): RiskLevel {
   if (documentationOnlyTask) {
     return "low";
   }
 
-  if (mode === "Investigation" || riskMatches > 0) {
+  if (highRiskTaskSignal || highRiskContextMatch) {
     return "high";
   }
 
@@ -1496,7 +1520,7 @@ function riskFor(
     return "unknown";
   }
 
-  if (mode === "Detailed" || dependencyMatches > 0) {
+  if (mode === "Detailed" || riskMatches > 0 || dependencyMatches > 0 || mediumRiskTaskSignal) {
     return "medium";
   }
 
@@ -1940,9 +1964,12 @@ export async function buildStartupContext(
   }
 
   const mode = modeForTask(task, tokens);
-  const workflowTask = isWorkflowTask(tokens);
   const commandTask = isCommandTask(tokens);
   const packageBuildTask = isPackageBuildTask(tokens);
+  const workflowTask = isWorkflowTask(tokens) && (!packageBuildTask || hasExplicitWorkflowIntent(tokens));
+  const highRiskTaskSignal = hasHighRiskTaskSignal(tokens);
+  const mediumRiskTaskSignal = hasMediumRiskTaskSignal(tokens);
+  const highRiskContextMatch = hasHighRiskContextSignal(riskMatches) || symbolRiskMatches > 0;
   const hasGithubWorkflowFiles = repoFiles.some(isGithubWorkflowPath);
   const discoveredLikelySourceFiles = discoverLikelySourceFiles(
     repoFiles,
@@ -1993,11 +2020,14 @@ export async function buildStartupContext(
   const finalRiskLevel = riskFor(
     mode,
     riskMatches.length + symbolRiskMatches,
+    highRiskContextMatch,
     dependencyModuleMatches.length + dependencyMatches.length,
     repoSignalCount,
     likelySourceFiles,
     likelyTests,
-    documentationOnlyTask
+    documentationOnlyTask,
+    highRiskTaskSignal,
+    mediumRiskTaskSignal
   );
 
   if (finalRiskLevel === "high") {

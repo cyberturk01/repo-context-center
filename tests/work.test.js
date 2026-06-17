@@ -194,6 +194,47 @@ async function withRecommendedRankingRepo(callback) {
   }
 }
 
+async function withRiskClassificationRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-risk-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Package work: read `package.json`.",
+        "- Auth work: read `src/auth/login.ts` and `tests/auth/login.test.ts`.",
+        "- Workflow work: read `.github/workflows/ci.yml`.",
+        "- Docs work: read `README.md`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "README.md", "# Fixture\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/RISK_REGISTER.md",
+      [
+        "# Risk Register",
+        "",
+        "| Area | Why risky | Focused checks |",
+        "| --- | --- | --- |",
+        "| `package.json` | Package script and build configuration changes can break local commands. | npm test |"
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "package.json", "{\"scripts\":{\"build\":\"tsc\"},\"dependencies\":{}}\n");
+    await writeFixtureFile(tempDir, "package-lock.json", "{\"lockfileVersion\":3}\n");
+    await writeFixtureFile(tempDir, "src/auth/login.ts", "export function login() {}\n");
+    await writeFixtureFile(tempDir, "tests/auth/login.test.ts", "test('login', () => {});\n");
+    await writeFixtureFile(tempDir, ".github/workflows/ci.yml", "name: ci\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function withGuidanceRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-guidance-"));
 
@@ -311,6 +352,66 @@ test("work --json returns a valid machine-readable brief", async () => {
     assert.equal(result.stdout.trim().startsWith("{"), true);
     assert.equal(result.stdout.trim().endsWith("}"), true);
     assert.doesNotMatch(result.stdout, /repo-context-center work brief/);
+  });
+});
+
+test("work classifies package tasks as medium risk", async () => {
+  await withRiskClassificationRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "improve package scripts"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.risks[0], "medium");
+  });
+});
+
+test("work classifies dependency tasks as medium risk", async () => {
+  await withRiskClassificationRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "update dependencies"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.risks[0], "medium");
+  });
+});
+
+test("work classifies docs tasks as low risk", async () => {
+  await withRiskClassificationRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "fix typo in README"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.risks[0], "low");
+  });
+});
+
+test("work classifies auth tasks as high risk", async () => {
+  await withRiskClassificationRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "fix login authorization"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.risks[0], "high");
+  });
+});
+
+test("work classifies deployment tasks as high risk", async () => {
+  await withRiskClassificationRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "update deployment config"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.risks[0], "high");
+  });
+});
+
+test("work classifies workflow tasks as high risk", async () => {
+  await withRiskClassificationRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "update deployment workflow"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.risks[0], "high");
   });
 });
 

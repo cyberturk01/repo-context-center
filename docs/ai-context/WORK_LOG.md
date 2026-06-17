@@ -53,4 +53,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Add lightweight rcc find fallback search for useful project files
 - Changed files: `auto`
 - Verification: npm run build; node --test tests/find.test.js; npm run test:cli; npm test; manual: node dist/cli/index.js find confidence/targeted lookup/package/work command
+
+## 2026-06-17T13:23:29.364Z
+- Summary: Calibrated work risk classification to keep routine package and dependency tasks medium while preserving high for auth, deployment, and workflow signals
+- Changed files: `src/core/suggester.ts`, `tests/work.test.js`
+- Verification: npm test; npm run test:cli; manual node dist/cli/index.js work validations for package, dependencies, authorization, deployment workflow
 <!-- repo-context-center:work-log:end -->
