@@ -261,7 +261,8 @@ test("map --dry-run prints proposed updates without writing", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Proposed updates:/);
     assert.equal(after, before);
-    assert.doesNotMatch(after, /repo-context-center:generated:start/);
+    assert.match(after, /repo-context-center:generated:start/);
+    assert.doesNotMatch(after, /CLI flags\/output/);
   });
 });
 
@@ -339,7 +340,8 @@ test("map --check does not write files", async () => {
     assert.equal(result.status, 1);
     assert.match(result.stdout, /Generated context files are stale or missing\./);
     assert.equal(after, before);
-    assert.doesNotMatch(after, /repo-context-center:generated:start/);
+    assert.match(after, /repo-context-center:generated:start/);
+    assert.doesNotMatch(after, /CLI flags\/output/);
   });
 });
 
@@ -427,7 +429,7 @@ test("AGENTS.md generated from scratch contains compact startup guidance", async
 
     assert.equal(result.status, 0);
     assert.match(generated, /Compact generated entrypoint\./);
-    assert.match(generated, /repo-context-center start "<task>"/);
+    assert.match(generated, /rcc work "<task>"/);
     assert.match(generated, /Generated repo maps live in `docs\/ai-context\/\*`/);
     assert.match(generated, /Keep manual guidance outside generated markers\./);
     assert.doesNotMatch(content, /^Before a task:$/m);
@@ -447,7 +449,7 @@ test("AGENTS.md avoids duplicate startup guidance after init and map write", asy
     const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
 
     assert.equal(result.status, 0);
-    assert.equal(countMatches(content, /repo-context-center start "<task>"/g), 1);
+    assert.equal(countMatches(content, /rcc work/g), 1);
     assert.match(content, /Read this file first\./);
     assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(noShellLine, /docs\/ai-context\/TASK_ROUTING\.md/);
@@ -456,7 +458,7 @@ test("AGENTS.md avoids duplicate startup guidance after init and map write", asy
     assert.doesNotMatch(noShellLine, /docs\/ai-context\/MODULE_INDEX\.md/);
     assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
     assert.match(generated, /Compact generated entrypoint\./);
-    assert.doesNotMatch(generated, /repo-context-center start "<task>"/);
+    assert.doesNotMatch(generated, /rcc work/);
     assert.doesNotMatch(content, /^Before a task:$/m);
     assert.doesNotMatch(content, /^Read:$/m);
     assert.doesNotMatch(content, /^Modes:$/m);

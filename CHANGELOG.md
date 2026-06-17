@@ -1,5 +1,21 @@
 # ChangeLog
 
+## 0.7.0
+
+### Added
+- Added `rcc work` as the primary agent workflow entrypoint.
+- Added `rcc done` for lightweight work logging in `docs/ai-context/WORK_LOG.md`.
+- Added `rcc` as a CLI bin alias.
+- Added fallback routing to promote RCC context files when no matching source files are found.
+
+### Improved
+- Updated AGENTS guidance to prefer `rcc work` before meaningful work and `rcc done` after meaningful work.
+- Updated generated AGENTS guidance from command-first startup to agent workflow usage.
+- Made `done` usage explicit with `--summary`, `--files`, and `--verify`.
+
+### Fixed
+- Avoided weak `none` output when RCC context files are available for fallback routing.
+
 ## repo-context-center@0.6.0
 
 ### Added

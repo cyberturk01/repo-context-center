@@ -1,4 +1,5 @@
 import { getConfigPath, hasConfig, writeDefaultConfig } from "../../core/config";
+import { mapRepository } from "../../core/repoMapper";
 import { installGenericTemplates } from "../../core/templateInstaller";
 import type { CliIO } from "../index";
 
@@ -33,7 +34,11 @@ function formatInstallMessage(
     return `Skipped ${result.type}: ${result.path} already exists\n`;
   }
 
-  const verb = result.action === "overwrite" ? "Overwrote" : "Created";
+  const verb = result.action === "overwrite"
+    ? "Overwrote"
+    : result.action === "update"
+      ? "Updated"
+      : "Created";
   return `${verb} ${result.type}: ${result.path}\n`;
 }
 
@@ -63,12 +68,28 @@ export async function initCommand(io: CliIO, args: string[] = []): Promise<numbe
     return 0;
   }
 
+  let configMessage: string;
   if (await hasConfig(io.cwd)) {
-    io.stdout(`Config already exists: ${getConfigPath(io.cwd)}\n`);
-    return 0;
+    configMessage = `Config already exists: ${getConfigPath(io.cwd)}\n`;
+  } else {
+    const configPath = await writeDefaultConfig(io.cwd);
+    configMessage = `Initialized repo-context-center config: ${configPath}\n`;
   }
 
-  const configPath = await writeDefaultConfig(io.cwd);
-  io.stdout(`Initialized repo-context-center config: ${configPath}\n`);
+  io.stdout(configMessage);
+
+  try {
+    const mapResult = await mapRepository({
+      cwd: io.cwd,
+      maxFiles: 500,
+      write: true
+    });
+    io.stdout(`Generated repository context: ${mapResult.written.length} files updated (${mapResult.data.filesScanned} files scanned).\n`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    io.stderr(`Warning: failed to generate repository context during init: ${message}\n`);
+    return 1;
+  }
+
   return 0;
 }

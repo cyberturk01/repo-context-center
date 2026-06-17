@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { archiveCommand } from "./commands/archive";
 import { decisionCommand } from "./commands/decision";
+import { doneCommand } from "./commands/done";
 import { estimateCommand } from "./commands/estimate";
 import { findCommand } from "./commands/find";
 import { initCommand } from "./commands/init";
@@ -10,6 +11,7 @@ import { scanCommand } from "./commands/scan";
 import { startCommand } from "./commands/start";
 import { suggestCommand } from "./commands/suggest";
 import { validateCommand } from "./commands/validate";
+import { workCommand } from "./commands/work";
 
 export interface CliIO {
   cwd: string;
@@ -24,19 +26,27 @@ const commands: Record<string, CommandHandler> = {
   validate: validateCommand,
   archive: archiveCommand,
   decision: decisionCommand,
+  done: doneCommand,
   estimate: estimateCommand,
   find: findCommand,
   log: logCommand,
   map: mapCommand,
   scan: scanCommand,
   start: startCommand,
-  suggest: suggestCommand
+  suggest: suggestCommand,
+  work: workCommand
 };
 
 const helpText = `repo-context-center
 
 Usage:
   repo-context-center <command>
+
+Agent workflow:
+  work      Print a concise work brief for an AI coding agent
+            Usage: work "<task>"
+  done      Save lightweight memory after completed agent work
+            Usage: done --summary "<summary>" [--files "<path,path>"] [--verify "<command/result>"] [--dry-run]
 
 Commands:
   init      Install generic context templates and config

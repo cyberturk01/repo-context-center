@@ -1893,7 +1893,7 @@ function manualContentWithoutGeneratedSection(existing: string | undefined): str
 
 function renderAgents(_data: RepoMapData, existing?: string): string {
   const manualHasStartupCommand = manualContentWithoutGeneratedSection(existing).includes(
-    'repo-context-center start "<task>"'
+    "rcc work"
   );
   const lines = [
     "Compact generated entrypoint.",
@@ -1903,8 +1903,9 @@ function renderAgents(_data: RepoMapData, existing?: string): string {
   ];
 
   if (!manualHasStartupCommand) {
-    lines.splice(2, 0, "- Start tasks with `npx repo-context-center start \"<task>\"` when shell access is available.");
+    lines.splice(2, 0, "- Start tasks with `rcc work \"<task>\"` when shell access is available.");
   }
+  lines.splice(3, 0, "- Save completed-work memory with `rcc done --summary \"<summary>\" --files \"<files>\" --verify \"<check>\"`.");
 
   return lines.join("\n");
 }
