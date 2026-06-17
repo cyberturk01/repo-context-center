@@ -119,7 +119,7 @@ test("v0.7 release: rcc work works with missing context files", async () => {
     assert.match(result.stdout, /Relevant decisions:\n- none\. no matching decision was found\./);
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
-    assert.match(result.stdout, /Read first:\n- no RCC context files found; run npx repo-context-center init to install them/);
+    assert.match(result.stdout, /Read-first guidance:\n- no RCC context files found; run npx repo-context-center init to install them/);
     assert.match(result.stdout, /Fast lookup:/);
     assert.match(result.stdout, /rcc done --summary "<summary>" --files auto --verify "<check>"/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);

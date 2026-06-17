@@ -7,6 +7,7 @@ import { buildStartupContext, focusStartupContextForStart, type StartupContext }
 import type { CliIO } from "../index";
 
 interface WorkOptions {
+  contextBudget: ContextBudget;
   json: boolean;
   maxFiles: number;
   task: string;
@@ -15,6 +16,8 @@ interface WorkOptions {
 interface TargetedLookupHint {
   path: string;
   term: string;
+  reason: string;
+  confidence: "high" | "medium" | "low";
   score: number;
   index: number;
 }
@@ -22,6 +25,22 @@ interface TargetedLookupHint {
 interface WorkRecommendation {
   path: string;
   reasons: string[];
+}
+
+type ContextBudget = "minimal" | "balanced" | "deep";
+type ReadFirstPriority = "required" | "task_specific" | "optional" | "skipped";
+
+interface ReadFirstGuidanceItem {
+  path: string;
+  reason: string;
+  priority: ReadFirstPriority;
+}
+
+interface ReadFirstGuidance {
+  required: ReadFirstGuidanceItem[];
+  taskSpecific: ReadFirstGuidanceItem[];
+  optional: ReadFirstGuidanceItem[];
+  skipped: ReadFirstGuidanceItem[];
 }
 
 interface WorkMapFreshness {
@@ -42,7 +61,7 @@ interface WorkBrief {
   startupContext: StartupContext;
   recommendedFiles: WorkRecommendation[];
   relevantTests: WorkRecommendation[];
-  targetedLookupHints: Array<Pick<TargetedLookupHint, "path" | "term">>;
+  targetedLookupHints: Array<Omit<TargetedLookupHint, "index">>;
   relevantDecisions: string[];
   recentLogs: string[];
   tokenEstimate: {
@@ -51,6 +70,7 @@ interface WorkBrief {
   };
   risks: string[];
   readFirst: string[];
+  readFirstGuidance: ReadFirstGuidance;
   nextCommand: string;
 }
 
@@ -60,9 +80,9 @@ const lessonsPath = "docs/ai-context/LESSONS_LEARNED.md";
 const changeLogPath = "docs/ai-context/CHANGE_LOG.md";
 const logLimit = 3;
 const decisionLimit = 3;
-const targetedLookupLimit = 8;
+const targetedLookupLimit = 5;
 const targetedContentReadLimit = 64 * 1024;
-const usage = 'Usage: rcc work "<task>" [--json] [--max-files <number>]';
+const usage = 'Usage: rcc work "<task>" [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]';
 const nextCommand = 'rcc done --summary "<summary>" --files auto --verify "<check>"';
 const freshnessAffectedFileLimit = 5;
 const freshnessImportantRoles = new Set(["source", "test", "workflow", "config", "package"]);
@@ -72,7 +92,10 @@ const lowSignalTaskTerms = new Set([
   "bug",
   "change",
   "changes",
+  "command",
+  "commands",
   "fix",
+  "improve",
   "issue",
   "issues",
   "make",
@@ -82,6 +105,7 @@ const lowSignalTaskTerms = new Set([
 ]);
 
 function parseWorkOptions(args: string[]): WorkOptions | undefined {
+  let contextBudget: ContextBudget = "balanced";
   let json = false;
   let maxFiles = 50;
   const taskParts: string[] = [];
@@ -91,6 +115,16 @@ function parseWorkOptions(args: string[]): WorkOptions | undefined {
 
     if (arg === "--json") {
       json = true;
+      continue;
+    }
+
+    if (arg === "--context-budget") {
+      const value = args[index + 1];
+      if (value !== "minimal" && value !== "balanced" && value !== "deep") {
+        return undefined;
+      }
+      contextBudget = value;
+      index += 1;
       continue;
     }
 
@@ -117,6 +151,7 @@ function parseWorkOptions(args: string[]): WorkOptions | undefined {
   }
 
   return {
+    contextBudget,
     json,
     maxFiles,
     task
@@ -194,7 +229,11 @@ function formatTargetedLookupHints(hints: TargetedLookupHint[]): string[] {
     return ['- none. use rcc find "<keyword>" for targeted lookup.'];
   }
 
-  return hints.map((hint) => `- ${hint.path} — matched "${hint.term}"`);
+  return hints.flatMap((hint, index) => [
+    `${index + 1}. ${hint.path}`,
+    `   reason: ${hint.reason}`,
+    `   confidence: ${hint.confidence}`
+  ]);
 }
 
 function basenameWithoutExtensions(filePath: string): string {
@@ -216,61 +255,109 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function bestPathMatch(filePath: string, terms: string[]): TargetedLookupHint | undefined {
+function hintConfidence(score: number): TargetedLookupHint["confidence"] {
+  if (score >= 80) {
+    return "high";
+  }
+  if (score >= 55) {
+    return "medium";
+  }
+
+  return "low";
+}
+
+function makeLookupHint(path: string, term: string, score: number, reason: string, index: number): TargetedLookupHint {
+  return {
+    path,
+    term,
+    reason,
+    confidence: hintConfidence(score),
+    score,
+    index
+  };
+}
+
+function isCliCommandPath(filePath: string): boolean {
+  return /^src\/cli\/commands\/[^/]+\.[^.]+$/i.test(filePath);
+}
+
+function isLockFile(filePath: string): boolean {
+  return /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb|composer\.lock|poetry\.lock|cargo\.lock)$/i.test(filePath);
+}
+
+function routingReferencedPaths(startup: StartupContext): Set<string> {
+  return new Set([
+    ...startup.likelySourceFiles,
+    ...startup.likelyTests,
+    ...startup.readFirstDocs.filter((file) => !file.startsWith("docs/ai-context/"))
+  ]);
+}
+
+function sourceStemMap(files: string[]): Map<string, string> {
+  const map = new Map<string, string>();
+
+  for (const file of files) {
+    if (classifyRepoFile(file).role !== "source") {
+      continue;
+    }
+
+    const stem = basenameWithoutExtensions(file);
+    if (!map.has(stem)) {
+      map.set(stem, file);
+    }
+  }
+
+  return map;
+}
+
+function bestPathMatch(
+  filePath: string,
+  terms: string[],
+  index: number,
+  startupReferenced: Set<string>,
+  sourceStems: Map<string, string>
+): TargetedLookupHint | undefined {
   const lowerPath = filePath.toLowerCase();
   const basenameStem = basenameWithoutExtensions(filePath);
   const parts = pathParts(filePath);
+  const parentParts = path.posix.dirname(lowerPath).split(/[/.\\_-]+/).filter(Boolean);
   let best: TargetedLookupHint | undefined;
 
   for (const term of terms) {
     let score = 0;
+    let reason = "";
 
-    if (basenameStem === term || path.posix.basename(lowerPath) === term) {
-      score = 120;
+    if (path.posix.basename(lowerPath) === term) {
+      score = 100;
+      reason = `exact filename matched "${term}"`;
+    } else if (isCliCommandPath(filePath) && basenameStem === term) {
+      score = 94;
+      reason = `matched command name "${term}"`;
+    } else if (classifyRepoFile(filePath).role === "test" && sourceStems.has(basenameStem) && terms.includes(basenameStem)) {
+      score = 88;
+      reason = `paired test for ${basenameStem} source file`;
+    } else if (basenameStem === term) {
+      score = 90;
+      reason = `matched filename stem "${term}"`;
+    } else if (startupReferenced.has(filePath)) {
+      score = 76;
+      reason = "referenced by task routing guidance";
     } else if (parts.includes(term)) {
-      score = 95;
+      score = parentParts.includes(term) ? 58 : 52;
+      reason = parentParts.includes(term)
+        ? `matched parent folder "${term}"`
+        : `matched path segment "${term}"`;
     } else if (lowerPath.includes(term)) {
-      score = 70;
+      score = 38;
+      reason = `weak path match for "${term}"`;
     }
 
     if (score > (best?.score ?? 0)) {
-      best = { path: filePath, term, score, index: 0 };
+      best = makeLookupHint(filePath, term, score, reason, index);
     }
   }
 
   return best;
-}
-
-function relatedLookupScore(filePath: string, terms: string[], role: string): number {
-  const lowerPath = filePath.toLowerCase();
-  let score = 0;
-
-  if (role === "source") {
-    score += 40;
-  } else if (role === "test") {
-    score += 12;
-  } else if (role === "workflow") {
-    score += 10;
-  }
-
-  if (lowerPath.startsWith("src/templates/")) {
-    score += 18;
-  }
-  if (lowerPath === "agents.md" || lowerPath.endsWith("/agents.md")) {
-    score += 16;
-  }
-  if (role === "test" && terms.some((term) => term === "agents" || term === "workflow")) {
-    if (/tests\/(init|templates|agent-startup-adoption)\.test\./.test(lowerPath)) {
-      score += 24;
-    }
-  }
-  if (role === "source" && terms.some((term) => term === "agents" || term === "workflow")) {
-    if (lowerPath.includes("templateinstaller")) {
-      score += 40;
-    }
-  }
-
-  return score;
 }
 
 async function contentMatch(
@@ -304,38 +391,48 @@ function shouldScanForTargetedLookup(filePath: string): boolean {
     return false;
   }
 
-  if (filePath.startsWith(".git/") || filePath.startsWith("docs/ai-context/archive/")) {
+  if (
+    filePath.startsWith(".git/")
+    || filePath.startsWith(".repo-context-center/")
+    || filePath.startsWith("docs/ai-context/")
+    || isLockFile(filePath)
+  ) {
     return false;
   }
 
-  return ["source", "test", "workflow", "config", "docs", "unknown"].includes(info.role);
+  return ["source", "test", "workflow", "config", "package", "docs", "unknown"].includes(info.role);
 }
 
-async function targetedLookupHints(cwd: string, task: string): Promise<TargetedLookupHint[]> {
+async function targetedLookupHints(cwd: string, task: string, startup: StartupContext): Promise<TargetedLookupHint[]> {
   const terms = targetedLookupTerms(task);
   if (terms.length === 0) {
     return [];
   }
 
   const repoFiles = (await listFilesRecursive(cwd)).filter(shouldScanForTargetedLookup);
+  const startupReferenced = routingReferencedPaths(startup);
+  const sourceStems = sourceStemMap(repoFiles);
   const candidates: TargetedLookupHint[] = [];
 
   for (let index = 0; index < repoFiles.length; index += 1) {
     const filePath = repoFiles[index];
-    const info = classifyRepoFile(filePath);
-    const pathMatch = bestPathMatch(filePath, terms);
-    let hint: TargetedLookupHint | undefined = pathMatch
-      ? { ...pathMatch, index }
-      : undefined;
+    let hint = bestPathMatch(filePath, terms, index, startupReferenced, sourceStems);
 
     try {
       const content = await contentMatch(cwd, filePath, terms);
       if (content) {
-        const contentScore = Math.min(60, 25 + content.matches * 5);
+        const contentScore = Math.min(48, 24 + content.matches * 4);
         if (!hint || contentScore > hint.score) {
-          hint = { path: filePath, term: content.term, score: contentScore, index };
+          hint = makeLookupHint(
+            filePath,
+            content.term,
+            contentScore,
+            `weak semantic match for "${content.term}"`,
+            index
+          );
         } else {
-          hint.score += Math.min(20, content.matches * 3);
+          hint.score += Math.min(4, content.matches);
+          hint.confidence = hintConfidence(hint.score);
         }
       }
     } catch {
@@ -346,11 +443,22 @@ async function targetedLookupHints(cwd: string, task: string): Promise<TargetedL
       continue;
     }
 
-    hint.score += relatedLookupScore(filePath, terms, info.role);
+    if (hint.score < 25) {
+      continue;
+    }
+
     candidates.push(hint);
   }
 
-  return candidates
+  const deduped = new Map<string, TargetedLookupHint>();
+  for (const candidate of candidates) {
+    const current = deduped.get(candidate.path);
+    if (!current || candidate.score > current.score) {
+      deduped.set(candidate.path, candidate);
+    }
+  }
+
+  const sortedHints = [...deduped.values()]
     .sort((left, right) => {
       if (right.score !== left.score) {
         return right.score - left.score;
@@ -365,8 +473,10 @@ async function targetedLookupHints(cwd: string, task: string): Promise<TargetedL
       }
 
       return left.path.localeCompare(right.path);
-    })
-    .slice(0, targetedLookupLimit);
+    });
+  const qualityHints = sortedHints.filter((hint) => hint.confidence !== "low");
+
+  return (qualityHints.length >= 3 ? qualityHints : sortedHints).slice(0, targetedLookupLimit);
 }
 
 function splitMarkdownTableRow(line: string): string[] {
@@ -673,10 +783,234 @@ function riskValues(startup: StartupContext): string[] {
   return riskLines(startup).map((line) => line.replace(/^- /, ""));
 }
 
-function targetLookupHintForText(hint: Pick<TargetedLookupHint, "path" | "term">): TargetedLookupHint {
+function includesTaskToken(tokens: string[], values: string[]): boolean {
+  return values.some((value) => tokens.includes(value));
+}
+
+function hasStrongLookupHints(lookupHints: TargetedLookupHint[]): boolean {
+  return lookupHints.filter((hint) => hint.confidence === "high" || hint.confidence === "medium").length >= 2;
+}
+
+function isBroadOrAmbiguousTask(task: string): boolean {
+  const meaningfulTerms = targetedLookupTerms(task);
+  return meaningfulTerms.length === 0 || /\b(clean\s*up|stuff|things)\b/i.test(task);
+}
+
+function hasWeakRouting(startup: StartupContext, lookupHints: TargetedLookupHint[]): boolean {
+  return startup.likelySourceFiles.length === 0
+    || startup.emptyRecommendationReasons.source !== undefined
+    || !hasStrongLookupHints(lookupHints);
+}
+
+function guidanceItem(path: string, reason: string, priority: ReadFirstPriority): ReadFirstGuidanceItem {
+  return { path, reason, priority };
+}
+
+function emptyReadFirstGuidance(): ReadFirstGuidance {
+  return {
+    required: [],
+    taskSpecific: [],
+    optional: [],
+    skipped: []
+  };
+}
+
+function addGuidanceItem(guidance: ReadFirstGuidance, item: ReadFirstGuidanceItem): void {
+  if (item.priority === "task_specific") {
+    guidance.taskSpecific.push(item);
+  } else {
+    guidance[item.priority].push(item);
+  }
+}
+
+async function existingReadFirstContextFiles(cwd: string): Promise<string[]> {
+  const candidates = [
+    "AGENTS.md",
+    "docs/ai-context/TASK_ROUTING.md",
+    "docs/ai-context/MODULE_INDEX.md",
+    "docs/ai-context/DEPENDENCY_MAP.md",
+    "docs/ai-context/RISK_REGISTER.md"
+  ];
+  const existing = await Promise.all(candidates.map(async (file) => (
+    await pathExists(path.join(cwd, file)) ? file : undefined
+  )));
+
+  return existing.filter((file): file is string => file !== undefined);
+}
+
+function priorityForBudget(priority: ReadFirstPriority, contextBudget: ContextBudget): ReadFirstPriority {
+  if (contextBudget === "minimal") {
+    if (priority === "required") {
+      return "required";
+    }
+    return priority === "task_specific" ? "optional" : "skipped";
+  }
+
+  return priority;
+}
+
+function buildReadFirstGuidance(
+  startup: StartupContext,
+  lookupHints: TargetedLookupHint[],
+  contextBudget: ContextBudget,
+  existingFiles: string[]
+): ReadFirstGuidance {
+  const guidance = emptyReadFirstGuidance();
+  const existing = new Set(existingFiles);
+  const tokens = targetedLookupTerms(startup.task);
+  const readFirstDocs = new Set(startup.readFirstDocs);
+  const routingWeak = hasWeakRouting(startup, lookupHints);
+  const broadTask = isBroadOrAmbiguousTask(startup.task);
+  const architectureSignal = includesTaskToken(tokens, [
+    "architecture",
+    "architectural",
+    "module",
+    "modules",
+    "refactor",
+    "component",
+    "components",
+    "service",
+    "services"
+  ]);
+  const dependencySignal = includesTaskToken(tokens, [
+    "dependency",
+    "dependencies",
+    "import",
+    "imports",
+    "build",
+    "package",
+    "packages",
+    "integration",
+    "integrations"
+  ]);
+  const riskSignal = includesTaskToken(tokens, [
+    "security",
+    "risk",
+    "risky",
+    "release",
+    "workflow",
+    "workflows",
+    "scanning",
+    "scan",
+    "freshness",
+    "reporting",
+    "report",
+    "command",
+    "commands",
+    "behavior",
+    "cli",
+    "stdout",
+    "stderr",
+    "flag",
+    "flags",
+    "output"
+  ]);
+
+  if (existing.has("AGENTS.md")) {
+    addGuidanceItem(guidance, guidanceItem("AGENTS.md", "repository agent workflow", "required"));
+  }
+
+  const docs: Array<{ path: string; signal: boolean; taskReason: string; optionalReason: string; skippedReason: string }> = [
+    {
+      path: "docs/ai-context/TASK_ROUTING.md",
+      signal: routingWeak || broadTask,
+      taskReason: routingWeak
+        ? "routing confidence is low or targeted lookup hints are weak"
+        : "task is broad or ambiguous",
+      optionalReason: "routing appears strong, but use if targeted hints are insufficient",
+      skippedReason: "routing appears strong and targeted lookup hints are available"
+    },
+    {
+      path: "docs/ai-context/MODULE_INDEX.md",
+      signal: architectureSignal,
+      taskReason: "task has architecture/module/refactor signal",
+      optionalReason: "use if the change crosses module boundaries",
+      skippedReason: "task is not architecture/module related"
+    },
+    {
+      path: "docs/ai-context/DEPENDENCY_MAP.md",
+      signal: dependencySignal,
+      taskReason: "task has dependency/import/build/package/integration signal",
+      optionalReason: "use if imports, packages, or integration boundaries become unclear",
+      skippedReason: "task is not dependency/build/package related"
+    },
+    {
+      path: "docs/ai-context/RISK_REGISTER.md",
+      signal: riskSignal,
+      taskReason: "task has security/risk/release/workflow/scanning/freshness/reporting/command-behavior signal",
+      optionalReason: "use if the change touches high-risk behavior",
+      skippedReason: "task has no explicit risk/security/release signal"
+    }
+  ];
+
+  for (const doc of docs) {
+    if (!existing.has(doc.path)) {
+      continue;
+    }
+
+    let priority: ReadFirstPriority = doc.signal ? "task_specific" : "skipped";
+    let reason = doc.signal ? doc.taskReason : doc.skippedReason;
+
+    if (contextBudget === "deep") {
+      priority = doc.signal || readFirstDocs.has(doc.path) ? "task_specific" : "optional";
+      reason = doc.signal
+        ? doc.taskReason
+        : readFirstDocs.has(doc.path)
+          ? "recommended by existing startup routing"
+          : doc.optionalReason;
+    } else if (!doc.signal && doc.path === "docs/ai-context/TASK_ROUTING.md") {
+      priority = "optional";
+      reason = doc.optionalReason;
+    }
+
+    addGuidanceItem(guidance, guidanceItem(doc.path, reason, priorityForBudget(priority, contextBudget)));
+  }
+
+  return guidance;
+}
+
+function readFirstCompatibilityPaths(guidance: ReadFirstGuidance): string[] {
+  return [...guidance.required, ...guidance.taskSpecific].map((item) => item.path);
+}
+
+function formatReadFirstGroup(title: string, items: ReadFirstGuidanceItem[]): string[] {
+  if (items.length === 0) {
+    return [title, "- none"];
+  }
+
+  return [
+    title,
+    ...items.flatMap((item) => [
+      `- ${item.path}`,
+      `  reason: ${item.reason}`
+    ])
+  ];
+}
+
+function formatReadFirstGuidance(guidance: ReadFirstGuidance): string[] {
+  if (
+    guidance.required.length === 0
+    && guidance.taskSpecific.length === 0
+    && guidance.optional.length === 0
+    && guidance.skipped.length === 0
+  ) {
+    return ["- no RCC context files found; run npx repo-context-center init to install them"];
+  }
+
+  return [
+    ...formatReadFirstGroup("Required:", guidance.required),
+    "",
+    ...formatReadFirstGroup("Task-specific:", guidance.taskSpecific),
+    "",
+    ...formatReadFirstGroup("Optional if unclear:", guidance.optional),
+    "",
+    ...formatReadFirstGroup("Skipped for now:", guidance.skipped)
+  ];
+}
+
+function targetLookupHintForText(hint: Omit<TargetedLookupHint, "index">): TargetedLookupHint {
   return {
     ...hint,
-    score: 0,
     index: 0
   };
 }
@@ -709,8 +1043,8 @@ function renderWorkBriefLines(brief: WorkBrief): string[] {
     "Known risks:",
     ...brief.risks.map((risk) => `- ${risk}`),
     "",
-    "Read first:",
-    ...formatList(brief.readFirst, "no RCC context files found; run npx repo-context-center init to install them"),
+    "Read-first guidance:",
+    ...formatReadFirstGuidance(brief.readFirstGuidance),
     "",
     "Targeted lookup hints:",
     ...formatTargetedLookupHints(brief.targetedLookupHints.map(targetLookupHintForText)),
@@ -754,7 +1088,8 @@ function buildWorkBrief(
   mapFreshness: WorkMapFreshness,
   decisions: string[],
   logs: string[],
-  lookupHints: TargetedLookupHint[]
+  lookupHints: TargetedLookupHint[],
+  readFirstGuidance: ReadFirstGuidance
 ): WorkBrief {
   const brief: WorkBrief = {
     task: startup.task,
@@ -765,7 +1100,10 @@ function buildWorkBrief(
     relevantTests: recommendationItems(startup.likelyTests, startup),
     targetedLookupHints: lookupHints.map((hint) => ({
       path: hint.path,
-      term: hint.term
+      term: hint.term,
+      reason: hint.reason,
+      confidence: hint.confidence,
+      score: hint.score
     })),
     relevantDecisions: decisions,
     recentLogs: logs,
@@ -774,7 +1112,8 @@ function buildWorkBrief(
       text: "unknown"
     },
     risks: riskValues(startup),
-    readFirst: startup.readFirstDocs.slice(0, 4),
+    readFirst: readFirstCompatibilityPaths(readFirstGuidance),
+    readFirstGuidance,
     nextCommand
   };
 
@@ -800,10 +1139,17 @@ export async function workCommand(io: CliIO, args: string[] = []): Promise<numbe
     assessMapFreshness(io.cwd),
     readRelevantDecisions(io.cwd, focusedStartupContext),
     readRecentLogs(io.cwd),
-    targetedLookupHints(io.cwd, options.task)
+    targetedLookupHints(io.cwd, options.task, focusedStartupContext)
   ]);
+  const existingContextFiles = await existingReadFirstContextFiles(io.cwd);
+  const readFirstGuidance = buildReadFirstGuidance(
+    focusedStartupContext,
+    lookupHints,
+    options.contextBudget,
+    existingContextFiles
+  );
 
-  const brief = buildWorkBrief(focusedStartupContext, mapFreshness, decisions, logs, lookupHints);
+  const brief = buildWorkBrief(focusedStartupContext, mapFreshness, decisions, logs, lookupHints, readFirstGuidance);
 
   if (options.json) {
     io.stdout(`${JSON.stringify(brief, null, 2)}\n`);

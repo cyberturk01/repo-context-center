@@ -28,4 +28,14 @@ Lightweight RCC memory from completed agent work.
 - Summary: Improve rcc work map freshness reporting
 - Changed files: `auto`
 - Verification: npm run build; node --test tests/work.test.js; npm run test:cli; npm test; tests/work.test.js covers touching a source file and observing freshness change
+
+## 2026-06-17T12:21:03.888Z
+- Summary: Improve rcc work targeted lookup hint ranking
+- Changed files: `auto`
+- Verification: npm run build; node --test tests/work.test.js; rcc work "Improve work command lookup hints"; node dist/cli/index.js work "Improve work command lookup hints"; npm test
+
+## 2026-06-17T12:26:59.549Z
+- Summary: Add read-first pruning and context budget guidance
+- Changed files: `auto`
+- Verification: npm run build; node --test tests/work.test.js; npm run test:cli; npm test
 <!-- repo-context-center:work-log:end -->

@@ -22,6 +22,11 @@ function sectionItems(output, heading, nextHeading) {
   return body.split(/\r?\n/).filter((line) => line.startsWith("- "));
 }
 
+function sectionBody(output, heading, nextHeading) {
+  const pattern = new RegExp(`${heading}:\\n(?<body>[\\s\\S]*?)\\n\\n${nextHeading}:`);
+  return output.match(pattern)?.groups?.body ?? "";
+}
+
 async function writeFixtureFile(root, relativePath, content) {
   const fullPath = path.join(root, relativePath);
   await mkdir(path.dirname(fullPath), { recursive: true });
@@ -122,6 +127,62 @@ async function withWorkRepo(callback) {
   }
 }
 
+async function withLookupRankingRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-ranking-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Work command changes: read `src/cli/commands/work.ts`, `tests/work.test.js`, and `src/core/workRouting.ts`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "src/cli/commands/work.ts", "export function workCommand() {}\n");
+    await writeFixtureFile(tempDir, "tests/work.test.js", "test('work command', () => {});\n");
+    await writeFixtureFile(tempDir, "src/core/workRouting.ts", "export const routed = true;\n");
+    await writeFixtureFile(tempDir, "src/features/work/index.ts", "export const folder = 'work';\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/other.ts", "export const note = 'work lookup hint';\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", "- Summary: work command history\n");
+    await writeFixtureFile(tempDir, ".repo-context-center/config.json", "{\"work\":true}\n");
+    await writeFixtureFile(tempDir, "fixtures/work.ts", "export const fixture = true;\n");
+    await writeFixtureFile(tempDir, "package-lock.json", "{\"name\":\"fixture\"}\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+async function withGuidanceRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-guidance-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Login work: read `src/auth/login.ts` and `tests/auth/login.test.ts`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "docs/ai-context/MODULE_INDEX.md", "# Module Index\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/DEPENDENCY_MAP.md", "# Dependency Map\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/RISK_REGISTER.md", "# Risk Register\n");
+    await writeFixtureFile(tempDir, "src/auth/login.ts", "export function login() {}\n");
+    await writeFixtureFile(tempDir, "tests/auth/login.test.ts", "test('login', () => {});\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 test("work runs without arguments", async () => {
   await withWorkRepo(async (tempDir) => {
     const result = runCli(["work"], { cwd: tempDir });
@@ -146,7 +207,7 @@ test("work accepts a task string and recommends focused files", async () => {
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Known risks:\n- high/);
-    assert.match(result.stdout, /Targeted lookup hints:\n- src\/auth\/login\.ts — matched "login"/);
+    assert.match(result.stdout, /Targeted lookup hints:\n1\. src\/auth\/login\.ts\n   reason: matched filename stem "login"\n   confidence: high/);
     assert.match(result.stdout, /Fast lookup:\n- For targeted lookup, use: rcc find "<keyword>"/);
     assert.match(result.stdout, /Prefer this before broad repo search when the target is unclear\./);
     assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
@@ -177,6 +238,7 @@ test("work --json returns a valid machine-readable brief", async () => {
         "tokenEstimate",
         "risks",
         "readFirst",
+        "readFirstGuidance",
         "nextCommand"
       ]
     );
@@ -188,10 +250,25 @@ test("work --json returns a valid machine-readable brief", async () => {
     assert.ok(brief.recommendedFiles.some((file) => file.path === "src/auth/login.ts"));
     assert.ok(brief.relevantTests.some((file) => file.path === "tests/auth/login.test.ts"));
     assert.ok(brief.targetedLookupHints.some((hint) => (
-      hint.path === "src/auth/login.ts" && hint.term === "login"
+      hint.path === "src/auth/login.ts"
+      && hint.term === "login"
+      && hint.reason
+      && hint.confidence
+      && typeof hint.score === "number"
     )));
     assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep login flow server-side")));
     assert.match(brief.tokenEstimate.text, /^roughly \d+ tokens for this brief\.$/);
+    assert.deepEqual(brief.readFirstGuidance.required, [
+      {
+        path: "AGENTS.md",
+        reason: "repository agent workflow",
+        priority: "required"
+      }
+    ]);
+    assert.ok(brief.readFirst.includes("AGENTS.md"));
+    assert.equal(Array.isArray(brief.readFirstGuidance.taskSpecific), true);
+    assert.equal(Array.isArray(brief.readFirstGuidance.optional), true);
+    assert.equal(Array.isArray(brief.readFirstGuidance.skipped), true);
     assert.equal(brief.nextCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
     assert.equal(result.stdout.trim().startsWith("{"), true);
     assert.equal(result.stdout.trim().endsWith("}"), true);
@@ -213,7 +290,7 @@ test("work handles missing RCC files gracefully", async () => {
     assert.match(result.stdout, /Relevant decisions:\n- none\. no matching decision was found\./);
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
-    assert.match(result.stdout, /Read first:\n- no RCC context files found; run npx repo-context-center init to install them/);
+    assert.match(result.stdout, /Read-first guidance:\n- no RCC context files found; run npx repo-context-center init to install them/);
     assert.match(result.stdout, /Targeted lookup hints:\n- none\. use rcc find "<keyword>" for targeted lookup\./);
     assert.match(result.stdout, /Fast lookup:/);
     assert.match(result.stdout, /rcc find "<keyword>"/);
@@ -243,6 +320,12 @@ test("work --json keeps stable fields when RCC data is missing", async () => {
     assert.deepEqual(brief.relevantDecisions, []);
     assert.deepEqual(brief.recentLogs, []);
     assert.deepEqual(brief.readFirst, []);
+    assert.deepEqual(brief.readFirstGuidance, {
+      required: [],
+      taskSpecific: [],
+      optional: [],
+      skipped: []
+    });
     assert.deepEqual(brief.targetedLookupHints, []);
     assert.equal(Array.isArray(brief.routingGuidance), true);
     assert.equal(brief.nextCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
@@ -251,6 +334,110 @@ test("work --json keeps stable fields when RCC data is missing", async () => {
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+});
+
+test("work prunes read-first guidance for a small focused task", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "fix login bug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(brief.readFirstGuidance.required.map((item) => item.path), ["AGENTS.md"]);
+    assert.ok(brief.targetedLookupHints.some((hint) => hint.path === "src/auth/login.ts"));
+    assert.ok(!brief.readFirstGuidance.taskSpecific.some((item) => item.path === "docs/ai-context/MODULE_INDEX.md"));
+    assert.ok(!brief.readFirstGuidance.taskSpecific.some((item) => item.path === "docs/ai-context/DEPENDENCY_MAP.md"));
+    assert.ok(
+      brief.readFirstGuidance.optional.some((item) => item.path === "docs/ai-context/TASK_ROUTING.md")
+        || brief.readFirstGuidance.skipped.some((item) => item.path === "docs/ai-context/TASK_ROUTING.md")
+    );
+  });
+});
+
+test("work read-first guidance promotes risk context for security and freshness tasks", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "fix freshness reporting risk"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.readFirstGuidance.taskSpecific.some((item) => (
+      item.path === "docs/ai-context/RISK_REGISTER.md"
+      && item.reason.includes("freshness/reporting")
+      && item.priority === "task_specific"
+    )));
+    assert.ok(brief.readFirst.includes("docs/ai-context/RISK_REGISTER.md"));
+  });
+});
+
+test("work read-first guidance promotes dependency context for build and package tasks", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "update package build integration"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.readFirstGuidance.taskSpecific.some((item) => (
+      item.path === "docs/ai-context/DEPENDENCY_MAP.md"
+      && item.priority === "task_specific"
+    )));
+    assert.ok(brief.readFirst.includes("docs/ai-context/DEPENDENCY_MAP.md"));
+  });
+});
+
+test("work read-first guidance promotes module context for architecture and refactor tasks", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "refactor auth service architecture"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.readFirstGuidance.taskSpecific.some((item) => (
+      item.path === "docs/ai-context/MODULE_INDEX.md"
+      && item.priority === "task_specific"
+    )));
+    assert.ok(brief.readFirst.includes("docs/ai-context/MODULE_INDEX.md"));
+  });
+});
+
+test("work read-first guidance promotes task routing for ambiguous work", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "clean up"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.readFirstGuidance.taskSpecific.some((item) => (
+      item.path === "docs/ai-context/TASK_ROUTING.md"
+      && item.priority === "task_specific"
+    )));
+  });
+});
+
+test("work --context-budget minimal keeps only AGENTS required", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--context-budget", "minimal", "fix freshness reporting risk"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(brief.readFirst, ["AGENTS.md"]);
+    assert.deepEqual(brief.readFirstGuidance.required.map((item) => item.path), ["AGENTS.md"]);
+    assert.equal(brief.readFirstGuidance.taskSpecific.length, 0);
+    assert.ok(brief.readFirstGuidance.optional.some((item) => item.path === "docs/ai-context/RISK_REGISTER.md"));
+  });
+});
+
+test("work --context-budget deep keeps broader read-first guidance", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--context-budget", "deep", "fix login bug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const broadGuidance = [
+      ...brief.readFirstGuidance.taskSpecific,
+      ...brief.readFirstGuidance.optional
+    ].map((item) => item.path);
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.readFirst.includes("AGENTS.md"));
+    assert.ok(brief.readFirst.includes("docs/ai-context/TASK_ROUTING.md"));
+    assert.ok(broadGuidance.includes("docs/ai-context/MODULE_INDEX.md"));
+    assert.ok(broadGuidance.includes("docs/ai-context/DEPENDENCY_MAP.md"));
+    assert.ok(broadGuidance.includes("docs/ai-context/RISK_REGISTER.md"));
+  });
 });
 
 test("work reports fresh map freshness when context is newer than repo changes", async () => {
@@ -321,6 +508,70 @@ test("work freshness changes after touching a source file", async () => {
   });
 });
 
+test("work --json ranks exact command hints above folder and weak matches", async () => {
+  await withLookupRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "Improve work command lookup hints"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const paths = brief.targetedLookupHints.map((hint) => hint.path);
+
+    assert.equal(result.status, 0);
+    assert.equal(paths[0], "src/cli/commands/work.ts");
+    assert.ok(
+      paths.indexOf("src/cli/commands/work.ts") < paths.indexOf("src/features/work/index.ts"),
+      paths.join("\n")
+    );
+    assert.equal(brief.targetedLookupHints[0].reason, 'matched command name "work"');
+    assert.equal(brief.targetedLookupHints[0].confidence, "high");
+    assert.equal(typeof brief.targetedLookupHints[0].score, "number");
+  });
+});
+
+test("work --json keeps paired tests near source hints", async () => {
+  await withLookupRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "Improve work command lookup hints"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const paths = brief.targetedLookupHints.map((hint) => hint.path);
+    const sourceIndex = paths.indexOf("src/cli/commands/work.ts");
+    const testIndex = paths.indexOf("tests/work.test.js");
+
+    assert.equal(result.status, 0);
+    assert.notEqual(sourceIndex, -1, paths.join("\n"));
+    assert.notEqual(testIndex, -1, paths.join("\n"));
+    assert.ok(testIndex - sourceIndex <= 2, paths.join("\n"));
+    assert.match(brief.targetedLookupHints[testIndex].reason, /paired test/);
+    assert.equal(brief.targetedLookupHints[testIndex].confidence, "high");
+  });
+});
+
+test("work --json excludes context, generated, fixture, snapshot, lock, and duplicate lookup paths", async () => {
+  await withLookupRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "Improve work command lookup hints"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const paths = brief.targetedLookupHints.map((hint) => hint.path);
+
+    assert.equal(result.status, 0);
+    assert.equal(new Set(paths).size, paths.length);
+    assert.ok(!paths.some((file) => file.startsWith("docs/ai-context/")), paths.join("\n"));
+    assert.ok(!paths.some((file) => file.startsWith(".repo-context-center/")), paths.join("\n"));
+    assert.ok(!paths.some((file) => file.startsWith("fixtures/")), paths.join("\n"));
+    assert.ok(!paths.some((file) => file.includes("__snapshots__")), paths.join("\n"));
+    assert.ok(!paths.includes("package-lock.json"), paths.join("\n"));
+    assert.ok(brief.targetedLookupHints.every((hint) => hint.reason && hint.confidence && typeof hint.score === "number"));
+  });
+});
+
+test("work human lookup hints include reason and confidence", async () => {
+  await withLookupRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "Improve work command lookup hints"], { cwd: tempDir });
+    const hints = sectionBody(result.stdout, "Targeted lookup hints", "Fast lookup");
+
+    assert.equal(result.status, 0);
+    assert.match(hints, /1\. src\/cli\/commands\/work\.ts/);
+    assert.match(hints, /reason: matched command name "work"/);
+    assert.match(hints, /confidence: high/);
+  });
+});
+
 test("work output recommends done with auto file detection", async () => {
   await withWorkRepo(async (tempDir) => {
     const result = runCli(["work", "fix login bug"], { cwd: tempDir });
@@ -333,22 +584,17 @@ test("work output recommends done with auto file detection", async () => {
 
 test("work includes deterministic targeted lookup hints for duplicate AGENTS workflow tasks", () => {
   const result = runCli(["work", "Fix duplicate AGENTS workflow instructions"]);
-  const hints = sectionItems(result.stdout, "Targeted lookup hints", "Fast lookup");
+  const hints = sectionBody(result.stdout, "Targeted lookup hints", "Fast lookup");
 
   assert.equal(result.status, 0);
-  assert.ok(result.stdout.includes("Read first:\n"), result.stdout);
-  assert.ok(result.stdout.indexOf("Read first:") < result.stdout.indexOf("Targeted lookup hints:"));
+  assert.ok(result.stdout.includes("Read-first guidance:\n"), result.stdout);
+  assert.ok(result.stdout.indexOf("Read-first guidance:") < result.stdout.indexOf("Targeted lookup hints:"));
   assert.ok(result.stdout.indexOf("Targeted lookup hints:") < result.stdout.indexOf("Fast lookup:"));
-  assert.ok(hints.length <= 8, `targeted lookup hints has ${hints.length} entries`);
-  assert.ok(hints.some((line) => line.includes("AGENTS.md — matched \"agents\"")), hints.join("\n"));
-  assert.ok(hints.some((line) => line.includes("src/templates/generic/AGENTS.md")), hints.join("\n"));
-  assert.ok(hints.some((line) => line.includes("src/core/templateInstaller.ts")), hints.join("\n"));
-  assert.ok(
-    hints.some((line) => line.includes("tests/init.test.js"))
-      || hints.some((line) => line.includes("tests/templates.test.js"))
-      || hints.some((line) => line.includes("tests/agent-startup-adoption.test.js")),
-    hints.join("\n")
-  );
+  assert.ok(hints.split(/\r?\n/).filter((line) => /^\d+\. /.test(line)).length <= 5, hints);
+  assert.match(hints, /AGENTS\.md/);
+  assert.match(hints, /src\/templates\/generic\/AGENTS\.md/);
+  assert.match(hints, /confidence: high/);
+  assert.ok(!hints.includes("docs/ai-context/"), hints);
 });
 
 test("work suggests --files auto in the next done command", async () => {
@@ -439,7 +685,7 @@ test("work output is concise and agent-oriented", async () => {
     const lines = result.stdout.trim().split(/\r?\n/);
 
     assert.equal(result.status, 0);
-    assert.ok(lines.length <= 50, `work output has ${lines.length} lines`);
+    assert.ok(lines.length <= 65, `work output has ${lines.length} lines`);
     assert.doesNotMatch(result.stdout, /generate code/i);
     assert.match(result.stdout, /Map freshness:/);
     assert.match(result.stdout, /Recommended files to inspect first:/);
