@@ -45,7 +45,7 @@ npx repo-context-center init --force
 
 ## Agent Workflow
 
-The primary v0.7 workflow is intentionally small:
+The primary agent workflow is intentionally small:
 
 ```sh
 rcc work "fix login bug"
@@ -54,11 +54,31 @@ rcc work "fix login bug"
 `rcc work` prints a concise agent-focused work brief:
 
 - task intent;
+- map freshness status and a refresh recommendation when context looks stale;
 - recommended files to inspect first;
 - relevant tests or test folders;
 - recent decisions and memory;
 - known risks;
+- read-first guidance for required, task-specific, and optional context files;
+- targeted lookup hints with deterministic reasons and confidence;
+- a rough token estimate for the brief;
 - the suggested next command after work.
+
+Agents and integrations can request the same work brief as stable JSON:
+
+```sh
+rcc work "fix login bug" --json
+```
+
+The JSON form is generated from the same internal work brief as the human-readable output and includes stable fields such as `schemaVersion`, `command`, `task`, `contextBudget`, `mapFreshness`, `recommendedFiles`, `relevantTests`, `readFirstGuidance`, `readFirst`, `targetedLookupHints`, `tokenEstimate`, `fastLookup`, and `nextCommand`.
+
+Control read-first breadth with a context budget:
+
+```sh
+rcc work "fix login bug" --context-budget minimal
+rcc work "fix login bug" --context-budget balanced
+rcc work "fix login bug" --context-budget deep
+```
 
 After meaningful completed work, the agent records lightweight work memory:
 
@@ -188,7 +208,7 @@ Use `find` when `rcc work` gives useful direction but the agent still needs a fo
 npx repo-context-center find "decision command"
 ```
 
-`find "<query>"` returns focused file candidates with short deterministic reasons.
+`find "<query>"` returns focused file candidates with short deterministic reasons. It prefers task-routing, filename, path, paired-test, and lightweight content signals while filtering noisy generated, fixture, snapshot, archive, and internal context paths.
 
 ### Estimate Token Savings
 
@@ -201,6 +221,13 @@ npx repo-context-center estimate --json
 ```
 
 ### Integrations And JSON
+
+Use `work --json` when an agent or tool needs the full work brief in a stable machine-readable shape:
+
+```sh
+npx repo-context-center work "improve package scripts" --json
+npx repo-context-center work "improve package scripts" --json --context-budget minimal
+```
 
 Use `suggest --json` when integrating RCC recommendations into another tool:
 
@@ -253,7 +280,7 @@ Prefer `rcc work` and `rcc done` for new agent workflows.
 ```sh
 repo-context-center --help
 repo-context-center init [--dry-run] [--force] [--github-action]
-repo-context-center work "<task>"
+repo-context-center work "<task>" [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
 repo-context-center done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]
 repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <number>]
 repo-context-center validate [--strict]

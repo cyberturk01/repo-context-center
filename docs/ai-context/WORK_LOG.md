@@ -63,4 +63,14 @@ Lightweight RCC memory from completed agent work.
 - Summary: Implemented stable rcc work --json output from shared work brief model
 - Changed files: `auto`
 - Verification: npm run build; node --test tests/work.test.js; npm run test:cli; npm test; manual dist JSON parse and option-order validation
+
+## 2026-06-17T14:13:41.529Z
+- Summary: Updated generated AGENTS context after reviewing last 10 git commits
+- Changed files: `auto`
+- Verification: rcc map --check; node --test tests/map.test.js
+
+## 2026-06-17T14:15:18.507Z
+- Summary: Updated README to reflect latest rcc work and find changes from recent git history
+- Changed files: `auto`
+- Verification: npm run build
 <!-- repo-context-center:work-log:end -->
