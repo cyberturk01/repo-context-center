@@ -92,7 +92,7 @@ test("work accepts a task string and recommends focused files", async () => {
     assert.match(result.stdout, /Known risks:\n- high/);
     assert.match(result.stdout, /Fast lookup:\n- For targeted lookup, use: rcc find "<keyword>"/);
     assert.match(result.stdout, /Prefer this before broad repo search when the target is unclear\./);
-    assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files "<files>" --verify "<check>"\n```/);
+    assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
   });
 });
@@ -113,11 +113,21 @@ test("work handles missing RCC files gracefully", async () => {
     assert.match(result.stdout, /Read first:\n- no RCC context files found; run npx repo-context-center init to install them/);
     assert.match(result.stdout, /Fast lookup:/);
     assert.match(result.stdout, /rcc find "<keyword>"/);
-    assert.match(result.stdout, /```sh\nrcc done --summary "<summary>" --files "<files>" --verify "<check>"\n```/);
+    assert.match(result.stdout, /```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+});
+
+test("work output recommends done with auto file detection", async () => {
+  await withWorkRepo(async (tempDir) => {
+    const result = runCli(["work", "fix login bug"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
+    assert.doesNotMatch(result.stdout, /--files "<files>"/);
+  });
 });
 
 test("work recommends RCC context files when context matches but source is missing", async () => {

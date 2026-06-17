@@ -349,7 +349,7 @@ function briefLines(
     "",
     "Next command after meaningful work:",
     "```sh",
-    'rcc done --summary "<summary>" --files "<files>" --verify "<check>"',
+    'rcc done --summary "<summary>" --files auto --verify "<check>"',
     "```"
   ];
 }

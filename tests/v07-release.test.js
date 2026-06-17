@@ -102,7 +102,7 @@ test("v0.7 release: rcc work produces useful focused output", async () => {
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Known risks:\n- high/);
     assert.match(result.stdout, /Fast lookup:\n- For targeted lookup, use: rcc find "<keyword>"/);
-    assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files "<files>" --verify "<check>"\n```/);
+    assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
     assert.doesNotMatch(result.stdout, /score/i);
   });
@@ -121,7 +121,7 @@ test("v0.7 release: rcc work works with missing context files", async () => {
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Read first:\n- no RCC context files found; run npx repo-context-center init to install them/);
     assert.match(result.stdout, /Fast lookup:/);
-    assert.match(result.stdout, /rcc done --summary "<summary>" --files "<files>" --verify "<check>"/);
+    assert.match(result.stdout, /rcc done --summary "<summary>" --files auto --verify "<check>"/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
   });
 });

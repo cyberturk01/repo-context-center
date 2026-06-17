@@ -51,6 +51,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "repo-context-center": "^0.7.2"
+    "repo-context-center": "^0.7.3"
   }
 }
