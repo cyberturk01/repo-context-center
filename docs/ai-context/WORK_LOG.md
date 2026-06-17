@@ -18,4 +18,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Added targeted lookup hints to rcc work
 - Changed files: `auto`
 - Verification: npm run test:cli; npm test
+
+## 2026-06-17T12:02:37.879Z
+- Summary: Add JSON output mode to rcc work
+- Changed files: `auto`
+- Verification: npm run build; node --test tests/work.test.js; npm run test:cli; npm test
 <!-- repo-context-center:work-log:end -->

@@ -6,6 +6,7 @@ import { buildStartupContext, focusStartupContextForStart, type StartupContext }
 import type { CliIO } from "../index";
 
 interface WorkOptions {
+  json: boolean;
   maxFiles: number;
   task: string;
 }
@@ -17,6 +18,35 @@ interface TargetedLookupHint {
   index: number;
 }
 
+interface WorkRecommendation {
+  path: string;
+  reasons: string[];
+}
+
+interface WorkMapFreshness {
+  status: "fresh" | "stale" | "unknown";
+  message: string;
+}
+
+interface WorkBrief {
+  task: string;
+  mapFreshness: WorkMapFreshness;
+  routingGuidance: string[];
+  startupContext: StartupContext;
+  recommendedFiles: WorkRecommendation[];
+  relevantTests: WorkRecommendation[];
+  targetedLookupHints: Array<Pick<TargetedLookupHint, "path" | "term">>;
+  relevantDecisions: string[];
+  recentLogs: string[];
+  tokenEstimate: {
+    roughTokens: number | null;
+    text: string;
+  };
+  risks: string[];
+  readFirst: string[];
+  nextCommand: string;
+}
+
 const decisionsPath = "docs/ai-context/DECISIONS.md";
 const workLogPath = "docs/ai-context/WORK_LOG.md";
 const lessonsPath = "docs/ai-context/LESSONS_LEARNED.md";
@@ -25,7 +55,8 @@ const logLimit = 3;
 const decisionLimit = 3;
 const targetedLookupLimit = 5;
 const targetedContentReadLimit = 64 * 1024;
-const usage = 'Usage: rcc work "<task>"';
+const usage = 'Usage: rcc work "<task>" [--json] [--max-files <number>]';
+const nextCommand = 'rcc done --summary "<summary>" --files auto --verify "<check>"';
 const contextFiles = [
   "AGENTS.md",
   "docs/ai-context/TASK_ROUTING.md",
@@ -53,11 +84,17 @@ const lowSignalTaskTerms = new Set([
 ]);
 
 function parseWorkOptions(args: string[]): WorkOptions | undefined {
+  let json = false;
   let maxFiles = 50;
   const taskParts: string[] = [];
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+
+    if (arg === "--json") {
+      json = true;
+      continue;
+    }
 
     if (arg === "--max-files") {
       const value = Number.parseInt(args[index + 1] ?? "", 10);
@@ -82,6 +119,7 @@ function parseWorkOptions(args: string[]): WorkOptions | undefined {
   }
 
   return {
+    json,
     maxFiles,
     task
   };
@@ -131,6 +169,13 @@ function formatRecommendedFiles(startup: StartupContext): string[] {
   return startup.likelySourceFiles.map((file) => {
     return `- ${file}${compactReason(startup.recommendationReasons[file])}`;
   });
+}
+
+function recommendationItems(paths: string[], startup: StartupContext): WorkRecommendation[] {
+  return paths.map((file) => ({
+    path: file,
+    reasons: startup.recommendationReasons[file] ?? []
+  }));
 }
 
 function formatRecommendedTests(startup: StartupContext): string[] {
@@ -493,6 +538,21 @@ async function mapFreshnessLine(cwd: string): Promise<string> {
   return "fresh. generated context is available.";
 }
 
+function normalizeMapFreshness(value: string): WorkMapFreshness {
+  if (value.startsWith("fresh.")) {
+    return { status: "fresh", message: value };
+  }
+  if (value.startsWith("stale.")) {
+    return { status: "stale", message: value };
+  }
+
+  return { status: "unknown", message: value || "unknown" };
+}
+
+function formatMapFreshness(mapFreshness: WorkMapFreshness): string {
+  return mapFreshness.message || mapFreshness.status || "unknown";
+}
+
 function riskLines(startup: StartupContext): string[] {
   const lines = [`- ${startup.riskLevel}`];
   const riskReasons = startup.reasons.filter((reason) => (
@@ -513,47 +573,51 @@ function riskLines(startup: StartupContext): string[] {
   return lines;
 }
 
-function briefLines(
-  startup: StartupContext,
-  mapFreshness: string,
-  decisions: string[],
-  logs: string[],
-  tokenEstimate: string,
-  lookupHints: TargetedLookupHint[]
-): string[] {
-  const readFirst = startup.readFirstDocs.slice(0, 4);
+function riskValues(startup: StartupContext): string[] {
+  return riskLines(startup).map((line) => line.replace(/^- /, ""));
+}
+
+function targetLookupHintForText(hint: Pick<TargetedLookupHint, "path" | "term">): TargetedLookupHint {
+  return {
+    ...hint,
+    score: 0,
+    index: 0
+  };
+}
+
+function renderWorkBriefLines(brief: WorkBrief): string[] {
   return [
     "repo-context-center work brief",
     "",
     "Task intent:",
-    startup.task,
+    brief.task,
     "",
     "Map freshness:",
-    `- ${mapFreshness}`,
+    `- ${formatMapFreshness(brief.mapFreshness)}`,
     "",
     "Recommended files to inspect first:",
-    ...formatRecommendedFiles(startup).slice(0, 8),
+    ...formatRecommendedFiles(brief.startupContext).slice(0, 8),
     "",
     "Relevant tests or test folders:",
-    ...formatRecommendedTests(startup).slice(0, 6),
+    ...formatRecommendedTests(brief.startupContext).slice(0, 6),
     "",
     "Relevant decisions:",
-    ...formatList(decisions, "none. no matching decision was found."),
+    ...formatList(brief.relevantDecisions, "none. no matching decision was found."),
     "",
     "Recent logs:",
-    ...formatList(logs, "none. no recent log was found."),
+    ...formatList(brief.recentLogs, "none. no recent log was found."),
     "",
     "Token estimate:",
-    `- ${tokenEstimate}`,
+    `- ${brief.tokenEstimate.text}`,
     "",
     "Known risks:",
-    ...riskLines(startup),
+    ...brief.risks.map((risk) => `- ${risk}`),
     "",
     "Read first:",
-    ...formatList(readFirst, "no RCC context files found; run npx repo-context-center init to install them"),
+    ...formatList(brief.readFirst, "no RCC context files found; run npx repo-context-center init to install them"),
     "",
     "Targeted lookup hints:",
-    ...formatTargetedLookupHints(lookupHints),
+    ...formatTargetedLookupHints(brief.targetedLookupHints.map(targetLookupHintForText)),
     "",
     "Fast lookup:",
     '- For targeted lookup, use: rcc find "<keyword>"',
@@ -561,24 +625,64 @@ function briefLines(
     "",
     "Next command after meaningful work:",
     "```sh",
-    'rcc done --summary "<summary>" --files auto --verify "<check>"',
+    brief.nextCommand,
     "```"
   ];
 }
 
-function formatWorkBrief(
+function formatWorkBrief(brief: WorkBrief): string {
+  return `${renderWorkBriefLines(brief).join("\n")}\n`;
+}
+
+function buildBriefWithTokenEstimate(brief: WorkBrief): WorkBrief {
+  const preliminary = renderWorkBriefLines({
+    ...brief,
+    tokenEstimate: {
+      roughTokens: null,
+      text: "calculating."
+    }
+  });
+  const roughTokens = Math.ceil(preliminary.join("\n").length / 4);
+
+  return {
+    ...brief,
+    tokenEstimate: {
+      roughTokens,
+      text: `roughly ${roughTokens} tokens for this brief.`
+    }
+  };
+}
+
+function buildWorkBrief(
   startup: StartupContext,
   mapFreshness: string,
   decisions: string[],
   logs: string[],
   lookupHints: TargetedLookupHint[]
-): string {
-  const preliminary = briefLines(startup, mapFreshness, decisions, logs, "calculating.", lookupHints);
-  const roughTokens = Math.ceil(preliminary.join("\n").length / 4);
-  const tokenEstimate = `roughly ${roughTokens} tokens for this brief.`;
-  const lines = briefLines(startup, mapFreshness, decisions, logs, tokenEstimate, lookupHints);
+): WorkBrief {
+  const brief: WorkBrief = {
+    task: startup.task,
+    mapFreshness: normalizeMapFreshness(mapFreshness),
+    routingGuidance: startup.startupInstructions,
+    startupContext: startup,
+    recommendedFiles: recommendationItems(startup.likelySourceFiles, startup),
+    relevantTests: recommendationItems(startup.likelyTests, startup),
+    targetedLookupHints: lookupHints.map((hint) => ({
+      path: hint.path,
+      term: hint.term
+    })),
+    relevantDecisions: decisions,
+    recentLogs: logs,
+    tokenEstimate: {
+      roughTokens: null,
+      text: "unknown"
+    },
+    risks: riskValues(startup),
+    readFirst: startup.readFirstDocs.slice(0, 4),
+    nextCommand
+  };
 
-  return `${lines.join("\n")}\n`;
+  return buildBriefWithTokenEstimate(brief);
 }
 
 export async function workCommand(io: CliIO, args: string[] = []): Promise<number> {
@@ -603,6 +707,13 @@ export async function workCommand(io: CliIO, args: string[] = []): Promise<numbe
     targetedLookupHints(io.cwd, options.task)
   ]);
 
-  io.stdout(formatWorkBrief(focusedStartupContext, mapFreshness, decisions, logs, lookupHints));
+  const brief = buildWorkBrief(focusedStartupContext, mapFreshness, decisions, logs, lookupHints);
+
+  if (options.json) {
+    io.stdout(`${JSON.stringify(brief, null, 2)}\n`);
+    return 0;
+  }
+
+  io.stdout(formatWorkBrief(brief));
   return 0;
 }

@@ -105,6 +105,48 @@ test("work accepts a task string and recommends focused files", async () => {
   });
 });
 
+test("work --json returns a valid machine-readable brief", async () => {
+  await withWorkRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "fix login bug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.equal(brief.task, "fix login bug");
+    assert.deepEqual(
+      Object.keys(brief),
+      [
+        "task",
+        "mapFreshness",
+        "routingGuidance",
+        "startupContext",
+        "recommendedFiles",
+        "relevantTests",
+        "targetedLookupHints",
+        "relevantDecisions",
+        "recentLogs",
+        "tokenEstimate",
+        "risks",
+        "readFirst",
+        "nextCommand"
+      ]
+    );
+    assert.equal(typeof brief.mapFreshness.status, "string");
+    assert.match(brief.mapFreshness.message, /^(fresh|stale)\. /);
+    assert.ok(brief.recommendedFiles.some((file) => file.path === "src/auth/login.ts"));
+    assert.ok(brief.relevantTests.some((file) => file.path === "tests/auth/login.test.ts"));
+    assert.ok(brief.targetedLookupHints.some((hint) => (
+      hint.path === "src/auth/login.ts" && hint.term === "login"
+    )));
+    assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep login flow server-side")));
+    assert.match(brief.tokenEstimate.text, /^roughly \d+ tokens for this brief\.$/);
+    assert.equal(brief.nextCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
+    assert.equal(result.stdout.trim().startsWith("{"), true);
+    assert.equal(result.stdout.trim().endsWith("}"), true);
+    assert.doesNotMatch(result.stdout, /repo-context-center work brief/);
+  });
+});
+
 test("work handles missing RCC files gracefully", async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-empty-"));
 
@@ -124,6 +166,32 @@ test("work handles missing RCC files gracefully", async () => {
     assert.match(result.stdout, /rcc find "<keyword>"/);
     assert.match(result.stdout, /```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work --json keeps stable fields when RCC data is missing", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-json-empty-"));
+
+  try {
+    await writeFixtureFile(tempDir, "src/index.ts", "export const ok = true;\n");
+
+    const result = runCli(["work", "unknown task", "--json"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.equal(brief.mapFreshness.status, "unknown");
+    assert.match(brief.mapFreshness.message, /^unknown\. run npx repo-context-center init/);
+    assert.deepEqual(brief.relevantDecisions, []);
+    assert.deepEqual(brief.recentLogs, []);
+    assert.deepEqual(brief.readFirst, []);
+    assert.deepEqual(brief.targetedLookupHints, []);
+    assert.equal(Array.isArray(brief.routingGuidance), true);
+    assert.equal(brief.nextCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
+    assert.equal(Array.isArray(brief.recommendedFiles), true);
+    assert.equal(Array.isArray(brief.relevantTests), true);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -153,7 +221,8 @@ test("work includes deterministic targeted lookup hints for duplicate AGENTS wor
   assert.ok(hints.some((line) => line.includes("src/core/templateInstaller.ts")), hints.join("\n"));
   assert.ok(
     hints.some((line) => line.includes("tests/init.test.js"))
-      || hints.some((line) => line.includes("tests/templates.test.js")),
+      || hints.some((line) => line.includes("tests/templates.test.js"))
+      || hints.some((line) => line.includes("tests/agent-startup-adoption.test.js")),
     hints.join("\n")
   );
 });
