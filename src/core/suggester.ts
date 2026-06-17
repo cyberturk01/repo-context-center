@@ -80,7 +80,9 @@ const workflowKeywords = [
   "workflows"
 ];
 const testDiscoveryKeywords = ["test", "unit test", "spec", "failure", "jest", "vitest", "cypress", "e2e"];
+const packageLockFiles = ["package-lock.json", "pnpm-lock.yaml", "yarn.lock"];
 const workflowSupportFiles = ["package.json", "Dockerfile", "railway.json"];
+const packageBuildSupportFiles = ["package.json", ...packageLockFiles];
 const decisionsFile = "docs/ai-context/DECISIONS.md";
 const decisionMemoryReason = "decision memory relevant to architecture/context task";
 const documentationOnlyReason = "documentation-only change";
@@ -258,6 +260,39 @@ function isWorkflowTask(tokens: string[]): boolean {
   return workflowKeywords.some((keyword) => tokens.includes(keyword));
 }
 
+function hasExplicitWorkflowIntent(tokens: string[]): boolean {
+  return tokens.some((token) => [
+    "action",
+    "actions",
+    "cd",
+    "ci",
+    "deploy",
+    "deployment",
+    "docker",
+    "github",
+    "pipeline",
+    "production",
+    "railway",
+    "release",
+    "workflow",
+    "workflows"
+  ].includes(token));
+}
+
+function isPackageBuildTask(tokens: string[]): boolean {
+  return tokens.some((token) => [
+    "build",
+    "configuration",
+    "config",
+    "dependency",
+    "dependencies",
+    "package",
+    "packages",
+    "script",
+    "scripts"
+  ].includes(token));
+}
+
 function isCommandTask(tokens: string[]): boolean {
   return tokens.some((token) => commandTaskKeywords.has(token));
 }
@@ -407,7 +442,7 @@ function commandTaskScore(filePath: string, tokens: string[], commandTask: boole
   }
 
   if (isCliRegistryFile(filePath)) {
-    return 96;
+    return 72;
   }
 
   if (isCliCommandFile(filePath)) {
@@ -415,7 +450,7 @@ function commandTaskScore(filePath: string, tokens: string[], commandTask: boole
     const stem = pathStem(filePath);
 
     if (tokens.includes(stem)) {
-      score += 36;
+      score += 96;
     }
     if (stem === "log" && isLogStyleCommandTask(tokens)) {
       score += 48;
@@ -447,8 +482,10 @@ function tokenMatchScore(filePath: string, tokens: Set<string>): number {
   const strongMatches = matchingTokenCount(filenameTokens(filePath), tokens);
   const mediumMatches = matchingTokenCount(parentTokens(filePath), tokens);
   const segmentMatches = matchingTokenCount(segmentTokens(filePath), tokens);
+  const stem = pathStem(filePath);
+  const exactStemMatch = tokens.has(stem) ? 1 : 0;
 
-  return (strongMatches * 30) + (mediumMatches * 16) + (segmentMatches > 0 ? 4 : 0);
+  return (exactStemMatch * 72) + (strongMatches * 34) + (mediumMatches * 16) + (segmentMatches > 0 ? 4 : 0);
 }
 
 function activeTestScore(filePath: string): number {
@@ -548,6 +585,31 @@ function hasSamePackageScope(filePath: string, selectedSourceFiles: string[]): b
   );
 }
 
+function packageBuildTaskScore(filePath: string, tokens: string[], packageBuildTask: boolean): number {
+  if (!packageBuildTask) {
+    return 0;
+  }
+
+  const basename = path.posix.basename(filePath);
+  const stem = pathStem(filePath);
+  const info = classifyRepoFile(filePath);
+  let score = 0;
+
+  if (basename === "package.json") {
+    score += tokens.some((token) => ["package", "script", "scripts"].includes(token)) ? 180 : 90;
+  } else if (packageLockFiles.includes(basename)) {
+    score += tokens.some((token) => ["package", "dependency", "dependencies"].includes(token)) ? 104 : 70;
+  } else if (info.role === "config") {
+    score += tokens.some((token) => ["build", "config", "configuration"].includes(token)) ? 220 : 72;
+  }
+
+  if (tokens.includes(stem)) {
+    score += 90;
+  }
+
+  return score;
+}
+
 interface ScoredCandidate {
   path: string;
   score: number;
@@ -638,35 +700,48 @@ function discoverLikelySourceFiles(
   explicitDocsTargets: string[],
   includeWorkflowFiles: boolean,
   includeCommandFiles: boolean,
+  includePackageBuildFiles: boolean,
   maxFiles: number
 ): string[] {
   const tokenSet = new Set(tokens);
   const hintSet = new Set(existingHintMatches);
   const docsTargetSet = new Set(explicitDocsTargets);
   const hasGithubWorkflowFiles = includeWorkflowFiles && files.some(isGithubWorkflowPath);
+  const explicitWorkflowIntent = hasExplicitWorkflowIntent(tokens);
   const candidates = files.map((file) => {
     const info = classifyRepoFile(file);
     let score = 0;
     const matchScore = tokenMatchScore(file, tokenSet);
     const commandScore = commandTaskScore(file, tokens, includeCommandFiles);
+    const packageBuildScore = packageBuildTaskScore(file, tokens, includePackageBuildFiles);
 
-    if (includeWorkflowFiles && !hasGithubWorkflowFiles && workflowSupportFiles.includes(file)) {
+    if (
+      includeWorkflowFiles
+      && !includePackageBuildFiles
+      && !hasGithubWorkflowFiles
+      && workflowSupportFiles.includes(file)
+    ) {
       return { path: file, score: 0 };
     }
 
     if (info.role === "source") {
-      if (!hintSet.has(file) && matchScore === 0 && commandScore === 0) {
+      if (!hintSet.has(file) && matchScore === 0 && commandScore === 0 && packageBuildScore === 0) {
         return { path: file, score: 0 };
       }
       score += 32;
       score += matchScore;
       score += commandScore;
+      score += packageBuildScore;
     } else if (includeWorkflowFiles && info.role === "workflow") {
       score += 80;
       score += matchScore;
       if (isGithubWorkflowPath(file)) {
         score += 160;
       }
+    } else if (includePackageBuildFiles && (info.role === "package" || info.role === "config" || packageBuildSupportFiles.includes(file))) {
+      score += 70;
+      score += matchScore;
+      score += packageBuildScore;
     } else if (includeWorkflowFiles && hasGithubWorkflowFiles && workflowSupportFiles.includes(file)) {
       score += 38;
       score += matchScore;
@@ -685,11 +760,14 @@ function discoverLikelySourceFiles(
     }
     if (includeWorkflowFiles && info.role === "workflow") {
       score += 28;
+      if (includePackageBuildFiles && !explicitWorkflowIntent) {
+        score -= 300;
+      }
     }
-    if (info.role === "package") {
+    if (info.role === "package" && !includePackageBuildFiles) {
       score -= 16;
     }
-    if (info.role === "config") {
+    if (info.role === "config" && !includePackageBuildFiles) {
       score -= 8;
     }
 
@@ -784,6 +862,7 @@ function reasonsForRecommendedFile(
   selectedSourceFiles: string[],
   includeWorkflowFiles: boolean,
   includeCommandFiles: boolean,
+  includePackageBuildFiles: boolean,
   genericTestFallback: boolean
 ): string[] {
   const reasons: string[] = [];
@@ -811,6 +890,10 @@ function reasonsForRecommendedFile(
 
   if (includeWorkflowFiles && (info.role === "workflow" || workflowSupportFiles.includes(filePath))) {
     addReason(reasons, "workflow task match");
+  }
+
+  if (includePackageBuildFiles && (info.role === "package" || info.role === "config" || packageBuildSupportFiles.includes(filePath))) {
+    addReason(reasons, "package/build task match");
   }
 
   if (includeCommandFiles) {
@@ -849,6 +932,7 @@ function recommendationReasonsFor(
   explicitDocsTargets: string[],
   includeWorkflowFiles: boolean,
   includeCommandFiles: boolean,
+  includePackageBuildFiles: boolean,
   genericTestFallback: boolean
 ): Record<string, string[]> {
   const reasons: Record<string, string[]> = {};
@@ -863,6 +947,7 @@ function recommendationReasonsFor(
       likelySourceFiles,
       includeWorkflowFiles,
       includeCommandFiles,
+      includePackageBuildFiles,
       genericTestFallback
     );
     if (fileReasons.length > 0) {
@@ -880,6 +965,7 @@ function recommendationReasonsFor(
       likelySourceFiles,
       includeWorkflowFiles,
       includeCommandFiles,
+      includePackageBuildFiles,
       genericTestFallback
     );
     if (fileReasons.length > 0) {
@@ -1366,6 +1452,7 @@ function pairedSourceFromReason(reason: string): string | undefined {
 function isStrongStartReason(reason: string, taskTokens: Set<string>, retainedSourceFiles?: Set<string>): boolean {
   if (
     reason === "same monorepo package scope"
+    || reason === "package/build task match"
     || reason === "workflow task match"
     || reason === "known CLI command registry"
     || reason === explicitDocumentationTargetReason
@@ -1408,6 +1495,60 @@ function hasStrongStartSignal(
   return reasons.some((reason) => isStrongStartReason(reason, taskTokens, retainedSourceFiles));
 }
 
+function packageBuildFocusRank(filePath: string, tokens: Set<string>): number {
+  if (!isPackageBuildTask([...tokens])) {
+    return 0;
+  }
+
+  const basename = path.posix.basename(filePath);
+  const info = classifyRepoFile(filePath);
+  const buildConfigTask = tokens.has("build") && (tokens.has("config") || tokens.has("configuration"));
+  const packageScriptsTask = tokens.has("package") || tokens.has("script") || tokens.has("scripts");
+
+  if (buildConfigTask) {
+    if (info.role === "config") {
+      return 0;
+    }
+    if (basename === "package.json") {
+      return 1;
+    }
+    if (packageLockFiles.includes(basename)) {
+      return 2;
+    }
+    if (info.role === "source") {
+      return 3;
+    }
+    if (info.role === "workflow") {
+      return 4;
+    }
+    return 5;
+  }
+
+  if (packageScriptsTask) {
+    if (basename === "package.json") {
+      return 0;
+    }
+    if (packageLockFiles.includes(basename)) {
+      return 1;
+    }
+    if (info.role === "config") {
+      return 2;
+    }
+    if (filePath.startsWith("scripts/")) {
+      return 3;
+    }
+    if (info.role === "source") {
+      return 4;
+    }
+    if (info.role === "workflow") {
+      return 5;
+    }
+    return 6;
+  }
+
+  return 0;
+}
+
 function compactReasonsForFiles(
   retainedFiles: string[],
   reasonsByFile: Record<string, string[]>
@@ -1427,10 +1568,16 @@ export function focusStartupContextForStart(
   const taskTokens = new Set(tokenize(startupContext.task));
   const commandTask = isCommandTask([...taskTokens]);
   const likelySourceFiles = startupContext.likelySourceFiles
-    .filter((filePath) => {
+    .map((filePath, index) => ({ filePath, index }))
+    .filter(({ filePath }) => {
       return isFocusedCommandSource(filePath, taskTokens, commandTask)
         && hasStrongStartSignal(filePath, startupContext.recommendationReasons, taskTokens);
     })
+    .sort((left, right) => (
+      packageBuildFocusRank(left.filePath, taskTokens) - packageBuildFocusRank(right.filePath, taskTokens)
+      || left.index - right.index
+    ))
+    .map(({ filePath }) => filePath)
     .slice(0, maxSourceFiles);
   const retainedSourceFiles = new Set(likelySourceFiles);
   const likelyTests = startupContext.likelyTests
@@ -1640,6 +1787,7 @@ export async function buildStartupContext(
   const mode = modeForTask(task, tokens);
   const workflowTask = isWorkflowTask(tokens);
   const commandTask = isCommandTask(tokens);
+  const packageBuildTask = isPackageBuildTask(tokens);
   const hasGithubWorkflowFiles = repoFiles.some(isGithubWorkflowPath);
   const discoveredLikelySourceFiles = discoverLikelySourceFiles(
     repoFiles,
@@ -1648,6 +1796,7 @@ export async function buildStartupContext(
     explicitDocsTargets,
     workflowTask,
     commandTask,
+    packageBuildTask,
     maxFiles
   );
   const likelySourceFiles = documentationOnlyTask
@@ -1670,6 +1819,7 @@ export async function buildStartupContext(
     explicitDocsTargets,
     workflowTask,
     commandTask,
+    packageBuildTask,
     genericTestFallback
   );
   const emptyRecommendationReasons = emptyRecommendationReasonsFor(

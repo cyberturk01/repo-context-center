@@ -187,19 +187,32 @@ function compactReason(reasons: string[] | undefined): string {
   return ` (${reasons.slice(0, 2).join("; ")})`;
 }
 
-function formatRecommendedFiles(startup: StartupContext): string[] {
+function recommendedInspectionFiles(startup: StartupContext): string[] {
   if (startup.likelySourceFiles.length === 0) {
-    if (startup.readFirstDocs.length > 0) {
-      return startup.readFirstDocs.map((file) => `- ${file}`);
-    }
+    return [...new Set(startup.readFirstDocs)];
+  }
 
+  return [...new Set([
+    ...startup.likelySourceFiles,
+    ...startup.readFirstDocs.slice(0, 2)
+  ])];
+}
+
+function formatRecommendedFiles(startup: StartupContext): string[] {
+  const files = recommendedInspectionFiles(startup);
+
+  if (files.length === 0) {
     const reason = startup.emptyRecommendationReasons.source
       ? ` ${startup.emptyRecommendationReasons.source}`
       : " Start from RCC context docs before broad search.";
     return [`- none.${reason}`];
   }
 
-  return startup.likelySourceFiles.map((file) => {
+  if (startup.likelySourceFiles.length === 0 && startup.readFirstDocs.length > 0) {
+    return files.map((file) => `- ${file}`);
+  }
+
+  return files.map((file) => {
     return `- ${file}${compactReason(startup.recommendationReasons[file])}`;
   });
 }
@@ -1002,9 +1015,7 @@ function formatReadFirstGuidance(guidance: ReadFirstGuidance): string[] {
     "",
     ...formatReadFirstGroup("Task-specific:", guidance.taskSpecific),
     "",
-    ...formatReadFirstGroup("Optional if unclear:", guidance.optional),
-    "",
-    ...formatReadFirstGroup("Skipped for now:", guidance.skipped)
+    ...formatReadFirstGroup("Optional if unclear:", guidance.optional)
   ];
 }
 
@@ -1096,7 +1107,7 @@ function buildWorkBrief(
     mapFreshness,
     routingGuidance: startup.startupInstructions,
     startupContext: startup,
-    recommendedFiles: recommendationItems(startup.likelySourceFiles, startup),
+    recommendedFiles: recommendationItems(recommendedInspectionFiles(startup), startup),
     relevantTests: recommendationItems(startup.likelyTests, startup),
     targetedLookupHints: lookupHints.map((hint) => ({
       path: hint.path,

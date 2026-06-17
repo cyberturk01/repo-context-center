@@ -157,6 +157,39 @@ async function withLookupRankingRepo(callback) {
   }
 }
 
+async function withRecommendedRankingRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-recommend-ranking-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Package and build work: read `AGENTS.md`, `docs/ai-context/TASK_ROUTING.md`, and `docs/ai-context/MODULE_INDEX.md`.",
+        "- Work command changes: read `src/cli/commands/work.ts` and `tests/work.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "docs/ai-context/MODULE_INDEX.md", "# Module Index\n");
+    await writeFixtureFile(tempDir, "package.json", "{\"scripts\":{\"build\":\"tsc\"}}\n");
+    await writeFixtureFile(tempDir, "package-lock.json", "{\"lockfileVersion\":3}\n");
+    await writeFixtureFile(tempDir, "pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
+    await writeFixtureFile(tempDir, "yarn.lock", "# yarn lockfile\n");
+    await writeFixtureFile(tempDir, "tsconfig.json", "{\"compilerOptions\":{}}\n");
+    await writeFixtureFile(tempDir, "vite.config.ts", "export default {};\n");
+    await writeFixtureFile(tempDir, "src/cli/index.ts", "export function run() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/work.ts", "export function workCommand() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/done.ts", "export function doneCommand() {}\n");
+    await writeFixtureFile(tempDir, "tests/work.test.js", "test('work command', () => {});\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function withGuidanceRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-guidance-"));
 
@@ -557,6 +590,72 @@ test("work --json excludes context, generated, fixture, snapshot, lock, and dupl
     assert.ok(!paths.some((file) => file.includes("__snapshots__")), paths.join("\n"));
     assert.ok(!paths.includes("package-lock.json"), paths.join("\n"));
     assert.ok(brief.targetedLookupHints.every((hint) => hint.reason && hint.confidence && typeof hint.score === "number"));
+  });
+});
+
+test("work --json ranks package task package.json first", async () => {
+  await withRecommendedRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "improve package scripts"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const paths = brief.recommendedFiles.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.equal(paths[0], "package.json", paths.join("\n"));
+    assert.equal(new Set(paths).size, paths.length);
+    assert.ok(paths.indexOf("package.json") < paths.indexOf("AGENTS.md"), paths.join("\n"));
+    assert.ok(paths.includes("docs/ai-context/TASK_ROUTING.md"), paths.join("\n"));
+  });
+});
+
+test("work --json ranks build task build and config files first", async () => {
+  await withRecommendedRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "update build configuration"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const paths = brief.recommendedFiles.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.ok(["tsconfig.json", "vite.config.ts"].includes(paths[0]), paths.join("\n"));
+    assert.ok(paths.indexOf(paths[0]) < paths.indexOf("AGENTS.md"), paths.join("\n"));
+    assert.ok(paths.some((file) => ["tsconfig.json", "vite.config.ts"].includes(file)), paths.join("\n"));
+  });
+});
+
+test("work --json ranks matching command implementation first", async () => {
+  await withRecommendedRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "fix work command"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const paths = brief.recommendedFiles.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.equal(paths[0], "src/cli/commands/work.ts", paths.join("\n"));
+    assert.ok(paths.indexOf("src/cli/commands/work.ts") < paths.indexOf("src/cli/index.ts"), paths.join("\n"));
+  });
+});
+
+test("work --json keeps RCC docs from outranking strong task matches", async () => {
+  await withRecommendedRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "improve package scripts"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const paths = brief.recommendedFiles.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.equal(paths[0], "package.json", paths.join("\n"));
+    assert.ok(paths.indexOf("package.json") < paths.indexOf("docs/ai-context/TASK_ROUTING.md"), paths.join("\n"));
+    assert.ok(brief.readFirstGuidance.skipped.some((item) => item.path === "docs/ai-context/MODULE_INDEX.md"), paths.join("\n"));
+  });
+});
+
+test("work --json keeps paired tests visible without letting them dominate", async () => {
+  await withRecommendedRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "fix work command"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const recommendedPaths = brief.recommendedFiles.map((file) => file.path);
+    const testPaths = brief.relevantTests.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.equal(recommendedPaths[0], "src/cli/commands/work.ts", recommendedPaths.join("\n"));
+    assert.ok(testPaths.includes("tests/work.test.js"), testPaths.join("\n"));
+    assert.ok(!recommendedPaths.slice(0, 2).includes("tests/work.test.js"), recommendedPaths.join("\n"));
   });
 });
 
