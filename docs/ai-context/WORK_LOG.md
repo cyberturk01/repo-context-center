@@ -48,4 +48,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Improve rcc work targeted lookup hint scoring and JSON signals
 - Changed files: `auto`
 - Verification: npm test; npm run test:cli; node dist/cli/index.js work improve package scripts; node dist/cli/index.js work improve work command lookup hints
+
+## 2026-06-17T13:09:59.054Z
+- Summary: Add lightweight rcc find fallback search for useful project files
+- Changed files: `auto`
+- Verification: npm run build; node --test tests/find.test.js; npm run test:cli; npm test; manual: node dist/cli/index.js find confidence/targeted lookup/package/work command
 <!-- repo-context-center:work-log:end -->

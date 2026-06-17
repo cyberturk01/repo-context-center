@@ -69,6 +69,10 @@ function candidateLines(stdout) {
   return stdout.split(/\r?\n/).filter((line) => line.startsWith("- "));
 }
 
+function candidatePaths(stdout) {
+  return candidateLines(stdout).map((line) => line.replace(/^- /, ""));
+}
+
 test("find decision command returns CLI command-related files with reasons", async () => {
   await withFindRepo(async (tempDir) => {
     const result = runCli(["find", "decision command"], { cwd: tempDir });
@@ -101,12 +105,96 @@ test("find manual changelog entries returns log command or changelog context", a
   });
 });
 
+test("find falls back to simple source content keyword matches", async () => {
+  await withFindRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "src/core/confidence.ts", "export const confidence = 'high';\n");
+    await writeFixtureFile(tempDir, "tests/confidence.test.js", "test('confidence display', () => {});\n");
+
+    const result = runCli(["find", "confidence"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /src\/core\/confidence\.ts/);
+    assert.match(result.stdout, /source content matches query|matched filename stem: confidence/);
+  });
+});
+
+test("find fallback supports phrase content queries", async () => {
+  await withFindRepo(async (tempDir) => {
+    await writeFixtureFile(
+      tempDir,
+      "src/cli/commands/work.ts",
+      "export const hint = 'targeted lookup hints';\n"
+    );
+
+    const result = runCli(["find", "targeted lookup"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /src\/cli\/commands\/work\.ts/);
+    assert.match(result.stdout, /source content matches query/);
+  });
+});
+
+test("find fallback ranks filename and path matches", async () => {
+  await withFindRepo(async (tempDir) => {
+    const result = runCli(["find", "package"], { cwd: tempDir });
+    const paths = candidatePaths(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(paths[0], "package.json");
+    assert.match(result.stdout, /matched filename stem: package/);
+  });
+});
+
+test("find fallback ignores excluded generated and internal folders", async () => {
+  await withFindRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "dist/generated.ts", "export const hidden = 'needle';\n");
+    await writeFixtureFile(tempDir, "node_modules/pkg/index.js", "module.exports = 'needle';\n");
+    await writeFixtureFile(tempDir, ".repo-context-center/cache.txt", "needle\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/archive/old.md", "needle\n");
+    await writeFixtureFile(tempDir, "src/live.ts", "export const visible = 'needle';\n");
+
+    const result = runCli(["find", "needle"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /src\/live\.ts/);
+    assert.doesNotMatch(result.stdout, /dist\/generated\.ts/);
+    assert.doesNotMatch(result.stdout, /node_modules\/pkg\/index\.js/);
+    assert.doesNotMatch(result.stdout, /\.repo-context-center\/cache\.txt/);
+    assert.doesNotMatch(result.stdout, /docs\/ai-context\/archive\/old\.md/);
+  });
+});
+
 test("find caps results with --limit", async () => {
   await withFindRepo(async (tempDir) => {
     const result = runCli(["find", "command", "--limit", "2"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
     assert.ok(candidateLines(result.stdout).length <= 2);
+  });
+});
+
+test("find fallback respects --limit", async () => {
+  await withFindRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "src/alpha.ts", "export const alpha = 'special unique phrase';\n");
+    await writeFixtureFile(tempDir, "src/beta.ts", "export const beta = 'special unique phrase';\n");
+    await writeFixtureFile(tempDir, "tests/phrase.test.js", "test('phrase', () => 'special unique phrase');\n");
+
+    const result = runCli(["find", "special unique", "--limit", "2"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.equal(candidateLines(result.stdout).length, 2);
+  });
+});
+
+test("find fallback deduplicates paths matched by name and contents", async () => {
+  await withFindRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "src/confidence.ts", "export const confidence = true;\n");
+
+    const result = runCli(["find", "confidence"], { cwd: tempDir });
+    const paths = candidatePaths(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(paths.filter((filePath) => filePath === "src/confidence.ts").length, 1);
   });
 });
 

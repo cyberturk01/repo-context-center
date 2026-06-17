@@ -1,4 +1,4 @@
-import { readdir, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { readSuggestContext, type ContextDocument, type SuggestContextFile } from "./contextReader";
 import { classifyRepoFile, isGeneratedRepoDirectoryName } from "./repoFileClassifier";
@@ -980,6 +980,10 @@ interface ScoredFindCandidate extends FindFocusedFile {
   score: number;
 }
 
+interface FallbackFindCandidate extends ScoredFindCandidate {
+  rank: number;
+}
+
 function addFindSignal(candidate: ScoredFindCandidate, score: number, reason: string): void {
   candidate.score += score;
   addReason(candidate.reasons, reason);
@@ -1107,6 +1111,152 @@ function orderFindCandidates(candidates: ScoredFindCandidate[], limit: number): 
     })
     .slice(0, limit)
     .map(({ path: filePath, reasons }) => ({ path: filePath, reasons }));
+}
+
+const fallbackSearchRoots = ["src", "tests", "scripts", "bin"];
+const fallbackExactFiles = new Set(["package.json", "tsconfig.json"]);
+const fallbackExcludedSegments = new Set([
+  ".git",
+  ".repo-context-center",
+  "build",
+  "coverage",
+  "dist",
+  "node_modules"
+]);
+
+function isFallbackConfigFile(filePath: string): boolean {
+  const basename = path.posix.basename(filePath);
+  return /(^|\.)(eslint|prettier|vitest|jest|rollup|vite)\.config\.[cm]?[jt]s$/i.test(basename)
+    || /^\.?(eslintrc|prettierrc)(\.[a-z0-9]+)?$/i.test(basename);
+}
+
+function isFallbackSearchPath(filePath: string): boolean {
+  if (filePath.startsWith("docs/ai-context/archive/")) {
+    return false;
+  }
+  if (filePath.split("/").some((segment) => fallbackExcludedSegments.has(segment))) {
+    return false;
+  }
+  if (fallbackExactFiles.has(filePath) || isFallbackConfigFile(filePath)) {
+    return true;
+  }
+
+  return fallbackSearchRoots.some((root) => filePath.startsWith(`${root}/`));
+}
+
+function exactFallbackPathMatch(filePath: string, normalizedQuery: string): boolean {
+  const lowerPath = filePath.toLowerCase();
+  const lowerBasename = path.posix.basename(filePath).toLowerCase();
+  return lowerPath === normalizedQuery || lowerBasename === normalizedQuery;
+}
+
+function fallbackPathContainsQuery(filePath: string, normalizedQuery: string): boolean {
+  return normalizedQuery.length > 1 && filePath.toLowerCase().includes(normalizedQuery);
+}
+
+function fallbackStemMatch(filePath: string, tokens: string[]): string | undefined {
+  const stemTokens = filenameTokens(filePath);
+  return tokens.find((token) => stemTokens.includes(token));
+}
+
+function contentMatchesQuery(content: string, normalizedQuery: string, tokens: string[]): boolean {
+  const lowerContent = content.toLowerCase();
+  if (normalizedQuery.length > 1 && lowerContent.includes(normalizedQuery)) {
+    return true;
+  }
+
+  return tokens.length > 0 && tokens.every((token) => lowerContent.includes(token));
+}
+
+function fallbackRankForPath(filePath: string): number {
+  if (classifyRepoFile(filePath).role === "source") {
+    return 3;
+  }
+  if (classifyRepoFile(filePath).role === "test") {
+    return 4;
+  }
+  return 5;
+}
+
+function addFallbackCandidate(
+  candidates: Map<string, FallbackFindCandidate>,
+  filePath: string,
+  rank: number,
+  score: number,
+  reason: string
+): void {
+  const existing = candidates.get(filePath);
+  const candidate = existing ?? { path: filePath, reasons: [], rank, score: 0 };
+  candidate.rank = Math.min(candidate.rank, rank);
+  candidate.score += score;
+  addReason(candidate.reasons, reason);
+  candidates.set(filePath, candidate);
+}
+
+function orderFallbackFindCandidates(candidates: FallbackFindCandidate[], limit: number): FindFocusedFile[] {
+  return candidates
+    .filter((candidate) => candidate.score > 0 && candidate.reasons.length > 0)
+    .sort((left, right) => {
+      const rankDifference = left.rank - right.rank;
+      if (rankDifference !== 0) {
+        return rankDifference;
+      }
+
+      const scoreDifference = right.score - left.score;
+      return scoreDifference === 0 ? left.path.localeCompare(right.path) : scoreDifference;
+    })
+    .slice(0, limit)
+    .map(({ path: filePath, reasons }) => ({ path: filePath, reasons }));
+}
+
+async function fallbackFindRepoFiles(
+  cwd: string,
+  repoFiles: string[],
+  query: string,
+  tokens: string[],
+  limit: number
+): Promise<FindFocusedFile[]> {
+  const normalizedQuery = query.trim().toLowerCase();
+  const candidates = new Map<string, FallbackFindCandidate>();
+  const searchFiles = repoFiles.filter(isFallbackSearchPath);
+
+  for (const filePath of searchFiles) {
+    const info = classifyRepoFile(filePath);
+    const fallbackRank = fallbackRankForPath(filePath);
+    const stemMatch = fallbackStemMatch(filePath, tokens);
+
+    if (exactFallbackPathMatch(filePath, normalizedQuery)) {
+      addFallbackCandidate(candidates, filePath, 1, 1000, "exact filename/path match");
+    }
+    if (stemMatch) {
+      addFallbackCandidate(candidates, filePath, 2, 800, `matched filename stem: ${stemMatch}`);
+    } else if (fallbackPathContainsQuery(filePath, normalizedQuery)) {
+      addFallbackCandidate(candidates, filePath, 2, 700, "filename/path contains query");
+    }
+
+    let content;
+    try {
+      content = await readFile(path.join(cwd, filePath), "utf8");
+    } catch {
+      continue;
+    }
+
+    if (!contentMatchesQuery(content, normalizedQuery, tokens)) {
+      continue;
+    }
+
+    if (info.role === "source") {
+      addFallbackCandidate(candidates, filePath, 3, 600, "source content matches query");
+    } else if (info.role === "test") {
+      addFallbackCandidate(candidates, filePath, 4, 500, "test content matches query");
+    } else if (info.role === "config" || info.role === "package") {
+      addFallbackCandidate(candidates, filePath, fallbackRank, 400, "config/package content matches query");
+    } else {
+      addFallbackCandidate(candidates, filePath, fallbackRank, 400, "file content matches query");
+    }
+  }
+
+  return orderFallbackFindCandidates([...candidates.values()], limit);
 }
 
 function hasStrongFindSourceSignal(candidate: FindFocusedFile): boolean {
@@ -1696,7 +1846,12 @@ export async function findFocusedFiles(
       cliRegistrationQuery
     ));
 
-  return orderFindCandidates([...nonTestCandidates, ...testCandidates], limit);
+  const contextResults = orderFindCandidates([...nonTestCandidates, ...testCandidates], limit);
+  if (contextResults.length > 0) {
+    return contextResults;
+  }
+
+  return fallbackFindRepoFiles(cwd, repoFiles, query, tokens, limit);
 }
 
 function toContextSuggestion(startupContext: StartupContext): ContextSuggestion {
