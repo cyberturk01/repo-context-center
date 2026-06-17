@@ -52,7 +52,7 @@ test("v0.5 adoption flow generates AGENTS.md task startup guidance", async () =>
     assert.equal(mapResult.status, 0);
 
     const agents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
-    const noShellLine = agents.split("\n").find((line) => line.includes("No shell: read")) ?? "";
+    const noShellLine = agents.split("\n").find((line) => line.includes("shell commands are unavailable")) ?? "";
 
     assert.match(agents, /Compact generated entrypoint\./);
     assert.match(agents, /## RCC Workflow/);

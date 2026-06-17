@@ -132,7 +132,7 @@ test("init updates existing AGENTS.md without overwriting content", async () => 
     assert.match(content, /# Existing Agents/);
     assert.match(content, /Keep this project-specific guidance\./);
     assert.match(content, /<!-- repo-context-center:workflow:start -->/);
-    assert.match(content, /Before broad scanning or opening many files:/);
+    assert.match(content, /Before broad scanning, opening many files, or searching the repository:/);
     assert.match(content, /Run `rcc work "<task>"`\./);
     assert.match(content, /Follow the read-first files from the work brief\./);
     assert.match(content, /rcc find "<keyword>"/);
@@ -157,7 +157,7 @@ test("init creates AGENTS.md if missing", async () => {
     assert.equal(result.status, 0);
     assert.match(content, /# AGENTS\.md/);
     assert.match(content, /## RCC Workflow/);
-    assert.match(content, /Before broad scanning or opening many files:/);
+    assert.match(content, /Before broad scanning, opening many files, or searching the repository:/);
     assert.match(content, /After meaningful changes:/);
     assert.match(result.stdout, /Created file: AGENTS\.md/);
   } finally {
@@ -258,7 +258,7 @@ test("init dry-run does not write files", async () => {
     assert.match(result.stdout, /rcc find "<keyword>"/);
     assert.match(result.stdout, /Do not ask the human to run RCC commands\./);
     assert.match(result.stdout, /Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
-    assert.match(result.stdout, /No shell: read/);
+    assert.match(result.stdout, /If shell commands are unavailable, fallback to reading/);
     assert.match(result.stdout, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(result.stdout, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(result.stdout, /docs\/ai-context\/DO_NOT_READ\.md/);

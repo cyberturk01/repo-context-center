@@ -450,7 +450,7 @@ test("AGENTS.md avoids duplicate startup guidance after init and map write", asy
     const result = runCli(tempDir, ["map", "--write"]);
     const content = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
     const generated = generatedSection(content);
-    const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
+    const noShellLine = content.split("\n").find((line) => line.includes("shell commands are unavailable")) ?? "";
 
     assert.equal(result.status, 0);
     assert.equal(countMatches(content, /Run `rcc work "<task>"`/g), 1);
