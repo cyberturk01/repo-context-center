@@ -2,12 +2,6 @@
 
 Track meaningful context changes.
 
-## Manual Entries
-
-| Date | Summary | Files |
-| --- | --- | --- |
-| 2026-06-16 | Tested compact AGENTS startup on decision memory task | `AGENTS.md`, `docs/ai-context/TASK_ROUTING.md` |
-
 <!-- repo-context-center:generated:start -->
 ## Generated Repo Map
 

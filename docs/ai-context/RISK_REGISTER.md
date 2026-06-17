@@ -20,7 +20,7 @@ Include:
 ### Focused Risks
 | Area | Why risky | Focused checks |
 | --- | --- | --- |
-| CLI: `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/init.ts` | CLI behavior changes can break scripts, help text, JSON output, or exit codes. | node --test tests/archive.test.js tests/cli.test.js; review src/cli/commands/archive.ts, src/cli/commands/estimate.ts |
+| CLI: `src/cli/commands/archive.ts`, `src/cli/commands/decision.ts`, `src/cli/commands/done.ts` | CLI behavior changes can break scripts, help text, JSON output, or exit codes. | node --test tests/archive.test.js tests/cli.test.js; review src/cli/commands/archive.ts, src/cli/commands/decision.ts |
 | Configuration: `guardian.config.json`, `package-lock.json`, `package.json` | Config mistakes can misroute agent work or break validation. | node --test tests/validate.test.js; review guardian.config.json, package-lock.json |
 | Analyzers / Risk Rules: `src/core/validator.ts` | Risk guidance affects what agents inspect before changes. | review src/core/validator.ts |
 | Renderers / Reports: `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/map.ts` | Report rendering changes can break generated markdown, JSON consumers, or marker preservation. | node --test tests/archive.test.js tests/estimate.test.js; review src/cli/commands/archive.ts, src/cli/commands/estimate.ts |

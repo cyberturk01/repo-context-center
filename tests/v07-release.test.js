@@ -101,7 +101,7 @@ test("v0.7 release: rcc work produces useful focused output", async () => {
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Known risks:\n- high/);
-    assert.match(result.stdout, /Next command after meaningful work:\nrcc done --summary "<summary>" --files "<files>" --verify "<check>"/);
+    assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files "<files>" --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
     assert.doesNotMatch(result.stdout, /score/i);
   });

@@ -344,7 +344,9 @@ function briefLines(
     ...formatList(readFirst, "no RCC context files found; run npx repo-context-center init to install them"),
     "",
     "Next command after meaningful work:",
-    'rcc done --summary "<summary>" --files "<files>" --verify "<check>"'
+    "```sh",
+    'rcc done --summary "<summary>" --files "<files>" --verify "<check>"',
+    "```"
   ];
 }
 

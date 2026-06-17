@@ -90,7 +90,7 @@ test("work accepts a task string and recommends focused files", async () => {
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Known risks:\n- high/);
-    assert.match(result.stdout, /Next command after meaningful work:\nrcc done --summary "<summary>" --files "<files>" --verify "<check>"/);
+    assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files "<files>" --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
   });
 });
@@ -109,7 +109,7 @@ test("work handles missing RCC files gracefully", async () => {
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Read first:\n- no RCC context files found; run npx repo-context-center init to install them/);
-    assert.match(result.stdout, /rcc done --summary "<summary>" --files "<files>" --verify "<check>"/);
+    assert.match(result.stdout, /```sh\nrcc done --summary "<summary>" --files "<files>" --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });

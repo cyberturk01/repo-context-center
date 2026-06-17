@@ -11,7 +11,7 @@
 ## Generated Repo Map
 
 ### Main Purpose
-A lightweight repository memory layer for AI coding agents.
+repo-context-center is a local-first ContextOps layer for AI coding agents.
 
 ### Key Directories
 - `src/cli` - CLI commands and command entrypoints
@@ -41,7 +41,7 @@ A lightweight repository memory layer for AI coding agents.
 ### Main Execution Flow
 - CLI starts in `src/cli/index.ts`
 - Commands delegate to `src/core/archiver.ts`, `src/core/config.ts`, `src/core/contextFiles.ts`, `src/core/contextReader.ts`
-- Behavior is checked by `tests/agent-startup-adoption.test.js`, `tests/archive.test.js`, `tests/cli.test.js`, `tests/estimate.test.js`
+- Behavior is checked by `tests/agent-startup-adoption.test.js`, `tests/archive.test.js`, `tests/cli.test.js`, `tests/decision.test.js`
 
 ### Config
 - `src/core/config.ts`
@@ -54,11 +54,11 @@ A lightweight repository memory layer for AI coding agents.
 - `tests/agent-startup-adoption.test.js`
 - `tests/archive.test.js`
 - `tests/cli.test.js`
+- `tests/decision.test.js`
+- `tests/done.test.js`
 - `tests/estimate.test.js`
+- `tests/find.test.js`
 - `tests/init.test.js`
-- `tests/log.test.js`
-- `tests/map.test.js`
-- `tests/repoFileClassifier.test.js`
 
 ### Generated / Ignored Areas
 - `__snapshots__/`
@@ -77,7 +77,7 @@ A lightweight repository memory layer for AI coding agents.
 ### Production-Critical Flows
 | Flow | Why critical | First check |
 | --- | --- | --- |
-| CLI: `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/init.ts` | CLI behavior changes can break scripts, help text, JSON output, or exit codes. | npm run build |
+| CLI: `src/cli/commands/archive.ts`, `src/cli/commands/decision.ts`, `src/cli/commands/done.ts` | CLI behavior changes can break scripts, help text, JSON output, or exit codes. | npm run build |
 | Configuration: `guardian.config.json`, `package-lock.json`, `package.json` | Config mistakes can misroute agent work or break validation. | npm run build |
 | Analyzers / Risk Rules: `src/core/validator.ts` | Risk guidance affects what agents inspect before changes. | npm run build |
 | Renderers / Reports: `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/map.ts` | Report rendering changes can break generated markdown, JSON consumers, or marker preservation. | npm run build |
