@@ -58,4 +58,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Calibrated work risk classification to keep routine package and dependency tasks medium while preserving high for auth, deployment, and workflow signals
 - Changed files: `src/core/suggester.ts`, `tests/work.test.js`
 - Verification: npm test; npm run test:cli; manual node dist/cli/index.js work validations for package, dependencies, authorization, deployment workflow
+
+## 2026-06-17T13:31:11.341Z
+- Summary: Implemented stable rcc work --json output from shared work brief model
+- Changed files: `auto`
+- Verification: npm run build; node --test tests/work.test.js; npm run test:cli; npm test; manual dist JSON parse and option-order validation
 <!-- repo-context-center:work-log:end -->

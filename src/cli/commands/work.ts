@@ -67,7 +67,9 @@ interface WorkMapFreshness {
 }
 
 interface WorkBrief {
+  command: "work";
   task: string;
+  contextBudget: ContextBudget;
   mapFreshness: WorkMapFreshness;
   routingGuidance: string[];
   startupContext: StartupContext;
@@ -84,6 +86,67 @@ interface WorkBrief {
   readFirst: string[];
   readFirstGuidance: ReadFirstGuidance;
   nextCommand: string;
+}
+
+interface PublicWorkBrief {
+  schemaVersion: 1;
+  command: "work";
+  task: string;
+  contextBudget: ContextBudget;
+  mapFreshness: {
+    status: WorkMapFreshness["status"];
+    score: number;
+    reason: string;
+    latestContextUpdate: string | null;
+    latestRelevantSourceChange: string | null;
+    affectedFiles: string[];
+    affectedContextFiles: string[];
+  };
+  recommendedFiles: PublicWorkFile[];
+  relevantTests: PublicWorkFile[];
+  relevantDecisions: string[];
+  recentLogs: string[];
+  risks: PublicWorkRisk[];
+  readFirstGuidance: {
+    required: PublicReadFirstGuidanceItem[];
+    taskSpecific: PublicReadFirstGuidanceItem[];
+    optionalIfUnclear: PublicReadFirstGuidanceItem[];
+    skippedForNow: PublicReadFirstGuidanceItem[];
+  };
+  readFirst: string[];
+  targetedLookupHints: PublicTargetedLookupHint[];
+  tokenEstimate: {
+    briefTokens: number | null;
+  };
+  fastLookup: {
+    command: string;
+    guidance: string;
+  };
+  nextCommand: {
+    command: string;
+    when: string;
+  };
+}
+
+interface PublicWorkFile {
+  path: string;
+  reason: string | null;
+  confidence: TargetedLookupHint["confidence"] | null;
+  score: number | null;
+}
+
+interface PublicReadFirstGuidanceItem {
+  path: string;
+  reason: string;
+}
+
+interface PublicTargetedLookupHint extends PublicWorkFile {
+  signal: TargetedLookupSignal;
+}
+
+interface PublicWorkRisk {
+  level: string;
+  reason: string | null;
 }
 
 const decisionsPath = "docs/ai-context/DECISIONS.md";
@@ -1321,10 +1384,13 @@ function buildWorkBrief(
   decisions: string[],
   logs: string[],
   lookupHints: TargetedLookupHint[],
-  readFirstGuidance: ReadFirstGuidance
+  readFirstGuidance: ReadFirstGuidance,
+  contextBudget: ContextBudget
 ): WorkBrief {
   const brief: WorkBrief = {
+    command: "work",
     task: startup.task,
+    contextBudget,
     mapFreshness,
     routingGuidance: startup.startupInstructions,
     startupContext: startup,
@@ -1351,6 +1417,104 @@ function buildWorkBrief(
   };
 
   return buildBriefWithTokenEstimate(brief);
+}
+
+function publicGuidanceItems(items: ReadFirstGuidanceItem[]): PublicReadFirstGuidanceItem[] {
+  return items.map((item) => ({
+    path: item.path,
+    reason: item.reason
+  }));
+}
+
+function publicLookupHints(hints: Array<Omit<TargetedLookupHint, "index">>): PublicTargetedLookupHint[] {
+  return hints.map((hint) => ({
+    path: hint.path,
+    reason: hint.reason || null,
+    confidence: hint.confidence,
+    score: hint.score,
+    signal: hint.signal
+  }));
+}
+
+function recommendationSignal(
+  recommendation: WorkRecommendation,
+  lookupHints: PublicTargetedLookupHint[]
+): PublicWorkFile {
+  const matchingHint = lookupHints.find((hint) => hint.path === recommendation.path);
+  if (matchingHint) {
+    return {
+      path: recommendation.path,
+      reason: matchingHint.reason,
+      confidence: matchingHint.confidence,
+      score: matchingHint.score
+    };
+  }
+
+  return {
+    path: recommendation.path,
+    reason: recommendation.reasons.length > 0 ? recommendation.reasons.join("; ") : null,
+    confidence: recommendation.reasons.length > 0 ? "medium" : null,
+    score: recommendation.reasons.length > 0 ? 50 : null
+  };
+}
+
+function publicRisks(risks: string[]): PublicWorkRisk[] {
+  if (risks.length === 0) {
+    return [];
+  }
+
+  const [level, ...reasons] = risks;
+  return [
+    {
+      level,
+      reason: reasons.length > 0 ? reasons.join("; ") : null
+    }
+  ];
+}
+
+function renderWorkBriefJson(brief: WorkBrief): string {
+  const lookupHints = publicLookupHints(brief.targetedLookupHints);
+  const publicBrief: PublicWorkBrief = {
+    schemaVersion: 1,
+    command: brief.command,
+    task: brief.task,
+    contextBudget: brief.contextBudget,
+    mapFreshness: {
+      status: brief.mapFreshness.status,
+      score: brief.mapFreshness.score,
+      reason: brief.mapFreshness.reason,
+      latestContextUpdate: brief.mapFreshness.latestContextUpdate,
+      latestRelevantSourceChange: brief.mapFreshness.latestRelevantSourceChange,
+      affectedFiles: brief.mapFreshness.affectedFiles,
+      affectedContextFiles: brief.mapFreshness.affectedContextFiles
+    },
+    recommendedFiles: brief.recommendedFiles.map((file) => recommendationSignal(file, lookupHints)),
+    relevantTests: brief.relevantTests.map((file) => recommendationSignal(file, lookupHints)),
+    relevantDecisions: brief.relevantDecisions,
+    recentLogs: brief.recentLogs,
+    risks: publicRisks(brief.risks),
+    readFirstGuidance: {
+      required: publicGuidanceItems(brief.readFirstGuidance.required),
+      taskSpecific: publicGuidanceItems(brief.readFirstGuidance.taskSpecific),
+      optionalIfUnclear: publicGuidanceItems(brief.readFirstGuidance.optional),
+      skippedForNow: publicGuidanceItems(brief.readFirstGuidance.skipped)
+    },
+    readFirst: brief.readFirst,
+    targetedLookupHints: lookupHints,
+    tokenEstimate: {
+      briefTokens: brief.tokenEstimate.roughTokens
+    },
+    fastLookup: {
+      command: 'rcc find "<keyword>"',
+      guidance: "Prefer this before broad repo search when the target is unclear."
+    },
+    nextCommand: {
+      command: brief.nextCommand,
+      when: "after meaningful work"
+    }
+  };
+
+  return `${JSON.stringify(publicBrief, null, 2)}\n`;
 }
 
 export async function workCommand(io: CliIO, args: string[] = []): Promise<number> {
@@ -1382,10 +1546,18 @@ export async function workCommand(io: CliIO, args: string[] = []): Promise<numbe
     existingContextFiles
   );
 
-  const brief = buildWorkBrief(focusedStartupContext, mapFreshness, decisions, logs, lookupHints, readFirstGuidance);
+  const brief = buildWorkBrief(
+    focusedStartupContext,
+    mapFreshness,
+    decisions,
+    logs,
+    lookupHints,
+    readFirstGuidance,
+    options.contextBudget
+  );
 
   if (options.json) {
-    io.stdout(`${JSON.stringify(brief, null, 2)}\n`);
+    io.stdout(renderWorkBriefJson(brief));
     return 0;
   }
 

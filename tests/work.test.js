@@ -304,22 +304,27 @@ test("work --json returns a valid machine-readable brief", async () => {
     assert.deepEqual(
       Object.keys(brief),
       [
+        "schemaVersion",
+        "command",
         "task",
+        "contextBudget",
         "mapFreshness",
-        "routingGuidance",
-        "startupContext",
         "recommendedFiles",
         "relevantTests",
-        "targetedLookupHints",
         "relevantDecisions",
         "recentLogs",
-        "tokenEstimate",
         "risks",
-        "readFirst",
         "readFirstGuidance",
+        "readFirst",
+        "targetedLookupHints",
+        "tokenEstimate",
+        "fastLookup",
         "nextCommand"
       ]
     );
+    assert.equal(brief.schemaVersion, 1);
+    assert.equal(brief.command, "work");
+    assert.equal(brief.contextBudget, "balanced");
     assert.equal(typeof brief.mapFreshness.status, "string");
     assert.equal(typeof brief.mapFreshness.score, "number");
     assert.equal(typeof brief.mapFreshness.reason, "string");
@@ -329,26 +334,26 @@ test("work --json returns a valid machine-readable brief", async () => {
     assert.ok(brief.relevantTests.some((file) => file.path === "tests/auth/login.test.ts"));
     assert.ok(brief.targetedLookupHints.some((hint) => (
       hint.path === "src/auth/login.ts"
-      && hint.term === "login"
       && hint.reason
       && hint.signal
       && hint.confidence
       && typeof hint.score === "number"
     )));
     assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep login flow server-side")));
-    assert.match(brief.tokenEstimate.text, /^roughly \d+ tokens for this brief\.$/);
+    assert.equal(typeof brief.tokenEstimate.briefTokens, "number");
     assert.deepEqual(brief.readFirstGuidance.required, [
       {
         path: "AGENTS.md",
-        reason: "repository agent workflow",
-        priority: "required"
+        reason: "repository agent workflow"
       }
     ]);
     assert.ok(brief.readFirst.includes("AGENTS.md"));
     assert.equal(Array.isArray(brief.readFirstGuidance.taskSpecific), true);
-    assert.equal(Array.isArray(brief.readFirstGuidance.optional), true);
-    assert.equal(Array.isArray(brief.readFirstGuidance.skipped), true);
-    assert.equal(brief.nextCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
+    assert.equal(Array.isArray(brief.readFirstGuidance.optionalIfUnclear), true);
+    assert.equal(Array.isArray(brief.readFirstGuidance.skippedForNow), true);
+    assert.equal(brief.fastLookup.command, 'rcc find "<keyword>"');
+    assert.equal(brief.nextCommand.command, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
+    assert.equal(brief.nextCommand.when, "after meaningful work");
     assert.equal(result.stdout.trim().startsWith("{"), true);
     assert.equal(result.stdout.trim().endsWith("}"), true);
     assert.doesNotMatch(result.stdout, /repo-context-center work brief/);
@@ -361,7 +366,7 @@ test("work classifies package tasks as medium risk", async () => {
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.equal(brief.risks[0], "medium");
+    assert.equal(brief.risks[0].level, "medium");
   });
 });
 
@@ -371,7 +376,7 @@ test("work classifies dependency tasks as medium risk", async () => {
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.equal(brief.risks[0], "medium");
+    assert.equal(brief.risks[0].level, "medium");
   });
 });
 
@@ -381,7 +386,7 @@ test("work classifies docs tasks as low risk", async () => {
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.equal(brief.risks[0], "low");
+    assert.equal(brief.risks[0].level, "low");
   });
 });
 
@@ -391,7 +396,7 @@ test("work classifies auth tasks as high risk", async () => {
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.equal(brief.risks[0], "high");
+    assert.equal(brief.risks[0].level, "high");
   });
 });
 
@@ -401,7 +406,7 @@ test("work classifies deployment tasks as high risk", async () => {
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.equal(brief.risks[0], "high");
+    assert.equal(brief.risks[0].level, "high");
   });
 });
 
@@ -411,7 +416,7 @@ test("work classifies workflow tasks as high risk", async () => {
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.equal(brief.risks[0], "high");
+    assert.equal(brief.risks[0].level, "high");
   });
 });
 
@@ -462,14 +467,15 @@ test("work --json keeps stable fields when RCC data is missing", async () => {
     assert.deepEqual(brief.readFirstGuidance, {
       required: [],
       taskSpecific: [],
-      optional: [],
-      skipped: []
+      optionalIfUnclear: [],
+      skippedForNow: []
     });
     assert.deepEqual(brief.targetedLookupHints, []);
-    assert.equal(Array.isArray(brief.routingGuidance), true);
-    assert.equal(brief.nextCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
+    assert.equal(brief.nextCommand.command, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
     assert.equal(Array.isArray(brief.recommendedFiles), true);
     assert.equal(Array.isArray(brief.relevantTests), true);
+    assert.equal(brief.tokenEstimate.briefTokens === null || Number.isInteger(brief.tokenEstimate.briefTokens), true);
+    assert.equal(brief.fastLookup.guidance, "Prefer this before broad repo search when the target is unclear.");
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -486,8 +492,8 @@ test("work prunes read-first guidance for a small focused task", async () => {
     assert.ok(!brief.readFirstGuidance.taskSpecific.some((item) => item.path === "docs/ai-context/MODULE_INDEX.md"));
     assert.ok(!brief.readFirstGuidance.taskSpecific.some((item) => item.path === "docs/ai-context/DEPENDENCY_MAP.md"));
     assert.ok(
-      brief.readFirstGuidance.optional.some((item) => item.path === "docs/ai-context/TASK_ROUTING.md")
-        || brief.readFirstGuidance.skipped.some((item) => item.path === "docs/ai-context/TASK_ROUTING.md")
+      brief.readFirstGuidance.optionalIfUnclear.some((item) => item.path === "docs/ai-context/TASK_ROUTING.md")
+        || brief.readFirstGuidance.skippedForNow.some((item) => item.path === "docs/ai-context/TASK_ROUTING.md")
     );
   });
 });
@@ -501,7 +507,6 @@ test("work read-first guidance promotes risk context for security and freshness 
     assert.ok(brief.readFirstGuidance.taskSpecific.some((item) => (
       item.path === "docs/ai-context/RISK_REGISTER.md"
       && item.reason.includes("freshness/reporting")
-      && item.priority === "task_specific"
     )));
     assert.ok(brief.readFirst.includes("docs/ai-context/RISK_REGISTER.md"));
   });
@@ -515,7 +520,6 @@ test("work read-first guidance promotes dependency context for build and package
     assert.equal(result.status, 0);
     assert.ok(brief.readFirstGuidance.taskSpecific.some((item) => (
       item.path === "docs/ai-context/DEPENDENCY_MAP.md"
-      && item.priority === "task_specific"
     )));
     assert.ok(brief.readFirst.includes("docs/ai-context/DEPENDENCY_MAP.md"));
   });
@@ -529,7 +533,6 @@ test("work read-first guidance promotes module context for architecture and refa
     assert.equal(result.status, 0);
     assert.ok(brief.readFirstGuidance.taskSpecific.some((item) => (
       item.path === "docs/ai-context/MODULE_INDEX.md"
-      && item.priority === "task_specific"
     )));
     assert.ok(brief.readFirst.includes("docs/ai-context/MODULE_INDEX.md"));
   });
@@ -543,7 +546,6 @@ test("work read-first guidance promotes task routing for ambiguous work", async 
     assert.equal(result.status, 0);
     assert.ok(brief.readFirstGuidance.taskSpecific.some((item) => (
       item.path === "docs/ai-context/TASK_ROUTING.md"
-      && item.priority === "task_specific"
     )));
   });
 });
@@ -557,7 +559,21 @@ test("work --context-budget minimal keeps only AGENTS required", async () => {
     assert.deepEqual(brief.readFirst, ["AGENTS.md"]);
     assert.deepEqual(brief.readFirstGuidance.required.map((item) => item.path), ["AGENTS.md"]);
     assert.equal(brief.readFirstGuidance.taskSpecific.length, 0);
-    assert.ok(brief.readFirstGuidance.optional.some((item) => item.path === "docs/ai-context/RISK_REGISTER.md"));
+    assert.ok(brief.readFirstGuidance.optionalIfUnclear.some((item) => item.path === "docs/ai-context/RISK_REGISTER.md"));
+  });
+});
+
+test("work --json supports balanced context budget explicitly", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--context-budget", "balanced", "fix login bug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.contextBudget, "balanced");
+    assert.deepEqual(brief.readFirstGuidance.required.map((item) => item.path), ["AGENTS.md"]);
+    assert.equal(Array.isArray(brief.readFirstGuidance.taskSpecific), true);
+    assert.equal(Array.isArray(brief.readFirstGuidance.optionalIfUnclear), true);
+    assert.equal(Array.isArray(brief.readFirstGuidance.skippedForNow), true);
   });
 });
 
@@ -567,7 +583,7 @@ test("work --context-budget deep keeps broader read-first guidance", async () =>
     const brief = JSON.parse(result.stdout);
     const broadGuidance = [
       ...brief.readFirstGuidance.taskSpecific,
-      ...brief.readFirstGuidance.optional
+      ...brief.readFirstGuidance.optionalIfUnclear
     ].map((item) => item.path);
 
     assert.equal(result.status, 0);
@@ -576,6 +592,34 @@ test("work --context-budget deep keeps broader read-first guidance", async () =>
     assert.ok(broadGuidance.includes("docs/ai-context/MODULE_INDEX.md"));
     assert.ok(broadGuidance.includes("docs/ai-context/DEPENDENCY_MAP.md"));
     assert.ok(broadGuidance.includes("docs/ai-context/RISK_REGISTER.md"));
+  });
+});
+
+test("work --json accepts option order and max-files", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const minimal = runCli(["work", "fix login bug", "--json", "--context-budget", "minimal"], { cwd: tempDir });
+    const deep = runCli(["work", "fix login bug", "--context-budget", "deep", "--json"], { cwd: tempDir });
+    const maxFiles = runCli(["work", "fix login bug", "--json", "--max-files", "1"], { cwd: tempDir });
+
+    assert.equal(minimal.status, 0);
+    assert.equal(JSON.parse(minimal.stdout).contextBudget, "minimal");
+    assert.equal(deep.status, 0);
+    assert.equal(JSON.parse(deep.stdout).contextBudget, "deep");
+    assert.equal(maxFiles.status, 0);
+    assert.equal(Array.isArray(JSON.parse(maxFiles.stdout).recommendedFiles), true);
+  });
+});
+
+test("work --json prints only parseable formatted JSON", async () => {
+  await withWorkRepo(async (tempDir) => {
+    const result = runCli(["work", "fix login bug", "--json"], { cwd: tempDir });
+    const parsed = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.equal(result.stdout, `${JSON.stringify(parsed, null, 2)}\n`);
+    assert.equal(result.stdout[0], "{");
+    assert.equal(result.stdout.at(-2), "}");
   });
 });
 
@@ -772,7 +816,7 @@ test("work --json keeps RCC docs from outranking strong task matches", async () 
     assert.equal(result.status, 0);
     assert.equal(paths[0], "package.json", paths.join("\n"));
     assert.ok(paths.indexOf("package.json") < paths.indexOf("docs/ai-context/TASK_ROUTING.md"), paths.join("\n"));
-    assert.ok(brief.readFirstGuidance.skipped.some((item) => item.path === "docs/ai-context/MODULE_INDEX.md"), paths.join("\n"));
+    assert.ok(brief.readFirstGuidance.skippedForNow.some((item) => item.path === "docs/ai-context/MODULE_INDEX.md"), paths.join("\n"));
   });
 });
 
