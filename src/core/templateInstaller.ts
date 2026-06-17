@@ -23,6 +23,22 @@ export const githubWorkflowPath = ".github/workflows/repo-context-check.yml";
 const agentsPath = "AGENTS.md";
 const workflowStart = "<!-- repo-context-center:workflow:start -->";
 const workflowEnd = "<!-- repo-context-center:workflow:end -->";
+const legacyWorkflowDuplicateLines = new Set([
+  "## RCC Workflow",
+  "For any coding task, the first shell command must be:",
+  "`rcc work \"<task>\"`",
+  "- Do not begin repository exploration, manual file reading, or broad searching before running `rcc work`.",
+  "- Follow the read-first files from the work brief.",
+  "- For targeted lookup, prefer `rcc find \"<keyword>\"` before broad grep/search.",
+  "- Do not ask the human to run RCC commands.",
+  "After meaningful changes:",
+  "1. Run relevant tests.",
+  "2. Run `rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`.",
+  "- Start tasks with `rcc work \"<task>\"` before broad scanning.",
+  "- Do not replace `rcc work` with manually reading `docs/ai-context` files.",
+  "- For targeted lookup, prefer `rcc find \"<keyword>\"` before broad repo search.",
+  "- Save completed-work memory with `rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`."
+]);
 
 function getGitHubWorkflowTemplatePath(): string {
   return path.join(__dirname, "..", "templates", "github", "context-check.yml");
@@ -52,6 +68,13 @@ function extractWorkflowSection(content: string): string {
   return content.slice(start, end + workflowEnd.length).trim();
 }
 
+function stripLegacyWorkflowDuplicateLines(content: string): string {
+  const lines = content.split("\n");
+  const keptLines = lines.filter((line) => !legacyWorkflowDuplicateLines.has(line.trim()));
+
+  return keptLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export function upsertAgentsWorkflowSection(existing: string, templateContent: string): string {
   const workflowSection = extractWorkflowSection(templateContent);
   const normalizedExisting = existing.replace(/\r\n/g, "\n").replace(/\n*$/u, "\n");
@@ -64,10 +87,13 @@ export function upsertAgentsWorkflowSection(existing: string, templateContent: s
   const end = normalizedExisting.indexOf(workflowEnd);
 
   if (start !== -1 && end !== -1 && end > start) {
-    return `${normalizedExisting.slice(0, start).trimEnd()}\n\n${workflowSection}\n\n${normalizedExisting.slice(end + workflowEnd.length).trimStart()}`.trimEnd() + "\n";
+    const beforeWorkflow = stripLegacyWorkflowDuplicateLines(normalizedExisting.slice(0, start));
+    const afterWorkflow = stripLegacyWorkflowDuplicateLines(normalizedExisting.slice(end + workflowEnd.length));
+    return [beforeWorkflow, workflowSection, afterWorkflow].filter(Boolean).join("\n\n").trimEnd() + "\n";
   }
 
-  return `${normalizedExisting.trimEnd()}\n\n${workflowSection}\n`;
+  const cleanedExisting = stripLegacyWorkflowDuplicateLines(normalizedExisting);
+  return [cleanedExisting, workflowSection].filter(Boolean).join("\n\n").trimEnd() + "\n";
 }
 
 async function installAgentsTemplate(
