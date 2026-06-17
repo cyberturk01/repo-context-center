@@ -5,7 +5,7 @@ Read this file first.
 <!-- repo-context-center:workflow:start -->
 ## RCC Workflow
 
-Before broad scanning or opening many files:
+Before broad scanning, opening many files, or searching the repository:
 1. Run `rcc work "<task>"`.
 2. Follow the read-first files from the work brief.
 3. For targeted lookup, prefer `rcc find "<keyword>"` before broad grep/search.
@@ -17,7 +17,7 @@ After meaningful changes:
 - Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`.
 <!-- repo-context-center:workflow:end -->
 
-- No shell: read `docs/ai-context/COMMUNICATION_MODE.md`, `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/TOKEN_BUDGET.md`, and `docs/ai-context/DO_NOT_READ.md`.
+- If shell commands are unavailable, fallback to reading `docs/ai-context/COMMUNICATION_MODE.md`, `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/TOKEN_BUDGET.md`, and `docs/ai-context/DO_NOT_READ.md`.
 - Use `docs/ai-context/MODULE_INDEX.md` only when routing is missing or the task spans modules.
 - Verify source; keep changes focused.
 - Run smallest useful verification.
