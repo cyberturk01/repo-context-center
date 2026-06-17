@@ -130,6 +130,18 @@ test("work output recommends done with auto file detection", async () => {
   });
 });
 
+test("work suggests --files auto in the next done command", async () => {
+  await withWorkRepo(async (tempDir) => {
+    const result = runCli(["work", "fix login bug"], { cwd: tempDir });
+    const nextDoneCommand = result.stdout.match(
+      /Next command after meaningful work:\n```sh\n(?<command>rcc done .+)\n```/
+    )?.groups?.command;
+
+    assert.equal(result.status, 0);
+    assert.equal(nextDoneCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
+  });
+});
+
 test("work recommends RCC context files when context matches but source is missing", async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-context-fallback-"));
 
