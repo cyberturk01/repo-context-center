@@ -38,8 +38,8 @@ test("done creates memory file if missing", async () => {
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Saved work memory to docs\/ai-context\/WORK_LOG\.md/);
     assert.match(result.stdout, /Summary: Fixed login redirect bug/);
+    assert.match(result.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md/);
     assert.match(content, /# Work Log/);
     assert.match(content, /<!-- repo-context-center:work-log:start -->/);
     assert.match(content, /- Summary: Fixed login redirect bug/);
@@ -103,6 +103,39 @@ test("done works without git", async () => {
   });
 });
 
+test("done --files auto detects changed files and filters RCC memory files", async () => {
+  await withDoneRepo(async (tempDir) => {
+    spawnSync("git", ["init"], { cwd: tempDir, encoding: "utf8" });
+    await writeFixtureFile(tempDir, "src/index.ts", "export const ok = true;\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/TASK_ROUTING.md", "# Routing\n");
+    await writeFixtureFile(tempDir, ".repo-context-center/config.json", "{}\n");
+
+    const result = runCli(["done", "--summary", "Recorded source edit", "--files", "auto"], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, workLogPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Changed files: src\/index\.ts/);
+    assert.doesNotMatch(result.stdout, /docs\/ai-context\/TASK_ROUTING\.md/);
+    assert.doesNotMatch(result.stdout, /\.repo-context-center\/config\.json/);
+    assert.match(content, /- Changed files: `src\/index\.ts`/);
+    assert.doesNotMatch(content, /docs\/ai-context\/TASK_ROUTING\.md/);
+    assert.doesNotMatch(content, /\.repo-context-center\/config\.json/);
+  });
+});
+
+test("done --files none records no changed files", async () => {
+  await withDoneRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "src/index.ts", "export const ok = true;\n");
+
+    const result = runCli(["done", "--summary", "Recorded summary only", "--files", "none"], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, workLogPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Changed files: none/);
+    assert.match(content, /- Changed files: _none_/);
+  });
+});
+
 test("done validates empty summary", async () => {
   await withDoneRepo(async (tempDir) => {
     const result = runCli(["done", "   "], { cwd: tempDir });
@@ -128,9 +161,9 @@ test("done output tells agent what was saved", async () => {
     ], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Saved work memory to docs\/ai-context\/WORK_LOG\.md/);
     assert.match(result.stdout, /Summary: Updated routing docs/);
     assert.match(result.stdout, /Changed files: docs\/ai-context\/TASK_ROUTING\.md, AGENTS\.md/);
+    assert.match(result.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md/);
     assert.match(result.stdout, /Verification: npm test -- routing/);
     assert.match(result.stdout, /Risk: low/);
     assert.match(result.stdout, /Follow-ups: Refresh map after docs settle/);
@@ -142,7 +175,16 @@ test("done dry-run does not write work log", async () => {
     const result = runCli(["done", "Preview routing docs", "--verify", "npm test -- routing", "--dry-run"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Would save work memory to docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /RCC memory would update: docs\/ai-context\/WORK_LOG\.md/);
     await assert.rejects(() => readFile(path.join(tempDir, workLogPath), "utf8"), { code: "ENOENT" });
+  });
+});
+
+test("done help documents auto and none file modes", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli(["done", "--help"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /--files auto\|none\|"<path,path>"/);
   });
 });
