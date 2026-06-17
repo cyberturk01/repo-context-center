@@ -24,7 +24,7 @@ test("CLI help prints usage", () => {
   assert.match(result.stdout, /work\s+Print a concise work brief for an AI coding agent/);
   assert.match(result.stdout, /Usage: work "<task>"/);
   assert.match(result.stdout, /done\s+Save lightweight memory after completed agent work/);
-  assert.match(result.stdout, /Usage: done --summary "<summary>" \[--files "<path,path>"\] \[--verify "<command\/result>"\] \[--dry-run\]/);
+  assert.match(result.stdout, /Usage: done --summary "<summary>" \[--files auto\|none\|"<path,path>"\] \[--verify "<command\/result>"\] \[--dry-run\]/);
   assert.match(result.stdout, /init\s+Install generic context templates and config/);
   assert.match(result.stdout, /Options: --dry-run, --force/);
   assert.match(result.stdout, /validate\s+Validate required context files and warnings/);
@@ -62,6 +62,32 @@ test("init dispatch creates a basic config", async () => {
     assert.equal(result.status, 0);
     assert.equal(config.version, 1);
     assert.equal(config.createdBy, "repo-context-center");
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("rcc decision dispatch records a durable decision", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-cli-decision-"));
+
+  try {
+    const result = runCli([
+      "decision",
+      "add",
+      "Keep CLI decision command covered",
+      "--reason",
+      "Prevent command dispatch regressions",
+      "--files",
+      "tests/cli.test.js"
+    ], { cwd: tempDir });
+    const decisions = await readFile(path.join(tempDir, "docs", "ai-context", "DECISIONS.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, "Updated docs/ai-context/DECISIONS.md\n");
+    assert.match(
+      decisions,
+      /\| \d{4}-\d{2}-\d{2} \| Keep CLI decision command covered \| Prevent command dispatch regressions \| Active \| tests\/cli\.test\.js \|/
+    );
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

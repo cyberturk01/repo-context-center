@@ -430,6 +430,9 @@ test("AGENTS.md generated from scratch contains compact startup guidance", async
     assert.equal(result.status, 0);
     assert.match(generated, /Compact generated entrypoint\./);
     assert.match(generated, /rcc work "<task>"/);
+    assert.match(generated, /rcc find "<keyword>"/);
+    assert.match(generated, /Do not ask the human to run RCC commands\./);
+    assert.match(generated, /rcc done --summary "<summary>" --files auto --verify "<checks>"/);
     assert.match(generated, /Generated repo maps live in `docs\/ai-context\/\*`/);
     assert.match(generated, /Keep manual guidance outside generated markers\./);
     assert.doesNotMatch(content, /^Before a task:$/m);
@@ -446,10 +449,10 @@ test("AGENTS.md avoids duplicate startup guidance after init and map write", asy
     const result = runCli(tempDir, ["map", "--write"]);
     const content = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
     const generated = generatedSection(content);
-    const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
+    const noShellLine = content.split("\n").find((line) => line.includes("shell commands are unavailable")) ?? "";
 
     assert.equal(result.status, 0);
-    assert.equal(countMatches(content, /rcc work/g), 1);
+    assert.equal(countMatches(content, /`rcc work "<task>"`/g), 1);
     assert.match(content, /Read this file first\./);
     assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(noShellLine, /docs\/ai-context\/TASK_ROUTING\.md/);
@@ -458,6 +461,7 @@ test("AGENTS.md avoids duplicate startup guidance after init and map write", asy
     assert.doesNotMatch(noShellLine, /docs\/ai-context\/MODULE_INDEX\.md/);
     assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
     assert.match(generated, /Compact generated entrypoint\./);
+    assert.match(content, /rcc find "<keyword>"/);
     assert.doesNotMatch(generated, /rcc work/);
     assert.doesNotMatch(content, /^Before a task:$/m);
     assert.doesNotMatch(content, /^Read:$/m);

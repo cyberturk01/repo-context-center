@@ -1892,9 +1892,7 @@ function manualContentWithoutGeneratedSection(existing: string | undefined): str
 }
 
 function renderAgents(_data: RepoMapData, existing?: string): string {
-  const manualHasStartupCommand = manualContentWithoutGeneratedSection(existing).includes(
-    "rcc work"
-  );
+  const hasStartupCommand = (existing ?? "").includes("rcc work");
   const lines = [
     "Compact generated entrypoint.",
     "",
@@ -1902,10 +1900,13 @@ function renderAgents(_data: RepoMapData, existing?: string): string {
     "- Keep manual guidance outside generated markers."
   ];
 
-  if (!manualHasStartupCommand) {
-    lines.splice(2, 0, "- Start tasks with `rcc work \"<task>\"` when shell access is available.");
+  if (!hasStartupCommand) {
+    lines.splice(2, 0, "- Start tasks with `rcc work \"<task>\"` before broad scanning.");
+    lines.splice(3, 0, "- Do not replace `rcc work` with manually reading `docs/ai-context` files.");
+    lines.splice(4, 0, "- For targeted lookup, prefer `rcc find \"<keyword>\"` before broad repo search.");
+    lines.splice(5, 0, "- Do not ask the human to run RCC commands.");
+    lines.splice(6, 0, "- Save completed-work memory with `rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`.");
   }
-  lines.splice(3, 0, "- Save completed-work memory with `rcc done --summary \"<summary>\" --files \"<files>\" --verify \"<check>\"`.");
 
   return lines.join("\n");
 }

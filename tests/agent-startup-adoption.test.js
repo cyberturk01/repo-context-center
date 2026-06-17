@@ -52,13 +52,17 @@ test("v0.5 adoption flow generates AGENTS.md task startup guidance", async () =>
     assert.equal(mapResult.status, 0);
 
     const agents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
-    const noShellLine = agents.split("\n").find((line) => line.includes("No shell: read")) ?? "";
+    const noShellLine = agents.split("\n").find((line) => line.includes("shell commands are unavailable")) ?? "";
 
     assert.match(agents, /Compact generated entrypoint\./);
     assert.match(agents, /## RCC Workflow/);
-    assert.match(agents, /Run `rcc work "<task>"`\./);
-    assert.match(agents, /Read the focused context\./);
-    assert.match(agents, /Run `rcc done --summary "<summary>" --files "<files>" --verify "<check>"`\./);
+    assert.match(agents, /For any coding task, the first shell command must be:/);
+    assert.match(agents, /`rcc work "<task>"`/);
+    assert.match(agents, /Do not begin repository exploration, manual file reading, or broad searching before running `rcc work`\./);
+    assert.match(agents, /Follow the read-first files from the work brief\./);
+    assert.match(agents, /rcc find "<keyword>"/);
+    assert.match(agents, /Do not ask the human to run RCC commands\./);
+    assert.match(agents, /2\. Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
     assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(noShellLine, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(noShellLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);

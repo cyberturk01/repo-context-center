@@ -7,9 +7,9 @@ Reference stable repository ownership and responsibilities.
 
 ## CLI
 - Purpose: Command parsing and user-facing output.
-- Primary files: `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/init.ts`, `src/cli/commands/log.ts`.
+- Primary files: `src/cli/commands/archive.ts`, `src/cli/commands/decision.ts`, `src/cli/commands/done.ts`, `src/cli/commands/estimate.ts`.
 - Common tasks: add flags, adjust help text, change stdout/stderr, set exit codes.
-- Related tests: `tests/archive.test.js`, `tests/cli.test.js`, `tests/estimate.test.js`, `tests/init.test.js`.
+- Related tests: `tests/archive.test.js`, `tests/cli.test.js`, `tests/decision.test.js`, `tests/done.test.js`.
 - Dependency hints: src/cli/commands/archive.ts, src/core/archiver.ts, src/core/config.ts.
 - Risks: exit code regressions, help text drift, stdout/stderr compatibility.
 
@@ -81,7 +81,7 @@ Reference stable repository ownership and responsibilities.
 - Purpose: CI, deployment, and release configuration.
 - Primary files: `.github/workflows/ai-project-guardian.yml`, `.github/workflows/ci.yml`.
 - Common tasks: CI, deployment, release.
-- Related tests: none detected.
+- Related tests: `tests/v07-release.test.js`.
 - Dependency hints: .github/workflows/*, package.json.
 - Risks: CI blocked, release validation skipped.
 

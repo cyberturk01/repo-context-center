@@ -27,6 +27,23 @@ const requiredTemplates = [
   "docs/ai-context/CHANGE_LOG.md"
 ];
 
+const expectedWorkflowSection = `<!-- repo-context-center:workflow:start -->
+## RCC Workflow
+
+For any coding task, the first shell command must be:
+
+\`rcc work "<task>"\`
+
+- Do not begin repository exploration, manual file reading, or broad searching before running \`rcc work\`.
+- Follow the read-first files from the work brief.
+- For targeted lookup, prefer \`rcc find "<keyword>"\` before broad grep/search.
+- Do not ask the human to run RCC commands.
+
+After meaningful changes:
+1. Run relevant tests.
+2. Run \`rcc done --summary "<summary>" --files auto --verify "<checks>"\`.
+<!-- repo-context-center:workflow:end -->`;
+
 const templateTitles = {
   "AGENTS.md": "# AGENTS.md",
   "docs/ai-context/COMMUNICATION_MODE.md": "# Communication Mode",
@@ -42,6 +59,19 @@ const templateTitles = {
   "docs/ai-context/LESSONS_LEARNED.md": "# Lessons Learned",
   "docs/ai-context/CHANGE_LOG.md": "# Change Log"
 };
+
+function shellFallbackLine(content) {
+  return content.split("\n").find((line) => line.includes("shell commands are unavailable")) ?? "";
+}
+
+function workflowSection(content) {
+  const startMarker = "<!-- repo-context-center:workflow:start -->";
+  const endMarker = "<!-- repo-context-center:workflow:end -->";
+  const start = content.indexOf(startMarker);
+  const end = content.indexOf(endMarker);
+  assert.ok(start !== -1 && end !== -1 && end > start);
+  return content.slice(start, end + endMarker.length);
+}
 
 test("all required generic templates exist", async () => {
   for (const file of requiredTemplates) {
@@ -70,17 +100,10 @@ test("generic templates are non-empty and compact", async () => {
 
 test("AGENTS template keeps low-token startup references", async () => {
   const content = await readFile(path.join(templateRoot, "AGENTS.md"), "utf8");
-  const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
+  const noShellLine = shellFallbackLine(content);
 
-  assert.match(content, /## RCC Workflow/);
-  assert.match(content, /Before coding:/);
-  assert.match(content, /Run `rcc work "<task>"`\./);
-  assert.match(content, /Read the focused context\./);
-  assert.match(content, /Avoid broad repo scanning unless necessary\./);
-  assert.match(content, /After coding:/);
-  assert.match(content, /Run relevant tests\./);
-  assert.match(content, /rcc done --summary "<summary>" --files "<files>" --verify "<check>"/);
-  assert.match(content, /No shell: read/);
+  assert.equal(workflowSection(content), expectedWorkflowSection);
+  assert.match(content, /If shell commands are unavailable, fallback to reading/);
   assert.match(content, /Read this file first\./);
   assert.match(content, /Verify source; keep changes focused\./);
   assert.match(content, /Run smallest useful verification\./);
@@ -97,7 +120,7 @@ test("AGENTS template remains startup-only", async () => {
   const content = await readFile(path.join(templateRoot, "AGENTS.md"), "utf8");
   const words = content.trim().split(/\s+/).filter(Boolean);
 
-  assert.ok(words.length <= 95, `AGENTS.md has ${words.length} words`);
+  assert.ok(words.length <= 140, `AGENTS.md has ${words.length} words`);
   assert.doesNotMatch(content, /^Read:$/m);
   assert.doesNotMatch(content, /^Modes:$/m);
   assert.doesNotMatch(content, /# Task Routing/);
@@ -144,17 +167,10 @@ test("generated AGENTS template avoids verbose meta headings", async () => {
 
 test("generated AGENTS template keeps core startup rules", async () => {
   const content = await readFile(path.join(distTemplateRoot, "AGENTS.md"), "utf8");
-  const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
+  const noShellLine = shellFallbackLine(content);
 
-  assert.match(content, /## RCC Workflow/);
-  assert.match(content, /Before coding:/);
-  assert.match(content, /Run `rcc work "<task>"`\./);
-  assert.match(content, /Read the focused context\./);
-  assert.match(content, /Avoid broad repo scanning unless necessary\./);
-  assert.match(content, /After coding:/);
-  assert.match(content, /Run relevant tests\./);
-  assert.match(content, /rcc done --summary "<summary>" --files "<files>" --verify "<check>"/);
-  assert.match(content, /No shell: read/);
+  assert.equal(workflowSection(content), expectedWorkflowSection);
+  assert.match(content, /If shell commands are unavailable, fallback to reading/);
   assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
   assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
   assert.match(content, /docs\/ai-context\/DO_NOT_READ\.md/);

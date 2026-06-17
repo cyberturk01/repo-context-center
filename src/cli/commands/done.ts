@@ -5,6 +5,7 @@ import type { CliIO } from "../index";
 
 interface DoneOptions {
   dryRun: boolean;
+  fileMode: "auto" | "manual" | "none";
   files: string[];
   followUps: string;
   risk: string;
@@ -15,10 +16,19 @@ interface DoneOptions {
 const workLogPath = "docs/ai-context/WORK_LOG.md";
 const memoryStart = "<!-- repo-context-center:work-log:start -->";
 const memoryEnd = "<!-- repo-context-center:work-log:end -->";
-const usage = 'Usage: rcc done --summary "<summary>" [--files "<path,path>"] [--verify "<command/result>"] [--dry-run]';
+const usage = 'Usage: rcc done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]';
+const helpText = [
+  usage,
+  "",
+  "File modes:",
+  "  --files auto  Detect changed files from git status (default)",
+  "  --files none  Record no changed files",
+  '  --files "<path,path>"  Record explicit comma-separated files'
+].join("\n");
 
 function parseDoneOptions(args: string[]): DoneOptions | undefined {
   let dryRun = false;
+  let fileMode: DoneOptions["fileMode"] = "auto";
   let followUps = "";
   let risk = "";
   let summary = "";
@@ -79,7 +89,13 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
       if (!value) {
         return undefined;
       }
-      files.push(...value.split(",").map((file) => file.trim()).filter(Boolean));
+      const trimmed = value.trim();
+      if (trimmed === "auto" || trimmed === "none") {
+        fileMode = trimmed;
+      } else {
+        fileMode = "manual";
+        files.push(...trimmed.split(",").map((file) => file.trim()).filter(Boolean));
+      }
       index += 1;
       continue;
     }
@@ -101,7 +117,7 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
     return undefined;
   }
 
-  return { dryRun, files, followUps, risk, summary, verify };
+  return { dryRun, fileMode, files, followUps, risk, summary, verify };
 }
 
 function cleanInline(value: string, maxLength = 300): string {
@@ -109,9 +125,9 @@ function cleanInline(value: string, maxLength = 300): string {
   return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength - 1)}...` : cleaned;
 }
 
-function formatFiles(files: string[]): string {
+function formatFiles(files: string[], emptyLabel = "_not detected_"): string {
   if (files.length === 0) {
-    return "_not detected_";
+    return emptyLabel;
   }
 
   return files.slice(0, 10).map((file) => `\`${cleanInline(file, 160).replace(/`/g, "")}\``).join(", ");
@@ -132,9 +148,14 @@ function parseGitStatusFiles(output: string): string[] {
   return [...new Set(files)].sort((left, right) => left.localeCompare(right));
 }
 
+function isRccMemoryPath(filePath: string): boolean {
+  return filePath === ".repo-context-center" || filePath.startsWith(".repo-context-center/")
+    || filePath === "docs/ai-context" || filePath.startsWith("docs/ai-context/");
+}
+
 function detectChangedFiles(cwd: string): string[] {
   try {
-    const result = spawnSync("git", ["status", "--short"], {
+    const result = spawnSync("git", ["status", "--short", "--untracked-files=all"], {
       cwd,
       encoding: "utf8"
     });
@@ -143,7 +164,7 @@ function detectChangedFiles(cwd: string): string[] {
       return [];
     }
 
-    return parseGitStatusFiles(result.stdout);
+    return parseGitStatusFiles(result.stdout).filter((file) => !isRccMemoryPath(file));
   } catch {
     return [];
   }
@@ -165,7 +186,7 @@ function formatEntry(options: DoneOptions, files: string[], timestamp = new Date
   const lines = [
     `## ${timestamp}`,
     `- Summary: ${cleanInline(options.summary)}`,
-    `- Changed files: ${formatFiles(files)}`
+    `- Changed files: ${formatFiles(files, options.fileMode === "none" ? "_none_" : "_not detected_")}`
   ];
 
   if (options.verify) {
@@ -197,9 +218,9 @@ function appendEntry(content: string, entry: string): string {
 
 function formatSavedMessage(options: DoneOptions, files: string[]): string {
   const lines = [
-    `${options.dryRun ? "Would save" : "Saved"} work memory to ${workLogPath}`,
     `Summary: ${cleanInline(options.summary)}`,
-    `Changed files: ${files.length > 0 ? files.slice(0, 10).join(", ") : "not detected"}`
+    `Changed files: ${files.length > 0 ? files.slice(0, 10).join(", ") : options.fileMode === "none" ? "none" : "not detected"}`,
+    `RCC memory ${options.dryRun ? "would update" : "updated"}: ${workLogPath}`
   ];
 
   if (options.verify) {
@@ -216,13 +237,22 @@ function formatSavedMessage(options: DoneOptions, files: string[]): string {
 }
 
 export async function doneCommand(io: CliIO, args: string[] = []): Promise<number> {
+  if (args.length === 1 && (args[0] === "--help" || args[0] === "-h")) {
+    io.stdout(`${helpText}\n`);
+    return 0;
+  }
+
   const options = parseDoneOptions(args);
   if (!options) {
     io.stderr(`${usage}\n`);
     return 1;
   }
 
-  const files = options.files.length > 0 ? options.files : detectChangedFiles(io.cwd);
+  const files = options.fileMode === "none"
+    ? []
+    : options.fileMode === "manual"
+      ? options.files
+      : detectChangedFiles(io.cwd);
   const targetPath = path.join(io.cwd, workLogPath);
   const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : defaultContent();
   const nextContent = appendEntry(existing, formatEntry(options, files));

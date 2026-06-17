@@ -1,4 +1,4 @@
-import { readdir, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { readSuggestContext, type ContextDocument, type SuggestContextFile } from "./contextReader";
 import { classifyRepoFile, isGeneratedRepoDirectoryName } from "./repoFileClassifier";
@@ -48,18 +48,6 @@ export interface SymbolRecommendation {
   risk: RiskLevel | "unknown";
 }
 
-const investigationKeywords = [
-  "auth",
-  "security",
-  "migration",
-  "payment",
-  "consent",
-  "audit",
-  "production",
-  "release",
-  "bug"
-];
-
 const detailedKeywords = ["refactor", "architecture", "performance", "cross-module", "integration"];
 const workflowKeywords = [
   "action",
@@ -80,7 +68,9 @@ const workflowKeywords = [
   "workflows"
 ];
 const testDiscoveryKeywords = ["test", "unit test", "spec", "failure", "jest", "vitest", "cypress", "e2e"];
+const packageLockFiles = ["package-lock.json", "pnpm-lock.yaml", "yarn.lock"];
 const workflowSupportFiles = ["package.json", "Dockerfile", "railway.json"];
+const packageBuildSupportFiles = ["package.json", ...packageLockFiles];
 const decisionsFile = "docs/ai-context/DECISIONS.md";
 const decisionMemoryReason = "decision memory relevant to architecture/context task";
 const documentationOnlyReason = "documentation-only change";
@@ -98,15 +88,30 @@ const decisionMemoryTokens = new Set([
   "startup",
   "strategy"
 ]);
-const highRiskOverrideTokens = new Set([
+const docsOnlyHighRiskTokens = new Set([
+  "action",
+  "actions",
+  "audit",
   "auth",
+  "authorization",
   "authentication",
-  "config",
-  "configuration",
-  "dependency",
-  "dependencies",
+  "ci",
+  "cd",
+  "deploy",
+  "deployment",
+  "docker",
+  "github",
+  "infra",
+  "infrastructure",
   "migration",
-  "package",
+  "payment",
+  "payments",
+  "permission",
+  "permissions",
+  "pipeline",
+  "consent",
+  "production",
+  "railway",
   "release",
   "security",
   "workflow",
@@ -258,6 +263,64 @@ function isWorkflowTask(tokens: string[]): boolean {
   return workflowKeywords.some((keyword) => tokens.includes(keyword));
 }
 
+function hasExplicitWorkflowIntent(tokens: string[]): boolean {
+  return tokens.some((token) => [
+    "action",
+    "actions",
+    "cd",
+    "ci",
+    "deploy",
+    "deployment",
+    "docker",
+    "github",
+    "pipeline",
+    "production",
+    "railway",
+    "release",
+    "workflow",
+    "workflows"
+  ].includes(token));
+}
+
+function isPackageBuildTask(tokens: string[]): boolean {
+  return tokens.some((token) => [
+    "build",
+    "configuration",
+    "config",
+    "dependency",
+    "dependencies",
+    "package",
+    "packages",
+    "script",
+    "scripts"
+  ].includes(token));
+}
+
+function hasHighRiskTaskSignal(tokens: string[]): boolean {
+  return tokens.some((token) => docsOnlyHighRiskTokens.has(token))
+    || tokens.includes("database")
+    || tokens.includes("db");
+}
+
+function hasMediumRiskTaskSignal(tokens: string[]): boolean {
+  return tokens.some((token) => [
+    "build",
+    "configuration",
+    "config",
+    "dependency",
+    "dependencies",
+    "integration",
+    "package",
+    "packages",
+    "script",
+    "scripts"
+  ].includes(token));
+}
+
+function hasHighRiskContextSignal(lines: string[]): boolean {
+  return lines.some((line) => hasHighRiskTaskSignal(tokenize(line)));
+}
+
 function isCommandTask(tokens: string[]): boolean {
   return tokens.some((token) => commandTaskKeywords.has(token));
 }
@@ -333,7 +396,7 @@ function isDocumentationOnlyTask(task: string, tokens: string[], explicitDocsTar
     return false;
   }
 
-  if (tokens.some((token) => highRiskOverrideTokens.has(token))) {
+  if (tokens.some((token) => docsOnlyHighRiskTokens.has(token))) {
     return false;
   }
 
@@ -407,7 +470,7 @@ function commandTaskScore(filePath: string, tokens: string[], commandTask: boole
   }
 
   if (isCliRegistryFile(filePath)) {
-    return 96;
+    return 72;
   }
 
   if (isCliCommandFile(filePath)) {
@@ -415,7 +478,7 @@ function commandTaskScore(filePath: string, tokens: string[], commandTask: boole
     const stem = pathStem(filePath);
 
     if (tokens.includes(stem)) {
-      score += 36;
+      score += 96;
     }
     if (stem === "log" && isLogStyleCommandTask(tokens)) {
       score += 48;
@@ -447,8 +510,10 @@ function tokenMatchScore(filePath: string, tokens: Set<string>): number {
   const strongMatches = matchingTokenCount(filenameTokens(filePath), tokens);
   const mediumMatches = matchingTokenCount(parentTokens(filePath), tokens);
   const segmentMatches = matchingTokenCount(segmentTokens(filePath), tokens);
+  const stem = pathStem(filePath);
+  const exactStemMatch = tokens.has(stem) ? 1 : 0;
 
-  return (strongMatches * 30) + (mediumMatches * 16) + (segmentMatches > 0 ? 4 : 0);
+  return (exactStemMatch * 72) + (strongMatches * 34) + (mediumMatches * 16) + (segmentMatches > 0 ? 4 : 0);
 }
 
 function activeTestScore(filePath: string): number {
@@ -548,6 +613,31 @@ function hasSamePackageScope(filePath: string, selectedSourceFiles: string[]): b
   );
 }
 
+function packageBuildTaskScore(filePath: string, tokens: string[], packageBuildTask: boolean): number {
+  if (!packageBuildTask) {
+    return 0;
+  }
+
+  const basename = path.posix.basename(filePath);
+  const stem = pathStem(filePath);
+  const info = classifyRepoFile(filePath);
+  let score = 0;
+
+  if (basename === "package.json") {
+    score += tokens.some((token) => ["package", "script", "scripts"].includes(token)) ? 180 : 90;
+  } else if (packageLockFiles.includes(basename)) {
+    score += tokens.some((token) => ["package", "dependency", "dependencies"].includes(token)) ? 104 : 70;
+  } else if (info.role === "config") {
+    score += tokens.some((token) => ["build", "config", "configuration"].includes(token)) ? 220 : 72;
+  }
+
+  if (tokens.includes(stem)) {
+    score += 90;
+  }
+
+  return score;
+}
+
 interface ScoredCandidate {
   path: string;
   score: number;
@@ -638,35 +728,48 @@ function discoverLikelySourceFiles(
   explicitDocsTargets: string[],
   includeWorkflowFiles: boolean,
   includeCommandFiles: boolean,
+  includePackageBuildFiles: boolean,
   maxFiles: number
 ): string[] {
   const tokenSet = new Set(tokens);
   const hintSet = new Set(existingHintMatches);
   const docsTargetSet = new Set(explicitDocsTargets);
   const hasGithubWorkflowFiles = includeWorkflowFiles && files.some(isGithubWorkflowPath);
+  const explicitWorkflowIntent = hasExplicitWorkflowIntent(tokens);
   const candidates = files.map((file) => {
     const info = classifyRepoFile(file);
     let score = 0;
     const matchScore = tokenMatchScore(file, tokenSet);
     const commandScore = commandTaskScore(file, tokens, includeCommandFiles);
+    const packageBuildScore = packageBuildTaskScore(file, tokens, includePackageBuildFiles);
 
-    if (includeWorkflowFiles && !hasGithubWorkflowFiles && workflowSupportFiles.includes(file)) {
+    if (
+      includeWorkflowFiles
+      && !includePackageBuildFiles
+      && !hasGithubWorkflowFiles
+      && workflowSupportFiles.includes(file)
+    ) {
       return { path: file, score: 0 };
     }
 
     if (info.role === "source") {
-      if (!hintSet.has(file) && matchScore === 0 && commandScore === 0) {
+      if (!hintSet.has(file) && matchScore === 0 && commandScore === 0 && packageBuildScore === 0) {
         return { path: file, score: 0 };
       }
       score += 32;
       score += matchScore;
       score += commandScore;
+      score += packageBuildScore;
     } else if (includeWorkflowFiles && info.role === "workflow") {
       score += 80;
       score += matchScore;
       if (isGithubWorkflowPath(file)) {
         score += 160;
       }
+    } else if (includePackageBuildFiles && (info.role === "package" || info.role === "config" || packageBuildSupportFiles.includes(file))) {
+      score += 70;
+      score += matchScore;
+      score += packageBuildScore;
     } else if (includeWorkflowFiles && hasGithubWorkflowFiles && workflowSupportFiles.includes(file)) {
       score += 38;
       score += matchScore;
@@ -685,11 +788,14 @@ function discoverLikelySourceFiles(
     }
     if (includeWorkflowFiles && info.role === "workflow") {
       score += 28;
+      if (includePackageBuildFiles && !explicitWorkflowIntent) {
+        score -= 300;
+      }
     }
-    if (info.role === "package") {
+    if (info.role === "package" && !includePackageBuildFiles) {
       score -= 16;
     }
-    if (info.role === "config") {
+    if (info.role === "config" && !includePackageBuildFiles) {
       score -= 8;
     }
 
@@ -784,6 +890,7 @@ function reasonsForRecommendedFile(
   selectedSourceFiles: string[],
   includeWorkflowFiles: boolean,
   includeCommandFiles: boolean,
+  includePackageBuildFiles: boolean,
   genericTestFallback: boolean
 ): string[] {
   const reasons: string[] = [];
@@ -811,6 +918,10 @@ function reasonsForRecommendedFile(
 
   if (includeWorkflowFiles && (info.role === "workflow" || workflowSupportFiles.includes(filePath))) {
     addReason(reasons, "workflow task match");
+  }
+
+  if (includePackageBuildFiles && (info.role === "package" || info.role === "config" || packageBuildSupportFiles.includes(filePath))) {
+    addReason(reasons, "package/build task match");
   }
 
   if (includeCommandFiles) {
@@ -849,6 +960,7 @@ function recommendationReasonsFor(
   explicitDocsTargets: string[],
   includeWorkflowFiles: boolean,
   includeCommandFiles: boolean,
+  includePackageBuildFiles: boolean,
   genericTestFallback: boolean
 ): Record<string, string[]> {
   const reasons: Record<string, string[]> = {};
@@ -863,6 +975,7 @@ function recommendationReasonsFor(
       likelySourceFiles,
       includeWorkflowFiles,
       includeCommandFiles,
+      includePackageBuildFiles,
       genericTestFallback
     );
     if (fileReasons.length > 0) {
@@ -880,6 +993,7 @@ function recommendationReasonsFor(
       likelySourceFiles,
       includeWorkflowFiles,
       includeCommandFiles,
+      includePackageBuildFiles,
       genericTestFallback
     );
     if (fileReasons.length > 0) {
@@ -892,6 +1006,10 @@ function recommendationReasonsFor(
 
 interface ScoredFindCandidate extends FindFocusedFile {
   score: number;
+}
+
+interface FallbackFindCandidate extends ScoredFindCandidate {
+  rank: number;
 }
 
 function addFindSignal(candidate: ScoredFindCandidate, score: number, reason: string): void {
@@ -1021,6 +1139,152 @@ function orderFindCandidates(candidates: ScoredFindCandidate[], limit: number): 
     })
     .slice(0, limit)
     .map(({ path: filePath, reasons }) => ({ path: filePath, reasons }));
+}
+
+const fallbackSearchRoots = ["src", "tests", "scripts", "bin"];
+const fallbackExactFiles = new Set(["package.json", "tsconfig.json"]);
+const fallbackExcludedSegments = new Set([
+  ".git",
+  ".repo-context-center",
+  "build",
+  "coverage",
+  "dist",
+  "node_modules"
+]);
+
+function isFallbackConfigFile(filePath: string): boolean {
+  const basename = path.posix.basename(filePath);
+  return /(^|\.)(eslint|prettier|vitest|jest|rollup|vite)\.config\.[cm]?[jt]s$/i.test(basename)
+    || /^\.?(eslintrc|prettierrc)(\.[a-z0-9]+)?$/i.test(basename);
+}
+
+function isFallbackSearchPath(filePath: string): boolean {
+  if (filePath.startsWith("docs/ai-context/archive/")) {
+    return false;
+  }
+  if (filePath.split("/").some((segment) => fallbackExcludedSegments.has(segment))) {
+    return false;
+  }
+  if (fallbackExactFiles.has(filePath) || isFallbackConfigFile(filePath)) {
+    return true;
+  }
+
+  return fallbackSearchRoots.some((root) => filePath.startsWith(`${root}/`));
+}
+
+function exactFallbackPathMatch(filePath: string, normalizedQuery: string): boolean {
+  const lowerPath = filePath.toLowerCase();
+  const lowerBasename = path.posix.basename(filePath).toLowerCase();
+  return lowerPath === normalizedQuery || lowerBasename === normalizedQuery;
+}
+
+function fallbackPathContainsQuery(filePath: string, normalizedQuery: string): boolean {
+  return normalizedQuery.length > 1 && filePath.toLowerCase().includes(normalizedQuery);
+}
+
+function fallbackStemMatch(filePath: string, tokens: string[]): string | undefined {
+  const stemTokens = filenameTokens(filePath);
+  return tokens.find((token) => stemTokens.includes(token));
+}
+
+function contentMatchesQuery(content: string, normalizedQuery: string, tokens: string[]): boolean {
+  const lowerContent = content.toLowerCase();
+  if (normalizedQuery.length > 1 && lowerContent.includes(normalizedQuery)) {
+    return true;
+  }
+
+  return tokens.length > 0 && tokens.every((token) => lowerContent.includes(token));
+}
+
+function fallbackRankForPath(filePath: string): number {
+  if (classifyRepoFile(filePath).role === "source") {
+    return 3;
+  }
+  if (classifyRepoFile(filePath).role === "test") {
+    return 4;
+  }
+  return 5;
+}
+
+function addFallbackCandidate(
+  candidates: Map<string, FallbackFindCandidate>,
+  filePath: string,
+  rank: number,
+  score: number,
+  reason: string
+): void {
+  const existing = candidates.get(filePath);
+  const candidate = existing ?? { path: filePath, reasons: [], rank, score: 0 };
+  candidate.rank = Math.min(candidate.rank, rank);
+  candidate.score += score;
+  addReason(candidate.reasons, reason);
+  candidates.set(filePath, candidate);
+}
+
+function orderFallbackFindCandidates(candidates: FallbackFindCandidate[], limit: number): FindFocusedFile[] {
+  return candidates
+    .filter((candidate) => candidate.score > 0 && candidate.reasons.length > 0)
+    .sort((left, right) => {
+      const rankDifference = left.rank - right.rank;
+      if (rankDifference !== 0) {
+        return rankDifference;
+      }
+
+      const scoreDifference = right.score - left.score;
+      return scoreDifference === 0 ? left.path.localeCompare(right.path) : scoreDifference;
+    })
+    .slice(0, limit)
+    .map(({ path: filePath, reasons }) => ({ path: filePath, reasons }));
+}
+
+async function fallbackFindRepoFiles(
+  cwd: string,
+  repoFiles: string[],
+  query: string,
+  tokens: string[],
+  limit: number
+): Promise<FindFocusedFile[]> {
+  const normalizedQuery = query.trim().toLowerCase();
+  const candidates = new Map<string, FallbackFindCandidate>();
+  const searchFiles = repoFiles.filter(isFallbackSearchPath);
+
+  for (const filePath of searchFiles) {
+    const info = classifyRepoFile(filePath);
+    const fallbackRank = fallbackRankForPath(filePath);
+    const stemMatch = fallbackStemMatch(filePath, tokens);
+
+    if (exactFallbackPathMatch(filePath, normalizedQuery)) {
+      addFallbackCandidate(candidates, filePath, 1, 1000, "exact filename/path match");
+    }
+    if (stemMatch) {
+      addFallbackCandidate(candidates, filePath, 2, 800, `matched filename stem: ${stemMatch}`);
+    } else if (fallbackPathContainsQuery(filePath, normalizedQuery)) {
+      addFallbackCandidate(candidates, filePath, 2, 700, "filename/path contains query");
+    }
+
+    let content;
+    try {
+      content = await readFile(path.join(cwd, filePath), "utf8");
+    } catch {
+      continue;
+    }
+
+    if (!contentMatchesQuery(content, normalizedQuery, tokens)) {
+      continue;
+    }
+
+    if (info.role === "source") {
+      addFallbackCandidate(candidates, filePath, 3, 600, "source content matches query");
+    } else if (info.role === "test") {
+      addFallbackCandidate(candidates, filePath, 4, 500, "test content matches query");
+    } else if (info.role === "config" || info.role === "package") {
+      addFallbackCandidate(candidates, filePath, fallbackRank, 400, "config/package content matches query");
+    } else {
+      addFallbackCandidate(candidates, filePath, fallbackRank, 400, "file content matches query");
+    }
+  }
+
+  return orderFallbackFindCandidates([...candidates.values()], limit);
 }
 
 function hasStrongFindSourceSignal(candidate: FindFocusedFile): boolean {
@@ -1220,15 +1484,8 @@ function matchingSymbolEntries(
 
 function modeForTask(task: string, tokens: string[]): SuggestMode {
   const lowerTask = task.toLowerCase();
-  const highRiskKeywords = [
-    ...investigationKeywords,
-    "database",
-    "db",
-    "deployment",
-    "workflow"
-  ];
 
-  if (highRiskKeywords.some((keyword) => tokens.includes(keyword) || lowerTask.includes(keyword))) {
+  if (hasHighRiskTaskSignal(tokens)) {
     return "Investigation";
   }
 
@@ -1242,17 +1499,20 @@ function modeForTask(task: string, tokens: string[]): SuggestMode {
 function riskFor(
   mode: SuggestMode,
   riskMatches: number,
+  highRiskContextMatch: boolean,
   dependencyMatches: number,
   repoSignalCount: number,
   likelySourceFiles: string[],
   likelyTests: string[],
-  documentationOnlyTask: boolean
+  documentationOnlyTask: boolean,
+  highRiskTaskSignal: boolean,
+  mediumRiskTaskSignal: boolean
 ): RiskLevel {
   if (documentationOnlyTask) {
     return "low";
   }
 
-  if (mode === "Investigation" || riskMatches > 0) {
+  if (highRiskTaskSignal || highRiskContextMatch) {
     return "high";
   }
 
@@ -1260,7 +1520,7 @@ function riskFor(
     return "unknown";
   }
 
-  if (mode === "Detailed" || dependencyMatches > 0) {
+  if (mode === "Detailed" || riskMatches > 0 || dependencyMatches > 0 || mediumRiskTaskSignal) {
     return "medium";
   }
 
@@ -1366,6 +1626,7 @@ function pairedSourceFromReason(reason: string): string | undefined {
 function isStrongStartReason(reason: string, taskTokens: Set<string>, retainedSourceFiles?: Set<string>): boolean {
   if (
     reason === "same monorepo package scope"
+    || reason === "package/build task match"
     || reason === "workflow task match"
     || reason === "known CLI command registry"
     || reason === explicitDocumentationTargetReason
@@ -1408,6 +1669,60 @@ function hasStrongStartSignal(
   return reasons.some((reason) => isStrongStartReason(reason, taskTokens, retainedSourceFiles));
 }
 
+function packageBuildFocusRank(filePath: string, tokens: Set<string>): number {
+  if (!isPackageBuildTask([...tokens])) {
+    return 0;
+  }
+
+  const basename = path.posix.basename(filePath);
+  const info = classifyRepoFile(filePath);
+  const buildConfigTask = tokens.has("build") && (tokens.has("config") || tokens.has("configuration"));
+  const packageScriptsTask = tokens.has("package") || tokens.has("script") || tokens.has("scripts");
+
+  if (buildConfigTask) {
+    if (info.role === "config") {
+      return 0;
+    }
+    if (basename === "package.json") {
+      return 1;
+    }
+    if (packageLockFiles.includes(basename)) {
+      return 2;
+    }
+    if (info.role === "source") {
+      return 3;
+    }
+    if (info.role === "workflow") {
+      return 4;
+    }
+    return 5;
+  }
+
+  if (packageScriptsTask) {
+    if (basename === "package.json") {
+      return 0;
+    }
+    if (packageLockFiles.includes(basename)) {
+      return 1;
+    }
+    if (info.role === "config") {
+      return 2;
+    }
+    if (filePath.startsWith("scripts/")) {
+      return 3;
+    }
+    if (info.role === "source") {
+      return 4;
+    }
+    if (info.role === "workflow") {
+      return 5;
+    }
+    return 6;
+  }
+
+  return 0;
+}
+
 function compactReasonsForFiles(
   retainedFiles: string[],
   reasonsByFile: Record<string, string[]>
@@ -1427,10 +1742,16 @@ export function focusStartupContextForStart(
   const taskTokens = new Set(tokenize(startupContext.task));
   const commandTask = isCommandTask([...taskTokens]);
   const likelySourceFiles = startupContext.likelySourceFiles
-    .filter((filePath) => {
+    .map((filePath, index) => ({ filePath, index }))
+    .filter(({ filePath }) => {
       return isFocusedCommandSource(filePath, taskTokens, commandTask)
         && hasStrongStartSignal(filePath, startupContext.recommendationReasons, taskTokens);
     })
+    .sort((left, right) => (
+      packageBuildFocusRank(left.filePath, taskTokens) - packageBuildFocusRank(right.filePath, taskTokens)
+      || left.index - right.index
+    ))
+    .map(({ filePath }) => filePath)
     .slice(0, maxSourceFiles);
   const retainedSourceFiles = new Set(likelySourceFiles);
   const likelyTests = startupContext.likelyTests
@@ -1549,7 +1870,12 @@ export async function findFocusedFiles(
       cliRegistrationQuery
     ));
 
-  return orderFindCandidates([...nonTestCandidates, ...testCandidates], limit);
+  const contextResults = orderFindCandidates([...nonTestCandidates, ...testCandidates], limit);
+  if (contextResults.length > 0) {
+    return contextResults;
+  }
+
+  return fallbackFindRepoFiles(cwd, repoFiles, query, tokens, limit);
 }
 
 function toContextSuggestion(startupContext: StartupContext): ContextSuggestion {
@@ -1638,8 +1964,12 @@ export async function buildStartupContext(
   }
 
   const mode = modeForTask(task, tokens);
-  const workflowTask = isWorkflowTask(tokens);
   const commandTask = isCommandTask(tokens);
+  const packageBuildTask = isPackageBuildTask(tokens);
+  const workflowTask = isWorkflowTask(tokens) && (!packageBuildTask || hasExplicitWorkflowIntent(tokens));
+  const highRiskTaskSignal = hasHighRiskTaskSignal(tokens);
+  const mediumRiskTaskSignal = hasMediumRiskTaskSignal(tokens);
+  const highRiskContextMatch = hasHighRiskContextSignal(riskMatches) || symbolRiskMatches > 0;
   const hasGithubWorkflowFiles = repoFiles.some(isGithubWorkflowPath);
   const discoveredLikelySourceFiles = discoverLikelySourceFiles(
     repoFiles,
@@ -1648,6 +1978,7 @@ export async function buildStartupContext(
     explicitDocsTargets,
     workflowTask,
     commandTask,
+    packageBuildTask,
     maxFiles
   );
   const likelySourceFiles = documentationOnlyTask
@@ -1670,6 +2001,7 @@ export async function buildStartupContext(
     explicitDocsTargets,
     workflowTask,
     commandTask,
+    packageBuildTask,
     genericTestFallback
   );
   const emptyRecommendationReasons = emptyRecommendationReasonsFor(
@@ -1688,11 +2020,14 @@ export async function buildStartupContext(
   const finalRiskLevel = riskFor(
     mode,
     riskMatches.length + symbolRiskMatches,
+    highRiskContextMatch,
     dependencyModuleMatches.length + dependencyMatches.length,
     repoSignalCount,
     likelySourceFiles,
     likelyTests,
-    documentationOnlyTask
+    documentationOnlyTask,
+    highRiskTaskSignal,
+    mediumRiskTaskSignal
   );
 
   if (finalRiskLevel === "high") {
