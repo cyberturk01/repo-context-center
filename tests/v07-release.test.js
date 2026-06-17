@@ -101,6 +101,7 @@ test("v0.7 release: rcc work produces useful focused output", async () => {
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Known risks:\n- high/);
+    assert.match(result.stdout, /Fast lookup:\n- For targeted lookup, use: rcc find "<keyword>"/);
     assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files "<files>" --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
     assert.doesNotMatch(result.stdout, /score/i);
@@ -119,6 +120,7 @@ test("v0.7 release: rcc work works with missing context files", async () => {
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Read first:\n- no RCC context files found; run npx repo-context-center init to install them/);
+    assert.match(result.stdout, /Fast lookup:/);
     assert.match(result.stdout, /rcc done --summary "<summary>" --files "<files>" --verify "<check>"/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
   });
@@ -168,7 +170,9 @@ test("v0.7 release: init creates or updates AGENTS.md", async () => {
     assert.match(updatedAgents, /# Existing Agents/);
     assert.match(updatedAgents, /Keep this guidance\./);
     assert.match(updatedAgents, /## RCC Workflow/);
-    assert.match(updatedAgents, /Run `rcc done --summary "<summary>" --files "<files>" --verify "<check>"`\./);
+    assert.match(updatedAgents, /rcc find "<keyword>"/);
+    assert.match(updatedAgents, /Do not ask the human to run RCC commands\./);
+    assert.match(updatedAgents, /Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
   });
 });
 

@@ -132,13 +132,15 @@ test("init updates existing AGENTS.md without overwriting content", async () => 
     assert.match(content, /# Existing Agents/);
     assert.match(content, /Keep this project-specific guidance\./);
     assert.match(content, /<!-- repo-context-center:workflow:start -->/);
-    assert.match(content, /Before coding:/);
+    assert.match(content, /Before broad scanning or opening many files:/);
     assert.match(content, /Run `rcc work "<task>"`\./);
-    assert.match(content, /Read the focused context\./);
-    assert.match(content, /Avoid broad repo scanning unless necessary\./);
-    assert.match(content, /After coding:/);
+    assert.match(content, /Follow the read-first files from the work brief\./);
+    assert.match(content, /rcc find "<keyword>"/);
+    assert.match(content, /Do not replace `rcc work` with manually reading `docs\/ai-context` files\./);
+    assert.match(content, /Do not ask the human to run RCC commands\./);
+    assert.match(content, /After meaningful changes:/);
     assert.match(content, /Run relevant tests\./);
-    assert.match(content, /Run `rcc done --summary "<summary>" --files "<files>" --verify "<check>"`\./);
+    assert.match(content, /Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
     assert.match(result.stdout, /Updated file: AGENTS\.md/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -155,8 +157,8 @@ test("init creates AGENTS.md if missing", async () => {
     assert.equal(result.status, 0);
     assert.match(content, /# AGENTS\.md/);
     assert.match(content, /## RCC Workflow/);
-    assert.match(content, /Before coding:/);
-    assert.match(content, /After coding:/);
+    assert.match(content, /Before broad scanning or opening many files:/);
+    assert.match(content, /After meaningful changes:/);
     assert.match(result.stdout, /Created file: AGENTS\.md/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -177,6 +179,7 @@ test("init does not duplicate RCC workflow section", async () => {
     assert.equal(countOccurrences(content, "<!-- repo-context-center:workflow:start -->"), 1);
     assert.equal(countOccurrences(content, "<!-- repo-context-center:workflow:end -->"), 1);
     assert.equal(countOccurrences(content, "## RCC Workflow"), 1);
+    assert.equal(countOccurrences(content, "rcc work \"<task>\""), 1);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -216,7 +219,7 @@ test("init keeps AGENTS.md workflow concise", async () => {
     const words = workflowSection(content).trim().split(/\s+/).filter(Boolean);
 
     assert.equal(result.status, 0);
-    assert.ok(words.length <= 55, `AGENTS workflow has ${words.length} words`);
+    assert.ok(words.length <= 85, `AGENTS workflow has ${words.length} words`);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -237,7 +240,7 @@ test("init preserves existing AGENTS.md content with --force", async () => {
     assert.match(content, /custom/);
     assert.match(content, /## RCC Workflow/);
     assert.match(content, /Run `rcc work "<task>"`\./);
-    assert.match(content, /Run `rcc done --summary "<summary>" --files "<files>" --verify "<check>"`\./);
+    assert.match(content, /Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -252,7 +255,9 @@ test("init dry-run does not write files", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Dry run complete/);
     assert.match(result.stdout, /Run `rcc work "<task>"`\./);
-    assert.match(result.stdout, /Run `rcc done --summary "<summary>" --files "<files>" --verify "<check>"`\./);
+    assert.match(result.stdout, /rcc find "<keyword>"/);
+    assert.match(result.stdout, /Do not ask the human to run RCC commands\./);
+    assert.match(result.stdout, /Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
     assert.match(result.stdout, /No shell: read/);
     assert.match(result.stdout, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.match(result.stdout, /docs\/ai-context\/TASK_ROUTING\.md/);

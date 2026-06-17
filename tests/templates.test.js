@@ -73,13 +73,15 @@ test("AGENTS template keeps low-token startup references", async () => {
   const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
 
   assert.match(content, /## RCC Workflow/);
-  assert.match(content, /Before coding:/);
+  assert.match(content, /Before broad scanning or opening many files:/);
   assert.match(content, /Run `rcc work "<task>"`\./);
-  assert.match(content, /Read the focused context\./);
-  assert.match(content, /Avoid broad repo scanning unless necessary\./);
-  assert.match(content, /After coding:/);
+  assert.match(content, /Follow the read-first files from the work brief\./);
+  assert.match(content, /rcc find "<keyword>"/);
+  assert.match(content, /Do not replace `rcc work` with manually reading `docs\/ai-context` files\./);
+  assert.match(content, /Do not ask the human to run RCC commands\./);
+  assert.match(content, /After meaningful changes:/);
   assert.match(content, /Run relevant tests\./);
-  assert.match(content, /rcc done --summary "<summary>" --files "<files>" --verify "<check>"/);
+  assert.match(content, /rcc done --summary "<summary>" --files auto --verify "<checks>"/);
   assert.match(content, /No shell: read/);
   assert.match(content, /Read this file first\./);
   assert.match(content, /Verify source; keep changes focused\./);
@@ -97,7 +99,7 @@ test("AGENTS template remains startup-only", async () => {
   const content = await readFile(path.join(templateRoot, "AGENTS.md"), "utf8");
   const words = content.trim().split(/\s+/).filter(Boolean);
 
-  assert.ok(words.length <= 95, `AGENTS.md has ${words.length} words`);
+  assert.ok(words.length <= 125, `AGENTS.md has ${words.length} words`);
   assert.doesNotMatch(content, /^Read:$/m);
   assert.doesNotMatch(content, /^Modes:$/m);
   assert.doesNotMatch(content, /# Task Routing/);
@@ -147,13 +149,15 @@ test("generated AGENTS template keeps core startup rules", async () => {
   const noShellLine = content.split("\n").find((line) => line.includes("No shell: read")) ?? "";
 
   assert.match(content, /## RCC Workflow/);
-  assert.match(content, /Before coding:/);
+  assert.match(content, /Before broad scanning or opening many files:/);
   assert.match(content, /Run `rcc work "<task>"`\./);
-  assert.match(content, /Read the focused context\./);
-  assert.match(content, /Avoid broad repo scanning unless necessary\./);
-  assert.match(content, /After coding:/);
+  assert.match(content, /Follow the read-first files from the work brief\./);
+  assert.match(content, /rcc find "<keyword>"/);
+  assert.match(content, /Do not replace `rcc work` with manually reading `docs\/ai-context` files\./);
+  assert.match(content, /Do not ask the human to run RCC commands\./);
+  assert.match(content, /After meaningful changes:/);
   assert.match(content, /Run relevant tests\./);
-  assert.match(content, /rcc done --summary "<summary>" --files "<files>" --verify "<check>"/);
+  assert.match(content, /rcc done --summary "<summary>" --files auto --verify "<checks>"/);
   assert.match(content, /No shell: read/);
   assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
   assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
