@@ -88,4 +88,14 @@ Lightweight RCC memory from completed agent work.
 - Summary: Added cheap-path guidance to rcc work
 - Changed files: `auto`
 - Verification: npm test; npm run build; node --test tests/work.test.js tests/v07-release.test.js
+
+## 2026-06-18T21:08:49.986Z
+- Summary: Investigated role-related bug possibilities in work lookup and repo file classification without code changes
+- Changed files: `auto`
+- Verification: node --test tests/work.test.js tests/repoFileClassifier.test.js
+
+## 2026-06-18T21:19:28.968Z
+- Summary: Fixed rcc work narrow code-investigation task prioritization
+- Changed files: `auto`
+- Verification: node --test tests/work.test.js; npm test; npm run build
 <!-- repo-context-center:work-log:end -->

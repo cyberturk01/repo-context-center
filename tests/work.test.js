@@ -138,9 +138,10 @@ async function withLookupRankingRepo(callback) {
       [
         "# Task Routing",
         "",
-        "- Work command changes: read `src/cli/commands/work.ts`, `tests/work.test.js`, and `src/core/workRouting.ts`."
+        "- Work command changes: read `src/cli/commands/work.ts`, `tests/work.test.js`, `src/core/workRouting.ts`, and `docs/ai-context/MODULE_INDEX.md`."
       ].join("\n")
     );
+    await writeFixtureFile(tempDir, "docs/ai-context/MODULE_INDEX.md", "# Module Index\n");
     await writeFixtureFile(
       tempDir,
       "src/cli/commands/work.ts",
@@ -840,16 +841,45 @@ test("work --json promotes role task source and tests ahead of docs", async () =
     const result = runCli(["work", "--json", "Role lerle ilgili bug ihtimallerini bul"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const recommendedPaths = brief.recommendedFiles.map((file) => file.path);
-    const docIndex = recommendedPaths.findIndex((file) => file === "AGENTS.md" || file.startsWith("docs/ai-context/"));
 
     assert.equal(result.status, 0);
+    assert.equal(brief.nextCheapestCommand, 'rcc find "role"');
     assert.ok(brief.taskFiles.some((file) => file.path === "src/core/repoFileClassifier.ts"), JSON.stringify(brief.taskFiles));
     assert.ok(brief.taskFiles.some((file) => file.path === "src/cli/commands/work.ts"), JSON.stringify(brief.taskFiles));
     assert.ok(brief.supportingTests.some((file) => file.path === "tests/repoFileClassifier.test.js"), JSON.stringify(brief.supportingTests));
-    assert.ok(recommendedPaths.indexOf("src/core/repoFileClassifier.ts") < docIndex, recommendedPaths.join("\n"));
-    assert.ok(recommendedPaths.indexOf("src/cli/commands/work.ts") < docIndex, recommendedPaths.join("\n"));
+    assert.ok(recommendedPaths.includes("src/core/repoFileClassifier.ts"), recommendedPaths.join("\n"));
+    assert.ok(recommendedPaths.includes("src/cli/commands/work.ts"), recommendedPaths.join("\n"));
+    assert.ok(recommendedPaths.includes("tests/repoFileClassifier.test.js"), recommendedPaths.join("\n"));
+    assert.ok(!recommendedPaths.includes("AGENTS.md"), recommendedPaths.join("\n"));
+    assert.ok(!recommendedPaths.some((file) => file.startsWith("docs/ai-context/")), recommendedPaths.join("\n"));
     assert.ok(brief.workflowDocs.some((file) => file.path === "AGENTS.md"), JSON.stringify(brief.workflowDocs));
+    assert.ok(brief.contextDocs.some((file) => file.path === "docs/ai-context/TASK_ROUTING.md"), JSON.stringify(brief.contextDocs));
+    assert.ok(brief.contextDocs.some((file) => file.path === "docs/ai-context/MODULE_INDEX.md"), JSON.stringify(brief.contextDocs));
+    assert.ok(!brief.readFirst.includes("docs/ai-context/TASK_ROUTING.md"), JSON.stringify(brief.readFirst));
     assert.ok(brief.avoid.some((item) => item.includes("broad rg/find")));
+  });
+});
+
+test("work human output separates docs for Turkish role investigation", async () => {
+  await withLookupRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "Role lerle ilgili bug ihtimallerini bul"], { cwd: tempDir });
+    const taskFiles = sectionBody(result.stdout, "Task files to inspect first", "Supporting tests");
+    const workflowDocs = sectionBody(result.stdout, "Workflow / agent rules", "Context docs");
+    const contextDocs = sectionBody(result.stdout, "Context docs", "Relevant decisions");
+    const readFirst = sectionBody(result.stdout, "Read-first guidance", "Targeted lookup hints");
+
+    assert.equal(result.status, 0);
+    assert.match(taskFiles, /src\/core\/repoFileClassifier\.ts/);
+    assert.match(taskFiles, /src\/cli\/commands\/work\.ts/);
+    assert.doesNotMatch(taskFiles, /AGENTS\.md/);
+    assert.doesNotMatch(taskFiles, /docs\/ai-context/);
+    assert.match(result.stdout, /Supporting tests:\n- tests\/repoFileClassifier\.test\.js/);
+    assert.match(workflowDocs, /AGENTS\.md/);
+    assert.match(contextDocs, /docs\/ai-context\/TASK_ROUTING\.md/);
+    assert.match(contextDocs, /docs\/ai-context\/MODULE_INDEX\.md/);
+    assert.doesNotMatch(readFirst, /docs\/ai-context\/RISK_REGISTER\.md[\s\S]*reason: task has/);
+    assert.match(result.stdout, /Avoid:\n- broad rg\/find before checking task files/);
+    assert.match(result.stdout, /Next cheapest command:\nrcc find "role"/);
   });
 });
 
@@ -1050,7 +1080,7 @@ test("work recommends RCC context files when context matches but source is missi
     const result = runCli(["work", "fix billing issue"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Task files to inspect first:\n- none\. Start with workflow\/context docs before broad search\./);
+    assert.match(result.stdout, /Task files to inspect first:\n- none\. No focused task files were identified\. Use the next cheapest command before broad search\./);
     assert.match(result.stdout, /Workflow \/ agent rules:\n- AGENTS\.md/);
     assert.match(result.stdout, /Context docs:\n- docs\/ai-context\/TASK_ROUTING\.md\n- docs\/ai-context\/MODULE_INDEX\.md\n- docs\/ai-context\/HOTSPOTS\.md/);
   } finally {

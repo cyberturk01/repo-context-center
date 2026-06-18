@@ -212,14 +212,74 @@ const lowSignalTaskTerms = new Set([
   "changes",
   "command",
   "commands",
+  "defect",
+  "find",
   "fix",
   "improve",
+  "inspect",
+  "investigate",
   "issue",
   "issues",
+  "possible",
+  "potential",
+  "related",
+  "repair",
+  "review",
+  "search",
   "make",
   "task",
   "update",
-  "instructions"
+  "instructions",
+  "bul",
+  "ilgili",
+  "ihtimal",
+  "ihtimalleri",
+  "incele"
+]);
+const codeInvestigationTerms = new Set([
+  "bug",
+  "issue",
+  "fix",
+  "debug",
+  "investigate",
+  "find",
+  "risk",
+  "refactor",
+  "ihtimal",
+  "ihtimalleri",
+  "hata",
+  "bul",
+  "incele",
+  "duzelt",
+  "düzelt",
+  "ilgili"
+]);
+const roleRelatedLookupTerms = new Set([
+  "role",
+  "roles",
+  "classify",
+  "classification",
+  "repofileclassifier",
+  "permission",
+  "permissions",
+  "auth",
+  "authorization"
+]);
+const turkishTaskTermExpansions = new Map<string, string[]>([
+  ["rol", ["role", "roles"]],
+  ["roller", ["role", "roles"]],
+  ["role", ["role", "roles"]],
+  ["yetki", ["permission", "permissions", "auth", "authorization"]],
+  ["izin", ["permission", "permissions"]],
+  ["hata", ["bug", "issue", "defect"]],
+  ["bug", ["bug", "issue", "defect"]],
+  ["ihtimal", ["risk", "possible", "potential"]],
+  ["ihtimalleri", ["risk", "possible", "potential"]],
+  ["bul", ["find", "search", "investigate"]],
+  ["incele", ["inspect", "review", "investigate"]],
+  ["duzelt", ["fix", "repair"]],
+  ["düzelt", ["fix", "repair"]],
+  ["ilgili", ["related"]]
 ]);
 
 function parseWorkOptions(args: string[]): WorkOptions | undefined {
@@ -291,17 +351,59 @@ function tokenize(value: string): string[] {
     .filter((token) => token.length > 1))];
 }
 
+function normalizeTaskText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\brole\s+ler(?:le|i|in|den|de|e|a)?\b/g, "role")
+    .replace(/\broller(?:le|i|in|den|de|e|a)?\b/g, "rol")
+    .replace(/\broll?erle\b/g, "rol")
+    .replace(/\bhatalar[iı]?\b/g, "hata")
+    .replace(/\bhata(?:lar)?[iı]?\b/g, "hata")
+    .replace(/\bihtimaller(?:i|ini|in|le|den)?\b/g, "ihtimalleri")
+    .replace(/\bd[uü]zelt(?:mek|me|in|elim)?\b/g, "duzelt");
+}
+
+function expandTaskTerms(terms: string[]): string[] {
+  const expanded: string[] = [];
+
+  for (const term of terms) {
+    expanded.push(term);
+    for (const expansion of turkishTaskTermExpansions.get(term) ?? []) {
+      expanded.push(expansion);
+    }
+  }
+
+  if (expanded.some((term) => term === "role" || term === "roles")) {
+    expanded.push(...roleRelatedLookupTerms);
+  }
+
+  return [...new Set(expanded)];
+}
+
+function expandedTaskTerms(task: string): string[] {
+  return expandTaskTerms(tokenize(normalizeTaskText(task)));
+}
+
 function targetedLookupTerms(task: string): string[] {
   const filenameTerms = task
     .toLowerCase()
     .match(/\b[a-z0-9_-]+\.[a-z0-9][a-z0-9._-]*\b/g) ?? [];
+  const terms = expandedTaskTerms(task);
+  const hasRoleSignal = terms.some((term) => term === "role" || term === "roles");
+  const lookupTerms = hasRoleSignal
+    ? terms.filter((term) => term !== "risk")
+    : terms;
 
   return [...new Set([
     ...filenameTerms,
-    ...tokenize(task)
+    ...lookupTerms
     .filter((token) => token.length > 2)
     .filter((token) => !lowSignalTaskTerms.has(token))
   ])];
+}
+
+function isCodeInvestigationTask(task: string): boolean {
+  return expandedTaskTerms(task).some((term) => codeInvestigationTerms.has(term));
 }
 
 function compactReason(reasons: string[] | undefined): string {
@@ -619,24 +721,33 @@ function buildTaskFileRecommendations(
   promoted: TargetedLookupHint[];
 } {
   const promoted = promotedLookupHints(lookupHints, startup.task);
+  const codeInvestigationTask = isCodeInvestigationTask(startup.task);
   const promotedByRole = (roles: string[]): string[] => promoted
     .filter((hint) => roles.includes(classifyRepoFile(hint.path).role))
     .map((hint) => hint.path);
   const startupTaskFiles = startup.likelySourceFiles.filter((file) => classifyRepoFile(file).role === "source");
   const taskFilePaths = uniquePaths([...promotedByRole(["source"]), ...startupTaskFiles]);
   const supportingTestPaths = uniquePaths([...promotedByRole(["test"]), ...startup.likelyTests]);
+  const workflowTaskPaths = promotedByRole(["config", "workflow", "package"]);
   const workflowDocPaths = uniquePaths([
-    ...promotedByRole(["config", "workflow", "package"]),
+    ...workflowTaskPaths,
     ...readFirstGuidance.required.map((item) => item.path)
   ]);
   const contextDocs = contextDocPaths(startup, readFirstGuidance);
   const fallbackRecommended = recommendedInspectionFiles(startup);
-  const recommendedPaths = uniquePaths([
+  const taskCandidatePaths = uniquePaths([
     ...taskFilePaths,
-    ...workflowDocPaths,
-    ...contextDocs,
-    ...fallbackRecommended
+    ...supportingTestPaths,
+    ...workflowTaskPaths
   ]);
+  const recommendedPaths = codeInvestigationTask && taskCandidatePaths.length > 0
+    ? taskCandidatePaths
+    : uniquePaths([
+      ...taskFilePaths,
+      ...workflowDocPaths,
+      ...contextDocs,
+      ...fallbackRecommended
+    ]);
 
   return {
     taskFiles: recommendationItemsWithHints(taskFilePaths, startup, lookupHints),
@@ -1317,6 +1428,7 @@ function buildReadFirstGuidance(
   const readFirstDocs = new Set(startup.readFirstDocs);
   const routingWeak = hasWeakRouting(startup, lookupHints);
   const broadTask = isBroadOrAmbiguousTask(startup.task);
+  const focusedCodeInvestigation = isCodeInvestigationTask(startup.task) && hasStrongLookupHints(lookupHints);
   const architectureSignal = includesTaskToken(tokens, [
     "architecture",
     "architectural",
@@ -1339,7 +1451,7 @@ function buildReadFirstGuidance(
     "integration",
     "integrations"
   ]);
-  const riskSignal = includesTaskToken(tokens, [
+  const riskSignal = !focusedCodeInvestigation && includesTaskToken(tokens, [
     "security",
     "risk",
     "risky",
@@ -1369,7 +1481,7 @@ function buildReadFirstGuidance(
   const docs: Array<{ path: string; signal: boolean; taskReason: string; optionalReason: string; skippedReason: string }> = [
     {
       path: "docs/ai-context/TASK_ROUTING.md",
-      signal: routingWeak || broadTask,
+      signal: (routingWeak || broadTask) && !focusedCodeInvestigation,
       taskReason: routingWeak
         ? "routing confidence is low or targeted lookup hints are weak"
         : "task is broad or ambiguous",
@@ -1478,6 +1590,10 @@ function formatNumberedList(values: string[]): string[] {
 }
 
 function renderWorkBriefLines(brief: WorkBrief): string[] {
+  const taskFileFallback = isCodeInvestigationTask(brief.task)
+    ? "No focused task files were identified. Use the next cheapest command before broad search."
+    : "Start with workflow/context docs before broad search.";
+
   return [
     "repo-context-center work brief",
     "",
@@ -1491,7 +1607,7 @@ function renderWorkBriefLines(brief: WorkBrief): string[] {
     ...formatNumberedList(brief.cheapestPath),
     "",
     "Task files to inspect first:",
-    ...formatRecommendationSection(brief.taskFiles, "Start with workflow/context docs before broad search.").slice(0, 8),
+    ...formatRecommendationSection(brief.taskFiles, taskFileFallback).slice(0, 8),
     "",
     "Supporting tests:",
     ...formatRecommendationSection(brief.supportingTests, "Find nearby tests after inspecting source.").slice(0, 6),
