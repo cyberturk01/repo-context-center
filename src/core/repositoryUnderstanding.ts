@@ -55,7 +55,22 @@ const configFileNames = new Set([
   "vite.config.ts"
 ]);
 const configExtensions = /\.(?:config|rc)\.(?:cjs|js|json|mjs|ts|yaml|yml)$/;
-const generatedAreaNames = new Set(["dist", "build", "coverage", ".next", "target", ".turbo"]);
+const generatedAreaNames = new Set([
+  ".cache",
+  ".mypy_cache",
+  ".next",
+  ".parcel-cache",
+  ".pytest_cache",
+  ".turbo",
+  ".venv",
+  "build",
+  "coverage",
+  "dist",
+  "generated",
+  "out",
+  "target",
+  "vendor"
+]);
 const dependencyAreaNames = new Set(["node_modules", ".pnpm-store"]);
 const lockfileNames = new Set(["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb"]);
 const sourceFileExtensions = new Set([
@@ -253,7 +268,7 @@ function isSnapshotPath(filePath: string): boolean {
 }
 
 function isGeneratedPath(filePath: string): boolean {
-  return filePath.split("/").some((part) => generatedAreaNames.has(part));
+  return filePath.toLowerCase().split("/").some((part) => generatedAreaNames.has(part));
 }
 
 function isDependencyPath(filePath: string): boolean {
@@ -331,7 +346,7 @@ function monorepoPackageDirectories(files: string[]): string[] {
     if (!root || !child || !monorepoRoots.has(root)) {
       continue;
     }
-    if (generatedAreaNames.has(child) || dependencyAreaNames.has(child)) {
+    if (generatedAreaNames.has(child.toLowerCase()) || dependencyAreaNames.has(child)) {
       continue;
     }
     packageRoots.add(`${root}/${child}`);
@@ -408,7 +423,7 @@ function modules(files: string[], scanner?: Partial<ScanReport["detected"]>): Re
     if (!sourceRoot || !child || !sourceRoots.includes(sourceRoot) || !isSourceFile(file)) {
       continue;
     }
-    if (generatedAreaNames.has(child) || dependencyAreaNames.has(child)) {
+    if (generatedAreaNames.has(child.toLowerCase()) || dependencyAreaNames.has(child)) {
       continue;
     }
 
@@ -434,7 +449,7 @@ function ignoredAreas(files: string[]): IgnoredAreaUnderstanding[] {
 
   for (const file of files) {
     const parts = file.split("/");
-    const firstGeneratedPart = parts.find((part) => generatedAreaNames.has(part));
+    const firstGeneratedPart = parts.find((part) => generatedAreaNames.has(part.toLowerCase()));
     const firstDependencyPart = parts.find((part) => dependencyAreaNames.has(part));
 
     if (firstDependencyPart) {

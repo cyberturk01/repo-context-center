@@ -141,8 +141,35 @@ async function withLookupRankingRepo(callback) {
         "- Work command changes: read `src/cli/commands/work.ts`, `tests/work.test.js`, and `src/core/workRouting.ts`."
       ].join("\n")
     );
-    await writeFixtureFile(tempDir, "src/cli/commands/work.ts", "export function workCommand() {}\n");
+    await writeFixtureFile(
+      tempDir,
+      "src/cli/commands/work.ts",
+      [
+        "export function workCommand() {",
+        "  const role = 'source';",
+        "  return role;",
+        "}",
+        "// role role role role role role role role role role"
+      ].join("\n")
+    );
     await writeFixtureFile(tempDir, "tests/work.test.js", "test('work command', () => {});\n");
+    await writeFixtureFile(
+      tempDir,
+      "src/core/repoFileClassifier.ts",
+      [
+        "export type RepoFileRole = 'source' | 'test' | 'config';",
+        "export function classifyRepoFile(path) {",
+        "  const role = path.includes('test') ? 'test' : 'source';",
+        "  return { role };",
+        "}",
+        "// role role role role role role role role role role role role"
+      ].join("\n")
+    );
+    await writeFixtureFile(
+      tempDir,
+      "tests/repoFileClassifier.test.js",
+      "test('role classification', () => { const role = 'source'; return role; });\n// role role role role role role role role role role\n"
+    );
     await writeFixtureFile(tempDir, "src/core/workRouting.ts", "export const routed = true;\n");
     await writeFixtureFile(tempDir, "src/features/work/index.ts", "export const folder = 'work';\n");
     await writeFixtureFile(tempDir, "src/cli/commands/other.ts", "export const note = 'work lookup hint';\n");
@@ -279,15 +306,19 @@ test("work accepts a task string and recommends focused files", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Task intent:\nfix login bug/);
     assert.match(result.stdout, /Map freshness:\nStatus: (fresh|maybe_stale|stale|unknown)\nScore: \d+\/100\nReason: /);
-    assert.match(result.stdout, /Recommended files to inspect first:\n- src\/auth\/login\.ts/);
-    assert.match(result.stdout, /Relevant tests or test folders:\n- tests\/auth\/login\.test\.ts/);
+    assert.match(result.stdout, /Task files to inspect first:\n- src\/auth\/login\.ts/);
+    assert.match(result.stdout, /Supporting tests:\n- tests\/auth\/login\.test\.ts/);
+    assert.match(result.stdout, /Workflow \/ agent rules:\n- AGENTS\.md/);
+    assert.match(result.stdout, /Context docs:\n- docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(result.stdout, /Relevant decisions:\n- 2026-06-16 \| Keep login flow server-side/);
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Known risks:\n- high/);
+    assert.match(result.stdout, /Avoid:\n- broad rg\/find before checking task files/);
     assert.match(result.stdout, /Targeted lookup hints:\n1\. src\/auth\/login\.ts\n   reason: matched filename stem "login"\n   confidence: high/);
     assert.match(result.stdout, /Fast lookup:\n- For targeted lookup, use: rcc find "<keyword>"/);
     assert.match(result.stdout, /Prefer this before broad repo search when the target is unclear\./);
+    assert.match(result.stdout, /Next cheapest command:\nrcc find "login"/);
     assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
   });
@@ -311,6 +342,13 @@ test("work --json returns a valid machine-readable brief", async () => {
         "mapFreshness",
         "recommendedFiles",
         "relevantTests",
+        "taskFiles",
+        "supportingTests",
+        "workflowDocs",
+        "contextDocs",
+        "avoid",
+        "nextCheapestCommand",
+        "promotedFromTargetedLookup",
         "relevantDecisions",
         "recentLogs",
         "risks",
@@ -332,6 +370,13 @@ test("work --json returns a valid machine-readable brief", async () => {
     assert.ok("latestRelevantSourceChange" in brief.mapFreshness);
     assert.ok(brief.recommendedFiles.some((file) => file.path === "src/auth/login.ts"));
     assert.ok(brief.relevantTests.some((file) => file.path === "tests/auth/login.test.ts"));
+    assert.equal(brief.taskFiles[0].path, "src/auth/login.ts");
+    assert.ok(brief.supportingTests.some((file) => file.path === "tests/auth/login.test.ts"));
+    assert.ok(brief.workflowDocs.some((file) => file.path === "AGENTS.md"));
+    assert.ok(brief.contextDocs.some((file) => file.path === "docs/ai-context/TASK_ROUTING.md"));
+    assert.ok(brief.avoid.some((item) => item.includes("broad rg/find")));
+    assert.equal(brief.nextCheapestCommand, 'rcc find "login"');
+    assert.ok(brief.promotedFromTargetedLookup.some((hint) => hint.path === "src/auth/login.ts"));
     assert.ok(brief.targetedLookupHints.some((hint) => (
       hint.path === "src/auth/login.ts"
       && hint.reason
@@ -752,6 +797,68 @@ test("work --json penalizes context, generated, fixture, snapshot, archive, lock
   });
 });
 
+test("work --json does not promote generated, fixture, snapshot, asset, archive, or lock lookup noise", async () => {
+  await withLookupRankingRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "assets/work.svg", "<svg>work work work work work</svg>\n");
+
+    const result = runCli(["work", "--json", "Improve work command lookup hints"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const promotedPaths = brief.promotedFromTargetedLookup.map((hint) => hint.path);
+
+    assert.equal(result.status, 0);
+    assert.ok(!promotedPaths.some((file) => file.startsWith("fixtures/")), promotedPaths.join("\n"));
+    assert.ok(!promotedPaths.some((file) => file.startsWith("dist/")), promotedPaths.join("\n"));
+    assert.ok(!promotedPaths.some((file) => file.startsWith("archive/")), promotedPaths.join("\n"));
+    assert.ok(!promotedPaths.some((file) => file.includes("__snapshots__")), promotedPaths.join("\n"));
+    assert.ok(!promotedPaths.some((file) => file.startsWith("assets/")), promotedPaths.join("\n"));
+    assert.ok(!promotedPaths.includes("package-lock.json"), promotedPaths.join("\n"));
+  });
+});
+
+test("work --json promotes role task source and tests ahead of docs", async () => {
+  await withLookupRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "Role lerle ilgili bug ihtimallerini bul"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const recommendedPaths = brief.recommendedFiles.map((file) => file.path);
+    const docIndex = recommendedPaths.findIndex((file) => file === "AGENTS.md" || file.startsWith("docs/ai-context/"));
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.taskFiles.some((file) => file.path === "src/core/repoFileClassifier.ts"), JSON.stringify(brief.taskFiles));
+    assert.ok(brief.taskFiles.some((file) => file.path === "src/cli/commands/work.ts"), JSON.stringify(brief.taskFiles));
+    assert.ok(brief.supportingTests.some((file) => file.path === "tests/repoFileClassifier.test.js"), JSON.stringify(brief.supportingTests));
+    assert.ok(recommendedPaths.indexOf("src/core/repoFileClassifier.ts") < docIndex, recommendedPaths.join("\n"));
+    assert.ok(recommendedPaths.indexOf("src/cli/commands/work.ts") < docIndex, recommendedPaths.join("\n"));
+    assert.ok(brief.workflowDocs.some((file) => file.path === "AGENTS.md"), JSON.stringify(brief.workflowDocs));
+    assert.ok(brief.avoid.some((item) => item.includes("broad rg/find")));
+  });
+});
+
+test("work --json role tie-break keeps source ahead of package and noise roles", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-role-order-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/TASK_ROUTING.md", "# Task Routing\n");
+    await writeFixtureFile(tempDir, "src/auth.ts", "export const value = 'role';\n// role role role role role role role role role role role role role role role role\n");
+    await writeFixtureFile(tempDir, "package.json", "{\"name\":\"fixture\",\"description\":\"role role role role role role role role role role role role role role role role\"}\n");
+    await writeFixtureFile(tempDir, "dist/role.js", "const role = 'role';\n// role role role role role role role role\n");
+    await writeFixtureFile(tempDir, "src/logo.svg", "<svg>role role role role role role role role</svg>\n");
+
+    const result = runCli(["work", "--json", "role"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const paths = brief.recommendedFiles.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.ok(paths.indexOf("src/auth.ts") !== -1, paths.join("\n"));
+    assert.ok(paths.indexOf("package.json") !== -1, paths.join("\n"));
+    assert.ok(paths.indexOf("src/auth.ts") < paths.indexOf("package.json"), paths.join("\n"));
+    assert.ok(!paths.includes("dist/role.js"), paths.join("\n"));
+    assert.ok(!paths.includes("src/logo.svg"), paths.join("\n"));
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("work --json ranks exact filename above weak semantic matches", async () => {
   await withLookupRankingRepo(async (tempDir) => {
     await writeFixtureFile(tempDir, "src/notes/unrelated.ts", "export const text = 'package package package package package';\n");
@@ -923,8 +1030,9 @@ test("work recommends RCC context files when context matches but source is missi
     const result = runCli(["work", "fix billing issue"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Recommended files to inspect first:\n- AGENTS\.md\n- docs\/ai-context\/TASK_ROUTING\.md\n- docs\/ai-context\/MODULE_INDEX\.md\n- docs\/ai-context\/HOTSPOTS\.md/);
-    assert.doesNotMatch(result.stdout, /Recommended files to inspect first:\n- none/);
+    assert.match(result.stdout, /Task files to inspect first:\n- none\. Start with workflow\/context docs before broad search\./);
+    assert.match(result.stdout, /Workflow \/ agent rules:\n- AGENTS\.md/);
+    assert.match(result.stdout, /Context docs:\n- docs\/ai-context\/TASK_ROUTING\.md\n- docs\/ai-context\/MODULE_INDEX\.md\n- docs\/ai-context\/HOTSPOTS\.md/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -959,10 +1067,12 @@ test("work output is concise and agent-oriented", async () => {
     const lines = result.stdout.trim().split(/\r?\n/);
 
     assert.equal(result.status, 0);
-    assert.ok(lines.length <= 65, `work output has ${lines.length} lines`);
+    assert.ok(lines.length <= 80, `work output has ${lines.length} lines`);
     assert.doesNotMatch(result.stdout, /generate code/i);
     assert.match(result.stdout, /Map freshness:/);
-    assert.match(result.stdout, /Recommended files to inspect first:/);
+    assert.match(result.stdout, /Task files to inspect first:/);
+    assert.match(result.stdout, /Supporting tests:/);
+    assert.match(result.stdout, /Avoid:/);
     assert.match(result.stdout, /Relevant decisions:/);
     assert.match(result.stdout, /Recent logs:/);
     assert.match(result.stdout, /Token estimate:/);

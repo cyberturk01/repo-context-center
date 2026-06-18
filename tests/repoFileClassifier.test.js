@@ -72,8 +72,26 @@ test("RepoFileClassifier detects monorepo package scope and package source/test 
 
 test("RepoFileClassifier classifies workflow files", () => {
   assert.equal(classifyRepoFile(".github/workflows/ci.yml").role, "workflow");
+  assert.equal(classifyRepoFile(".Github/workflows/ci.yml").role, "workflow");
   assert.equal(classifyRepoFile(".gitlab-ci.yml").role, "workflow");
   assert.equal(classifyRepoFile("Jenkinsfile").role, "workflow");
+});
+
+test("RepoFileClassifier handles case-insensitive package and config filenames", () => {
+  assert.equal(classifyRepoFile("Package.json").role, "package");
+  assert.equal(classifyRepoFile("package.json").role, "package");
+  assert.equal(classifyRepoFile("Cargo.toml").role, "package");
+  assert.equal(classifyRepoFile("cargo.toml").role, "package");
+  assert.equal(classifyRepoFile("Dockerfile").role, "config");
+  assert.equal(classifyRepoFile("dockerfile").role, "config");
+});
+
+test("RepoFileClassifier classifies static assets before source or docs layout", () => {
+  assert.equal(classifyRepoFile("src/logo.svg").role, "asset");
+  assert.equal(classifyRepoFile("src/assets/logo.png").role, "asset");
+  assert.equal(classifyRepoFile("docs/assets/diagram.svg").role, "asset");
+  assert.equal(classifyRepoFile("docs/assets/notes.md").role, "docs");
+  assert.equal(classifyRepoFile("src/assets/generateLogo.ts").role, "source");
 });
 
 test("RepoFileClassifier classifies docs", () => {
@@ -106,6 +124,21 @@ test("RepoFileClassifier marks generated files, fixtures, and snapshots as noise
     language: undefined,
     packageScope: undefined
   });
+
+  for (const filePath of [
+    ".turbo/cache/file.js",
+    ".venv/lib/file.py",
+    "public/build/app.js",
+    ".cache/vite/file.js",
+    ".pytest_cache/v/cache/nodeids",
+    ".mypy_cache/module.json",
+    ".parcel-cache/file.js",
+    "out/server.js",
+    "vendor/library/file.py"
+  ]) {
+    assert.equal(classifyRepoFile(filePath).role, "generated", filePath);
+    assert.equal(classifyRepoFile(filePath).isNoise, true, filePath);
+  }
 });
 
 test("RepoFileClassifier classifies package files", () => {

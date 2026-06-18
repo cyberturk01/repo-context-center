@@ -73,4 +73,14 @@ Lightweight RCC memory from completed agent work.
 - Summary: Updated README to reflect latest rcc work and find changes from recent git history
 - Changed files: `auto`
 - Verification: npm run build
+
+## 2026-06-18T20:38:37.679Z
+- Summary: Implemented targeted lookup promotion for rcc work
+- Changed files: `auto`
+- Verification: npm test; npm run build; node --test tests/work.test.js
+
+## 2026-06-18T20:46:59.086Z
+- Summary: Hardened repository file role classification and lookup role ordering
+- Changed files: `auto`
+- Verification: npm test; npm run build; node --test tests/repoFileClassifier.test.js tests/repositoryUnderstanding.test.js tests/work.test.js
 <!-- repo-context-center:work-log:end -->

@@ -1,7 +1,7 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { requiredContextFiles } from "../../core/contextFiles";
-import { classifyRepoFile } from "../../core/repoFileClassifier";
+import { classifyRepoFile, type RepoFileRole } from "../../core/repoFileClassifier";
 import { listFilesRecursive, pathExists, readTextFile } from "../../core/fileSystem";
 import { buildStartupContext, focusStartupContextForStart, type StartupContext } from "../../core/suggester";
 import type { CliIO } from "../index";
@@ -73,9 +73,14 @@ interface WorkBrief {
   mapFreshness: WorkMapFreshness;
   routingGuidance: string[];
   startupContext: StartupContext;
+  taskFiles: WorkRecommendation[];
+  supportingTests: WorkRecommendation[];
+  workflowDocs: WorkRecommendation[];
+  contextDocs: WorkRecommendation[];
   recommendedFiles: WorkRecommendation[];
   relevantTests: WorkRecommendation[];
   targetedLookupHints: Array<Omit<TargetedLookupHint, "index">>;
+  promotedFromTargetedLookup: Array<Omit<TargetedLookupHint, "index">>;
   relevantDecisions: string[];
   recentLogs: string[];
   tokenEstimate: {
@@ -83,8 +88,10 @@ interface WorkBrief {
     text: string;
   };
   risks: string[];
+  avoid: string[];
   readFirst: string[];
   readFirstGuidance: ReadFirstGuidance;
+  nextCheapestCommand: string;
   nextCommand: string;
 }
 
@@ -104,6 +111,13 @@ interface PublicWorkBrief {
   };
   recommendedFiles: PublicWorkFile[];
   relevantTests: PublicWorkFile[];
+  taskFiles: PublicWorkFile[];
+  supportingTests: PublicWorkFile[];
+  workflowDocs: PublicWorkFile[];
+  contextDocs: PublicWorkFile[];
+  avoid: string[];
+  nextCheapestCommand: string;
+  promotedFromTargetedLookup: PublicTargetedLookupHint[];
   relevantDecisions: string[];
   recentLogs: string[];
   risks: PublicWorkRisk[];
@@ -157,10 +171,37 @@ const logLimit = 3;
 const decisionLimit = 3;
 const targetedLookupLimit = 5;
 const targetedContentReadLimit = 64 * 1024;
+const strongLookupScoreThreshold = 70;
 const usage = 'Usage: rcc work "<task>" [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]';
 const nextCommand = 'rcc done --summary "<summary>" --files auto --verify "<check>"';
 const freshnessAffectedFileLimit = 5;
 const freshnessImportantRoles = new Set(["source", "test", "workflow", "config", "package"]);
+const defaultLookupRoleOrder: RepoFileRole[] = [
+  "source",
+  "test",
+  "workflow",
+  "config",
+  "package",
+  "docs",
+  "fixture",
+  "snapshot",
+  "asset",
+  "generated",
+  "unknown"
+];
+const packageTaskLookupRoleOrder: RepoFileRole[] = [
+  "source",
+  "test",
+  "package",
+  "workflow",
+  "config",
+  "docs",
+  "fixture",
+  "snapshot",
+  "asset",
+  "generated",
+  "unknown"
+];
 const contextFiles = requiredContextFiles;
 const lowSignalTaskTerms = new Set([
   "add",
@@ -280,43 +321,37 @@ function recommendedInspectionFiles(startup: StartupContext): string[] {
   ])];
 }
 
-function formatRecommendedFiles(startup: StartupContext): string[] {
-  const files = recommendedInspectionFiles(startup);
-
-  if (files.length === 0) {
-    const reason = startup.emptyRecommendationReasons.source
-      ? ` ${startup.emptyRecommendationReasons.source}`
-      : " Start from RCC context docs before broad search.";
-    return [`- none.${reason}`];
-  }
-
-  if (startup.likelySourceFiles.length === 0 && startup.readFirstDocs.length > 0) {
-    return files.map((file) => `- ${file}`);
-  }
-
-  return files.map((file) => {
-    return `- ${file}${compactReason(startup.recommendationReasons[file])}`;
-  });
+function uniquePaths(paths: string[]): string[] {
+  return [...new Set(paths)];
 }
 
-function recommendationItems(paths: string[], startup: StartupContext): WorkRecommendation[] {
-  return paths.map((file) => ({
-    path: file,
-    reasons: startup.recommendationReasons[file] ?? []
-  }));
+function recommendationFromPath(filePath: string, startup: StartupContext, hints: TargetedLookupHint[]): WorkRecommendation {
+  const hint = hints.find((candidate) => candidate.path === filePath);
+  const reasons = [
+    ...(hint ? [hint.reason] : []),
+    ...(startup.recommendationReasons[filePath] ?? [])
+  ].filter(Boolean);
+
+  return {
+    path: filePath,
+    reasons: uniquePaths(reasons)
+  };
 }
 
-function formatRecommendedTests(startup: StartupContext): string[] {
-  if (startup.likelyTests.length === 0) {
-    const reason = startup.emptyRecommendationReasons.test
-      ? ` ${startup.emptyRecommendationReasons.test}`
-      : " Find nearby tests after inspecting source.";
-    return [`- none.${reason}`];
+function recommendationItemsWithHints(
+  paths: string[],
+  startup: StartupContext,
+  hints: TargetedLookupHint[]
+): WorkRecommendation[] {
+  return uniquePaths(paths).map((file) => recommendationFromPath(file, startup, hints));
+}
+
+function formatRecommendationSection(items: WorkRecommendation[], fallback: string): string[] {
+  if (items.length === 0) {
+    return [`- none. ${fallback}`];
   }
 
-  return startup.likelyTests.map((file) => {
-    return `- ${file}${compactReason(startup.recommendationReasons[file])}`;
-  });
+  return items.map((item) => `- ${item.path}${compactReason(item.reasons)}`);
 }
 
 function formatTargetedLookupHints(hints: TargetedLookupHint[]): string[] {
@@ -359,6 +394,21 @@ function hintConfidence(score: number): TargetedLookupHint["confidence"] {
   }
 
   return "low";
+}
+
+function isMediumHighLookupHint(hint: TargetedLookupHint | Omit<TargetedLookupHint, "index">): boolean {
+  return hint.confidence === "high" || hint.score >= strongLookupScoreThreshold;
+}
+
+function lookupRoleOrder(task: string): RepoFileRole[] {
+  return taskAllowsLockFile(task) ? packageTaskLookupRoleOrder : defaultLookupRoleOrder;
+}
+
+function lookupRoleRank(role: RepoFileRole, task: string): number {
+  const order = lookupRoleOrder(task);
+  const index = order.indexOf(role);
+
+  return index === -1 ? order.length : index;
 }
 
 function makeLookupHint(
@@ -468,6 +518,9 @@ function lookupPenalty(filePath: string, task: string): number {
   if (info.role === "generated") {
     penalty += 70;
   }
+  if (info.role === "asset") {
+    penalty += 70;
+  }
   if (/\/archive\//i.test(filePath) || filePath.startsWith("archive/") || filePath.startsWith("archives/")) {
     penalty += 60;
   }
@@ -489,6 +542,108 @@ function applyLookupPenalty(hint: TargetedLookupHint, task: string): TargetedLoo
     ...hint,
     score,
     confidence: hintConfidence(score)
+  };
+}
+
+function isPromotableLookupHint(hint: TargetedLookupHint, task: string): boolean {
+  const info = classifyRepoFile(hint.path);
+  const promotableRoles = new Set(["source", "test", "config", "workflow", "package"]);
+
+  if (!promotableRoles.has(info.role) || info.isNoise || info.role === "asset") {
+    return false;
+  }
+  if (isLockFile(hint.path) && !taskAllowsLockFile(task)) {
+    return false;
+  }
+  if (!isMediumHighLookupHint(hint)) {
+    return false;
+  }
+
+  const directSignals = new Set<TargetedLookupSignal>([
+    "exact-filename-match",
+    "command-name-match",
+    "filename-match",
+    "paired-test",
+    "task-routing",
+    "path-match"
+  ]);
+
+  if (directSignals.has(hint.signal)) {
+    return true;
+  }
+
+  return hint.signal === "semantic-match" && hint.score >= strongLookupScoreThreshold;
+}
+
+function promotedLookupHints(lookupHints: TargetedLookupHint[], task: string): TargetedLookupHint[] {
+  return lookupHints
+    .filter((hint) => isPromotableLookupHint(hint, task))
+    .sort((left, right) => {
+      const roleDelta = lookupRoleRank(classifyRepoFile(left.path).role, task) - lookupRoleRank(classifyRepoFile(right.path).role, task);
+      if (roleDelta !== 0) {
+        return roleDelta;
+      }
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+      return left.path.localeCompare(right.path);
+    });
+}
+
+function nextCheapestLookupCommand(task: string): string {
+  const [term] = targetedLookupTerms(task);
+  return term ? `rcc find "${term}"` : 'rcc find "<keyword>"';
+}
+
+function contextDocPaths(startup: StartupContext, guidance: ReadFirstGuidance): string[] {
+  return uniquePaths([
+    ...guidance.taskSpecific.map((item) => item.path),
+    ...guidance.optional.map((item) => item.path),
+    ...startup.readFirstDocs
+  ]).filter((file) => file.startsWith("docs/ai-context/"));
+}
+
+function buildTaskFileRecommendations(
+  startup: StartupContext,
+  lookupHints: TargetedLookupHint[],
+  readFirstGuidance: ReadFirstGuidance
+): {
+  taskFiles: WorkRecommendation[];
+  supportingTests: WorkRecommendation[];
+  workflowDocs: WorkRecommendation[];
+  contextDocs: WorkRecommendation[];
+  recommendedFiles: WorkRecommendation[];
+  relevantTests: WorkRecommendation[];
+  promoted: TargetedLookupHint[];
+} {
+  const promoted = promotedLookupHints(lookupHints, startup.task);
+  const promotedByRole = (roles: string[]): string[] => promoted
+    .filter((hint) => roles.includes(classifyRepoFile(hint.path).role))
+    .map((hint) => hint.path);
+  const startupTaskFiles = startup.likelySourceFiles.filter((file) => classifyRepoFile(file).role === "source");
+  const taskFilePaths = uniquePaths([...promotedByRole(["source"]), ...startupTaskFiles]);
+  const supportingTestPaths = uniquePaths([...promotedByRole(["test"]), ...startup.likelyTests]);
+  const workflowDocPaths = uniquePaths([
+    ...promotedByRole(["config", "workflow", "package"]),
+    ...readFirstGuidance.required.map((item) => item.path)
+  ]);
+  const contextDocs = contextDocPaths(startup, readFirstGuidance);
+  const fallbackRecommended = recommendedInspectionFiles(startup);
+  const recommendedPaths = uniquePaths([
+    ...taskFilePaths,
+    ...workflowDocPaths,
+    ...contextDocs,
+    ...fallbackRecommended
+  ]);
+
+  return {
+    taskFiles: recommendationItemsWithHints(taskFilePaths, startup, lookupHints),
+    supportingTests: recommendationItemsWithHints(supportingTestPaths, startup, lookupHints),
+    workflowDocs: recommendationItemsWithHints(workflowDocPaths, startup, lookupHints),
+    contextDocs: recommendationItemsWithHints(contextDocs, startup, lookupHints),
+    recommendedFiles: recommendationItemsWithHints(recommendedPaths, startup, lookupHints),
+    relevantTests: recommendationItemsWithHints(supportingTestPaths, startup, lookupHints),
+    promoted
   };
 }
 
@@ -713,7 +868,10 @@ async function targetedLookupHints(cwd: string, task: string, startup: StartupCo
     try {
       const content = await contentMatch(cwd, filePath, terms);
       if (content) {
-        const contentScore = Math.min(48, 24 + content.matches * 4);
+        const role = classifyRepoFile(filePath).role;
+        const contentScore = ["source", "test", "config", "workflow", "package"].includes(role)
+          ? Math.min(72, 28 + content.matches * 6)
+          : Math.min(48, 24 + content.matches * 4);
         const contentHint = applyLookupPenalty(
           makeLookupHint(
             filePath,
@@ -763,8 +921,7 @@ async function targetedLookupHints(cwd: string, task: string, startup: StartupCo
 
       const leftRole = classifyRepoFile(left.path).role;
       const rightRole = classifyRepoFile(right.path).role;
-      const roleOrder = ["source", "test", "workflow", "config", "docs", "unknown"];
-      const roleDelta = roleOrder.indexOf(leftRole) - roleOrder.indexOf(rightRole);
+      const roleDelta = lookupRoleRank(leftRole, task) - lookupRoleRank(rightRole, task);
       if (roleDelta !== 0) {
         return roleDelta;
       }
@@ -1320,11 +1477,17 @@ function renderWorkBriefLines(brief: WorkBrief): string[] {
     "Map freshness:",
     ...mapFreshnessLines(brief.mapFreshness),
     "",
-    "Recommended files to inspect first:",
-    ...formatRecommendedFiles(brief.startupContext).slice(0, 8),
+    "Task files to inspect first:",
+    ...formatRecommendationSection(brief.taskFiles, "Start with workflow/context docs before broad search.").slice(0, 8),
     "",
-    "Relevant tests or test folders:",
-    ...formatRecommendedTests(brief.startupContext).slice(0, 6),
+    "Supporting tests:",
+    ...formatRecommendationSection(brief.supportingTests, "Find nearby tests after inspecting source.").slice(0, 6),
+    "",
+    "Workflow / agent rules:",
+    ...formatRecommendationSection(brief.workflowDocs, "No workflow or agent rule files were detected.").slice(0, 6),
+    "",
+    "Context docs:",
+    ...formatRecommendationSection(brief.contextDocs, "Use only if task files are insufficient.").slice(0, 6),
     "",
     "Relevant decisions:",
     ...formatList(brief.relevantDecisions, "none. no matching decision was found."),
@@ -1338,6 +1501,9 @@ function renderWorkBriefLines(brief: WorkBrief): string[] {
     "Known risks:",
     ...brief.risks.map((risk) => `- ${risk}`),
     "",
+    "Avoid:",
+    ...brief.avoid.map((item) => `- ${item}`),
+    "",
     "Read-first guidance:",
     ...formatReadFirstGuidance(brief.readFirstGuidance),
     "",
@@ -1347,6 +1513,9 @@ function renderWorkBriefLines(brief: WorkBrief): string[] {
     "Fast lookup:",
     '- For targeted lookup, use: rcc find "<keyword>"',
     "- Prefer this before broad repo search when the target is unclear.",
+    "",
+    "Next cheapest command:",
+    brief.nextCheapestCommand,
     "",
     "Next command after meaningful work:",
     "```sh",
@@ -1387,6 +1556,7 @@ function buildWorkBrief(
   readFirstGuidance: ReadFirstGuidance,
   contextBudget: ContextBudget
 ): WorkBrief {
+  const categorized = buildTaskFileRecommendations(startup, lookupHints, readFirstGuidance);
   const brief: WorkBrief = {
     command: "work",
     task: startup.task,
@@ -1394,9 +1564,21 @@ function buildWorkBrief(
     mapFreshness,
     routingGuidance: startup.startupInstructions,
     startupContext: startup,
-    recommendedFiles: recommendationItems(recommendedInspectionFiles(startup), startup),
-    relevantTests: recommendationItems(startup.likelyTests, startup),
+    taskFiles: categorized.taskFiles,
+    supportingTests: categorized.supportingTests,
+    workflowDocs: categorized.workflowDocs,
+    contextDocs: categorized.contextDocs,
+    recommendedFiles: categorized.recommendedFiles,
+    relevantTests: categorized.relevantTests,
     targetedLookupHints: lookupHints.map((hint) => ({
+      path: hint.path,
+      term: hint.term,
+      reason: hint.reason,
+      signal: hint.signal,
+      confidence: hint.confidence,
+      score: hint.score
+    })),
+    promotedFromTargetedLookup: categorized.promoted.map((hint) => ({
       path: hint.path,
       term: hint.term,
       reason: hint.reason,
@@ -1411,8 +1593,13 @@ function buildWorkBrief(
       text: "unknown"
     },
     risks: riskValues(startup),
+    avoid: [
+      "broad rg/find before checking task files",
+      "reading all docs/ai-context before task files"
+    ],
     readFirst: readFirstCompatibilityPaths(readFirstGuidance),
     readFirstGuidance,
+    nextCheapestCommand: nextCheapestLookupCommand(startup.task),
     nextCommand
   };
 
@@ -1490,6 +1677,13 @@ function renderWorkBriefJson(brief: WorkBrief): string {
     },
     recommendedFiles: brief.recommendedFiles.map((file) => recommendationSignal(file, lookupHints)),
     relevantTests: brief.relevantTests.map((file) => recommendationSignal(file, lookupHints)),
+    taskFiles: brief.taskFiles.map((file) => recommendationSignal(file, lookupHints)),
+    supportingTests: brief.supportingTests.map((file) => recommendationSignal(file, lookupHints)),
+    workflowDocs: brief.workflowDocs.map((file) => recommendationSignal(file, lookupHints)),
+    contextDocs: brief.contextDocs.map((file) => recommendationSignal(file, lookupHints)),
+    avoid: brief.avoid,
+    nextCheapestCommand: brief.nextCheapestCommand,
+    promotedFromTargetedLookup: publicLookupHints(brief.promotedFromTargetedLookup),
     relevantDecisions: brief.relevantDecisions,
     recentLogs: brief.recentLogs,
     risks: publicRisks(brief.risks),
