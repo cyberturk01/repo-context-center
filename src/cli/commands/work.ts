@@ -205,6 +205,19 @@ const packageTaskLookupRoleOrder: RepoFileRole[] = [
   "generated",
   "unknown"
 ];
+const workflowTaskLookupRoleOrder: RepoFileRole[] = [
+  "workflow",
+  "config",
+  "package",
+  "source",
+  "test",
+  "docs",
+  "fixture",
+  "snapshot",
+  "asset",
+  "generated",
+  "unknown"
+];
 const contextFiles = requiredContextFiles;
 
 function parseWorkOptions(args: string[]): WorkOptions | undefined {
@@ -368,6 +381,10 @@ function isMediumHighLookupHint(hint: TargetedLookupHint | Omit<TargetedLookupHi
 }
 
 function lookupRoleOrder(taskIntent: TaskIntentAnalysis): RepoFileRole[] {
+  if (taskIntent.hasWorkflowDomain) {
+    return workflowTaskLookupRoleOrder;
+  }
+
   return taskAllowsLockFile(taskIntent) ? packageTaskLookupRoleOrder : defaultLookupRoleOrder;
 }
 
@@ -570,10 +587,48 @@ function isPromotableLookupHint(hint: TargetedLookupHint, taskIntent: TaskIntent
   return hint.signal === "semantic-match" && hint.score >= strongLookupScoreThreshold;
 }
 
+function isWeakSemanticSourceHint(hint: TargetedLookupHint): boolean {
+  return classifyRepoFile(hint.path).role === "source"
+    && hint.signal === "semantic-match"
+    && hint.reason.includes("weak semantic match");
+}
+
+function workflowPromotedHintRank(hint: TargetedLookupHint): number {
+  const role = classifyRepoFile(hint.path).role;
+
+  if (role === "workflow") {
+    return 0;
+  }
+  if (role === "config") {
+    return 1;
+  }
+  if (role === "package") {
+    return 2;
+  }
+  if (role === "source" && !isWeakSemanticSourceHint(hint)) {
+    return 3;
+  }
+  if (role === "test") {
+    return 4;
+  }
+  if (role === "source") {
+    return 5;
+  }
+
+  return 6;
+}
+
 function promotedLookupHints(lookupHints: TargetedLookupHint[], taskIntent: TaskIntentAnalysis): TargetedLookupHint[] {
   return lookupHints
     .filter((hint) => isPromotableLookupHint(hint, taskIntent))
     .sort((left, right) => {
+      if (taskIntent.hasWorkflowDomain) {
+        const workflowRankDelta = workflowPromotedHintRank(left) - workflowPromotedHintRank(right);
+        if (workflowRankDelta !== 0) {
+          return workflowRankDelta;
+        }
+      }
+
       const roleDelta = lookupRoleRank(classifyRepoFile(left.path).role, taskIntent) - lookupRoleRank(classifyRepoFile(right.path).role, taskIntent);
       if (roleDelta !== 0) {
         return roleDelta;
@@ -618,9 +673,16 @@ function buildTaskFileRecommendations(
     .map((hint) => hint.path);
   const startupTaskFiles = startup.likelySourceFiles.filter((file) => classifyRepoFile(file).role === "source");
   const workflowTaskPaths = promotedByRole(["config", "workflow", "package"]);
+  const promotedTaskPaths = taskIntent.hasWorkflowDomain
+    ? promoted
+      .filter((hint) => ["source", "config", "workflow", "package"].includes(classifyRepoFile(hint.path).role))
+      .map((hint) => hint.path)
+    : [
+      ...promotedByRole(["source"]),
+      ...workflowTaskPaths
+    ];
   const taskFilePaths = uniquePaths([
-    ...promotedByRole(["source"]),
-    ...workflowTaskPaths,
+    ...promotedTaskPaths,
     ...startupTaskFiles
   ]);
   const testHintPaths = promotedByRole(["test"]);

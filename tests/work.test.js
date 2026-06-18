@@ -308,6 +308,16 @@ async function withWorkflowRankingRepo(callback) {
     await writeFixtureFile(tempDir, ".github/workflows/ai-project-guardian.yml", "name: ai-project-guardian\non: [push]\n");
     await writeFixtureFile(tempDir, ".github/workflows/ci.yml", "name: ci\non: [push]\n");
     await writeFixtureFile(tempDir, "package.json", "{\"scripts\":{\"workflow\":\"node scripts/workflow-risk.js\"},\"description\":\"workflow risk workflow risk workflow\"}\n");
+    await writeFixtureFile(
+      tempDir,
+      "src/cli/commands/done.ts",
+      [
+        "export function doneCommand() {",
+        "  return 'risk';",
+        "}",
+        "// risk risk risk risk risk risk risk risk risk risk risk risk risk risk risk risk"
+      ].join("\n")
+    );
     await writeFixtureFile(tempDir, "src/cli/commands/find.ts", "export function findCommand() {}\n");
     await writeFixtureFile(tempDir, "tests/find.test.js", "test('find command', () => {});\n");
 
@@ -1036,11 +1046,37 @@ test("work --json ranks workflow domain files over bare find action verb", async
 
     assert.equal(result.status, 0);
     assert.equal(brief.nextCheapestCommand, 'rcc find "workflow"');
-    assert.equal(taskPaths[0], ".github/workflows/ai-project-guardian.yml", taskPaths.join("\n"));
+    assert.deepEqual(taskPaths.slice(0, 3), [
+      ".github/workflows/ai-project-guardian.yml",
+      ".github/workflows/ci.yml",
+      "package.json"
+    ], taskPaths.join("\n"));
+    assert.ok(taskPaths.indexOf("src/cli/commands/done.ts") === -1 || taskPaths.indexOf("package.json") < taskPaths.indexOf("src/cli/commands/done.ts"), taskPaths.join("\n"));
+    assert.equal(brief.targetedLookupHints.find((hint) => hint.path === "src/cli/commands/done.ts")?.signal, "semantic-match");
     assert.ok(!taskPaths.includes("src/cli/commands/find.ts") || taskPaths.indexOf(".github/workflows/ai-project-guardian.yml") < taskPaths.indexOf("src/cli/commands/find.ts"), taskPaths.join("\n"));
     assert.ok(!hintPaths.includes("src/cli/commands/find.ts") || hintPaths.indexOf(".github/workflows/ai-project-guardian.yml") < hintPaths.indexOf("src/cli/commands/find.ts"), hintPaths.join("\n"));
     assert.ok(brief.contextDocs.some((file) => file.path === "docs/ai-context/RISK_REGISTER.md"), JSON.stringify(brief.contextDocs));
     assert.ok(brief.contextDocs.some((file) => file.path === "docs/ai-context/HOTSPOTS.md"), JSON.stringify(brief.contextDocs));
+  });
+});
+
+test("work --json does not let weak semantic source matches outrank workflow package files", async () => {
+  await withWorkflowRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "find Workflow risks"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const taskPaths = brief.taskFiles.map((file) => file.path);
+    const weakSourceIndex = taskPaths.indexOf("src/cli/commands/done.ts");
+
+    assert.equal(result.status, 0);
+    assert.notEqual(weakSourceIndex, -1, taskPaths.join("\n"));
+    for (const file of [
+      ".github/workflows/ai-project-guardian.yml",
+      ".github/workflows/ci.yml",
+      "package.json"
+    ]) {
+      assert.ok(taskPaths.indexOf(file) !== -1, taskPaths.join("\n"));
+      assert.ok(taskPaths.indexOf(file) < weakSourceIndex, taskPaths.join("\n"));
+    }
   });
 });
 

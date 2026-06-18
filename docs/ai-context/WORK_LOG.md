@@ -118,4 +118,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Polished rcc work output categorization so agent rules no longer duplicate workflow/package task files and lookup hints rank task files before AGENTS/context docs for narrow investigations
 - Changed files: `auto`
 - Verification: node --test tests/work.test.js; node --test tests/taskIntent.test.js; npm test; npm run build
+
+## 2026-06-18T22:47:39.651Z
+- Summary: Fixed workflow-domain task file ranking so workflow/config/package candidates outrank weak semantic source matches while preserving explicit command and role-task behavior.
+- Changed files: `auto`
+- Verification: node --test tests/work.test.js; node --test tests/taskIntent.test.js; npm test; npm run build
 <!-- repo-context-center:work-log:end -->
