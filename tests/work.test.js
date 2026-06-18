@@ -306,6 +306,7 @@ test("work accepts a task string and recommends focused files", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Task intent:\nfix login bug/);
     assert.match(result.stdout, /Map freshness:\nStatus: (fresh|maybe_stale|stale|unknown)\nScore: \d+\/100\nReason: /);
+    assert.match(result.stdout, /Cheapest path:\n1\. Inspect the task files listed below\.\n2\. Check supporting tests\.\n3\. If more search is needed, run: rcc find "login"\n4\. Avoid broad rg\/find until targeted lookup is exhausted\./);
     assert.match(result.stdout, /Task files to inspect first:\n- src\/auth\/login\.ts/);
     assert.match(result.stdout, /Supporting tests:\n- tests\/auth\/login\.test\.ts/);
     assert.match(result.stdout, /Workflow \/ agent rules:\n- AGENTS\.md/);
@@ -315,10 +316,14 @@ test("work accepts a task string and recommends focused files", async () => {
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
     assert.match(result.stdout, /Known risks:\n- high/);
     assert.match(result.stdout, /Avoid:\n- broad rg\/find before checking task files/);
+    assert.match(result.stdout, /- reading all docs\/ai-context before task files/);
+    assert.match(result.stdout, /- generated\/assets\/fixtures unless explicitly relevant/);
+    assert.match(result.stdout, /- full repository scans for narrow bug investigation tasks/);
     assert.match(result.stdout, /Targeted lookup hints:\n1\. src\/auth\/login\.ts\n   reason: matched filename stem "login"\n   confidence: high/);
     assert.match(result.stdout, /Fast lookup:\n- For targeted lookup, use: rcc find "<keyword>"/);
     assert.match(result.stdout, /Prefer this before broad repo search when the target is unclear\./);
     assert.match(result.stdout, /Next cheapest command:\nrcc find "login"/);
+    assert.ok(result.stdout.indexOf("Task files to inspect first:") < result.stdout.indexOf("Context docs:"));
     assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
   });
@@ -346,6 +351,7 @@ test("work --json returns a valid machine-readable brief", async () => {
         "supportingTests",
         "workflowDocs",
         "contextDocs",
+        "cheapestPath",
         "avoid",
         "nextCheapestCommand",
         "promotedFromTargetedLookup",
@@ -374,7 +380,16 @@ test("work --json returns a valid machine-readable brief", async () => {
     assert.ok(brief.supportingTests.some((file) => file.path === "tests/auth/login.test.ts"));
     assert.ok(brief.workflowDocs.some((file) => file.path === "AGENTS.md"));
     assert.ok(brief.contextDocs.some((file) => file.path === "docs/ai-context/TASK_ROUTING.md"));
+    assert.deepEqual(brief.cheapestPath, [
+      "Inspect the task files listed below.",
+      "Check supporting tests.",
+      'If more search is needed, run: rcc find "login"',
+      "Avoid broad rg/find until targeted lookup is exhausted."
+    ]);
     assert.ok(brief.avoid.some((item) => item.includes("broad rg/find")));
+    assert.ok(brief.avoid.some((item) => item.includes("docs/ai-context")));
+    assert.ok(brief.avoid.some((item) => item.includes("generated/assets/fixtures")));
+    assert.ok(brief.avoid.some((item) => item.includes("full repository scans")));
     assert.equal(brief.nextCheapestCommand, 'rcc find "login"');
     assert.ok(brief.promotedFromTargetedLookup.some((hint) => hint.path === "src/auth/login.ts"));
     assert.ok(brief.targetedLookupHints.some((hint) => (
@@ -516,6 +531,11 @@ test("work --json keeps stable fields when RCC data is missing", async () => {
       skippedForNow: []
     });
     assert.deepEqual(brief.targetedLookupHints, []);
+    assert.equal(Array.isArray(brief.cheapestPath), true);
+    assert.ok(brief.cheapestPath.some((item) => item.includes('rcc find "unknown"')));
+    assert.equal(Array.isArray(brief.avoid), true);
+    assert.ok(brief.avoid.some((item) => item.includes("broad rg/find")));
+    assert.equal(brief.nextCheapestCommand, 'rcc find "unknown"');
     assert.equal(brief.nextCommand.command, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
     assert.equal(Array.isArray(brief.recommendedFiles), true);
     assert.equal(Array.isArray(brief.relevantTests), true);
@@ -1067,9 +1087,10 @@ test("work output is concise and agent-oriented", async () => {
     const lines = result.stdout.trim().split(/\r?\n/);
 
     assert.equal(result.status, 0);
-    assert.ok(lines.length <= 80, `work output has ${lines.length} lines`);
+    assert.ok(lines.length <= 90, `work output has ${lines.length} lines`);
     assert.doesNotMatch(result.stdout, /generate code/i);
     assert.match(result.stdout, /Map freshness:/);
+    assert.match(result.stdout, /Cheapest path:/);
     assert.match(result.stdout, /Task files to inspect first:/);
     assert.match(result.stdout, /Supporting tests:/);
     assert.match(result.stdout, /Avoid:/);

@@ -88,6 +88,7 @@ interface WorkBrief {
     text: string;
   };
   risks: string[];
+  cheapestPath: string[];
   avoid: string[];
   readFirst: string[];
   readFirstGuidance: ReadFirstGuidance;
@@ -115,6 +116,7 @@ interface PublicWorkBrief {
   supportingTests: PublicWorkFile[];
   workflowDocs: PublicWorkFile[];
   contextDocs: PublicWorkFile[];
+  cheapestPath: string[];
   avoid: string[];
   nextCheapestCommand: string;
   promotedFromTargetedLookup: PublicTargetedLookupHint[];
@@ -1467,6 +1469,14 @@ function targetLookupHintForText(hint: Omit<TargetedLookupHint, "index">): Targe
   };
 }
 
+function formatNumberedList(values: string[]): string[] {
+  if (values.length === 0) {
+    return ["- none"];
+  }
+
+  return values.map((value, index) => `${index + 1}. ${value}`);
+}
+
 function renderWorkBriefLines(brief: WorkBrief): string[] {
   return [
     "repo-context-center work brief",
@@ -1476,6 +1486,9 @@ function renderWorkBriefLines(brief: WorkBrief): string[] {
     "",
     "Map freshness:",
     ...mapFreshnessLines(brief.mapFreshness),
+    "",
+    "Cheapest path:",
+    ...formatNumberedList(brief.cheapestPath),
     "",
     "Task files to inspect first:",
     ...formatRecommendationSection(brief.taskFiles, "Start with workflow/context docs before broad search.").slice(0, 8),
@@ -1557,6 +1570,7 @@ function buildWorkBrief(
   contextBudget: ContextBudget
 ): WorkBrief {
   const categorized = buildTaskFileRecommendations(startup, lookupHints, readFirstGuidance);
+  const nextCheapest = nextCheapestLookupCommand(startup.task);
   const brief: WorkBrief = {
     command: "work",
     task: startup.task,
@@ -1593,13 +1607,21 @@ function buildWorkBrief(
       text: "unknown"
     },
     risks: riskValues(startup),
+    cheapestPath: [
+      "Inspect the task files listed below.",
+      "Check supporting tests.",
+      `If more search is needed, run: ${nextCheapest}`,
+      "Avoid broad rg/find until targeted lookup is exhausted."
+    ],
     avoid: [
       "broad rg/find before checking task files",
-      "reading all docs/ai-context before task files"
+      "reading all docs/ai-context before task files",
+      "generated/assets/fixtures unless explicitly relevant",
+      "full repository scans for narrow bug investigation tasks"
     ],
     readFirst: readFirstCompatibilityPaths(readFirstGuidance),
     readFirstGuidance,
-    nextCheapestCommand: nextCheapestLookupCommand(startup.task),
+    nextCheapestCommand: nextCheapest,
     nextCommand
   };
 
@@ -1681,6 +1703,7 @@ function renderWorkBriefJson(brief: WorkBrief): string {
     supportingTests: brief.supportingTests.map((file) => recommendationSignal(file, lookupHints)),
     workflowDocs: brief.workflowDocs.map((file) => recommendationSignal(file, lookupHints)),
     contextDocs: brief.contextDocs.map((file) => recommendationSignal(file, lookupHints)),
+    cheapestPath: brief.cheapestPath,
     avoid: brief.avoid,
     nextCheapestCommand: brief.nextCheapestCommand,
     promotedFromTargetedLookup: publicLookupHints(brief.promotedFromTargetedLookup),

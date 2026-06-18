@@ -83,4 +83,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Hardened repository file role classification and lookup role ordering
 - Changed files: `auto`
 - Verification: npm test; npm run build; node --test tests/repoFileClassifier.test.js tests/repositoryUnderstanding.test.js tests/work.test.js
+
+## 2026-06-18T20:51:12.536Z
+- Summary: Added cheap-path guidance to rcc work
+- Changed files: `auto`
+- Verification: npm test; npm run build; node --test tests/work.test.js tests/v07-release.test.js
 <!-- repo-context-center:work-log:end -->
