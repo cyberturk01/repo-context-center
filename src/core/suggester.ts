@@ -162,6 +162,58 @@ const weakStructuralTokens = new Set([
   "sources",
   "storage"
 ]);
+const actionTaskTokens = new Set([
+  "add",
+  "analyze",
+  "analiz",
+  "ara",
+  "bul",
+  "change",
+  "check",
+  "create",
+  "debug",
+  "duzelt",
+  "düzelt",
+  "ekle",
+  "find",
+  "fix",
+  "goster",
+  "göster",
+  "implement",
+  "improve",
+  "inspect",
+  "investigate",
+  "incele",
+  "iyilestir",
+  "iyileştir",
+  "kontrol",
+  "listele",
+  "list",
+  "review",
+  "search",
+  "show",
+  "update"
+]);
+const domainTaskTokens = new Set([
+  "action",
+  "actions",
+  "auth",
+  "ci",
+  "config",
+  "deploy",
+  "deployment",
+  "github",
+  "hotspot",
+  "package",
+  "release",
+  "risk",
+  "risks",
+  "role",
+  "security",
+  "test",
+  "workflow",
+  "workflows"
+]);
 const stopWords = new Set([
   "a",
   "an",
@@ -183,6 +235,13 @@ const stopWords = new Set([
   "with"
 ]);
 
+function normalizeTaskTokenText(text: string): string {
+  return text
+    .replace(/düzelt/gi, "duzelt")
+    .replace(/göster/gi, "goster")
+    .replace(/iyileştir/gi, "iyilestir");
+}
+
 function uniqueSorted(values: string[]): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
@@ -199,7 +258,7 @@ function addReason(reasons: string[], reason: string): void {
 
 function tokenize(text: string): string[] {
   return uniqueSorted(
-    text
+    normalizeTaskTokenText(text)
       .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
       .toLowerCase()
       .split(/[^a-z0-9_-]+/)
@@ -464,6 +523,16 @@ function isLogStyleCommandTask(tokens: string[]): boolean {
   return tokens.some((token) => logStyleCommandKeywords.has(token));
 }
 
+function commandStemTokens(tokens: string[]): Set<string> {
+  const explicitCommandTask = tokens.some((token) => ["cli", "command", "commands", "rcc"].includes(token));
+
+  if (!explicitCommandTask) {
+    return new Set(tokens.filter((token) => !actionTaskTokens.has(token)));
+  }
+
+  return new Set(tokens.filter((token) => !["cli", "command", "commands", "rcc"].includes(token)));
+}
+
 function commandTaskScore(filePath: string, tokens: string[], commandTask: boolean): number {
   if (!commandTask) {
     return 0;
@@ -476,8 +545,9 @@ function commandTaskScore(filePath: string, tokens: string[], commandTask: boole
   if (isCliCommandFile(filePath)) {
     let score = 44;
     const stem = pathStem(filePath);
+    const commandStems = commandStemTokens(tokens);
 
-    if (tokens.includes(stem)) {
+    if (commandStems.has(stem)) {
       score += 96;
     }
     if (stem === "log" && isLogStyleCommandTask(tokens)) {
@@ -507,13 +577,15 @@ function noisePenalty(filePath: string): number {
 }
 
 function tokenMatchScore(filePath: string, tokens: Set<string>): number {
-  const strongMatches = matchingTokenCount(filenameTokens(filePath), tokens);
-  const mediumMatches = matchingTokenCount(parentTokens(filePath), tokens);
-  const segmentMatches = matchingTokenCount(segmentTokens(filePath), tokens);
+  const rankingTokens = new Set([...tokens].filter((token) => !actionTaskTokens.has(token)));
+  const strongMatches = matchingTokenCount(filenameTokens(filePath), rankingTokens);
+  const mediumMatches = matchingTokenCount(parentTokens(filePath), rankingTokens);
+  const segmentMatches = matchingTokenCount(segmentTokens(filePath), rankingTokens);
+  const domainMatches = matchingTokenCount(segmentTokens(filePath), new Set([...rankingTokens].filter((token) => domainTaskTokens.has(token))));
   const stem = pathStem(filePath);
-  const exactStemMatch = tokens.has(stem) ? 1 : 0;
+  const exactStemMatch = rankingTokens.has(stem) ? 1 : 0;
 
-  return (exactStemMatch * 72) + (strongMatches * 34) + (mediumMatches * 16) + (segmentMatches > 0 ? 4 : 0);
+  return (exactStemMatch * 72) + (strongMatches * 34) + (mediumMatches * 16) + (segmentMatches > 0 ? 4 : 0) + (domainMatches * 22);
 }
 
 function activeTestScore(filePath: string): number {
@@ -868,17 +940,17 @@ function discoverLikelyTests(
 
 function firstMatchingTaskToken(filePath: string, taskTokens: string[]): string | undefined {
   const fileTokenSet = new Set(segmentTokens(filePath));
-  return taskTokens.find((token) => fileTokenSet.has(token));
+  return taskTokens.find((token) => !actionTaskTokens.has(token) && fileTokenSet.has(token));
 }
 
 function firstMatchingFilenameStem(filePath: string, tokens: string[]): string | undefined {
   const filenameTokenSet = new Set(filenameTokens(filePath));
-  return tokens.find((token) => filenameTokenSet.has(token));
+  return tokens.find((token) => !actionTaskTokens.has(token) && filenameTokenSet.has(token));
 }
 
 function firstMatchingParentFolder(filePath: string, tokens: string[]): string | undefined {
   const parentTokenSet = new Set(parentTokens(filePath));
-  return tokens.find((token) => parentTokenSet.has(token));
+  return tokens.find((token) => !actionTaskTokens.has(token) && parentTokenSet.has(token));
 }
 
 function reasonsForRecommendedFile(
@@ -1092,11 +1164,12 @@ function scoreFindFile(
   }
 
   if (commandTask || cliRegistrationQuery) {
+    const commandStems = commandStemTokens(taskTokens);
     if (isCliRegistryFile(filePath)) {
       addFindSignal(candidate, cliRegistrationQuery ? 150 : 110, "known CLI command registry");
     } else if (isCliCommandFile(filePath)) {
       addFindSignal(candidate, commandTaskScore(filePath, taskTokens, true), "same command family");
-      if (taskTokens.includes(pathStem(filePath))) {
+      if (commandStems.has(pathStem(filePath))) {
         addFindSignal(candidate, 120, "matched command name");
       }
       if (pathStem(filePath) === "log" && isLogStyleCommandTask(taskTokens)) {

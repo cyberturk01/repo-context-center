@@ -103,4 +103,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Polished rcc work guidance to keep focused task files first, demote stale map refresh, and filter weak supporting tests
 - Changed files: `auto`
 - Verification: node --test tests/work.test.js; npm test; npm run build
+
+## 2026-06-18T22:05:28.503Z
+- Summary: Improved rcc work task token weighting so action verbs do not outrank workflow/domain terms
+- Changed files: `auto`
+- Verification: node --test tests/work.test.js; npm test; npm run build
 <!-- repo-context-center:work-log:end -->

@@ -205,6 +205,59 @@ const packageTaskLookupRoleOrder: RepoFileRole[] = [
   "unknown"
 ];
 const contextFiles = requiredContextFiles;
+const actionTaskTerms = new Set([
+  "add",
+  "analyze",
+  "analiz",
+  "ara",
+  "bul",
+  "change",
+  "check",
+  "create",
+  "debug",
+  "duzelt",
+  "düzelt",
+  "ekle",
+  "find",
+  "fix",
+  "goster",
+  "göster",
+  "implement",
+  "improve",
+  "inspect",
+  "investigate",
+  "incele",
+  "iyilestir",
+  "iyileştir",
+  "kontrol",
+  "listele",
+  "list",
+  "review",
+  "search",
+  "show",
+  "update"
+]);
+const domainTaskTerms = new Set([
+  "action",
+  "actions",
+  "auth",
+  "ci",
+  "config",
+  "deploy",
+  "deployment",
+  "github",
+  "hotspot",
+  "package",
+  "release",
+  "risk",
+  "risks",
+  "role",
+  "security",
+  "test",
+  "workflow",
+  "workflows"
+]);
+const actionNamedCommandTerms = new Set(["find"]);
 const lowSignalTaskTerms = new Set([
   "add",
   "bug",
@@ -279,7 +332,25 @@ const turkishTaskTermExpansions = new Map<string, string[]>([
   ["incele", ["inspect", "review", "investigate"]],
   ["duzelt", ["fix", "repair"]],
   ["düzelt", ["fix", "repair"]],
+  ["goster", ["show"]],
+  ["göster", ["show"]],
+  ["iyilestir", ["improve"]],
+  ["iyileştir", ["improve"]],
   ["ilgili", ["related"]]
+]);
+const domainTaskTermExpansions = new Map<string, string[]>([
+  ["action", ["actions", "github", "workflow", "workflows"]],
+  ["actions", ["github", "workflow", "workflows"]],
+  ["ci", ["github", "workflow", "workflows"]],
+  ["deploy", ["deployment"]],
+  ["deployment", ["deploy"]],
+  ["github", ["actions", "workflow", "workflows"]],
+  ["hotspot", ["risk", "risks"]],
+  ["release", ["workflow", "workflows"]],
+  ["risk", ["risks", "hotspot"]],
+  ["risks", ["risk", "hotspot"]],
+  ["workflow", ["workflows"]],
+  ["workflows", ["workflow"]]
 ]);
 
 function parseWorkOptions(args: string[]): WorkOptions | undefined {
@@ -347,6 +418,9 @@ function formatList(values: string[], fallback: string): string[] {
 function tokenize(value: string): string[] {
   return [...new Set(value
     .toLowerCase()
+    .replace(/düzelt/g, "duzelt")
+    .replace(/göster/g, "goster")
+    .replace(/iyileştir/g, "iyilestir")
     .split(/[^a-z0-9_-]+/)
     .filter((token) => token.length > 1))];
 }
@@ -371,6 +445,9 @@ function expandTaskTerms(terms: string[]): string[] {
     for (const expansion of turkishTaskTermExpansions.get(term) ?? []) {
       expanded.push(expansion);
     }
+    for (const expansion of domainTaskTermExpansions.get(term) ?? []) {
+      expanded.push(expansion);
+    }
   }
 
   if (expanded.some((term) => term === "role" || term === "roles")) {
@@ -390,6 +467,7 @@ function targetedLookupTerms(task: string): string[] {
     .match(/\b[a-z0-9_-]+\.[a-z0-9][a-z0-9._-]*\b/g) ?? [];
   const terms = expandedTaskTerms(task);
   const hasRoleSignal = terms.some((term) => term === "role" || term === "roles");
+  const explicitCommandTask = terms.some((term) => ["cli", "command", "commands", "rcc"].includes(term));
   const lookupTerms = hasRoleSignal
     ? terms.filter((term) => term !== "risk")
     : terms;
@@ -397,9 +475,45 @@ function targetedLookupTerms(task: string): string[] {
   return [...new Set([
     ...filenameTerms,
     ...lookupTerms
-    .filter((token) => token.length > 2)
-    .filter((token) => !lowSignalTaskTerms.has(token))
+    .filter((token) => token.length > 2 || domainTaskTerms.has(token))
+    .filter((token) => (
+      explicitCommandTask
+        ? !actionTaskTerms.has(token) || actionNamedCommandTerms.has(token)
+        : (!lowSignalTaskTerms.has(token) && !actionTaskTerms.has(token))
+    ))
+    .filter((token) => !explicitCommandTask || !["cli", "command", "commands", "rcc"].includes(token))
   ])];
+}
+
+function taskHasWorkflowDomain(task: string): boolean {
+  return expandedTaskTerms(task).some((term) => [
+    "action",
+    "actions",
+    "ci",
+    "deploy",
+    "deployment",
+    "github",
+    "release",
+    "workflow",
+    "workflows"
+  ].includes(term));
+}
+
+function termWeight(term: string): number {
+  if (actionNamedCommandTerms.has(term)) {
+    return 1;
+  }
+  if (actionTaskTerms.has(term)) {
+    return 0.25;
+  }
+  if (domainTaskTerms.has(term)) {
+    return 1.35;
+  }
+  return 1;
+}
+
+function weightedScore(score: number, term: string): number {
+  return Math.round(score * termWeight(term));
 }
 
 function isCodeInvestigationTask(task: string): boolean {
@@ -722,11 +836,15 @@ function buildTaskFileRecommendations(
 } {
   const promoted = promotedLookupHints(lookupHints, startup.task);
   const codeInvestigationTask = isCodeInvestigationTask(startup.task);
+  const workflowDomainTask = taskHasWorkflowDomain(startup.task);
   const promotedByRole = (roles: string[]): string[] => promoted
     .filter((hint) => roles.includes(classifyRepoFile(hint.path).role))
     .map((hint) => hint.path);
   const startupTaskFiles = startup.likelySourceFiles.filter((file) => classifyRepoFile(file).role === "source");
-  const taskFilePaths = uniquePaths([...promotedByRole(["source"]), ...startupTaskFiles]);
+  const workflowTaskPaths = promotedByRole(["config", "workflow", "package"]);
+  const taskFilePaths = workflowDomainTask
+    ? uniquePaths([...workflowTaskPaths, ...promotedByRole(["source"]), ...startupTaskFiles])
+    : uniquePaths([...promotedByRole(["source"]), ...startupTaskFiles]);
   const testHintPaths = promotedByRole(["test"]);
   const directTestSignals = new Set<TargetedLookupSignal>([
     "exact-filename-match",
@@ -742,7 +860,6 @@ function buildTaskFileRecommendations(
     ? directTestHintPaths
     : testHintPaths;
   const supportingTestPaths = uniquePaths([...filteredTestHintPaths, ...startup.likelyTests]);
-  const workflowTaskPaths = promotedByRole(["config", "workflow", "package"]);
   const workflowDocPaths = uniquePaths([
     ...workflowTaskPaths,
     ...readFirstGuidance.required.map((item) => item.path)
@@ -835,7 +952,7 @@ function bestPathMatch(
 
     if (score > 0 && signal) {
       best = chooseBetterHint(best, applyLookupPenalty(
-        makeLookupHint(filePath, term, score, reason, signal, index),
+        makeLookupHint(filePath, term, weightedScore(score, term), reason, signal, index),
         task
       ));
     }
@@ -1003,7 +1120,7 @@ async function targetedLookupHints(cwd: string, task: string, startup: StartupCo
           makeLookupHint(
             filePath,
             content.term,
-            contentScore,
+            weightedScore(contentScore, content.term),
             `weak semantic match for "${content.term}"`,
             "semantic-match",
             index

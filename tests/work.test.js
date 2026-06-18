@@ -268,6 +268,54 @@ async function withRiskClassificationRepo(callback) {
   }
 }
 
+async function withWorkflowRankingRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-workflow-ranking-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Workflow risks: read `.github/workflows/ai-project-guardian.yml`, `docs/ai-context/RISK_REGISTER.md`, and `docs/ai-context/HOTSPOTS.md`.",
+        "- RCC find command changes: read `src/cli/commands/find.ts` and `tests/find.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/RISK_REGISTER.md",
+      [
+        "# Risk Register",
+        "",
+        "| Area | Why risky | Focused checks |",
+        "| --- | --- | --- |",
+        "| `.github/workflows/ai-project-guardian.yml` | Workflow risks can block CI. | npm test |"
+      ].join("\n")
+    );
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/HOTSPOTS.md",
+      [
+        "# Hotspots",
+        "",
+        "| File | Why hot | Checks |",
+        "| --- | --- | --- |",
+        "| `.github/workflows/ai-project-guardian.yml` | workflow risk hotspot | npm test |"
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, ".github/workflows/ai-project-guardian.yml", "name: ai-project-guardian\non: [push]\n");
+    await writeFixtureFile(tempDir, ".github/workflows/ci.yml", "name: ci\non: [push]\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/find.ts", "export function findCommand() {}\n");
+    await writeFixtureFile(tempDir, "tests/find.test.js", "test('find command', () => {});\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function withGuidanceRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-guidance-"));
 
@@ -975,6 +1023,63 @@ test("work --json ranks matching command implementation first", async () => {
     assert.equal(result.status, 0);
     assert.equal(paths[0], "src/cli/commands/work.ts", paths.join("\n"));
     assert.ok(paths.indexOf("src/cli/commands/work.ts") < paths.indexOf("src/cli/index.ts"), paths.join("\n"));
+  });
+});
+
+test("work --json ranks workflow domain files over bare find action verb", async () => {
+  await withWorkflowRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "find Workflow risks"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const taskPaths = brief.taskFiles.map((file) => file.path);
+    const hintPaths = brief.targetedLookupHints.map((hint) => hint.path);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.nextCheapestCommand, 'rcc find "workflow"');
+    assert.equal(taskPaths[0], ".github/workflows/ai-project-guardian.yml", taskPaths.join("\n"));
+    assert.ok(!taskPaths.includes("src/cli/commands/find.ts") || taskPaths.indexOf(".github/workflows/ai-project-guardian.yml") < taskPaths.indexOf("src/cli/commands/find.ts"), taskPaths.join("\n"));
+    assert.ok(!hintPaths.includes("src/cli/commands/find.ts") || hintPaths.indexOf(".github/workflows/ai-project-guardian.yml") < hintPaths.indexOf("src/cli/commands/find.ts"), hintPaths.join("\n"));
+    assert.ok(brief.contextDocs.some((file) => file.path === "docs/ai-context/RISK_REGISTER.md"), JSON.stringify(brief.contextDocs));
+    assert.ok(brief.contextDocs.some((file) => file.path === "docs/ai-context/HOTSPOTS.md"), JSON.stringify(brief.contextDocs));
+  });
+});
+
+test("work --json keeps explicit rcc find command tasks focused on find implementation", async () => {
+  await withWorkflowRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "fix rcc find command"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const paths = brief.recommendedFiles.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.nextCheapestCommand, 'rcc find "find"');
+    assert.equal(paths[0], "src/cli/commands/find.ts", paths.join("\n"));
+    assert.equal(brief.taskFiles[0].path, "src/cli/commands/find.ts");
+  });
+});
+
+test("work --json gives action verbs little direct filename boost", async () => {
+  await withWorkflowRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "search Workflow risks"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const taskPaths = brief.taskFiles.map((file) => file.path);
+    const actionHint = brief.targetedLookupHints.find((hint) => hint.path === "src/cli/commands/find.ts");
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.nextCheapestCommand, 'rcc find "workflow"');
+    assert.equal(taskPaths[0], ".github/workflows/ai-project-guardian.yml", taskPaths.join("\n"));
+    assert.equal(actionHint, undefined);
+  });
+});
+
+test("work --json lets domain tokens dominate workflow ranking", async () => {
+  await withWorkflowRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "inspect ci release risk"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const paths = brief.taskFiles.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.nextCheapestCommand, 'rcc find "ci"');
+    assert.ok(paths[0].startsWith(".github/workflows/"), paths.join("\n"));
+    assert.ok(!paths.slice(0, 2).includes("src/cli/commands/find.ts"), paths.join("\n"));
   });
 });
 
