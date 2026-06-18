@@ -98,4 +98,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Fixed rcc work narrow code-investigation task prioritization
 - Changed files: `auto`
 - Verification: node --test tests/work.test.js; npm test; npm run build
+
+## 2026-06-18T21:30:54.873Z
+- Summary: Polished rcc work guidance to keep focused task files first, demote stale map refresh, and filter weak supporting tests
+- Changed files: `auto`
+- Verification: node --test tests/work.test.js; npm test; npm run build
 <!-- repo-context-center:work-log:end -->

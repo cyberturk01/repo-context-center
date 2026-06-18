@@ -727,7 +727,21 @@ function buildTaskFileRecommendations(
     .map((hint) => hint.path);
   const startupTaskFiles = startup.likelySourceFiles.filter((file) => classifyRepoFile(file).role === "source");
   const taskFilePaths = uniquePaths([...promotedByRole(["source"]), ...startupTaskFiles]);
-  const supportingTestPaths = uniquePaths([...promotedByRole(["test"]), ...startup.likelyTests]);
+  const testHintPaths = promotedByRole(["test"]);
+  const directTestSignals = new Set<TargetedLookupSignal>([
+    "exact-filename-match",
+    "command-name-match",
+    "filename-match",
+    "paired-test",
+    "task-routing"
+  ]);
+  const directTestHintPaths = promoted
+    .filter((hint) => classifyRepoFile(hint.path).role === "test" && directTestSignals.has(hint.signal))
+    .map((hint) => hint.path);
+  const filteredTestHintPaths = directTestHintPaths.length > 0
+    ? directTestHintPaths
+    : testHintPaths;
+  const supportingTestPaths = uniquePaths([...filteredTestHintPaths, ...startup.likelyTests]);
   const workflowTaskPaths = promotedByRole(["config", "workflow", "package"]);
   const workflowDocPaths = uniquePaths([
     ...workflowTaskPaths,
@@ -1320,7 +1334,10 @@ function mapFreshnessLines(mapFreshness: WorkMapFreshness): string[] {
   ];
 
   if (mapFreshness.status !== "fresh") {
-    lines.push("", "Recommended:", "rcc map --write");
+    lines.push(
+      "",
+      "Note: context may be stale; continue with task files below, then run `rcc map --write` after investigation if needed."
+    );
   }
 
   return lines;
@@ -1566,7 +1583,7 @@ function formatReadFirstGuidance(guidance: ReadFirstGuidance): string[] {
   }
 
   return [
-    ...formatReadFirstGroup("Required:", guidance.required),
+    ...formatReadFirstGroup("Agent rule file:", guidance.required),
     "",
     ...formatReadFirstGroup("Task-specific:", guidance.taskSpecific),
     "",

@@ -121,7 +121,7 @@ test("v0.7 release: rcc work works with missing context files", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Map freshness:\nStatus: unknown\nScore: 0\/100\nReason: Run npx repo-context-center init to generate context\./);
-    assert.match(result.stdout, /Recommended:\nrcc map --write/);
+    assert.match(result.stdout, /Note: context may be stale; continue with task files below, then run `rcc map --write` after investigation if needed\./);
     assert.match(result.stdout, /Relevant decisions:\n- none\. no matching decision was found\./);
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);

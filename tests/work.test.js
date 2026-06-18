@@ -171,6 +171,11 @@ async function withLookupRankingRepo(callback) {
       "tests/repoFileClassifier.test.js",
       "test('role classification', () => { const role = 'source'; return role; });\n// role role role role role role role role role role\n"
     );
+    await writeFixtureFile(
+      tempDir,
+      "tests/estimate.test.js",
+      "test('unrelated estimate role wording', () => { const role = 'source'; return role; });\n// role role role role role role role role role role\n"
+    );
     await writeFixtureFile(tempDir, "src/core/workRouting.ts", "export const routed = true;\n");
     await writeFixtureFile(tempDir, "src/features/work/index.ts", "export const folder = 'work';\n");
     await writeFixtureFile(tempDir, "src/cli/commands/other.ts", "export const note = 'work lookup hint';\n");
@@ -491,7 +496,7 @@ test("work handles missing RCC files gracefully", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Map freshness:\nStatus: unknown\nScore: 0\/100\nReason: Run npx repo-context-center init to generate context\./);
-    assert.match(result.stdout, /Recommended:\nrcc map --write/);
+    assert.match(result.stdout, /Note: context may be stale; continue with task files below, then run `rcc map --write` after investigation if needed\./);
     assert.match(result.stdout, /Relevant decisions:\n- none\. no matching decision was found\./);
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
@@ -709,7 +714,7 @@ test("work reports stale map freshness when important source files changed", asy
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Map freshness:\nStatus: stale\nScore: 35\/100/);
     assert.match(result.stdout, /Reason: Important source, config, workflow, package, or test files changed after the last context generation\./);
-    assert.match(result.stdout, /Recommended:\nrcc map --write/);
+    assert.match(result.stdout, /Note: context may be stale; continue with task files below, then run `rcc map --write` after investigation if needed\./);
   });
 });
 
@@ -722,7 +727,7 @@ test("work reports maybe_stale map freshness when unclear repo files changed", a
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Map freshness:\nStatus: maybe_stale\nScore: 68\/100/);
     assert.match(result.stdout, /Reason: Repository files changed after the last context generation, but their impact on context is unclear\./);
-    assert.match(result.stdout, /Recommended:\nrcc map --write/);
+    assert.match(result.stdout, /Note: context may be stale; continue with task files below, then run `rcc map --write` after investigation if needed\./);
   });
 });
 
@@ -847,9 +852,11 @@ test("work --json promotes role task source and tests ahead of docs", async () =
     assert.ok(brief.taskFiles.some((file) => file.path === "src/core/repoFileClassifier.ts"), JSON.stringify(brief.taskFiles));
     assert.ok(brief.taskFiles.some((file) => file.path === "src/cli/commands/work.ts"), JSON.stringify(brief.taskFiles));
     assert.ok(brief.supportingTests.some((file) => file.path === "tests/repoFileClassifier.test.js"), JSON.stringify(brief.supportingTests));
+    assert.ok(!brief.supportingTests.some((file) => file.path === "tests/estimate.test.js"), JSON.stringify(brief.supportingTests));
     assert.ok(recommendedPaths.includes("src/core/repoFileClassifier.ts"), recommendedPaths.join("\n"));
     assert.ok(recommendedPaths.includes("src/cli/commands/work.ts"), recommendedPaths.join("\n"));
     assert.ok(recommendedPaths.includes("tests/repoFileClassifier.test.js"), recommendedPaths.join("\n"));
+    assert.ok(!recommendedPaths.includes("tests/estimate.test.js"), recommendedPaths.join("\n"));
     assert.ok(!recommendedPaths.includes("AGENTS.md"), recommendedPaths.join("\n"));
     assert.ok(!recommendedPaths.some((file) => file.startsWith("docs/ai-context/")), recommendedPaths.join("\n"));
     assert.ok(brief.workflowDocs.some((file) => file.path === "AGENTS.md"), JSON.stringify(brief.workflowDocs));
@@ -864,20 +871,27 @@ test("work human output separates docs for Turkish role investigation", async ()
   await withLookupRankingRepo(async (tempDir) => {
     const result = runCli(["work", "Role lerle ilgili bug ihtimallerini bul"], { cwd: tempDir });
     const taskFiles = sectionBody(result.stdout, "Task files to inspect first", "Supporting tests");
+    const supportingTests = sectionBody(result.stdout, "Supporting tests", "Workflow / agent rules");
     const workflowDocs = sectionBody(result.stdout, "Workflow / agent rules", "Context docs");
     const contextDocs = sectionBody(result.stdout, "Context docs", "Relevant decisions");
     const readFirst = sectionBody(result.stdout, "Read-first guidance", "Targeted lookup hints");
 
     assert.equal(result.status, 0);
+    assert.ok(result.stdout.indexOf("Task files to inspect first:") < result.stdout.indexOf("Context docs:"));
+    assert.ok(result.stdout.indexOf("Cheapest path:") < result.stdout.indexOf("Fast lookup:"));
     assert.match(taskFiles, /src\/core\/repoFileClassifier\.ts/);
     assert.match(taskFiles, /src\/cli\/commands\/work\.ts/);
     assert.doesNotMatch(taskFiles, /AGENTS\.md/);
     assert.doesNotMatch(taskFiles, /docs\/ai-context/);
-    assert.match(result.stdout, /Supporting tests:\n- tests\/repoFileClassifier\.test\.js/);
+    assert.match(supportingTests, /tests\/repoFileClassifier\.test\.js/);
+    assert.doesNotMatch(supportingTests, /tests\/estimate\.test\.js/);
     assert.match(workflowDocs, /AGENTS\.md/);
     assert.match(contextDocs, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(contextDocs, /docs\/ai-context\/MODULE_INDEX\.md/);
+    assert.match(readFirst, /Agent rule file:\n- AGENTS\.md\n  reason: repository agent workflow/);
+    assert.doesNotMatch(readFirst, /Required:\n- AGENTS\.md/);
     assert.doesNotMatch(readFirst, /docs\/ai-context\/RISK_REGISTER\.md[\s\S]*reason: task has/);
+    assert.doesNotMatch(result.stdout, /Recommended:\nrcc map --write/);
     assert.match(result.stdout, /Avoid:\n- broad rg\/find before checking task files/);
     assert.match(result.stdout, /Next cheapest command:\nrcc find "role"/);
   });
