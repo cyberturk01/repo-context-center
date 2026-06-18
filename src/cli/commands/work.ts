@@ -413,6 +413,34 @@ function routingReferencedPaths(startup: StartupContext): Set<string> {
   ]);
 }
 
+function isAgentRulePath(filePath: string): boolean {
+  const normalized = filePath.toLowerCase();
+  const basename = path.posix.basename(normalized);
+
+  return basename === "agents.md"
+    || basename === "agent.md"
+    || basename === "instructions.md"
+    || normalized.includes("/agents/")
+    || normalized.includes("/agent-rules/");
+}
+
+function isAgentOrContextLookupPath(filePath: string): boolean {
+  return isAgentRulePath(filePath) || filePath.startsWith("docs/ai-context/");
+}
+
+function taskTargetsAgentRules(taskIntent: TaskIntentAnalysis): boolean {
+  return taskIntent.lookupTerms.some((term) => [
+    "agent",
+    "agents",
+    "instruction",
+    "instructions"
+  ].includes(term));
+}
+
+function shouldDemoteAgentAndContextHints(taskIntent: TaskIntentAnalysis): boolean {
+  return taskIntent.isCodeInvestigation && !taskTargetsAgentRules(taskIntent);
+}
+
 function sourceToPairedTestStems(files: string[]): Set<string> {
   const sourceStems = sourceStemMap(files);
   const stems = new Set<string>();
@@ -585,15 +613,16 @@ function buildTaskFileRecommendations(
 } {
   const promoted = promotedLookupHints(lookupHints, taskIntent);
   const codeInvestigationTask = taskIntent.isCodeInvestigation;
-  const workflowDomainTask = taskIntent.hasWorkflowDomain;
   const promotedByRole = (roles: string[]): string[] => promoted
     .filter((hint) => roles.includes(classifyRepoFile(hint.path).role))
     .map((hint) => hint.path);
   const startupTaskFiles = startup.likelySourceFiles.filter((file) => classifyRepoFile(file).role === "source");
   const workflowTaskPaths = promotedByRole(["config", "workflow", "package"]);
-  const taskFilePaths = workflowDomainTask
-    ? uniquePaths([...workflowTaskPaths, ...promotedByRole(["source"]), ...startupTaskFiles])
-    : uniquePaths([...promotedByRole(["source"]), ...startupTaskFiles]);
+  const taskFilePaths = uniquePaths([
+    ...promotedByRole(["source"]),
+    ...workflowTaskPaths,
+    ...startupTaskFiles
+  ]);
   const testHintPaths = promotedByRole(["test"]);
   const directTestSignals = new Set<TargetedLookupSignal>([
     "exact-filename-match",
@@ -609,10 +638,9 @@ function buildTaskFileRecommendations(
     ? directTestHintPaths
     : testHintPaths;
   const supportingTestPaths = uniquePaths([...filteredTestHintPaths, ...startup.likelyTests]);
-  const workflowDocPaths = uniquePaths([
-    ...workflowTaskPaths,
-    ...readFirstGuidance.required.map((item) => item.path)
-  ]);
+  const agentRulePaths = uniquePaths(readFirstGuidance.required
+    .map((item) => item.path)
+    .filter(isAgentRulePath));
   const contextDocs = contextDocPaths(startup, readFirstGuidance);
   const fallbackRecommended = recommendedInspectionFiles(startup);
   const taskCandidatePaths = uniquePaths([
@@ -624,7 +652,7 @@ function buildTaskFileRecommendations(
     ? taskCandidatePaths
     : uniquePaths([
       ...taskFilePaths,
-      ...workflowDocPaths,
+      ...agentRulePaths,
       ...contextDocs,
       ...fallbackRecommended
     ]);
@@ -632,7 +660,7 @@ function buildTaskFileRecommendations(
   return {
     taskFiles: recommendationItemsWithHints(taskFilePaths, startup, lookupHints),
     supportingTests: recommendationItemsWithHints(supportingTestPaths, startup, lookupHints),
-    workflowDocs: recommendationItemsWithHints(workflowDocPaths, startup, lookupHints),
+    workflowDocs: recommendationItemsWithHints(agentRulePaths, startup, lookupHints),
     contextDocs: recommendationItemsWithHints(contextDocs, startup, lookupHints),
     recommendedFiles: recommendationItemsWithHints(recommendedPaths, startup, lookupHints),
     relevantTests: recommendationItemsWithHints(supportingTestPaths, startup, lookupHints),
@@ -908,6 +936,19 @@ async function targetedLookupHints(cwd: string, taskIntent: TaskIntentAnalysis, 
 
   const sortedHints = [...deduped.values()]
     .sort((left, right) => {
+      if (left.confidence !== right.confidence) {
+        const confidenceRank = { high: 0, medium: 1, low: 2 };
+        return confidenceRank[left.confidence] - confidenceRank[right.confidence];
+      }
+
+      if (shouldDemoteAgentAndContextHints(taskIntent)) {
+        const leftInstructionRank = isAgentOrContextLookupPath(left.path) ? 1 : 0;
+        const rightInstructionRank = isAgentOrContextLookupPath(right.path) ? 1 : 0;
+        if (leftInstructionRank !== rightInstructionRank) {
+          return leftInstructionRank - rightInstructionRank;
+        }
+      }
+
       if (right.score !== left.score) {
         return right.score - left.score;
       }
@@ -1495,8 +1536,8 @@ function renderWorkBriefLines(brief: WorkBrief): string[] {
     "Supporting tests:",
     ...formatRecommendationSection(brief.supportingTests, "Find nearby tests after inspecting source.").slice(0, 6),
     "",
-    "Workflow / agent rules:",
-    ...formatRecommendationSection(brief.workflowDocs, "No workflow or agent rule files were detected.").slice(0, 6),
+    "Agent rules:",
+    ...formatRecommendationSection(brief.workflowDocs, "No agent rule files were detected.").slice(0, 6),
     "",
     "Context docs:",
     ...formatRecommendationSection(brief.contextDocs, "Use only if task files are insufficient.").slice(0, 6),

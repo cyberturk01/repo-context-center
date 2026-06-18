@@ -99,7 +99,7 @@ test("v0.7 release: rcc work produces useful focused output", async () => {
     assert.match(result.stdout, /3\. If more search is needed, run: rcc find "login"/);
     assert.match(result.stdout, /Task files to inspect first:\n- src\/auth\/login\.ts/);
     assert.match(result.stdout, /Supporting tests:\n- tests\/auth\/login\.test\.ts/);
-    assert.match(result.stdout, /Workflow \/ agent rules:\n- AGENTS\.md/);
+    assert.match(result.stdout, /Agent rules:\n- AGENTS\.md/);
     assert.match(result.stdout, /Relevant decisions:\n- 2026-06-16 \| Keep login server-side/);
     assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
     assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);

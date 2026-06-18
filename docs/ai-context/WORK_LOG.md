@@ -113,4 +113,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Refactored rcc work task intent/token logic into centralized taskIntent module with behavior-preserving work command plumbing and focused tests.
 - Changed files: `auto`
 - Verification: node --test tests/taskIntent.test.js; node --test tests/work.test.js; npm test; npm run build
+
+## 2026-06-18T22:34:25.706Z
+- Summary: Polished rcc work output categorization so agent rules no longer duplicate workflow/package task files and lookup hints rank task files before AGENTS/context docs for narrow investigations
+- Changed files: `auto`
+- Verification: node --test tests/work.test.js; node --test tests/taskIntent.test.js; npm test; npm run build
 <!-- repo-context-center:work-log:end -->
