@@ -108,4 +108,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Improved rcc work task token weighting so action verbs do not outrank workflow/domain terms
 - Changed files: `auto`
 - Verification: node --test tests/work.test.js; npm test; npm run build
+
+## 2026-06-18T22:17:45.667Z
+- Summary: Refactored rcc work task intent/token logic into centralized taskIntent module with behavior-preserving work command plumbing and focused tests.
+- Changed files: `auto`
+- Verification: node --test tests/taskIntent.test.js; node --test tests/work.test.js; npm test; npm run build
 <!-- repo-context-center:work-log:end -->

@@ -4,6 +4,7 @@ import { requiredContextFiles } from "../../core/contextFiles";
 import { classifyRepoFile, type RepoFileRole } from "../../core/repoFileClassifier";
 import { listFilesRecursive, pathExists, readTextFile } from "../../core/fileSystem";
 import { buildStartupContext, focusStartupContextForStart, type StartupContext } from "../../core/suggester";
+import { analyzeTaskIntent, weightedScore, type TaskIntentAnalysis } from "../../core/taskIntent";
 import type { CliIO } from "../index";
 
 interface WorkOptions {
@@ -205,153 +206,6 @@ const packageTaskLookupRoleOrder: RepoFileRole[] = [
   "unknown"
 ];
 const contextFiles = requiredContextFiles;
-const actionTaskTerms = new Set([
-  "add",
-  "analyze",
-  "analiz",
-  "ara",
-  "bul",
-  "change",
-  "check",
-  "create",
-  "debug",
-  "duzelt",
-  "düzelt",
-  "ekle",
-  "find",
-  "fix",
-  "goster",
-  "göster",
-  "implement",
-  "improve",
-  "inspect",
-  "investigate",
-  "incele",
-  "iyilestir",
-  "iyileştir",
-  "kontrol",
-  "listele",
-  "list",
-  "review",
-  "search",
-  "show",
-  "update"
-]);
-const domainTaskTerms = new Set([
-  "action",
-  "actions",
-  "auth",
-  "ci",
-  "config",
-  "deploy",
-  "deployment",
-  "github",
-  "hotspot",
-  "package",
-  "release",
-  "risk",
-  "risks",
-  "role",
-  "security",
-  "test",
-  "workflow",
-  "workflows"
-]);
-const actionNamedCommandTerms = new Set(["find"]);
-const lowSignalTaskTerms = new Set([
-  "add",
-  "bug",
-  "change",
-  "changes",
-  "command",
-  "commands",
-  "defect",
-  "find",
-  "fix",
-  "improve",
-  "inspect",
-  "investigate",
-  "issue",
-  "issues",
-  "possible",
-  "potential",
-  "related",
-  "repair",
-  "review",
-  "search",
-  "make",
-  "task",
-  "update",
-  "instructions",
-  "bul",
-  "ilgili",
-  "ihtimal",
-  "ihtimalleri",
-  "incele"
-]);
-const codeInvestigationTerms = new Set([
-  "bug",
-  "issue",
-  "fix",
-  "debug",
-  "investigate",
-  "find",
-  "risk",
-  "refactor",
-  "ihtimal",
-  "ihtimalleri",
-  "hata",
-  "bul",
-  "incele",
-  "duzelt",
-  "düzelt",
-  "ilgili"
-]);
-const roleRelatedLookupTerms = new Set([
-  "role",
-  "roles",
-  "classify",
-  "classification",
-  "repofileclassifier",
-  "permission",
-  "permissions",
-  "auth",
-  "authorization"
-]);
-const turkishTaskTermExpansions = new Map<string, string[]>([
-  ["rol", ["role", "roles"]],
-  ["roller", ["role", "roles"]],
-  ["role", ["role", "roles"]],
-  ["yetki", ["permission", "permissions", "auth", "authorization"]],
-  ["izin", ["permission", "permissions"]],
-  ["hata", ["bug", "issue", "defect"]],
-  ["bug", ["bug", "issue", "defect"]],
-  ["ihtimal", ["risk", "possible", "potential"]],
-  ["ihtimalleri", ["risk", "possible", "potential"]],
-  ["bul", ["find", "search", "investigate"]],
-  ["incele", ["inspect", "review", "investigate"]],
-  ["duzelt", ["fix", "repair"]],
-  ["düzelt", ["fix", "repair"]],
-  ["goster", ["show"]],
-  ["göster", ["show"]],
-  ["iyilestir", ["improve"]],
-  ["iyileştir", ["improve"]],
-  ["ilgili", ["related"]]
-]);
-const domainTaskTermExpansions = new Map<string, string[]>([
-  ["action", ["actions", "github", "workflow", "workflows"]],
-  ["actions", ["github", "workflow", "workflows"]],
-  ["ci", ["github", "workflow", "workflows"]],
-  ["deploy", ["deployment"]],
-  ["deployment", ["deploy"]],
-  ["github", ["actions", "workflow", "workflows"]],
-  ["hotspot", ["risk", "risks"]],
-  ["release", ["workflow", "workflows"]],
-  ["risk", ["risks", "hotspot"]],
-  ["risks", ["risk", "hotspot"]],
-  ["workflow", ["workflows"]],
-  ["workflows", ["workflow"]]
-]);
 
 function parseWorkOptions(args: string[]): WorkOptions | undefined {
   let contextBudget: ContextBudget = "balanced";
@@ -413,111 +267,6 @@ function formatList(values: string[], fallback: string): string[] {
   }
 
   return values.map((value) => `- ${value}`);
-}
-
-function tokenize(value: string): string[] {
-  return [...new Set(value
-    .toLowerCase()
-    .replace(/düzelt/g, "duzelt")
-    .replace(/göster/g, "goster")
-    .replace(/iyileştir/g, "iyilestir")
-    .split(/[^a-z0-9_-]+/)
-    .filter((token) => token.length > 1))];
-}
-
-function normalizeTaskText(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/\brole\s+ler(?:le|i|in|den|de|e|a)?\b/g, "role")
-    .replace(/\broller(?:le|i|in|den|de|e|a)?\b/g, "rol")
-    .replace(/\broll?erle\b/g, "rol")
-    .replace(/\bhatalar[iı]?\b/g, "hata")
-    .replace(/\bhata(?:lar)?[iı]?\b/g, "hata")
-    .replace(/\bihtimaller(?:i|ini|in|le|den)?\b/g, "ihtimalleri")
-    .replace(/\bd[uü]zelt(?:mek|me|in|elim)?\b/g, "duzelt");
-}
-
-function expandTaskTerms(terms: string[]): string[] {
-  const expanded: string[] = [];
-
-  for (const term of terms) {
-    expanded.push(term);
-    for (const expansion of turkishTaskTermExpansions.get(term) ?? []) {
-      expanded.push(expansion);
-    }
-    for (const expansion of domainTaskTermExpansions.get(term) ?? []) {
-      expanded.push(expansion);
-    }
-  }
-
-  if (expanded.some((term) => term === "role" || term === "roles")) {
-    expanded.push(...roleRelatedLookupTerms);
-  }
-
-  return [...new Set(expanded)];
-}
-
-function expandedTaskTerms(task: string): string[] {
-  return expandTaskTerms(tokenize(normalizeTaskText(task)));
-}
-
-function targetedLookupTerms(task: string): string[] {
-  const filenameTerms = task
-    .toLowerCase()
-    .match(/\b[a-z0-9_-]+\.[a-z0-9][a-z0-9._-]*\b/g) ?? [];
-  const terms = expandedTaskTerms(task);
-  const hasRoleSignal = terms.some((term) => term === "role" || term === "roles");
-  const explicitCommandTask = terms.some((term) => ["cli", "command", "commands", "rcc"].includes(term));
-  const lookupTerms = hasRoleSignal
-    ? terms.filter((term) => term !== "risk")
-    : terms;
-
-  return [...new Set([
-    ...filenameTerms,
-    ...lookupTerms
-    .filter((token) => token.length > 2 || domainTaskTerms.has(token))
-    .filter((token) => (
-      explicitCommandTask
-        ? !actionTaskTerms.has(token) || actionNamedCommandTerms.has(token)
-        : (!lowSignalTaskTerms.has(token) && !actionTaskTerms.has(token))
-    ))
-    .filter((token) => !explicitCommandTask || !["cli", "command", "commands", "rcc"].includes(token))
-  ])];
-}
-
-function taskHasWorkflowDomain(task: string): boolean {
-  return expandedTaskTerms(task).some((term) => [
-    "action",
-    "actions",
-    "ci",
-    "deploy",
-    "deployment",
-    "github",
-    "release",
-    "workflow",
-    "workflows"
-  ].includes(term));
-}
-
-function termWeight(term: string): number {
-  if (actionNamedCommandTerms.has(term)) {
-    return 1;
-  }
-  if (actionTaskTerms.has(term)) {
-    return 0.25;
-  }
-  if (domainTaskTerms.has(term)) {
-    return 1.35;
-  }
-  return 1;
-}
-
-function weightedScore(score: number, term: string): number {
-  return Math.round(score * termWeight(term));
-}
-
-function isCodeInvestigationTask(task: string): boolean {
-  return expandedTaskTerms(task).some((term) => codeInvestigationTerms.has(term));
 }
 
 function compactReason(reasons: string[] | undefined): string {
@@ -618,12 +367,12 @@ function isMediumHighLookupHint(hint: TargetedLookupHint | Omit<TargetedLookupHi
   return hint.confidence === "high" || hint.score >= strongLookupScoreThreshold;
 }
 
-function lookupRoleOrder(task: string): RepoFileRole[] {
-  return taskAllowsLockFile(task) ? packageTaskLookupRoleOrder : defaultLookupRoleOrder;
+function lookupRoleOrder(taskIntent: TaskIntentAnalysis): RepoFileRole[] {
+  return taskAllowsLockFile(taskIntent) ? packageTaskLookupRoleOrder : defaultLookupRoleOrder;
 }
 
-function lookupRoleRank(role: RepoFileRole, task: string): number {
-  const order = lookupRoleOrder(task);
+function lookupRoleRank(role: RepoFileRole, taskIntent: TaskIntentAnalysis): number {
+  const order = lookupRoleOrder(taskIntent);
   const index = order.indexOf(role);
 
   return index === -1 ? order.length : index;
@@ -699,8 +448,8 @@ function sourceStemMap(files: string[]): Map<string, string> {
   return map;
 }
 
-function taskAllowsLockFile(task: string): boolean {
-  return targetedLookupTerms(task).some((term) => [
+function taskAllowsLockFile(taskIntent: TaskIntentAnalysis): boolean {
+  return taskIntent.lookupTerms.some((term) => [
     "dependency",
     "dependencies",
     "install",
@@ -717,7 +466,7 @@ function taskAllowsLockFile(task: string): boolean {
   ].includes(term));
 }
 
-function lookupPenalty(filePath: string, task: string): number {
+function lookupPenalty(filePath: string, taskIntent: TaskIntentAnalysis): number {
   const info = classifyRepoFile(filePath);
   let penalty = 0;
 
@@ -742,15 +491,15 @@ function lookupPenalty(filePath: string, task: string): number {
   if (/\/archive\//i.test(filePath) || filePath.startsWith("archive/") || filePath.startsWith("archives/")) {
     penalty += 60;
   }
-  if (isLockFile(filePath) && !taskAllowsLockFile(task)) {
+  if (isLockFile(filePath) && !taskAllowsLockFile(taskIntent)) {
     penalty += 70;
   }
 
   return penalty;
 }
 
-function applyLookupPenalty(hint: TargetedLookupHint, task: string): TargetedLookupHint {
-  const penalty = lookupPenalty(hint.path, task);
+function applyLookupPenalty(hint: TargetedLookupHint, taskIntent: TaskIntentAnalysis): TargetedLookupHint {
+  const penalty = lookupPenalty(hint.path, taskIntent);
   if (penalty === 0) {
     return hint;
   }
@@ -763,14 +512,14 @@ function applyLookupPenalty(hint: TargetedLookupHint, task: string): TargetedLoo
   };
 }
 
-function isPromotableLookupHint(hint: TargetedLookupHint, task: string): boolean {
+function isPromotableLookupHint(hint: TargetedLookupHint, taskIntent: TaskIntentAnalysis): boolean {
   const info = classifyRepoFile(hint.path);
   const promotableRoles = new Set(["source", "test", "config", "workflow", "package"]);
 
   if (!promotableRoles.has(info.role) || info.isNoise || info.role === "asset") {
     return false;
   }
-  if (isLockFile(hint.path) && !taskAllowsLockFile(task)) {
+  if (isLockFile(hint.path) && !taskAllowsLockFile(taskIntent)) {
     return false;
   }
   if (!isMediumHighLookupHint(hint)) {
@@ -793,11 +542,11 @@ function isPromotableLookupHint(hint: TargetedLookupHint, task: string): boolean
   return hint.signal === "semantic-match" && hint.score >= strongLookupScoreThreshold;
 }
 
-function promotedLookupHints(lookupHints: TargetedLookupHint[], task: string): TargetedLookupHint[] {
+function promotedLookupHints(lookupHints: TargetedLookupHint[], taskIntent: TaskIntentAnalysis): TargetedLookupHint[] {
   return lookupHints
-    .filter((hint) => isPromotableLookupHint(hint, task))
+    .filter((hint) => isPromotableLookupHint(hint, taskIntent))
     .sort((left, right) => {
-      const roleDelta = lookupRoleRank(classifyRepoFile(left.path).role, task) - lookupRoleRank(classifyRepoFile(right.path).role, task);
+      const roleDelta = lookupRoleRank(classifyRepoFile(left.path).role, taskIntent) - lookupRoleRank(classifyRepoFile(right.path).role, taskIntent);
       if (roleDelta !== 0) {
         return roleDelta;
       }
@@ -808,9 +557,8 @@ function promotedLookupHints(lookupHints: TargetedLookupHint[], task: string): T
     });
 }
 
-function nextCheapestLookupCommand(task: string): string {
-  const [term] = targetedLookupTerms(task);
-  return term ? `rcc find "${term}"` : 'rcc find "<keyword>"';
+function nextCheapestLookupCommand(taskIntent: TaskIntentAnalysis): string {
+  return taskIntent.nextLookupKeyword ? `rcc find "${taskIntent.nextLookupKeyword}"` : 'rcc find "<keyword>"';
 }
 
 function contextDocPaths(startup: StartupContext, guidance: ReadFirstGuidance): string[] {
@@ -824,7 +572,8 @@ function contextDocPaths(startup: StartupContext, guidance: ReadFirstGuidance): 
 function buildTaskFileRecommendations(
   startup: StartupContext,
   lookupHints: TargetedLookupHint[],
-  readFirstGuidance: ReadFirstGuidance
+  readFirstGuidance: ReadFirstGuidance,
+  taskIntent: TaskIntentAnalysis
 ): {
   taskFiles: WorkRecommendation[];
   supportingTests: WorkRecommendation[];
@@ -834,9 +583,9 @@ function buildTaskFileRecommendations(
   relevantTests: WorkRecommendation[];
   promoted: TargetedLookupHint[];
 } {
-  const promoted = promotedLookupHints(lookupHints, startup.task);
-  const codeInvestigationTask = isCodeInvestigationTask(startup.task);
-  const workflowDomainTask = taskHasWorkflowDomain(startup.task);
+  const promoted = promotedLookupHints(lookupHints, taskIntent);
+  const codeInvestigationTask = taskIntent.isCodeInvestigation;
+  const workflowDomainTask = taskIntent.hasWorkflowDomain;
   const promotedByRole = (roles: string[]): string[] => promoted
     .filter((hint) => roles.includes(classifyRepoFile(hint.path).role))
     .map((hint) => hint.path);
@@ -905,7 +654,7 @@ function bestPathMatch(
   index: number,
   startupReferenced: Set<string>,
   pairedTestStems: Set<string>,
-  task: string
+  taskIntent: TaskIntentAnalysis
 ): TargetedLookupHint | undefined {
   const lowerPath = filePath.toLowerCase();
   const basenameStem = basenameWithoutExtensions(filePath);
@@ -953,7 +702,7 @@ function bestPathMatch(
     if (score > 0 && signal) {
       best = chooseBetterHint(best, applyLookupPenalty(
         makeLookupHint(filePath, term, weightedScore(score, term), reason, signal, index),
-        task
+        taskIntent
       ));
     }
   }
@@ -1045,7 +794,7 @@ function memoryHint(
   signal: TargetedLookupSignal,
   terms: string[],
   index: number,
-  task: string
+  taskIntent: TaskIntentAnalysis
 ): TargetedLookupHint | undefined {
   const term = terms.find((candidate) => termPattern(candidate).test(filePath)) ?? terms[0];
   if (!term) {
@@ -1061,17 +810,17 @@ function memoryHint(
       : "matched recent work log",
     signal,
     index
-  ), task);
+  ), taskIntent);
 }
 
-function shouldScanForTargetedLookup(filePath: string, task: string): boolean {
+function shouldScanForTargetedLookup(filePath: string, taskIntent: TaskIntentAnalysis): boolean {
   const info = classifyRepoFile(filePath);
 
   if (info.role === "asset" || filePath.startsWith(".git/") || filePath.includes("/node_modules/") || filePath.startsWith("node_modules/")) {
     return false;
   }
 
-  if (isLockFile(filePath) && !taskAllowsLockFile(task)) {
+  if (isLockFile(filePath) && !taskAllowsLockFile(taskIntent)) {
     return true;
   }
 
@@ -1086,13 +835,13 @@ function shouldScanForTargetedLookup(filePath: string, task: string): boolean {
   return ["source", "test", "workflow", "config", "package", "docs", "unknown"].includes(info.role);
 }
 
-async function targetedLookupHints(cwd: string, task: string, startup: StartupContext): Promise<TargetedLookupHint[]> {
-  const terms = targetedLookupTerms(task);
+async function targetedLookupHints(cwd: string, taskIntent: TaskIntentAnalysis, startup: StartupContext): Promise<TargetedLookupHint[]> {
+  const terms = taskIntent.lookupTerms;
   if (terms.length === 0) {
     return [];
   }
 
-  const repoFiles = (await listFilesRecursive(cwd)).filter((file) => shouldScanForTargetedLookup(file, task));
+  const repoFiles = (await listFilesRecursive(cwd)).filter((file) => shouldScanForTargetedLookup(file, taskIntent));
   const startupReferenced = routingReferencedPaths(startup);
   const pairedTestStems = sourceToPairedTestStems(repoFiles);
   const memorySignals = await lookupMemorySignals(cwd, terms);
@@ -1100,10 +849,10 @@ async function targetedLookupHints(cwd: string, task: string, startup: StartupCo
 
   for (let index = 0; index < repoFiles.length; index += 1) {
     const filePath = repoFiles[index];
-    let hint = bestPathMatch(filePath, terms, index, startupReferenced, pairedTestStems, task);
+    let hint = bestPathMatch(filePath, terms, index, startupReferenced, pairedTestStems, taskIntent);
     const memorySignal = memorySignals.get(filePath);
     if (memorySignal) {
-      const candidate = memoryHint(filePath, memorySignal, terms, index, task);
+      const candidate = memoryHint(filePath, memorySignal, terms, index, taskIntent);
       if (candidate) {
         hint = chooseBetterHint(hint, candidate);
       }
@@ -1125,7 +874,7 @@ async function targetedLookupHints(cwd: string, task: string, startup: StartupCo
             "semantic-match",
             index
           ),
-          task
+          taskIntent
         );
         if (!hint || contentHint.score > hint.score) {
           hint = contentHint;
@@ -1165,7 +914,7 @@ async function targetedLookupHints(cwd: string, task: string, startup: StartupCo
 
       const leftRole = classifyRepoFile(left.path).role;
       const rightRole = classifyRepoFile(right.path).role;
-      const roleDelta = lookupRoleRank(leftRole, task) - lookupRoleRank(rightRole, task);
+      const roleDelta = lookupRoleRank(leftRole, taskIntent) - lookupRoleRank(rightRole, taskIntent);
       if (roleDelta !== 0) {
         return roleDelta;
       }
@@ -1259,16 +1008,16 @@ function dedupeEntries(entries: string[]): string[] {
   return deduped;
 }
 
-function decisionMatches(cells: string[], startup: StartupContext): boolean {
+function decisionMatches(cells: string[], startup: StartupContext, taskIntent: TaskIntentAnalysis): boolean {
   const haystack = cells.slice(1).join(" ").toLowerCase();
-  const taskTokens = tokenize(startup.task);
+  const taskTokens = taskIntent.rawTokens;
   const likelyFiles = [...startup.likelySourceFiles, ...startup.likelyTests];
 
   return taskTokens.some((token) => haystack.includes(token))
     || likelyFiles.some((file) => file && haystack.includes(file.toLowerCase()));
 }
 
-async function readRelevantDecisions(cwd: string, startup: StartupContext): Promise<string[]> {
+async function readRelevantDecisions(cwd: string, startup: StartupContext, taskIntent: TaskIntentAnalysis): Promise<string[]> {
   const fullPath = path.join(cwd, decisionsPath);
   if (!(await pathExists(fullPath))) {
     return [];
@@ -1279,7 +1028,7 @@ async function readRelevantDecisions(cwd: string, startup: StartupContext): Prom
     .split(/\r?\n/)
     .map((line) => splitMarkdownTableRow(line))
     .filter((cells) => cells.length >= 5 && cells[0] !== "Date" && !cells.every((cell) => /^-+$/.test(cell)))
-    .filter((cells) => decisionMatches(cells, startup))
+    .filter((cells) => decisionMatches(cells, startup, taskIntent))
     .slice(-decisionLimit)
     .reverse()
     .map((cells) => `${cells[0]} | ${cells[1]} | ${cells[2]} | ${cells[3]}`);
@@ -1492,9 +1241,8 @@ function hasStrongLookupHints(lookupHints: TargetedLookupHint[]): boolean {
   return lookupHints.filter((hint) => hint.confidence === "high" || hint.confidence === "medium").length >= 2;
 }
 
-function isBroadOrAmbiguousTask(task: string): boolean {
-  const meaningfulTerms = targetedLookupTerms(task);
-  return meaningfulTerms.length === 0 || /\b(clean\s*up|stuff|things)\b/i.test(task);
+function isBroadOrAmbiguousTask(task: string, taskIntent: TaskIntentAnalysis): boolean {
+  return taskIntent.lookupTerms.length === 0 || /\b(clean\s*up|stuff|things)\b/i.test(task);
 }
 
 function hasWeakRouting(startup: StartupContext, lookupHints: TargetedLookupHint[]): boolean {
@@ -1554,15 +1302,16 @@ function buildReadFirstGuidance(
   startup: StartupContext,
   lookupHints: TargetedLookupHint[],
   contextBudget: ContextBudget,
-  existingFiles: string[]
+  existingFiles: string[],
+  taskIntent: TaskIntentAnalysis
 ): ReadFirstGuidance {
   const guidance = emptyReadFirstGuidance();
   const existing = new Set(existingFiles);
-  const tokens = targetedLookupTerms(startup.task);
+  const tokens = taskIntent.lookupTerms;
   const readFirstDocs = new Set(startup.readFirstDocs);
   const routingWeak = hasWeakRouting(startup, lookupHints);
-  const broadTask = isBroadOrAmbiguousTask(startup.task);
-  const focusedCodeInvestigation = isCodeInvestigationTask(startup.task) && hasStrongLookupHints(lookupHints);
+  const broadTask = isBroadOrAmbiguousTask(startup.task, taskIntent);
+  const focusedCodeInvestigation = taskIntent.isCodeInvestigation && hasStrongLookupHints(lookupHints);
   const architectureSignal = includesTaskToken(tokens, [
     "architecture",
     "architectural",
@@ -1724,7 +1473,7 @@ function formatNumberedList(values: string[]): string[] {
 }
 
 function renderWorkBriefLines(brief: WorkBrief): string[] {
-  const taskFileFallback = isCodeInvestigationTask(brief.task)
+  const taskFileFallback = analyzeTaskIntent(brief.task).isCodeInvestigation
     ? "No focused task files were identified. Use the next cheapest command before broad search."
     : "Start with workflow/context docs before broad search.";
 
@@ -1817,10 +1566,11 @@ function buildWorkBrief(
   logs: string[],
   lookupHints: TargetedLookupHint[],
   readFirstGuidance: ReadFirstGuidance,
-  contextBudget: ContextBudget
+  contextBudget: ContextBudget,
+  taskIntent: TaskIntentAnalysis
 ): WorkBrief {
-  const categorized = buildTaskFileRecommendations(startup, lookupHints, readFirstGuidance);
-  const nextCheapest = nextCheapestLookupCommand(startup.task);
+  const categorized = buildTaskFileRecommendations(startup, lookupHints, readFirstGuidance, taskIntent);
+  const nextCheapest = nextCheapestLookupCommand(taskIntent);
   const brief: WorkBrief = {
     command: "work",
     task: startup.task,
@@ -1991,6 +1741,7 @@ export async function workCommand(io: CliIO, args: string[] = []): Promise<numbe
     return 1;
   }
 
+  const taskIntent = analyzeTaskIntent(options.task);
   const startupContext = await buildStartupContext(io.cwd, options.task, {
     maxFiles: options.maxFiles,
     genericFallbackMaxTests: 5
@@ -2001,16 +1752,17 @@ export async function workCommand(io: CliIO, args: string[] = []): Promise<numbe
   });
   const [mapFreshness, decisions, logs, lookupHints] = await Promise.all([
     assessMapFreshness(io.cwd),
-    readRelevantDecisions(io.cwd, focusedStartupContext),
+    readRelevantDecisions(io.cwd, focusedStartupContext, taskIntent),
     readRecentLogs(io.cwd),
-    targetedLookupHints(io.cwd, options.task, focusedStartupContext)
+    targetedLookupHints(io.cwd, taskIntent, focusedStartupContext)
   ]);
   const existingContextFiles = await existingReadFirstContextFiles(io.cwd);
   const readFirstGuidance = buildReadFirstGuidance(
     focusedStartupContext,
     lookupHints,
     options.contextBudget,
-    existingContextFiles
+    existingContextFiles,
+    taskIntent
   );
 
   const brief = buildWorkBrief(
@@ -2020,7 +1772,8 @@ export async function workCommand(io: CliIO, args: string[] = []): Promise<numbe
     logs,
     lookupHints,
     readFirstGuidance,
-    options.contextBudget
+    options.contextBudget,
+    taskIntent
   );
 
   if (options.json) {
