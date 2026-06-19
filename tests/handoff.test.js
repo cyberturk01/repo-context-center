@@ -16,6 +16,19 @@ function runCli(args, options = {}) {
   });
 }
 
+function parseJsonOnlyOutput(result) {
+  assert.equal(result.status, 0);
+  assert.equal(result.stderr, "");
+  assert.doesNotMatch(result.stdout, /```/);
+  assert.doesNotMatch(result.stdout, /^repo-context-center/m);
+  assert.doesNotMatch(result.stdout, /^Usage:/m);
+  assert.doesNotMatch(result.stdout, /Warning:/i);
+  assert.equal(result.stdout.trimStart()[0], "{");
+  assert.equal(result.stdout.trimEnd().at(-1), "}");
+
+  return JSON.parse(result.stdout);
+}
+
 async function writeFixtureFile(root, relativePath, content) {
   const fullPath = path.join(root, relativePath);
   await mkdir(path.dirname(fullPath), { recursive: true });
@@ -145,10 +158,20 @@ test("renderHandoffText uses none fallbacks", () => {
 
 test("rcc handoff --json returns a machine-readable brief", () => {
   const result = runCli(["handoff", "--json"]);
-  const brief = JSON.parse(result.stdout);
+  const brief = parseJsonOnlyOutput(result);
 
-  assert.equal(result.status, 0);
-  assert.equal(result.stderr, "");
+  assert.deepEqual(Object.keys(brief), [
+    "schemaVersion",
+    "command",
+    "task",
+    "generatedAt",
+    "currentState",
+    "memory",
+    "readFirst",
+    "nextActions",
+    "avoid",
+    "nextCommand"
+  ]);
   assert.equal(brief.schemaVersion, 1);
   assert.equal(brief.command, "handoff");
   assert.equal(brief.task, null);
@@ -162,10 +185,20 @@ test("rcc handoff --json returns a machine-readable brief", () => {
 
 test("rcc handoff --agent returns compact agent JSON", () => {
   const result = runCli(["handoff", "--agent"]);
-  const brief = JSON.parse(result.stdout);
+  const brief = parseJsonOnlyOutput(result);
 
-  assert.equal(result.status, 0);
-  assert.equal(result.stderr, "");
+  assert.deepEqual(Object.keys(brief), [
+    "schemaVersion",
+    "command",
+    "task",
+    "generatedAt",
+    "currentState",
+    "memory",
+    "readFirst",
+    "nextActions",
+    "avoid",
+    "nextCommand"
+  ]);
   assert.equal(brief.schemaVersion, 1);
   assert.equal(brief.command, "handoff");
   assert.equal(brief.task, null);
@@ -213,10 +246,21 @@ test("rcc handoff reads present context sources conservatively", async () => {
     ].join("\n"));
 
     const result = runCli(["handoff", "continue source readers", "--json", "--debug"], { cwd: tempDir });
-    const brief = JSON.parse(result.stdout);
+    const brief = parseJsonOnlyOutput(result);
 
-    assert.equal(result.status, 0);
-    assert.equal(result.stderr, "");
+    assert.deepEqual(Object.keys(brief), [
+      "schemaVersion",
+      "command",
+      "task",
+      "generatedAt",
+      "currentState",
+      "memory",
+      "readFirst",
+      "nextActions",
+      "avoid",
+      "nextCommand",
+      "debug"
+    ]);
     assert.equal(brief.task, "continue source readers");
     assert.deepEqual(brief.readFirst, ["AGENTS.md"]);
     assert.ok(brief.memory.includes("Last summary: Added source readers"));
@@ -239,10 +283,8 @@ test("rcc handoff reads present context sources conservatively", async () => {
 test("rcc handoff tolerates missing context sources", async () => {
   await withTempRepo(async (tempDir) => {
     const result = runCli(["handoff", "--json", "--debug"], { cwd: tempDir });
-    const brief = JSON.parse(result.stdout);
+    const brief = parseJsonOnlyOutput(result);
 
-    assert.equal(result.status, 0);
-    assert.equal(result.stderr, "");
     assert.deepEqual(brief.memory, []);
     assert.deepEqual(brief.readFirst, []);
     assert.ok(brief.nextActions.length > 0);
