@@ -1047,17 +1047,18 @@ test("work --json does not let weak semantic source matches outrank workflow pac
     const result = runCli(["work", "--json", "find Workflow risks"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const taskPaths = brief.taskFiles.map((file) => file.path);
-    const weakSourceIndex = taskPaths.indexOf("src/cli/commands/done.ts");
+    const weakSourceHint = brief.targetedLookupHints.find((hint) => hint.path === "src/cli/commands/done.ts");
 
     assert.equal(result.status, 0);
-    assert.notEqual(weakSourceIndex, -1, taskPaths.join("\n"));
+    assert.equal(taskPaths.includes("src/cli/commands/done.ts"), false, taskPaths.join("\n"));
+    assert.equal(weakSourceHint?.signal, "semantic-match");
+    assert.match(weakSourceHint?.reason ?? "", /weak semantic match/);
     for (const file of [
       ".github/workflows/ai-project-guardian.yml",
       ".github/workflows/ci.yml",
       "package.json"
     ]) {
       assert.ok(taskPaths.indexOf(file) !== -1, taskPaths.join("\n"));
-      assert.ok(taskPaths.indexOf(file) < weakSourceIndex, taskPaths.join("\n"));
     }
   });
 });

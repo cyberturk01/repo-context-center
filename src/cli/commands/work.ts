@@ -591,6 +591,10 @@ function isWeakSemanticSourceHint(hint: TargetedLookupHint): boolean {
     && hint.reason.includes("weak semantic match");
 }
 
+function isWorkflowConfigOrPackageHint(hint: TargetedLookupHint): boolean {
+  return ["workflow", "config", "package"].includes(classifyRepoFile(hint.path).role);
+}
+
 function workflowPromotedHintRank(hint: TargetedLookupHint): number {
   const role = classifyRepoFile(hint.path).role;
 
@@ -671,9 +675,12 @@ function buildTaskFileRecommendations(
     .map((hint) => hint.path);
   const startupTaskFiles = startup.likelySourceFiles.filter((file) => classifyRepoFile(file).role === "source");
   const workflowTaskPaths = promotedByRole(["config", "workflow", "package"]);
+  const hasStrongWorkflowTaskCandidates = taskIntent.hasWorkflowDomain
+    && promoted.some((hint) => isWorkflowConfigOrPackageHint(hint));
   const promotedTaskPaths = taskIntent.hasWorkflowDomain
     ? promoted
       .filter((hint) => ["source", "config", "workflow", "package"].includes(classifyRepoFile(hint.path).role))
+      .filter((hint) => !hasStrongWorkflowTaskCandidates || !isWeakSemanticSourceHint(hint))
       .map((hint) => hint.path)
     : [
       ...promotedByRole(["source"]),
