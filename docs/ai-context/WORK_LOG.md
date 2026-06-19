@@ -264,4 +264,25 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-19T22:21:32.799Z
+- Summary: Implemented task intent cleanup so generic task verbs are filtered from lookup terms when meaningful domain terms are present, with generic-only fallback coverage.
+- Changed files: `src/core/taskIntent.ts`, `tests/handoff.test.js`, `tests/taskIntent.test.js`
+- Verification: npm run build; node --test tests/taskIntent.test.js; node --test tests/handoff.test.js; npm test
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-19T22:21:32.799Z",
+  "summary": "Implemented task intent cleanup so generic task verbs are filtered from lookup terms when meaningful domain terms are present, with generic-only fallback coverage.",
+  "files": [
+    "src/core/taskIntent.ts",
+    "tests/handoff.test.js",
+    "tests/taskIntent.test.js"
+  ],
+  "verification": "npm run build; node --test tests/taskIntent.test.js; node --test tests/handoff.test.js; npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

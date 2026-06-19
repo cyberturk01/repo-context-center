@@ -413,7 +413,7 @@ test("rcc handoff reads present context sources conservatively", async () => {
     assert.deepEqual(brief.nextRecommendedFiles, []);
     assert.deepEqual(brief.relevantTests, []);
     assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep handoff parsing conservative")));
-    assert.equal(brief.nextLookup, 'rcc find "continue"');
+    assert.equal(brief.nextLookup, 'rcc find "source"');
     assert.ok(brief.memory.includes("Last completed: Added source readers"));
     assert.ok(brief.memory.includes("Completed at: 2026-06-18T12:00:00.000Z"));
     assert.ok(brief.memory.some((entry) => entry.includes("Decision: 2026-06-18 | Keep handoff parsing conservative")));

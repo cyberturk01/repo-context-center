@@ -183,6 +183,27 @@ const lowSignalTerms = new Set(termRegistry.lowSignal);
 const codeInvestigationTerms = new Set(termRegistry.codeInvestigation);
 const roleRelatedTerms = new Set(termRegistry.roleRelated);
 const explicitCommandTaskTerms = new Set(["cli", "command", "commands", "rcc"]);
+const genericLookupStopTerms = new Set([
+  "add",
+  "change",
+  "command",
+  "commands",
+  "continue",
+  "create",
+  "fix",
+  "handle",
+  "implement",
+  "implementation",
+  "improve",
+  "make",
+  "modify",
+  "real",
+  "refactor",
+  "repo",
+  "support",
+  "test",
+  "update"
+]);
 const workflowDomainTerms = new Set([
   "action",
   "actions",
@@ -241,7 +262,7 @@ export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
   const termsForLookup = hasRoleSignal
     ? expandedTerms.filter((term) => term !== "risk")
     : expandedTerms;
-  const lookupTerms = [...new Set([
+  const lookupCandidates = [...new Set([
     ...filenameTerms,
     ...termsForLookup
       .filter((token) => token.length > 2 || domainTerms.has(token))
@@ -252,6 +273,17 @@ export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
       ))
       .filter((token) => !isExplicitCommandTask || !explicitCommandTaskTerms.has(token))
   ])];
+  const genericFallbackTerms = [...new Set(termsForLookup
+    .filter((token) => token.length > 2 || domainTerms.has(token))
+    .filter((token) => genericLookupStopTerms.has(token))
+    .filter((token) => !isExplicitCommandTask || !explicitCommandTaskTerms.has(token)))];
+  const rawLookupTokens = rawTokens.filter((token) => token.length > 2 || domainTerms.has(token));
+  const shouldFallbackToGenericTerms = rawLookupTokens.length > 0
+    && rawLookupTokens.every((token) => genericLookupStopTerms.has(token));
+  const lookupTerms = filterGenericLookupTerms(
+    lookupCandidates,
+    shouldFallbackToGenericTerms ? genericFallbackTerms : []
+  );
 
   return {
     normalizedTask,
@@ -354,4 +386,14 @@ function expandTaskTerms(terms: string[]): string[] {
   }
 
   return [...new Set(expanded)];
+}
+
+function filterGenericLookupTerms(terms: string[], genericFallbackTerms: string[]): string[] {
+  const meaningfulTerms = terms.filter((term) => !genericLookupStopTerms.has(term));
+
+  if (meaningfulTerms.length > 0) {
+    return meaningfulTerms;
+  }
+
+  return terms.length > 0 ? terms : genericFallbackTerms;
 }

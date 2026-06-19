@@ -56,6 +56,41 @@ test("low-signal task terms are excluded from lookup terms", () => {
   assert.ok(intent.lowSignalTerms.includes("issue"));
 });
 
+test("generic task verbs do not lead agent handover lookup terms", () => {
+  const intent = analyzeTaskIntent("continue agent handover implementation");
+
+  assert.deepEqual(intent.rawTokens, ["continue", "agent", "handover", "implementation"]);
+  assert.deepEqual(intent.lookupTerms.slice(0, 2), ["agent", "handover"]);
+  assert.ok(!intent.lookupTerms.includes("continue"));
+  assert.ok(!intent.lookupTerms.includes("implementation"));
+  assert.equal(intent.nextLookupKeyword, "agent");
+});
+
+test("generic action words are filtered from handoff json lookup terms", () => {
+  const intent = analyzeTaskIntent("fix handoff json output");
+
+  assert.ok(intent.lookupTerms.includes("handoff"));
+  assert.ok(intent.lookupTerms.includes("json"));
+  assert.ok(!intent.lookupTerms.includes("fix"));
+  assert.equal(intent.nextLookupKeyword, "handoff");
+});
+
+test("generic update verb is filtered from workflow validation lookup terms", () => {
+  const intent = analyzeTaskIntent("update workflow validation");
+
+  assert.ok(intent.lookupTerms.includes("workflow"));
+  assert.ok(intent.lookupTerms.includes("validation"));
+  assert.ok(!intent.lookupTerms.includes("update"));
+  assert.equal(intent.nextLookupKeyword, "workflow");
+});
+
+test("generic-only tasks keep a fallback lookup term", () => {
+  const intent = analyzeTaskIntent("continue implementation");
+
+  assert.deepEqual(intent.lookupTerms, ["continue", "implementation"]);
+  assert.equal(intent.nextLookupKeyword, "continue");
+});
+
 test("code investigation detection includes English and Turkish signals", () => {
   assert.equal(analyzeTaskIntent("inspect auth bug").isCodeInvestigation, true);
   assert.equal(analyzeTaskIntent("hata ihtimallerini bul").isCodeInvestigation, true);
