@@ -1,8 +1,10 @@
 export const handoffUsage = "Usage: rcc handoff [task] [--json|--agent] [--debug]";
 export const placeholderHandoffNextCommand = 'rcc work "<task>" --agent';
+export const placeholderHandoffNextLookup = 'rcc find "<keyword>"';
 export const agentsPath = "AGENTS.md";
 export const workLogPath = "docs/ai-context/WORK_LOG.md";
 export const decisionsPath = "docs/ai-context/DECISIONS.md";
 export const changeLogPath = "docs/ai-context/CHANGE_LOG.md";
 export const lessonsPath = "docs/ai-context/LESSONS_LEARNED.md";
 export const handoffSourceLimit = 5;
+export const handoffRouteLimit = 5;

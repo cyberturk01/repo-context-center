@@ -9,8 +9,12 @@ export function toAgentHandoff(brief: HandoffBrief): CompactAgentHandoff {
     currentState: brief.currentState,
     memory: brief.memory,
     readFirst: brief.readFirst,
+    nextRecommendedFiles: brief.nextRecommendedFiles,
+    relevantTests: brief.relevantTests,
+    relevantDecisions: brief.relevantDecisions,
     nextActions: brief.nextActions,
     avoid: brief.avoid,
+    nextLookup: brief.nextLookup,
     nextCommand: brief.nextCommand
   };
 }

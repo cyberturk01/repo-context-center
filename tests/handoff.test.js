@@ -84,8 +84,16 @@ test("renderHandoffText formats compact human-readable sections", () => {
       "Recent logs: Added handoff model"
     ],
     readFirst: ["AGENTS.md", "tests/handoff.test.js"],
+    nextRecommendedFiles: [
+      { path: "src/cli/handoff/renderText.ts", reason: "rendering handoff text" }
+    ],
+    relevantTests: [
+      { path: "tests/handoff.test.js", reason: "handoff test coverage" }
+    ],
+    relevantDecisions: ["Keep handoff parsing conservative"],
     nextActions: ["Update text renderer", "Run focused tests"],
     avoid: ["Do not include JSON or markdown fences"],
+    nextLookup: 'rcc find "handoff"',
     nextCommand: 'rcc work "<task>" --agent'
   });
 
@@ -108,12 +116,24 @@ test("renderHandoffText formats compact human-readable sections", () => {
     "- AGENTS.md",
     "- tests/handoff.test.js",
     "",
+    "Next recommended files:",
+    "- src/cli/handoff/renderText.ts (rendering handoff text)",
+    "",
+    "Relevant tests:",
+    "- tests/handoff.test.js (handoff test coverage)",
+    "",
+    "Relevant decisions:",
+    "- Keep handoff parsing conservative",
+    "",
     "Next actions:",
     "1. Update text renderer",
     "2. Run focused tests",
     "",
     "Avoid:",
     "- Do not include JSON or markdown fences",
+    "",
+    "Next lookup: rcc find \"handoff\"",
+    "Next command: rcc work \"<task>\" --agent",
     ""
   ].join("\n"));
 });
@@ -127,8 +147,12 @@ test("renderHandoffText uses none fallbacks", () => {
     currentState: [],
     memory: [],
     readFirst: [],
+    nextRecommendedFiles: [],
+    relevantTests: [],
+    relevantDecisions: [],
     nextActions: [],
     avoid: [],
+    nextLookup: 'rcc find "<keyword>"',
     nextCommand: 'rcc work "<task>" --agent'
   });
 
@@ -147,11 +171,23 @@ test("renderHandoffText uses none fallbacks", () => {
     "Read first:",
     "- none",
     "",
+    "Next recommended files:",
+    "- none",
+    "",
+    "Relevant tests:",
+    "- none",
+    "",
+    "Relevant decisions:",
+    "- none",
+    "",
     "Next actions:",
     "1. none",
     "",
     "Avoid:",
     "- none",
+    "",
+    "Next lookup: rcc find \"<keyword>\"",
+    "Next command: rcc work \"<task>\" --agent",
     ""
   ].join("\n"));
 });
@@ -168,8 +204,12 @@ test("rcc handoff --json returns a machine-readable brief", () => {
     "currentState",
     "memory",
     "readFirst",
+    "nextRecommendedFiles",
+    "relevantTests",
+    "relevantDecisions",
     "nextActions",
     "avoid",
+    "nextLookup",
     "nextCommand"
   ]);
   assert.equal(brief.schemaVersion, 1);
@@ -178,8 +218,12 @@ test("rcc handoff --json returns a machine-readable brief", () => {
   assert.match(brief.generatedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.ok(Array.isArray(brief.memory));
   assert.ok(Array.isArray(brief.readFirst));
+  assert.deepEqual(brief.nextRecommendedFiles, []);
+  assert.deepEqual(brief.relevantTests, []);
+  assert.deepEqual(brief.relevantDecisions, []);
   assert.ok(Array.isArray(brief.nextActions));
   assert.ok(Array.isArray(brief.avoid));
+  assert.equal(brief.nextLookup, 'rcc find "<keyword>"');
   assert.equal(brief.nextCommand, 'rcc work "<task>" --agent');
 });
 
@@ -195,8 +239,12 @@ test("rcc handoff --agent returns compact agent JSON", () => {
     "currentState",
     "memory",
     "readFirst",
+    "nextRecommendedFiles",
+    "relevantTests",
+    "relevantDecisions",
     "nextActions",
     "avoid",
+    "nextLookup",
     "nextCommand"
   ]);
   assert.equal(brief.schemaVersion, 1);
@@ -204,6 +252,7 @@ test("rcc handoff --agent returns compact agent JSON", () => {
   assert.equal(brief.task, null);
   assert.match(brief.generatedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.ok(Array.isArray(brief.currentState));
+  assert.equal(brief.nextLookup, 'rcc find "<keyword>"');
   assert.equal(brief.nextCommand, 'rcc work "<task>" --agent');
 });
 
@@ -256,13 +305,21 @@ test("rcc handoff reads present context sources conservatively", async () => {
       "currentState",
       "memory",
       "readFirst",
+      "nextRecommendedFiles",
+      "relevantTests",
+      "relevantDecisions",
       "nextActions",
       "avoid",
+      "nextLookup",
       "nextCommand",
       "debug"
     ]);
     assert.equal(brief.task, "continue source readers");
     assert.deepEqual(brief.readFirst, ["AGENTS.md"]);
+    assert.deepEqual(brief.nextRecommendedFiles, []);
+    assert.deepEqual(brief.relevantTests, []);
+    assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep handoff parsing conservative")));
+    assert.equal(brief.nextLookup, 'rcc find "continue"');
     assert.ok(brief.memory.includes("Last summary: Added source readers"));
     assert.ok(brief.memory.some((entry) => entry.includes("Decision: 2026-06-18 | Keep handoff parsing conservative")));
     assert.ok(brief.memory.some((entry) => entry.includes("Change: 2026-06-18 | repo-context-center done")));
@@ -287,7 +344,11 @@ test("rcc handoff tolerates missing context sources", async () => {
 
     assert.deepEqual(brief.memory, []);
     assert.deepEqual(brief.readFirst, []);
+    assert.deepEqual(brief.nextRecommendedFiles, []);
+    assert.deepEqual(brief.relevantTests, []);
+    assert.deepEqual(brief.relevantDecisions, []);
     assert.ok(brief.nextActions.length > 0);
+    assert.equal(brief.nextLookup, 'rcc find "<keyword>"');
     assert.ok(brief.avoid.includes("Do not rerun broad discovery before reading handoff files."));
     assert.equal(brief.debug.sources.agentsPresent, false);
     assert.equal(brief.debug.sources.workLogCount, 0);
@@ -295,5 +356,46 @@ test("rcc handoff tolerates missing context sources", async () => {
     assert.equal(brief.debug.sources.changeLogCount, 0);
     assert.equal(brief.debug.sources.lessonsCount, 0);
     assert.equal(brief.debug.sources.recentTouchedFilesCount, 0);
+  });
+});
+
+test("rcc handoff with task reuses work routing for task-specific next files", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "AGENTS.md", "# Repo Agents\n\nRead this first.\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Workflow validation work: read `src/workflow/validate.ts`, `tests/workflow/validate.test.ts`, and `docs/ai-context/RISK_REGISTER.md`."
+      ].join("\n")
+    );
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/DECISIONS.md",
+      [
+        "# Decisions",
+        "",
+        "| Date | Decision | Reason | Status | Files |",
+        "| --- | --- | --- | --- | --- |",
+        "| 2026-06-18 | Keep workflow validation explicit | Avoid hidden routing regressions | Active | src/workflow/validate.ts |"
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "docs/ai-context/RISK_REGISTER.md", "# Risk Register\n");
+    await writeFixtureFile(tempDir, "src/workflow/validate.ts", "export function validateWorkflow() {}\n");
+    await writeFixtureFile(tempDir, "tests/workflow/validate.test.ts", "test('validate workflow', () => {});\n");
+
+    const result = runCli(["handoff", "continue workflow validation", "--json"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.equal(brief.task, "continue workflow validation");
+    assert.ok(brief.readFirst.includes("AGENTS.md"));
+    assert.ok(brief.nextRecommendedFiles.some((file) => file.path === "src/workflow/validate.ts"));
+    assert.ok(brief.relevantTests.some((file) => file.path === "tests/workflow/validate.test.ts"));
+    assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep workflow validation explicit")));
+    assert.match(brief.nextLookup, /^rcc find "/);
+    assert.equal(brief.nextCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
+    assert.ok(brief.nextActions.includes("Inspect nextRecommendedFiles before searching."));
   });
 });

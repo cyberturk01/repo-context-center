@@ -183,4 +183,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Added handoff JSON renderer contract tests for JSON-only output, parseability, and stable top-level fields.
 - Changed files: `tests/handoff.test.js`
 - Verification: npm run build; node --test tests/handoff.test.js; node --test tests/cli.test.js
+
+## 2026-06-19T21:58:17.388Z
+- Summary: Made rcc handoff task-aware by deriving compact route fields from the existing work brief builder.
+- Changed files: `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffConstants.ts`, `src/cli/handoff/handoffTypes.ts`, `src/cli/handoff/renderAgent.ts`, `src/cli/handoff/renderJson.ts`, `src/cli/handoff/renderText.ts`, `tests/handoff.test.js`
+- Verification: npm run build; node --test tests/handoff.test.js; node --test tests/cli.test.js
 <!-- repo-context-center:work-log:end -->

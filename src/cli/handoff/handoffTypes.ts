@@ -5,6 +5,11 @@ export interface HandoffOptions {
   task: string | null;
 }
 
+export interface HandoffFile {
+  path: string;
+  reason?: string;
+}
+
 export interface HandoffBrief {
   schemaVersion: 1;
   command: "handoff";
@@ -13,8 +18,12 @@ export interface HandoffBrief {
   currentState: string[];
   memory: string[];
   readFirst: string[];
+  nextRecommendedFiles: HandoffFile[];
+  relevantTests: HandoffFile[];
+  relevantDecisions: string[];
   nextActions: string[];
   avoid: string[];
+  nextLookup: string;
   nextCommand: string;
   debug?: {
     cwd: string;
@@ -38,8 +47,12 @@ export interface PublicHandoffBrief {
   currentState: string[];
   memory: string[];
   readFirst: string[];
+  nextRecommendedFiles: HandoffFile[];
+  relevantTests: HandoffFile[];
+  relevantDecisions: string[];
   nextActions: string[];
   avoid: string[];
+  nextLookup: string;
   nextCommand: string;
 }
 
@@ -51,7 +64,11 @@ export interface CompactAgentHandoff {
   currentState: string[];
   memory: string[];
   readFirst: string[];
+  nextRecommendedFiles: HandoffFile[];
+  relevantTests: HandoffFile[];
+  relevantDecisions: string[];
   nextActions: string[];
   avoid: string[];
+  nextLookup: string;
   nextCommand: string;
 }
