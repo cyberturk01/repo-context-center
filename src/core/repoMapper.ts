@@ -1891,31 +1891,9 @@ function manualContentWithoutGeneratedSection(existing: string | undefined): str
   return `${existing.slice(0, start)}\n${existing.slice(end + generatedEnd.length)}`;
 }
 
-function renderAgents(_data: RepoMapData, existing?: string): string {
-  const hasStartupCommand = (existing ?? "").includes("rcc work");
-  const lines = [
-    "Compact generated entrypoint.",
-    "",
-    "- Generated repo maps live in `docs/ai-context/*`.",
-    "- Keep manual guidance outside generated markers."
-  ];
+type GeneratedContextFile = Exclude<RequiredContextFile, "AGENTS.md">;
 
-  if (!hasStartupCommand) {
-    lines.splice(2, 0, "- Start tasks with `rcc work \"<task>\"` before broad scanning.");
-    lines.splice(3, 0, "- Do not replace `rcc work` with manually reading `docs/ai-context` files.");
-    lines.splice(4, 0, "- For targeted lookup, prefer `rcc find \"<keyword>\"` before broad repo search.");
-    lines.splice(5, 0, "- Do not ask the human to run RCC commands.");
-    lines.splice(6, 0, "- Save completed-work memory with `rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`.");
-  }
-
-  return lines.join("\n");
-}
-
-const renderers: Record<RequiredContextFile, { title: string; render: (data: RepoMapData, existing?: string) => string }> = {
-  "AGENTS.md": {
-    title: "AGENTS.md",
-    render: renderAgents
-  },
+const renderers: Record<GeneratedContextFile, { title: string; render: (data: RepoMapData, existing?: string) => string }> = {
   "docs/ai-context/COMMUNICATION_MODE.md": { title: "Communication Mode", render: renderCommunication },
   "docs/ai-context/TASK_ROUTING.md": { title: "Task Routing", render: renderTaskRouting },
   "docs/ai-context/MODULE_INDEX.md": { title: "Module Index", render: renderModules },
@@ -1974,8 +1952,13 @@ async function buildChanges(cwd: string, data: RepoMapData): Promise<RepoMapChan
   const changes: RepoMapChange[] = [];
 
   for (const file of requiredContextFiles) {
-    const targetPath = path.join(cwd, file);
-    const renderer = renderers[file];
+    if (file === "AGENTS.md") {
+      continue;
+    }
+
+    const generatedFile = file as GeneratedContextFile;
+    const targetPath = path.join(cwd, generatedFile);
+    const renderer = renderers[generatedFile];
     const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : undefined;
     const content = upsertGeneratedSection(existing, renderer.title, renderer.render(data, existing));
     changes.push({

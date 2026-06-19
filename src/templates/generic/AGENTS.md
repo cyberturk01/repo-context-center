@@ -1,26 +1,25 @@
 # AGENTS.md
 
-Read this file first.
+Read this first.
 
 <!-- repo-context-center:workflow:start -->
 ## RCC Workflow
 
-For any coding task, the first shell command must be:
+For coding tasks, first run once:
 
 `rcc work "<task>"`
 
-- Do not begin repository exploration, manual file reading, or broad searching before running `rcc work`.
-- Follow the read-first files from the work brief.
-- For targeted lookup, prefer `rcc find "<keyword>"` before broad grep/search.
+Then:
+- Follow the brief before reading files or searching broadly.
+- Use `rcc find "<keyword>"` for follow-up lookup.
+- Do not rerun `rcc work` unless the task/context changes or the brief is insufficient.
 - Do not ask the human to run RCC commands.
-
-After meaningful changes:
-1. Run relevant tests.
-2. Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`.
+- After meaningful changes, run tests and record:
+  `rcc done --summary "<summary>" --files auto --verify "<checks>"`
 <!-- repo-context-center:workflow:end -->
 
 - If shell commands are unavailable, fallback to reading `docs/ai-context/COMMUNICATION_MODE.md`, `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/TOKEN_BUDGET.md`, and `docs/ai-context/DO_NOT_READ.md`.
 - Use `docs/ai-context/MODULE_INDEX.md` only when routing is missing or the task spans modules.
 - Verify source; keep changes focused.
 - Run smallest useful verification.
-- Do not manually edit generated sections.
+- Do not edit generated context files manually.

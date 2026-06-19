@@ -30,18 +30,17 @@ const requiredTemplates = [
 const expectedWorkflowSection = `<!-- repo-context-center:workflow:start -->
 ## RCC Workflow
 
-For any coding task, the first shell command must be:
+For coding tasks, first run once:
 
 \`rcc work "<task>"\`
 
-- Do not begin repository exploration, manual file reading, or broad searching before running \`rcc work\`.
-- Follow the read-first files from the work brief.
-- For targeted lookup, prefer \`rcc find "<keyword>"\` before broad grep/search.
+Then:
+- Follow the brief before reading files or searching broadly.
+- Use \`rcc find "<keyword>"\` for follow-up lookup.
+- Do not rerun \`rcc work\` unless the task/context changes or the brief is insufficient.
 - Do not ask the human to run RCC commands.
-
-After meaningful changes:
-1. Run relevant tests.
-2. Run \`rcc done --summary "<summary>" --files auto --verify "<checks>"\`.
+- After meaningful changes, run tests and record:
+  \`rcc done --summary "<summary>" --files auto --verify "<checks>"\`
 <!-- repo-context-center:workflow:end -->`;
 
 const templateTitles = {
@@ -104,10 +103,10 @@ test("AGENTS template keeps low-token startup references", async () => {
 
   assert.equal(workflowSection(content), expectedWorkflowSection);
   assert.match(content, /If shell commands are unavailable, fallback to reading/);
-  assert.match(content, /Read this file first\./);
+  assert.match(content, /Read this first\./);
   assert.match(content, /Verify source; keep changes focused\./);
   assert.match(content, /Run smallest useful verification\./);
-  assert.match(content, /Do not manually edit generated sections\./);
+  assert.match(content, /Do not edit generated context files manually\./);
   assert.match(noShellLine, /COMMUNICATION_MODE\.md/);
   assert.match(content, /TOKEN_BUDGET\.md/);
   assert.match(content, /DO_NOT_READ\.md/);
@@ -176,7 +175,7 @@ test("generated AGENTS template keeps core startup rules", async () => {
   assert.match(content, /docs\/ai-context\/DO_NOT_READ\.md/);
   assert.doesNotMatch(noShellLine, /docs\/ai-context\/MODULE_INDEX\.md/);
   assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
-  assert.match(content, /Read this file first\./);
+  assert.match(content, /Read this first\./);
   assert.match(content, /Run smallest useful verification\./);
   assert.doesNotMatch(content, /^Read:$/m);
   assert.doesNotMatch(content, /^Modes:$/m);

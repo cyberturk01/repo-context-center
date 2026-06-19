@@ -162,7 +162,7 @@ test("v0.7 release: init creates or updates AGENTS.md", async () => {
 
     assert.equal(created.status, 0);
     assert.match(createdAgents, /## RCC Workflow/);
-    assert.match(createdAgents, /For any coding task, the first shell command must be:/);
+    assert.match(createdAgents, /For coding tasks, first run once:/);
     assert.match(createdAgents, /`rcc work "<task>"`/);
 
     await writeFixtureFile(tempDir, "AGENTS.md", "# Existing Agents\n\nKeep this guidance.\n");
@@ -175,7 +175,8 @@ test("v0.7 release: init creates or updates AGENTS.md", async () => {
     assert.match(updatedAgents, /## RCC Workflow/);
     assert.match(updatedAgents, /rcc find "<keyword>"/);
     assert.match(updatedAgents, /Do not ask the human to run RCC commands\./);
-    assert.match(updatedAgents, /2\. Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
+    assert.match(updatedAgents, /After meaningful changes, run tests and record:/);
+    assert.match(updatedAgents, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);
   });
 });
 

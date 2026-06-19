@@ -48,4 +48,19 @@ Lightweight RCC memory from completed agent work.
 - Summary: Fixed routing benchmark warn and fail cases
 - Changed files: `scripts/benchmark-routing.js`, `src/cli/commands/work.ts`, `tests/work.test.js`
 - Verification: npm run build; npm run benchmark:routing; npm test
+
+## 2026-06-19T13:53:11.292Z
+- Summary: Updated AGENTS.md workflow and local RCC development guidance
+- Changed files: `AGENTS.md`
+- Verification: reviewed AGENTS.md diff (docs-only change)
+
+## 2026-06-19T14:01:13.131Z
+- Summary: Stopped repo mapper from adding generated AGENTS.md repo-map stub and cleaned legacy init handling
+- Changed files: `AGENTS.md`, `src/core/repoMapper.ts`, `src/core/templateInstaller.ts`, `src/templates/generic/AGENTS.md`, `tests/agent-startup-adoption.test.js`, `tests/init.test.js`, `tests/map.test.js`, `tests/templates.test.js`
+- Verification: npm run build; node --test tests/init.test.js tests/map.test.js tests/templates.test.js tests/agent-startup-adoption.test.js; npm test
+
+## 2026-06-19T14:05:38.788Z
+- Summary: Aligned generic and repo AGENTS guidance around concise RCC workflow and current local development commands
+- Changed files: `AGENTS.md`, `src/core/repoMapper.ts`, `src/core/templateInstaller.ts`, `src/templates/generic/AGENTS.md`, `tests/agent-startup-adoption.test.js`, `tests/init.test.js`, `tests/map.test.js`, `tests/templates.test.js`, `tests/v07-release.test.js`
+- Verification: npm run build; node --test tests/templates.test.js tests/init.test.js tests/map.test.js tests/agent-startup-adoption.test.js tests/v07-release.test.js; npm test
 <!-- repo-context-center:work-log:end -->

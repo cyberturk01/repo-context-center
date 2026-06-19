@@ -23,15 +23,23 @@ export const githubWorkflowPath = ".github/workflows/repo-context-check.yml";
 const agentsPath = "AGENTS.md";
 const workflowStart = "<!-- repo-context-center:workflow:start -->";
 const workflowEnd = "<!-- repo-context-center:workflow:end -->";
+const generatedStart = "<!-- repo-context-center:generated:start -->";
+const generatedEnd = "<!-- repo-context-center:generated:end -->";
 const legacyWorkflowDuplicateLines = new Set([
   "## RCC Workflow",
+  "For coding tasks, first run once:",
   "For any coding task, the first shell command must be:",
   "`rcc work \"<task>\"`",
+  "Then:",
+  "- Follow the brief before reading files or searching broadly.",
+  "- Use `rcc find \"<keyword>\"` for follow-up lookup.",
+  "- Do not rerun `rcc work` unless the task/context changes or the brief is insufficient.",
   "- Do not begin repository exploration, manual file reading, or broad searching before running `rcc work`.",
   "- Follow the read-first files from the work brief.",
   "- For targeted lookup, prefer `rcc find \"<keyword>\"` before broad grep/search.",
   "- Do not ask the human to run RCC commands.",
   "After meaningful changes:",
+  "- After meaningful changes, run tests and record:",
   "1. Run relevant tests.",
   "2. Run `rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`.",
   "- Start tasks with `rcc work \"<task>\"` before broad scanning.",
@@ -75,9 +83,30 @@ function stripLegacyWorkflowDuplicateLines(content: string): string {
   return keptLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+function stripLegacyAgentsGeneratedSection(content: string): string {
+  const start = content.indexOf(generatedStart);
+  const end = content.indexOf(generatedEnd);
+
+  if (start === -1 || end === -1 || end <= start) {
+    return content;
+  }
+
+  const section = content.slice(start, end + generatedEnd.length);
+  const isLegacyAgentsStub = section.includes("## Generated Repo Map")
+    && section.includes("Compact generated entrypoint.");
+
+  if (!isLegacyAgentsStub) {
+    return content;
+  }
+
+  return `${content.slice(0, start)}\n${content.slice(end + generatedEnd.length)}`
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function upsertAgentsWorkflowSection(existing: string, templateContent: string): string {
   const workflowSection = extractWorkflowSection(templateContent);
-  const normalizedExisting = existing.replace(/\r\n/g, "\n").replace(/\n*$/u, "\n");
+  const normalizedExisting = stripLegacyAgentsGeneratedSection(existing.replace(/\r\n/g, "\n")).replace(/\n*$/u, "\n");
 
   if (!workflowSection) {
     return normalizedExisting;
