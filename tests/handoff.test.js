@@ -320,7 +320,8 @@ test("rcc handoff reads present context sources conservatively", async () => {
     assert.deepEqual(brief.relevantTests, []);
     assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep handoff parsing conservative")));
     assert.equal(brief.nextLookup, 'rcc find "continue"');
-    assert.ok(brief.memory.includes("Last summary: Added source readers"));
+    assert.ok(brief.memory.includes("Last completed: Added source readers"));
+    assert.ok(brief.memory.includes("Completed at: 2026-06-18T12:00:00.000Z"));
     assert.ok(brief.memory.some((entry) => entry.includes("Decision: 2026-06-18 | Keep handoff parsing conservative")));
     assert.ok(brief.memory.some((entry) => entry.includes("Change: 2026-06-18 | repo-context-center done")));
     assert.ok(brief.memory.includes("Lesson: Handoff readers should tolerate absent files."));
@@ -333,7 +334,95 @@ test("rcc handoff reads present context sources conservatively", async () => {
     assert.equal(brief.debug.sources.decisionsCount, 1);
     assert.equal(brief.debug.sources.changeLogCount, 1);
     assert.equal(brief.debug.sources.lessonsCount, 1);
+    assert.equal(brief.debug.sources.latestDoneEntryPresent, true);
     assert.equal(brief.debug.sources.recentTouchedFilesCount, 1);
+  });
+});
+
+test("rcc handoff reads latest structured done entry", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "## 2026-06-18T12:00:00.000Z",
+      "- Summary: Older human summary",
+      "- Changed files: `src/old.ts`",
+      "```json repo-context-center:done",
+      JSON.stringify({
+        schemaVersion: 1,
+        command: "done",
+        timestamp: "2026-06-18T12:00:00.000Z",
+        summary: "Older structured summary",
+        files: ["src/old-structured.ts"],
+        verification: "npm test -- old",
+        followUps: ["Old follow-up"],
+        risks: ["Old risk"]
+      }, null, 2),
+      "```",
+      "",
+      "## 2026-06-19T12:00:00.000Z",
+      "- Summary: Conflicting weak text summary",
+      "- Changed files: `src/weak.ts`",
+      "- Verification: weak verification",
+      "- Risk: weak risk",
+      "- Follow-ups: weak follow-up",
+      "```json repo-context-center:done",
+      JSON.stringify({
+        schemaVersion: 1,
+        command: "done",
+        timestamp: "2026-06-19T12:00:00.000Z",
+        summary: "Latest structured summary",
+        files: ["src/structured.ts", "tests/structured.test.js"],
+        verification: "node --test tests/structured.test.js",
+        followUps: ["Continue structured handoff"],
+        risks: ["Watch parser compatibility"]
+      }, null, 2),
+      "```",
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["handoff", "--json", "--debug"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.ok(brief.memory.includes("Last completed: Latest structured summary"));
+    assert.ok(brief.memory.includes("Completed at: 2026-06-19T12:00:00.000Z"));
+    assert.ok(brief.memory.includes("Verification: node --test tests/structured.test.js"));
+    assert.ok(brief.memory.includes("Follow-up: Continue structured handoff"));
+    assert.ok(brief.memory.includes("Risk: Watch parser compatibility"));
+    assert.ok(brief.currentState.includes("Recently touched: src/structured.ts"));
+    assert.ok(brief.currentState.includes("Recently touched: tests/structured.test.js"));
+    assert.doesNotMatch(brief.memory.join("\n"), /Conflicting weak text summary/);
+    assert.equal(brief.debug.sources.latestDoneEntryPresent, true);
+  });
+});
+
+test("rcc handoff falls back to old work log parsing without structured done entry", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "## 2026-06-19T12:00:00.000Z",
+      "- Summary: Legacy completed work",
+      "- Changed files: `src/legacy.ts`, `tests/legacy.test.js`",
+      "- Verification: node --test tests/legacy.test.js",
+      "- Risk: Legacy parser risk",
+      "- Follow-ups: Add structured entries later",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["handoff", "--json", "--debug"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.ok(brief.memory.includes("Last completed: Legacy completed work"));
+    assert.ok(brief.memory.includes("Completed at: 2026-06-19T12:00:00.000Z"));
+    assert.ok(brief.memory.includes("Verification: node --test tests/legacy.test.js"));
+    assert.ok(brief.memory.includes("Follow-up: Add structured entries later"));
+    assert.ok(brief.memory.includes("Risk: Legacy parser risk"));
+    assert.ok(brief.currentState.includes("Recently touched: src/legacy.ts"));
+    assert.ok(brief.currentState.includes("Recently touched: tests/legacy.test.js"));
+    assert.equal(brief.debug.sources.latestDoneEntryPresent, true);
   });
 });
 
@@ -355,6 +444,7 @@ test("rcc handoff tolerates missing context sources", async () => {
     assert.equal(brief.debug.sources.decisionsCount, 0);
     assert.equal(brief.debug.sources.changeLogCount, 0);
     assert.equal(brief.debug.sources.lessonsCount, 0);
+    assert.equal(brief.debug.sources.latestDoneEntryPresent, false);
     assert.equal(brief.debug.sources.recentTouchedFilesCount, 0);
   });
 });

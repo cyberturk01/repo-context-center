@@ -33,6 +33,7 @@ export interface HandoffBrief {
       decisionsCount: number;
       gitStatusCount: number;
       lessonsCount: number;
+      latestDoneEntryPresent: boolean;
       recentTouchedFilesCount: number;
       workLogCount: number;
     };

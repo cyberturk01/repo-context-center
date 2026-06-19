@@ -15,6 +15,7 @@ export interface HandoffSources {
   changeLog: string[];
   decisions: string[];
   gitStatus: string[];
+  latestDoneEntry: StructuredDoneEntry | null;
   lessons: string[];
   recentTouchedFiles: string[];
   workLog: string[];
@@ -22,7 +23,20 @@ export interface HandoffSources {
 
 interface WorkLogEntry {
   changedFiles: string[];
+  followUps: string[];
+  risks: string[];
   summary: string | null;
+  timestamp: string | null;
+  verification: string | null;
+}
+
+export interface StructuredDoneEntry {
+  files: string[];
+  followUps: string[];
+  risks: string[];
+  summary: string;
+  timestamp: string;
+  verification: string | null;
 }
 
 async function readOptionalText(cwd: string, relativePath: string): Promise<string | null> {
@@ -108,6 +122,63 @@ function parseChangedFilesLine(line: string): string[] {
     .filter(Boolean);
 }
 
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.map((item) => typeof item === "string" ? item.trim() : "").filter(Boolean)
+    : [];
+}
+
+function parseStructuredDoneEntry(value: unknown): StructuredDoneEntry | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const entry = value as Record<string, unknown>;
+  if (entry.schemaVersion !== 1 || entry.command !== "done") {
+    return null;
+  }
+
+  const summary = typeof entry.summary === "string" ? entry.summary.trim() : "";
+  const timestamp = typeof entry.timestamp === "string" ? entry.timestamp.trim() : "";
+  if (!summary || !timestamp) {
+    return null;
+  }
+
+  return {
+    files: stringArray(entry.files),
+    followUps: stringArray(entry.followUps),
+    risks: stringArray(entry.risks),
+    summary,
+    timestamp,
+    verification: typeof entry.verification === "string" && entry.verification.trim()
+      ? entry.verification.trim()
+      : null
+  };
+}
+
+function structuredDoneEntries(content: string, limit = handoffSourceLimit): StructuredDoneEntry[] {
+  const entries: StructuredDoneEntry[] = [];
+  const pattern = /```json repo-context-center:done\s*\n(?<json>[\s\S]*?)\n```/g;
+
+  for (const match of content.matchAll(pattern)) {
+    const rawJson = match.groups?.json;
+    if (!rawJson) {
+      continue;
+    }
+
+    try {
+      const entry = parseStructuredDoneEntry(JSON.parse(rawJson));
+      if (entry) {
+        entries.push(entry);
+      }
+    } catch {
+      // Ignore malformed structured blocks and fall back to legacy parsing.
+    }
+  }
+
+  return entries.slice(-limit).reverse();
+}
+
 function recentWorkLogEntries(content: string, limit = handoffSourceLimit): WorkLogEntry[] {
   const entries: WorkLogEntry[] = [];
   let current: WorkLogEntry | null = null;
@@ -119,7 +190,14 @@ function recentWorkLogEntries(content: string, limit = handoffSourceLimit): Work
       if (current) {
         entries.push(current);
       }
-      current = { changedFiles: [], summary: null };
+      current = {
+        changedFiles: [],
+        followUps: [],
+        risks: [],
+        summary: null,
+        timestamp: trimmed.replace(/^##\s*/, "").trim() || null,
+        verification: null
+      };
       continue;
     }
 
@@ -134,6 +212,23 @@ function recentWorkLogEntries(content: string, limit = handoffSourceLimit): Work
 
     if (trimmed.startsWith("- Changed files: ")) {
       current.changedFiles = parseChangedFilesLine(trimmed);
+      continue;
+    }
+
+    if (trimmed.startsWith("- Verification: ")) {
+      current.verification = trimmed.replace(/^- Verification:\s*/, "").trim() || null;
+      continue;
+    }
+
+    if (trimmed.startsWith("- Risk: ")) {
+      const risk = trimmed.replace(/^- Risk:\s*/, "").trim();
+      current.risks = risk ? [risk] : [];
+      continue;
+    }
+
+    if (trimmed.startsWith("- Follow-ups: ")) {
+      const followUp = trimmed.replace(/^- Follow-ups:\s*/, "").trim();
+      current.followUps = followUp ? [followUp] : [];
     }
   }
 
@@ -142,6 +237,21 @@ function recentWorkLogEntries(content: string, limit = handoffSourceLimit): Work
   }
 
   return entries.slice(-limit).reverse();
+}
+
+function doneEntryFromWorkLogEntry(entry: WorkLogEntry): StructuredDoneEntry | null {
+  if (!entry.summary || !entry.timestamp) {
+    return null;
+  }
+
+  return {
+    files: entry.changedFiles,
+    followUps: entry.followUps,
+    risks: entry.risks,
+    summary: entry.summary,
+    timestamp: entry.timestamp,
+    verification: entry.verification
+  };
 }
 
 function uniqueSorted(values: string[]): string[] {
@@ -188,15 +298,22 @@ export async function readHandoffSources(cwd: string): Promise<HandoffSources> {
     readOptionalText(cwd, changeLogPath),
     readOptionalText(cwd, lessonsPath)
   ]);
-  const workLogEntries = workLog ? recentWorkLogEntries(workLog) : [];
+  const structuredEntries = workLog ? structuredDoneEntries(workLog) : [];
+  const legacyWorkLogEntries = workLog ? recentWorkLogEntries(workLog) : [];
+  const doneEntries = structuredEntries.length > 0
+    ? structuredEntries
+    : legacyWorkLogEntries
+      .map(doneEntryFromWorkLogEntry)
+      .filter((entry): entry is StructuredDoneEntry => Boolean(entry));
 
   return {
     agents: agents?.trim() || null,
     changeLog: changeLog ? recentTableRows(changeLog) : [],
     decisions: decisions ? recentTableRows(decisions) : [],
     gitStatus: readGitStatus(cwd),
+    latestDoneEntry: doneEntries[0] ?? null,
     lessons: lessons ? recentBulletLines(lessons) : [],
-    recentTouchedFiles: uniqueSorted(workLogEntries.flatMap((entry) => entry.changedFiles)),
-    workLog: workLogEntries.map((entry) => entry.summary).filter((summary): summary is string => Boolean(summary))
+    recentTouchedFiles: uniqueSorted(doneEntries.flatMap((entry) => entry.files)),
+    workLog: doneEntries.map((entry) => entry.summary)
   };
 }

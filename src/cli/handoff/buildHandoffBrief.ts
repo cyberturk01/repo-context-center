@@ -26,6 +26,28 @@ function buildCurrentState(gitStatus: string[], recentTouchedFiles: string[]): s
   return state;
 }
 
+function latestDoneMemory(
+  entry: {
+    followUps: string[];
+    risks: string[];
+    summary: string;
+    timestamp: string;
+    verification: string | null;
+  } | null
+): string[] {
+  if (!entry) {
+    return [];
+  }
+
+  return [
+    `Last completed: ${entry.summary}`,
+    `Completed at: ${entry.timestamp}`,
+    ...(entry.verification ? [`Verification: ${entry.verification}`] : []),
+    ...entry.followUps.map((followUp) => `Follow-up: ${followUp}`),
+    ...entry.risks.map((risk) => `Risk: ${risk}`)
+  ];
+}
+
 function uniqueValues(values: string[]): string[] {
   return [...new Set(values)];
 }
@@ -63,9 +85,8 @@ export async function buildHandoffBrief(cwd: string, options: { task: string | n
       maxFiles: handoffRouteLimit
     })
     : null;
-  const lastSummary = sources.workLog[0] ? [`Last summary: ${sources.workLog[0]}`] : [];
   const memory = [
-    ...lastSummary,
+    ...latestDoneMemory(sources.latestDoneEntry),
     ...formatSourceItems("Decision", sources.decisions),
     ...formatSourceItems("Change", sources.changeLog),
     ...formatSourceItems("Lesson", sources.lessons)
@@ -107,6 +128,7 @@ export async function buildHandoffBrief(cwd: string, options: { task: string | n
           decisionsCount: sources.decisions.length,
           gitStatusCount: sources.gitStatus.length,
           lessonsCount: sources.lessons.length,
+          latestDoneEntryPresent: Boolean(sources.latestDoneEntry),
           recentTouchedFilesCount: sources.recentTouchedFiles.length,
           workLogCount: sources.workLog.length
         }

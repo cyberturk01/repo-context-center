@@ -188,4 +188,34 @@ Lightweight RCC memory from completed agent work.
 - Summary: Made rcc handoff task-aware by deriving compact route fields from the existing work brief builder.
 - Changed files: `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffConstants.ts`, `src/cli/handoff/handoffTypes.ts`, `src/cli/handoff/renderAgent.ts`, `src/cli/handoff/renderJson.ts`, `src/cli/handoff/renderText.ts`, `tests/handoff.test.js`
 - Verification: npm run build; node --test tests/handoff.test.js; node --test tests/cli.test.js
+
+## 2026-06-19T22:02:36.916Z
+- Summary: Improved done-to-handoff integration with structured work log entries and latest-entry handoff parsing.
+- Changed files: `src/cli/commands/done.ts`, `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffSources.ts`, `src/cli/handoff/handoffTypes.ts`, `tests/done.test.js`, `tests/handoff.test.js`
+- Verification: npm run build; node --test tests/done.test.js; node --test tests/handoff.test.js; node --test tests/cli.test.js
+- Risk: Keep legacy WORK_LOG parsing compatible for older entries.
+- Follow-ups: Use structured done data for richer future handoff assembly.
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-19T22:02:36.916Z",
+  "summary": "Improved done-to-handoff integration with structured work log entries and latest-entry handoff parsing.",
+  "files": [
+    "src/cli/commands/done.ts",
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffSources.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "tests/done.test.js",
+    "tests/handoff.test.js"
+  ],
+  "verification": "npm run build; node --test tests/done.test.js; node --test tests/handoff.test.js; node --test tests/cli.test.js",
+  "followUps": [
+    "Use structured done data for richer future handoff assembly."
+  ],
+  "risks": [
+    "Keep legacy WORK_LOG parsing compatible for older entries."
+  ]
+}
+```
 <!-- repo-context-center:work-log:end -->

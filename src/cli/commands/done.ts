@@ -64,7 +64,7 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
       continue;
     }
 
-    if (arg === "--risk") {
+    if (arg === "--risk" || arg === "--risks") {
       const value = args[index + 1];
       if (!value) {
         return undefined;
@@ -74,7 +74,7 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
       continue;
     }
 
-    if (arg === "--follow-ups") {
+    if (arg === "--follow-ups" || arg === "--followUps") {
       const value = args[index + 1];
       if (!value) {
         return undefined;
@@ -123,6 +123,11 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
 function cleanInline(value: string, maxLength = 300): string {
   const cleaned = value.replace(/\r?\n/g, " ").replace(/\s+/g, " ").trim();
   return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength - 1)}...` : cleaned;
+}
+
+function compactList(value: string): string[] {
+  const cleaned = cleanInline(value);
+  return cleaned ? [cleaned] : [];
 }
 
 function formatFiles(files: string[], emptyLabel = "_not detected_"): string {
@@ -198,6 +203,21 @@ function formatEntry(options: DoneOptions, files: string[], timestamp = new Date
   if (options.followUps) {
     lines.push(`- Follow-ups: ${cleanInline(options.followUps)}`);
   }
+
+  lines.push(
+    "```json repo-context-center:done",
+    JSON.stringify({
+      schemaVersion: 1,
+      command: "done",
+      timestamp,
+      summary: cleanInline(options.summary),
+      files,
+      verification: options.verify ? cleanInline(options.verify) : null,
+      followUps: compactList(options.followUps),
+      risks: compactList(options.risk)
+    }, null, 2),
+    "```"
+  );
 
   return lines.join("\n");
 }
