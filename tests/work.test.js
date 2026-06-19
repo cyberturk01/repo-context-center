@@ -137,6 +137,38 @@ async function withWorkRepo(callback) {
   }
 }
 
+async function writeHandoffDecisionFixture(root) {
+  await writeFixtureFile(
+    root,
+    "docs/ai-context/TASK_ROUTING.md",
+    [
+      "# Task Routing",
+      "",
+      "- Handoff implementation work: read `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/renderJson.ts`, `src/cli/handoff/renderAgent.ts`, `src/cli/commands/handoff.ts`, and `tests/handoff.test.js`."
+    ].join("\n")
+  );
+  await writeFixtureFile(
+    root,
+    "docs/ai-context/DECISIONS.md",
+    [
+      "# Decisions",
+      "",
+      "| Date | Decision | Reason | Status | Files |",
+      "| --- | --- | --- | --- | --- |",
+      "| 2026-06-16 | Keep billing webhook retries idempotent | Avoid duplicate invoices | Active | src/billing/webhook.ts |",
+      "| 2026-06-17 | Keep handoff architecture guard close to the builder | Preserve agent handoff structure | Active | src/cli/handoff/buildHandoffBrief.ts |",
+      "| 2026-06-18 | Keep handoff command thin through delegation | Avoid business logic in command handlers | Active | src/cli/commands/handoff.ts |",
+      "| 2026-06-19 | Keep JSON renderer decision output compact | Preserve machine-readable handoff JSON | Active | src/cli/handoff/renderJson.ts |"
+    ].join("\n")
+  );
+  await writeFixtureFile(root, "src/cli/handoff/buildHandoffBrief.ts", "export function buildHandoffBrief() {}\n");
+  await writeFixtureFile(root, "src/cli/handoff/renderJson.ts", "export function renderHandoffJson() {}\n");
+  await writeFixtureFile(root, "src/cli/handoff/renderAgent.ts", "export function renderHandoffAgent() {}\n");
+  await writeFixtureFile(root, "src/cli/commands/handoff.ts", "export function handoffCommand() {}\n");
+  await writeFixtureFile(root, "tests/handoff.test.js", "test('handoff', () => {});\n");
+  await writeFixtureFile(root, "src/billing/webhook.ts", "export function webhook() {}\n");
+}
+
 async function withLookupRankingRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-ranking-"));
 
@@ -1927,6 +1959,43 @@ test("work reads recent memory logs from work, change, and lessons files", async
       "Lesson: login lesson"
     ]);
   });
+});
+
+test("work matches handoff decisions from normalized task and file module terms", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-decisions-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeHandoffDecisionFixture(tempDir);
+
+    const result = runCli(["work", "--json", "--debug", "continue agent handover implementation"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep handoff architecture guard")));
+    assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep handoff command thin")));
+    assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep JSON renderer decision output compact")));
+    assert.equal(brief.relevantDecisions.some((decision) => decision.includes("billing webhook")), false);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work does not include decision fallback for unrelated tasks", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-decisions-unrelated-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeHandoffDecisionFixture(tempDir);
+
+    const result = runCli(["work", "--json", "--debug", "update marketing copy"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(brief.relevantDecisions, []);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("work output is concise and agent-oriented", async () => {

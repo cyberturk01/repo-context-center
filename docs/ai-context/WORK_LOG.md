@@ -285,4 +285,25 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-19T22:28:08.946Z
+- Summary: Implemented v0.9.1 relevant decision matching for work and handoff using normalized task, file, basename, and module terms with quiet fallback behavior.
+- Changed files: `src/cli/work/memorySignals.ts`, `tests/handoff.test.js`, `tests/work.test.js`
+- Verification: npm test
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-19T22:28:08.946Z",
+  "summary": "Implemented v0.9.1 relevant decision matching for work and handoff using normalized task, file, basename, and module terms with quiet fallback behavior.",
+  "files": [
+    "src/cli/work/memorySignals.ts",
+    "tests/handoff.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

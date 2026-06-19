@@ -45,6 +45,38 @@ async function withTempRepo(callback) {
   }
 }
 
+async function writeHandoffDecisionFixture(root) {
+  await writeFixtureFile(
+    root,
+    "docs/ai-context/TASK_ROUTING.md",
+    [
+      "# Task Routing",
+      "",
+      "- Handoff implementation work: read `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/renderJson.ts`, `src/cli/handoff/renderAgent.ts`, `src/cli/commands/handoff.ts`, and `tests/handoff.test.js`."
+    ].join("\n")
+  );
+  await writeFixtureFile(
+    root,
+    "docs/ai-context/DECISIONS.md",
+    [
+      "# Decisions",
+      "",
+      "| Date | Decision | Reason | Status | Files |",
+      "| --- | --- | --- | --- | --- |",
+      "| 2026-06-16 | Keep billing webhook retries idempotent | Avoid duplicate invoices | Active | src/billing/webhook.ts |",
+      "| 2026-06-17 | Keep handoff architecture guard close to the builder | Preserve agent handoff structure | Active | src/cli/handoff/buildHandoffBrief.ts |",
+      "| 2026-06-18 | Keep handoff command thin through delegation | Avoid business logic in command handlers | Active | src/cli/commands/handoff.ts |",
+      "| 2026-06-19 | Keep JSON renderer decision output compact | Preserve machine-readable handoff JSON | Active | src/cli/handoff/renderJson.ts |"
+    ].join("\n")
+  );
+  await writeFixtureFile(root, "src/cli/handoff/buildHandoffBrief.ts", "export function buildHandoffBrief() {}\n");
+  await writeFixtureFile(root, "src/cli/handoff/renderJson.ts", "export function renderHandoffJson() {}\n");
+  await writeFixtureFile(root, "src/cli/handoff/renderAgent.ts", "export function renderHandoffAgent() {}\n");
+  await writeFixtureFile(root, "src/cli/commands/handoff.ts", "export function handoffCommand() {}\n");
+  await writeFixtureFile(root, "tests/handoff.test.js", "test('handoff', () => {});\n");
+  await writeFixtureFile(root, "src/billing/webhook.ts", "export function webhook() {}\n");
+}
+
 test("rcc handoff prints a placeholder handoff brief", () => {
   const result = runCli(["handoff"]);
 
@@ -581,5 +613,32 @@ test("rcc handoff with task reuses work routing for task-specific next files", a
     assert.match(brief.nextLookup, /^rcc find "/);
     assert.equal(brief.nextCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
     assert.ok(brief.nextActions.includes("Inspect nextRecommendedFiles before searching."));
+  });
+});
+
+test("rcc handoff matches relevant handoff decisions without noisy unrelated rows", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "AGENTS.md", "# Repo Agents\n");
+    await writeHandoffDecisionFixture(tempDir);
+
+    const result = runCli(["handoff", "continue agent handover implementation", "--json"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.ok(brief.relevantDecisions.length >= 1);
+    assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep handoff architecture guard")));
+    assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep handoff command thin")));
+    assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep JSON renderer decision output compact")));
+    assert.equal(brief.relevantDecisions.some((decision) => decision.includes("billing webhook")), false);
+  });
+});
+
+test("rcc handoff does not return decisions for unrelated tasks", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeHandoffDecisionFixture(tempDir);
+
+    const result = runCli(["handoff", "update marketing copy", "--json"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.deepEqual(brief.relevantDecisions, []);
   });
 });
