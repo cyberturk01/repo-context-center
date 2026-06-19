@@ -4,6 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const test = require("node:test");
+const { renderHandoffText } = require("../dist/cli/handoff/renderText");
 
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
@@ -36,10 +37,14 @@ test("rcc handoff prints a placeholder handoff brief", () => {
 
   assert.equal(result.status, 0);
   assert.equal(result.stderr, "");
-  assert.match(result.stdout, /repo-context-center handoff/);
-  assert.match(result.stdout, /Task: \(none\)/);
+  assert.match(result.stdout, /repo-context-center handoff brief/);
+  assert.match(result.stdout, /Task:\nnone/);
   assert.match(result.stdout, /Current state:/);
-  assert.match(result.stdout, /Next command: rcc work "<task>" --agent/);
+  assert.match(result.stdout, /Memory:/);
+  assert.match(result.stdout, /Read first:/);
+  assert.match(result.stdout, /Next actions:/);
+  assert.match(result.stdout, /Avoid:/);
+  assert.doesNotMatch(result.stdout, /```/);
 });
 
 test("rcc handoff accepts a task", () => {
@@ -47,7 +52,95 @@ test("rcc handoff accepts a task", () => {
 
   assert.equal(result.status, 0);
   assert.equal(result.stderr, "");
-  assert.match(result.stdout, /Task: finish handoff shell/);
+  assert.match(result.stdout, /Task:\nfinish handoff shell/);
+});
+
+test("renderHandoffText formats compact human-readable sections", () => {
+  const output = renderHandoffText({
+    schemaVersion: 1,
+    command: "handoff",
+    task: "continue handoff work",
+    generatedAt: "2026-06-19T12:00:00.000Z",
+    currentState: [
+      "Last summary: Added source readers",
+      "Files touched: src/cli/handoff/renderText.ts",
+      "Verification: npm test"
+    ],
+    memory: [
+      "Decisions: Keep handoff parsing conservative",
+      "Recent logs: Added handoff model"
+    ],
+    readFirst: ["AGENTS.md", "tests/handoff.test.js"],
+    nextActions: ["Update text renderer", "Run focused tests"],
+    avoid: ["Do not include JSON or markdown fences"],
+    nextCommand: 'rcc work "<task>" --agent'
+  });
+
+  assert.equal(output, [
+    "repo-context-center handoff brief",
+    "",
+    "Task:",
+    "continue handoff work",
+    "",
+    "Current state:",
+    "- Last summary: Added source readers",
+    "- Files touched: src/cli/handoff/renderText.ts",
+    "- Verification: npm test",
+    "",
+    "Memory:",
+    "- Decisions: Keep handoff parsing conservative",
+    "- Recent logs: Added handoff model",
+    "",
+    "Read first:",
+    "- AGENTS.md",
+    "- tests/handoff.test.js",
+    "",
+    "Next actions:",
+    "1. Update text renderer",
+    "2. Run focused tests",
+    "",
+    "Avoid:",
+    "- Do not include JSON or markdown fences",
+    ""
+  ].join("\n"));
+});
+
+test("renderHandoffText uses none fallbacks", () => {
+  const output = renderHandoffText({
+    schemaVersion: 1,
+    command: "handoff",
+    task: null,
+    generatedAt: "2026-06-19T12:00:00.000Z",
+    currentState: [],
+    memory: [],
+    readFirst: [],
+    nextActions: [],
+    avoid: [],
+    nextCommand: 'rcc work "<task>" --agent'
+  });
+
+  assert.equal(output, [
+    "repo-context-center handoff brief",
+    "",
+    "Task:",
+    "none",
+    "",
+    "Current state:",
+    "- none",
+    "",
+    "Memory:",
+    "- none",
+    "",
+    "Read first:",
+    "- none",
+    "",
+    "Next actions:",
+    "1. none",
+    "",
+    "Avoid:",
+    "- none",
+    ""
+  ].join("\n"));
 });
 
 test("rcc handoff --json returns a machine-readable brief", () => {
