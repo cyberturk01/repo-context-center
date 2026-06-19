@@ -28,4 +28,19 @@ Lightweight RCC memory from completed agent work.
 - Summary: Compacted AGENTS RCC workflow guidance
 - Changed files: `AGENTS.md`
 - Verification: npm run build; node --test tests/work.test.js; npm test
+
+## 2026-06-19T13:01:46.551Z
+- Summary: Added dependency-free routing benchmark script and npm alias for representative rcc work tasks
+- Changed files: `AGENTS.md`, `package.json`, `scripts/benchmark-routing.js`
+- Verification: npm run build; npm run benchmark:routing; npm test
+
+## 2026-06-19T13:13:24.289Z
+- Summary: Added doctor command to warn when local RCC development repo is run with a mismatched external CLI
+- Changed files: `AGENTS.md`, `package.json`, `scripts/benchmark-routing.js`, `src/cli/commands/doctor.ts`, `src/cli/index.ts`, `tests/cli.test.js`
+- Verification: npm run build; node dist/cli/index.js doctor; npm test
+
+## 2026-06-19T13:24:20.904Z
+- Summary: Added measure command to compare naive scan token estimates with RCC work startup estimates
+- Changed files: `AGENTS.md`, `package.json`, `scripts/benchmark-routing.js`, `src/cli/commands/doctor.ts`, `src/cli/commands/measure.ts`, `src/cli/commands/work.ts`, `src/cli/index.ts`, `src/core/tokenEstimator.ts`, `tests/cli.test.js`, `tests/estimate.test.js`
+- Verification: npm run build; node dist/cli/index.js measure "fix workflow bug"; node dist/cli/index.js measure "fix workflow bug" --json; npm test
 <!-- repo-context-center:work-log:end -->

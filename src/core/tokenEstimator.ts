@@ -113,11 +113,11 @@ const naiveGeneratedExclusions = [
   "docs/ai-context/archive"
 ];
 
-function estimateTokens(characterCount: number): number {
+export function estimateTokens(characterCount: number): number {
   return Math.ceil(characterCount / 4);
 }
 
-function estimateSavingPercent(naiveTokens: number, startupTokens: number, savedTokens: number): number {
+export function estimateSavingPercent(naiveTokens: number, startupTokens: number, savedTokens: number): number {
   if (naiveTokens <= 0) {
     return 0;
   }
@@ -253,7 +253,7 @@ async function collectNaiveFiles(
   }
 }
 
-async function estimateNaiveScan(cwd: string, maxFiles: number): Promise<{
+export async function estimateNaiveScan(cwd: string, maxFiles: number): Promise<{
   tokens: number;
   fileCount: number;
   capped: boolean;

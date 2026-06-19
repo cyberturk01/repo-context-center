@@ -23,7 +23,10 @@ After meaningful changes:
 ## Local RCC Development
 
 - In this repo, use `node dist/cli/index.js <command>` instead of global `rcc`; run `npm run build` first if source changed.
+- Run `node dist/cli/index.js doctor` if local/global RCC version alignment is in doubt.
 - Use `npx repo-context-center@latest` only for published-package smoke tests.
+- Run `node dist/cli/index.js measure "<task>"` to compare naive scan estimates with RCC startup estimates.
+- Run `npm run benchmark:routing` to sample `rcc work --json` routing against representative developer tasks.
 
 - If shell commands are unavailable, fallback to reading `docs/ai-context/COMMUNICATION_MODE.md`, `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/TOKEN_BUDGET.md`, and `docs/ai-context/DO_NOT_READ.md`.
 - Use `docs/ai-context/MODULE_INDEX.md` only when routing is missing or the task spans modules.

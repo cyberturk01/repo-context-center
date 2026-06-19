@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 import { archiveCommand } from "./commands/archive";
 import { decisionCommand } from "./commands/decision";
+import { doctorCommand } from "./commands/doctor";
 import { doneCommand } from "./commands/done";
 import { estimateCommand } from "./commands/estimate";
 import { findCommand } from "./commands/find";
 import { initCommand } from "./commands/init";
 import { logCommand } from "./commands/log";
 import { mapCommand } from "./commands/map";
+import { measureCommand } from "./commands/measure";
 import { scanCommand } from "./commands/scan";
 import { startCommand } from "./commands/start";
 import { suggestCommand } from "./commands/suggest";
@@ -26,11 +28,13 @@ const commands: Record<string, CommandHandler> = {
   validate: validateCommand,
   archive: archiveCommand,
   decision: decisionCommand,
+  doctor: doctorCommand,
   done: doneCommand,
   estimate: estimateCommand,
   find: findCommand,
   log: logCommand,
   map: mapCommand,
+  measure: measureCommand,
   scan: scanCommand,
   start: startCommand,
   suggest: suggestCommand,
@@ -59,6 +63,7 @@ Commands:
             Usage: decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
                    decision list
                    decision search "<query>"
+  doctor    Check local development CLI/version alignment
   estimate  Estimate context token costs and rough savings
             Options: --json, --mode <mode>, --task <text>, --compare-naive, --max-files <number>
   find      Find focused file candidates for a concept or query
@@ -67,6 +72,8 @@ Commands:
             Usage: log "<summary>" [--files <path,path>] [--dry-run]
   map       Generate repo-specific context maps
             Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>
+  measure   Estimate naive scan tokens vs RCC startup tokens for a task
+            Usage: measure "<task>" [--json]
   scan      Suggest lightweight context entries from repo layout
             Options: --json
   start     Print a startup prompt for an AI coding agent

@@ -37,6 +37,7 @@
     "docs/assets/repo-context-center-diagram.svg"
   ],
   "scripts": {
+    "benchmark:routing": "node scripts/benchmark-routing.js",
     "benchmark:work-repeat": "node scripts/benchmark-work-repeat.js",
     "build": "tsc -p tsconfig.json && node scripts/copy-templates.js",
     "lint": "tsc -p tsconfig.json --noEmit",

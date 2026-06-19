@@ -146,7 +146,7 @@ interface PublicWorkBrief {
   };
 }
 
-interface CompactWorkBrief {
+export interface CompactWorkBrief {
   schemaVersion: 1;
   command: "work";
   task: string;
@@ -1978,7 +1978,7 @@ function compactContextIfUnclear(brief: WorkBrief): string[] {
   ]);
 }
 
-function renderWorkBriefCompactJson(brief: WorkBrief): string {
+function toCompactWorkBrief(brief: WorkBrief): CompactWorkBrief {
   const withoutTokens: Omit<CompactWorkBrief, "tokens"> = {
     schemaVersion: 1,
     command: brief.command,
@@ -2006,7 +2006,63 @@ function renderWorkBriefCompactJson(brief: WorkBrief): string {
     }
   };
 
+  return compactBrief;
+}
+
+function renderWorkBriefCompactJson(brief: WorkBrief): string {
+  const compactBrief = toCompactWorkBrief(brief);
+
   return `${JSON.stringify(compactBrief, null, 2)}\n`;
+}
+
+export async function buildCompactWorkBrief(
+  cwd: string,
+  task: string,
+  options: { contextBudget?: ContextBudget; maxFiles?: number } = {}
+): Promise<CompactWorkBrief> {
+  return toCompactWorkBrief(await buildWorkBriefForTask(cwd, task, options));
+}
+
+async function buildWorkBriefForTask(
+  cwd: string,
+  task: string,
+  options: { contextBudget?: ContextBudget; maxFiles?: number } = {}
+): Promise<WorkBrief> {
+  const contextBudget = options.contextBudget ?? "balanced";
+  const maxFiles = options.maxFiles ?? 50;
+  const taskIntent = analyzeTaskIntent(task);
+  const startupContext = await buildStartupContext(cwd, task, {
+    maxFiles,
+    genericFallbackMaxTests: 5
+  });
+  const focusedStartupContext = focusStartupContextForStart(startupContext, {
+    maxSourceFiles: Math.min(maxFiles, 8),
+    maxTestFiles: Math.min(maxFiles, 6)
+  });
+  const [mapFreshness, decisions, logs, lookupHints] = await Promise.all([
+    assessMapFreshness(cwd),
+    readRelevantDecisions(cwd, focusedStartupContext, taskIntent),
+    readRecentLogs(cwd),
+    targetedLookupHints(cwd, taskIntent, focusedStartupContext)
+  ]);
+  const existingContextFiles = await existingReadFirstContextFiles(cwd);
+  const readFirstGuidance = buildReadFirstGuidance(
+    focusedStartupContext,
+    lookupHints,
+    contextBudget,
+    existingContextFiles,
+    taskIntent
+  );
+  return buildWorkBrief(
+    focusedStartupContext,
+    mapFreshness,
+    decisions,
+    logs,
+    lookupHints,
+    readFirstGuidance,
+    contextBudget,
+    taskIntent
+  );
 }
 
 export async function workCommand(io: CliIO, args: string[] = []): Promise<number> {
@@ -2016,40 +2072,10 @@ export async function workCommand(io: CliIO, args: string[] = []): Promise<numbe
     return 1;
   }
 
-  const taskIntent = analyzeTaskIntent(options.task);
-  const startupContext = await buildStartupContext(io.cwd, options.task, {
-    maxFiles: options.maxFiles,
-    genericFallbackMaxTests: 5
+  const brief = await buildWorkBriefForTask(io.cwd, options.task, {
+    contextBudget: options.contextBudget,
+    maxFiles: options.maxFiles
   });
-  const focusedStartupContext = focusStartupContextForStart(startupContext, {
-    maxSourceFiles: Math.min(options.maxFiles, 8),
-    maxTestFiles: Math.min(options.maxFiles, 6)
-  });
-  const [mapFreshness, decisions, logs, lookupHints] = await Promise.all([
-    assessMapFreshness(io.cwd),
-    readRelevantDecisions(io.cwd, focusedStartupContext, taskIntent),
-    readRecentLogs(io.cwd),
-    targetedLookupHints(io.cwd, taskIntent, focusedStartupContext)
-  ]);
-  const existingContextFiles = await existingReadFirstContextFiles(io.cwd);
-  const readFirstGuidance = buildReadFirstGuidance(
-    focusedStartupContext,
-    lookupHints,
-    options.contextBudget,
-    existingContextFiles,
-    taskIntent
-  );
-
-  const brief = buildWorkBrief(
-    focusedStartupContext,
-    mapFreshness,
-    decisions,
-    logs,
-    lookupHints,
-    readFirstGuidance,
-    options.contextBudget,
-    taskIntent
-  );
 
   if (options.json) {
     io.stdout(options.debug ? renderWorkBriefDebugJson(brief) : renderWorkBriefCompactJson(brief));
