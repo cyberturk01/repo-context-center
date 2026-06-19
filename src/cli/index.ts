@@ -5,6 +5,7 @@ import { doctorCommand } from "./commands/doctor";
 import { doneCommand } from "./commands/done";
 import { estimateCommand } from "./commands/estimate";
 import { findCommand } from "./commands/find";
+import { handoffCommand } from "./commands/handoff";
 import { initCommand } from "./commands/init";
 import { logCommand } from "./commands/log";
 import { mapCommand } from "./commands/map";
@@ -32,6 +33,7 @@ const commands: Record<string, CommandHandler> = {
   done: doneCommand,
   estimate: estimateCommand,
   find: findCommand,
+  handoff: handoffCommand,
   log: logCommand,
   map: mapCommand,
   measure: measureCommand,
@@ -68,6 +70,8 @@ Commands:
             Options: --json, --mode <mode>, --task <text>, --compare-naive, --max-files <number>
   find      Find focused file candidates for a concept or query
             Usage: find "<query>" [--limit <number>]
+  handoff   Print a handoff brief for continuing agent work
+            Usage: handoff [task] [--json|--agent] [--debug]
   log       Add a durable entry to docs/ai-context/CHANGE_LOG.md
             Usage: log "<summary>" [--files <path,path>] [--dry-run]
   map       Generate repo-specific context maps
