@@ -19,10 +19,23 @@ export function toAgentHandoff(brief: HandoffBrief): CompactAgentHandoff {
   };
 
   if (brief.writtenPath) {
-    return {
-      ...agentHandoff,
-      writtenPath: brief.writtenPath
-    };
+    agentHandoff.writtenPath = brief.writtenPath;
+  }
+
+  if (brief.lastSummary) {
+    agentHandoff.lastSummary = brief.lastSummary;
+  }
+  if (brief.filesTouched) {
+    agentHandoff.filesTouched = brief.filesTouched;
+  }
+  if (brief.verification) {
+    agentHandoff.verification = brief.verification;
+  }
+  if (brief.followUps) {
+    agentHandoff.followUps = brief.followUps;
+  }
+  if (brief.risks) {
+    agentHandoff.risks = brief.risks;
   }
 
   return agentHandoff;

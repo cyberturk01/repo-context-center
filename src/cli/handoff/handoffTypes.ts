@@ -22,6 +22,11 @@ export interface HandoffBrief {
   nextRecommendedFiles: HandoffFile[];
   relevantTests: HandoffFile[];
   relevantDecisions: string[];
+  lastSummary?: string;
+  filesTouched?: string[];
+  verification?: string[];
+  followUps?: string[];
+  risks?: string[];
   nextActions: string[];
   avoid: string[];
   nextLookup: string;
@@ -53,6 +58,11 @@ export interface PublicHandoffBrief {
   nextRecommendedFiles: HandoffFile[];
   relevantTests: HandoffFile[];
   relevantDecisions: string[];
+  lastSummary?: string;
+  filesTouched?: string[];
+  verification?: string[];
+  followUps?: string[];
+  risks?: string[];
   nextActions: string[];
   avoid: string[];
   nextLookup: string;
@@ -71,6 +81,11 @@ export interface CompactAgentHandoff {
   nextRecommendedFiles: HandoffFile[];
   relevantTests: HandoffFile[];
   relevantDecisions: string[];
+  lastSummary?: string;
+  filesTouched?: string[];
+  verification?: string[];
+  followUps?: string[];
+  risks?: string[];
   nextActions: string[];
   avoid: string[];
   nextLookup: string;

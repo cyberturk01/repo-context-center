@@ -185,6 +185,18 @@ const decisionModuleTerms = new Set([
   "work",
   "write"
 ]);
+const decisionDomainTerms = new Set([
+  "architecture",
+  "auth",
+  "context",
+  "decision",
+  "dependency",
+  "package",
+  "release",
+  "routing",
+  "security",
+  "workflow"
+]);
 
 interface DecisionMatchContext {
   exactPathTerms: string[];
@@ -288,7 +300,11 @@ function buildDecisionMatchContext(startup: StartupContext, taskIntent: TaskInte
   const fallbackTerms = new Set([
     ...taskTerms,
     ...moduleTerms
-  ].filter((term) => decisionModuleTerms.has(term) || !meaningfulDecisionStopTerms.has(term)));
+  ].filter((term) => (
+    decisionModuleTerms.has(term)
+    || decisionDomainTerms.has(term)
+    || !meaningfulDecisionStopTerms.has(term)
+  )));
 
   return {
     exactPathTerms: useRecommendedFileTerms ? likelyFiles.map(normalizedDecisionPath).filter(Boolean) : [],
@@ -325,7 +341,7 @@ function decisionHasFallbackTerm(cells: string[], context: DecisionMatchContext)
   const rowTerms = decisionRowTerms(cells);
 
   for (const term of context.fallbackTerms) {
-    if (decisionModuleTerms.has(term) && rowTerms.has(term)) {
+    if ((decisionModuleTerms.has(term) || decisionDomainTerms.has(term)) && rowTerms.has(term)) {
       return true;
     }
   }

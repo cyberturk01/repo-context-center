@@ -306,4 +306,152 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-19T22:33:52.271Z
+- Summary: Implemented structured handoff memory blocks and verified relevant decision matching for work and handoff.
+- Changed files: `src/cli/commands/done.ts`, `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffSources.ts`, `src/cli/handoff/handoffTypes.ts`, `src/cli/handoff/renderAgent.ts`, `src/cli/handoff/renderJson.ts`, `tests/done.test.js`, `tests/handoff.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented structured handoff memory blocks and verified relevant decision matching for work and handoff.",
+  "files": [
+    "src/cli/commands/done.ts",
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffSources.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "src/cli/handoff/renderAgent.ts",
+    "src/cli/handoff/renderJson.ts",
+    "tests/done.test.js",
+    "tests/handoff.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-19T22:33:52.271Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-19T22:33:52.271Z",
+  "summary": "Implemented structured handoff memory blocks and verified relevant decision matching for work and handoff.",
+  "files": [
+    "src/cli/commands/done.ts",
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffSources.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "src/cli/handoff/renderAgent.ts",
+    "src/cli/handoff/renderJson.ts",
+    "tests/done.test.js",
+    "tests/handoff.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-19T22:34:38.007Z
+- Summary: Implemented structured handoff memory blocks and explicit module/domain decision fallback matching.
+- Changed files: `src/cli/commands/done.ts`, `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffSources.ts`, `src/cli/handoff/handoffTypes.ts`, `src/cli/handoff/renderAgent.ts`, `src/cli/handoff/renderJson.ts`, `src/cli/work/memorySignals.ts`, `tests/done.test.js`, `tests/handoff.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented structured handoff memory blocks and explicit module/domain decision fallback matching.",
+  "files": [
+    "src/cli/commands/done.ts",
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffSources.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "src/cli/handoff/renderAgent.ts",
+    "src/cli/handoff/renderJson.ts",
+    "src/cli/work/memorySignals.ts",
+    "tests/done.test.js",
+    "tests/handoff.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-19T22:34:38.007Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-19T22:34:38.007Z",
+  "summary": "Implemented structured handoff memory blocks and explicit module/domain decision fallback matching.",
+  "files": [
+    "src/cli/commands/done.ts",
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffSources.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "src/cli/handoff/renderAgent.ts",
+    "src/cli/handoff/renderJson.ts",
+    "src/cli/work/memorySignals.ts",
+    "tests/done.test.js",
+    "tests/handoff.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-19T22:36:17.250Z
+- Summary: smoke test structured handoff memory
+- Changed files: `src/cli/commands/done.ts`, `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffSources.ts`, `src/cli/handoff/handoffTypes.ts`, `src/cli/handoff/renderAgent.ts`, `src/cli/handoff/renderJson.ts`, `src/cli/work/memorySignals.ts`, `tests/done.test.js`, `tests/handoff.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "smoke test structured handoff memory",
+  "files": [
+    "src/cli/commands/done.ts",
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffSources.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "src/cli/handoff/renderAgent.ts",
+    "src/cli/handoff/renderJson.ts",
+    "src/cli/work/memorySignals.ts",
+    "tests/done.test.js",
+    "tests/handoff.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-19T22:36:17.250Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-19T22:36:17.250Z",
+  "summary": "smoke test structured handoff memory",
+  "files": [
+    "src/cli/commands/done.ts",
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffSources.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "src/cli/handoff/renderAgent.ts",
+    "src/cli/handoff/renderJson.ts",
+    "src/cli/work/memorySignals.ts",
+    "tests/done.test.js",
+    "tests/handoff.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

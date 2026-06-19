@@ -224,68 +224,72 @@ test("renderHandoffText uses none fallbacks", () => {
   ].join("\n"));
 });
 
-test("rcc handoff --json returns a machine-readable brief", () => {
-  const result = runCli(["handoff", "--json"]);
-  const brief = parseJsonOnlyOutput(result);
+test("rcc handoff --json returns a machine-readable brief", async () => {
+  await withTempRepo(async (tempDir) => {
+    const result = runCli(["handoff", "--json"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
 
-  assert.deepEqual(Object.keys(brief), [
-    "schemaVersion",
-    "command",
-    "task",
-    "generatedAt",
-    "currentState",
-    "memory",
-    "readFirst",
-    "nextRecommendedFiles",
-    "relevantTests",
-    "relevantDecisions",
-    "nextActions",
-    "avoid",
-    "nextLookup",
-    "nextCommand"
-  ]);
-  assert.equal(brief.schemaVersion, 1);
-  assert.equal(brief.command, "handoff");
-  assert.equal(brief.task, null);
-  assert.match(brief.generatedAt, /^\d{4}-\d{2}-\d{2}T/);
-  assert.ok(Array.isArray(brief.memory));
-  assert.ok(Array.isArray(brief.readFirst));
-  assert.deepEqual(brief.nextRecommendedFiles, []);
-  assert.deepEqual(brief.relevantTests, []);
-  assert.deepEqual(brief.relevantDecisions, []);
-  assert.ok(Array.isArray(brief.nextActions));
-  assert.ok(Array.isArray(brief.avoid));
-  assert.equal(brief.nextLookup, 'rcc find "<keyword>"');
-  assert.equal(brief.nextCommand, 'rcc work "<task>" --agent');
+    assert.deepEqual(Object.keys(brief), [
+      "schemaVersion",
+      "command",
+      "task",
+      "generatedAt",
+      "currentState",
+      "memory",
+      "readFirst",
+      "nextRecommendedFiles",
+      "relevantTests",
+      "relevantDecisions",
+      "nextActions",
+      "avoid",
+      "nextLookup",
+      "nextCommand"
+    ]);
+    assert.equal(brief.schemaVersion, 1);
+    assert.equal(brief.command, "handoff");
+    assert.equal(brief.task, null);
+    assert.match(brief.generatedAt, /^\d{4}-\d{2}-\d{2}T/);
+    assert.ok(Array.isArray(brief.memory));
+    assert.ok(Array.isArray(brief.readFirst));
+    assert.deepEqual(brief.nextRecommendedFiles, []);
+    assert.deepEqual(brief.relevantTests, []);
+    assert.deepEqual(brief.relevantDecisions, []);
+    assert.ok(Array.isArray(brief.nextActions));
+    assert.ok(Array.isArray(brief.avoid));
+    assert.equal(brief.nextLookup, 'rcc find "<keyword>"');
+    assert.equal(brief.nextCommand, 'rcc work "<task>" --agent');
+  });
 });
 
-test("rcc handoff --agent returns compact agent JSON", () => {
-  const result = runCli(["handoff", "--agent"]);
-  const brief = parseJsonOnlyOutput(result);
+test("rcc handoff --agent returns compact agent JSON", async () => {
+  await withTempRepo(async (tempDir) => {
+    const result = runCli(["handoff", "--agent"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
 
-  assert.deepEqual(Object.keys(brief), [
-    "schemaVersion",
-    "command",
-    "task",
-    "generatedAt",
-    "currentState",
-    "memory",
-    "readFirst",
-    "nextRecommendedFiles",
-    "relevantTests",
-    "relevantDecisions",
-    "nextActions",
-    "avoid",
-    "nextLookup",
-    "nextCommand"
-  ]);
-  assert.equal(brief.schemaVersion, 1);
-  assert.equal(brief.command, "handoff");
-  assert.equal(brief.task, null);
-  assert.match(brief.generatedAt, /^\d{4}-\d{2}-\d{2}T/);
-  assert.ok(Array.isArray(brief.currentState));
-  assert.equal(brief.nextLookup, 'rcc find "<keyword>"');
-  assert.equal(brief.nextCommand, 'rcc work "<task>" --agent');
+    assert.deepEqual(Object.keys(brief), [
+      "schemaVersion",
+      "command",
+      "task",
+      "generatedAt",
+      "currentState",
+      "memory",
+      "readFirst",
+      "nextRecommendedFiles",
+      "relevantTests",
+      "relevantDecisions",
+      "nextActions",
+      "avoid",
+      "nextLookup",
+      "nextCommand"
+    ]);
+    assert.equal(brief.schemaVersion, 1);
+    assert.equal(brief.command, "handoff");
+    assert.equal(brief.task, null);
+    assert.match(brief.generatedAt, /^\d{4}-\d{2}-\d{2}T/);
+    assert.ok(Array.isArray(brief.currentState));
+    assert.equal(brief.nextLookup, 'rcc find "<keyword>"');
+    assert.equal(brief.nextCommand, 'rcc work "<task>" --agent');
+  });
 });
 
 test("rcc handoff invalid args return usage and non-zero exit", () => {
@@ -434,6 +438,11 @@ test("rcc handoff reads present context sources conservatively", async () => {
       "nextRecommendedFiles",
       "relevantTests",
       "relevantDecisions",
+      "lastSummary",
+      "filesTouched",
+      "verification",
+      "followUps",
+      "risks",
       "nextActions",
       "avoid",
       "nextLookup",
@@ -474,6 +483,17 @@ test("rcc handoff reads latest structured done entry", async () => {
       "## 2026-06-18T12:00:00.000Z",
       "- Summary: Older human summary",
       "- Changed files: `src/old.ts`",
+      "<!-- rcc:handoff",
+      JSON.stringify({
+        schemaVersion: 1,
+        timestamp: "2026-06-18T12:00:00.000Z",
+        summary: "Older handoff block summary",
+        files: ["src/old-handoff.ts"],
+        verification: ["npm test -- old handoff"],
+        followUps: ["Old handoff follow-up"],
+        risks: ["Old handoff risk"]
+      }, null, 2),
+      "-->",
       "```json repo-context-center:done",
       JSON.stringify({
         schemaVersion: 1,
@@ -493,6 +513,17 @@ test("rcc handoff reads latest structured done entry", async () => {
       "- Verification: weak verification",
       "- Risk: weak risk",
       "- Follow-ups: weak follow-up",
+      "<!-- rcc:handoff",
+      JSON.stringify({
+        schemaVersion: 1,
+        timestamp: "2026-06-19T12:00:00.000Z",
+        summary: "Latest handoff block summary",
+        files: ["src/handoff-block.ts", "tests/handoff-block.test.js"],
+        verification: ["node --test tests/handoff-block.test.js"],
+        followUps: ["Continue comment block handoff"],
+        risks: ["Watch comment parser compatibility"]
+      }, null, 2),
+      "-->",
       "```json repo-context-center:done",
       JSON.stringify({
         schemaVersion: 1,
@@ -512,15 +543,86 @@ test("rcc handoff reads latest structured done entry", async () => {
     const result = runCli(["handoff", "--json", "--debug"], { cwd: tempDir });
     const brief = parseJsonOnlyOutput(result);
 
-    assert.ok(brief.memory.includes("Last completed: Latest structured summary"));
+    assert.equal(brief.lastSummary, "Latest handoff block summary");
+    assert.deepEqual(brief.filesTouched, ["src/handoff-block.ts", "tests/handoff-block.test.js"]);
+    assert.deepEqual(brief.verification, ["node --test tests/handoff-block.test.js"]);
+    assert.deepEqual(brief.followUps, ["Continue comment block handoff"]);
+    assert.deepEqual(brief.risks, ["Watch comment parser compatibility"]);
+    assert.ok(brief.memory.includes("Last completed: Latest handoff block summary"));
     assert.ok(brief.memory.includes("Completed at: 2026-06-19T12:00:00.000Z"));
-    assert.ok(brief.memory.includes("Verification: node --test tests/structured.test.js"));
-    assert.ok(brief.memory.includes("Follow-up: Continue structured handoff"));
-    assert.ok(brief.memory.includes("Risk: Watch parser compatibility"));
-    assert.ok(brief.currentState.includes("Recently touched: src/structured.ts"));
-    assert.ok(brief.currentState.includes("Recently touched: tests/structured.test.js"));
+    assert.ok(brief.memory.includes("Verification: node --test tests/handoff-block.test.js"));
+    assert.ok(brief.memory.includes("Follow-up: Continue comment block handoff"));
+    assert.ok(brief.memory.includes("Risk: Watch comment parser compatibility"));
+    assert.ok(brief.currentState.includes("Recently touched: src/handoff-block.ts"));
+    assert.ok(brief.currentState.includes("Recently touched: tests/handoff-block.test.js"));
     assert.doesNotMatch(brief.memory.join("\n"), /Conflicting weak text summary/);
     assert.equal(brief.debug.sources.latestDoneEntryPresent, true);
+  });
+});
+
+test("rcc handoff ignores malformed structured handoff block safely", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "## 2026-06-19T12:00:00.000Z",
+      "- Summary: Legacy after malformed block",
+      "- Changed files: `src/fallback.ts`",
+      "<!-- rcc:handoff",
+      "{ malformed json",
+      "-->",
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["handoff", "--json", "--debug"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.ok(brief.memory.includes("Last completed: Legacy after malformed block"));
+    assert.ok(brief.currentState.includes("Recently touched: src/fallback.ts"));
+    assert.equal(brief.debug.sources.latestDoneEntryPresent, true);
+  });
+});
+
+test("rcc handoff chooses latest structured handoff block when multiple exist", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "<!-- rcc:handoff",
+      JSON.stringify({
+        schemaVersion: 1,
+        summary: "First structured block",
+        files: ["src/first.ts"],
+        verification: ["npm test -- first"],
+        followUps: [],
+        risks: [],
+        timestamp: "2026-06-18T12:00:00.000Z"
+      }, null, 2),
+      "-->",
+      "<!-- rcc:handoff",
+      JSON.stringify({
+        schemaVersion: 1,
+        summary: "Second structured block",
+        files: ["src/second.ts"],
+        verification: ["npm test -- second"],
+        followUps: ["Keep going"],
+        risks: ["Second risk"],
+        timestamp: "2026-06-19T12:00:00.000Z"
+      }, null, 2),
+      "-->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["handoff", "--json"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.equal(brief.lastSummary, "Second structured block");
+    assert.deepEqual(brief.filesTouched, ["src/second.ts"]);
+    assert.deepEqual(brief.verification, ["npm test -- second"]);
+    assert.ok(brief.memory.includes("Last completed: Second structured block"));
+    assert.equal(brief.memory.some((item) => item.includes("First structured block")), false);
   });
 });
 

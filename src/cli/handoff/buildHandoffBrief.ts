@@ -32,7 +32,7 @@ function latestDoneMemory(
     risks: string[];
     summary: string;
     timestamp: string;
-    verification: string | null;
+    verification: string[];
   } | null
 ): string[] {
   if (!entry) {
@@ -42,7 +42,7 @@ function latestDoneMemory(
   return [
     `Last completed: ${entry.summary}`,
     `Completed at: ${entry.timestamp}`,
-    ...(entry.verification ? [`Verification: ${entry.verification}`] : []),
+    ...entry.verification.map((verification) => `Verification: ${verification}`),
     ...entry.followUps.map((followUp) => `Follow-up: ${followUp}`),
     ...entry.risks.map((risk) => `Risk: ${risk}`)
   ];
@@ -107,6 +107,13 @@ export async function buildHandoffBrief(cwd: string, options: { task: string | n
     nextRecommendedFiles: workBrief ? routeItems(workBrief.primaryFiles) : [],
     relevantTests: workBrief ? routeItems(workBrief.relevantTests) : [],
     relevantDecisions: workBrief ? workBrief.relevantDecisions.slice(0, handoffRouteLimit) : [],
+    ...(sources.latestDoneEntry ? {
+      lastSummary: sources.latestDoneEntry.summary,
+      filesTouched: sources.latestDoneEntry.files,
+      verification: sources.latestDoneEntry.verification,
+      followUps: sources.latestDoneEntry.followUps,
+      risks: sources.latestDoneEntry.risks
+    } : {}),
     nextActions: taskNextActions(options.task, Boolean(workBrief)),
     avoid: [
       "Do not rerun broad discovery before reading handoff files.",

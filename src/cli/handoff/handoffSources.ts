@@ -36,7 +36,7 @@ export interface StructuredDoneEntry {
   risks: string[];
   summary: string;
   timestamp: string;
-  verification: string | null;
+  verification: string[];
 }
 
 async function readOptionalText(cwd: string, relativePath: string): Promise<string | null> {
@@ -128,13 +128,24 @@ function stringArray(value: unknown): string[] {
     : [];
 }
 
+function verificationArray(value: unknown): string[] {
+  if (typeof value === "string" && value.trim()) {
+    return [value.trim()];
+  }
+
+  return stringArray(value);
+}
+
 function parseStructuredDoneEntry(value: unknown): StructuredDoneEntry | null {
   if (!value || typeof value !== "object") {
     return null;
   }
 
   const entry = value as Record<string, unknown>;
-  if (entry.schemaVersion !== 1 || entry.command !== "done") {
+  if (
+    entry.schemaVersion !== 1
+    || (entry.command !== undefined && entry.command !== "done" && entry.command !== "handoff")
+  ) {
     return null;
   }
 
@@ -150,10 +161,31 @@ function parseStructuredDoneEntry(value: unknown): StructuredDoneEntry | null {
     risks: stringArray(entry.risks),
     summary,
     timestamp,
-    verification: typeof entry.verification === "string" && entry.verification.trim()
-      ? entry.verification.trim()
-      : null
+    verification: verificationArray(entry.verification)
   };
+}
+
+function structuredHandoffEntries(content: string, limit = handoffSourceLimit): StructuredDoneEntry[] {
+  const entries: StructuredDoneEntry[] = [];
+  const pattern = /<!--\s*rcc:handoff\s*(?<json>[\s\S]*?)-->/g;
+
+  for (const match of content.matchAll(pattern)) {
+    const rawJson = match.groups?.json;
+    if (!rawJson) {
+      continue;
+    }
+
+    try {
+      const entry = parseStructuredDoneEntry(JSON.parse(rawJson));
+      if (entry) {
+        entries.push(entry);
+      }
+    } catch {
+      // Ignore malformed handoff blocks and fall back to older parsing.
+    }
+  }
+
+  return entries.slice(-limit).reverse();
 }
 
 function structuredDoneEntries(content: string, limit = handoffSourceLimit): StructuredDoneEntry[] {
@@ -250,7 +282,7 @@ function doneEntryFromWorkLogEntry(entry: WorkLogEntry): StructuredDoneEntry | n
     risks: entry.risks,
     summary: entry.summary,
     timestamp: entry.timestamp,
-    verification: entry.verification
+    verification: entry.verification ? [entry.verification] : []
   };
 }
 
@@ -298,13 +330,16 @@ export async function readHandoffSources(cwd: string): Promise<HandoffSources> {
     readOptionalText(cwd, changeLogPath),
     readOptionalText(cwd, lessonsPath)
   ]);
+  const structuredHandoffBlocks = workLog ? structuredHandoffEntries(workLog) : [];
   const structuredEntries = workLog ? structuredDoneEntries(workLog) : [];
   const legacyWorkLogEntries = workLog ? recentWorkLogEntries(workLog) : [];
-  const doneEntries = structuredEntries.length > 0
-    ? structuredEntries
-    : legacyWorkLogEntries
-      .map(doneEntryFromWorkLogEntry)
-      .filter((entry): entry is StructuredDoneEntry => Boolean(entry));
+  const doneEntries = structuredHandoffBlocks.length > 0
+    ? structuredHandoffBlocks
+    : structuredEntries.length > 0
+      ? structuredEntries
+      : legacyWorkLogEntries
+        .map(doneEntryFromWorkLogEntry)
+        .filter((entry): entry is StructuredDoneEntry => Boolean(entry));
 
   return {
     agents: agents?.trim() || null,

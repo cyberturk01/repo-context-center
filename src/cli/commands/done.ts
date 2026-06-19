@@ -130,6 +130,18 @@ function compactList(value: string): string[] {
   return cleaned ? [cleaned] : [];
 }
 
+function handoffBlockJson(options: DoneOptions, files: string[], timestamp: string): string {
+  return JSON.stringify({
+    schemaVersion: 1,
+    summary: cleanInline(options.summary),
+    files,
+    verification: compactList(options.verify),
+    followUps: compactList(options.followUps),
+    risks: compactList(options.risk),
+    timestamp
+  }, null, 2);
+}
+
 function formatFiles(files: string[], emptyLabel = "_not detected_"): string {
   if (files.length === 0) {
     return emptyLabel;
@@ -205,6 +217,9 @@ function formatEntry(options: DoneOptions, files: string[], timestamp = new Date
   }
 
   lines.push(
+    "<!-- rcc:handoff",
+    handoffBlockJson(options, files, timestamp),
+    "-->",
     "```json repo-context-center:done",
     JSON.stringify({
       schemaVersion: 1,

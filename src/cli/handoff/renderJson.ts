@@ -19,10 +19,23 @@ export function toPublicHandoffBrief(brief: HandoffBrief): PublicHandoffBrief {
   };
 
   if (brief.writtenPath) {
-    return {
-      ...publicBrief,
-      writtenPath: brief.writtenPath
-    };
+    publicBrief.writtenPath = brief.writtenPath;
+  }
+
+  if (brief.lastSummary) {
+    publicBrief.lastSummary = brief.lastSummary;
+  }
+  if (brief.filesTouched) {
+    publicBrief.filesTouched = brief.filesTouched;
+  }
+  if (brief.verification) {
+    publicBrief.verification = brief.verification;
+  }
+  if (brief.followUps) {
+    publicBrief.followUps = brief.followUps;
+  }
+  if (brief.risks) {
+    publicBrief.risks = brief.risks;
   }
 
   return publicBrief;
