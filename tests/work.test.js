@@ -369,27 +369,21 @@ test("work accepts a task string and recommends focused files", async () => {
     const result = runCli(["work", "fix login bug"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Task intent:\nfix login bug/);
-    assert.match(result.stdout, /Map freshness:\nStatus: (fresh|maybe_stale|stale|unknown)\nScore: \d+\/100\nReason: /);
+    assert.match(result.stdout, /Task:\nfix login bug/);
+    assert.match(result.stdout, /Freshness:\n(fresh|maybe_stale|stale|unknown) \d+\/100 — /);
     assert.match(result.stdout, /Cheapest path:\n1\. Inspect the task files listed below\.\n2\. Check supporting tests\.\n3\. If more search is needed, run: rcc find "login"\n4\. Avoid broad rg\/find until targeted lookup is exhausted\./);
-    assert.match(result.stdout, /Task files to inspect first:\n- src\/auth\/login\.ts/);
-    assert.match(result.stdout, /Supporting tests:\n- tests\/auth\/login\.test\.ts/);
+    assert.match(result.stdout, /Task files:\n- src\/auth\/login\.ts/);
+    assert.match(result.stdout, /Tests:\n- tests\/auth\/login\.test\.ts/);
     assert.match(result.stdout, /Agent rules:\n- AGENTS\.md/);
-    assert.match(result.stdout, /Context docs:\n- docs\/ai-context\/TASK_ROUTING\.md/);
-    assert.match(result.stdout, /Relevant decisions:\n- 2026-06-16 \| Keep login flow server-side/);
-    assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
-    assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
+    assert.match(result.stdout, /Context if unclear:\n- docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(result.stdout, /Known risks:\n- high/);
-    assert.match(result.stdout, /Avoid:\n- broad rg\/find before checking task files/);
-    assert.match(result.stdout, /- reading all docs\/ai-context before task files/);
-    assert.match(result.stdout, /- generated\/assets\/fixtures unless explicitly relevant/);
-    assert.match(result.stdout, /- full repository scans for narrow bug investigation tasks/);
-    assert.match(result.stdout, /Targeted lookup hints:\n1\. src\/auth\/login\.ts\n   reason: matched filename stem "login"\n   confidence: high/);
-    assert.match(result.stdout, /Fast lookup:\n- For targeted lookup, use: rcc find "<keyword>"/);
-    assert.match(result.stdout, /Prefer this before broad repo search when the target is unclear\./);
+    assert.match(result.stdout, /Lookup hints:\n1\. src\/auth\/login\.ts — matched filename stem "login"; high/);
     assert.match(result.stdout, /Next cheapest command:\nrcc find "login"/);
-    assert.ok(result.stdout.indexOf("Task files to inspect first:") < result.stdout.indexOf("Context docs:"));
-    assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
+    assert.ok(result.stdout.indexOf("Task files:") < result.stdout.indexOf("Context if unclear:"));
+    assert.match(result.stdout, /Done:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
+    assert.doesNotMatch(result.stdout, /Recent logs:/);
+    assert.doesNotMatch(result.stdout, /Read-first guidance:/);
+    assert.doesNotMatch(result.stdout, /Fast lookup:/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
   });
 });
@@ -554,14 +548,11 @@ test("work handles missing RCC files gracefully", async () => {
     const result = runCli(["work", "unknown task"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Map freshness:\nStatus: unknown\nScore: 0\/100\nReason: Run npx repo-context-center init to generate context\./);
-    assert.match(result.stdout, /Note: context may be stale; continue with task files below, then run `rcc map --write` after investigation if needed\./);
-    assert.match(result.stdout, /Relevant decisions:\n- none\. no matching decision was found\./);
-    assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
-    assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
-    assert.match(result.stdout, /Read-first guidance:\n- no RCC context files found; run npx repo-context-center init to install them/);
-    assert.match(result.stdout, /Targeted lookup hints:\n- none\. use rcc find "<keyword>" for targeted lookup\./);
-    assert.match(result.stdout, /Fast lookup:/);
+    assert.match(result.stdout, /Freshness:\nunknown 0\/100 — Run npx repo-context-center init to generate context\.; continue with task files, then run `rcc map --write`\./);
+    assert.match(result.stdout, /Lookup hints:\n- none\. use rcc find "<keyword>" for targeted lookup\./);
+    assert.doesNotMatch(result.stdout, /Recent logs:/);
+    assert.doesNotMatch(result.stdout, /Read-first guidance:/);
+    assert.doesNotMatch(result.stdout, /Fast lookup:/);
     assert.match(result.stdout, /rcc find "<keyword>"/);
     assert.match(result.stdout, /```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
@@ -758,8 +749,7 @@ test("work reports fresh map freshness when context is newer than repo changes",
     const result = runCli(["work", "update cli"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Map freshness:\nStatus: fresh\nScore: 100\/100/);
-    assert.match(result.stdout, /Reason: Context is newer than recent source, config, workflow, package, and test changes\./);
+    assert.match(result.stdout, /Freshness:\nfresh 100\/100 — context is current; continue with task files\./);
     assert.doesNotMatch(result.stdout, /Recommended:\nrcc map --write/);
   });
 });
@@ -771,9 +761,7 @@ test("work reports stale map freshness when important source files changed", asy
     const result = runCli(["work", "update cli"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Map freshness:\nStatus: stale\nScore: 35\/100/);
-    assert.match(result.stdout, /Reason: Important source, config, workflow, package, or test files changed after the last context generation\./);
-    assert.match(result.stdout, /Note: context may be stale; continue with task files below, then run `rcc map --write` after investigation if needed\./);
+    assert.match(result.stdout, /Freshness:\nstale 35\/100 — important files changed after context generation; continue with task files, then run `rcc map --write`\./);
   });
 });
 
@@ -784,9 +772,7 @@ test("work reports maybe_stale map freshness when unclear repo files changed", a
     const result = runCli(["work", "update cli"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Map freshness:\nStatus: maybe_stale\nScore: 68\/100/);
-    assert.match(result.stdout, /Reason: Repository files changed after the last context generation, but their impact on context is unclear\./);
-    assert.match(result.stdout, /Note: context may be stale; continue with task files below, then run `rcc map --write` after investigation if needed\./);
+    assert.match(result.stdout, /Freshness:\nmaybe_stale 68\/100 — some repo files changed after context generation; continue with task files, then run `rcc map --write`\./);
   });
 });
 
@@ -929,15 +915,14 @@ test("work --json promotes role task source and tests ahead of docs", async () =
 test("work human output separates docs for Turkish role investigation", async () => {
   await withLookupRankingRepo(async (tempDir) => {
     const result = runCli(["work", "Role lerle ilgili bug ihtimallerini bul"], { cwd: tempDir });
-    const taskFiles = sectionBody(result.stdout, "Task files to inspect first", "Supporting tests");
-    const supportingTests = sectionBody(result.stdout, "Supporting tests", "Agent rules");
-    const workflowDocs = sectionBody(result.stdout, "Agent rules", "Context docs");
-    const contextDocs = sectionBody(result.stdout, "Context docs", "Relevant decisions");
-    const readFirst = sectionBody(result.stdout, "Read-first guidance", "Targeted lookup hints");
+    const taskFiles = sectionBody(result.stdout, "Task files", "Tests");
+    const supportingTests = sectionBody(result.stdout, "Tests", "Agent rules");
+    const workflowDocs = sectionBody(result.stdout, "Agent rules", "Context if unclear");
+    const contextDocs = sectionBody(result.stdout, "Context if unclear", "Lookup hints");
 
     assert.equal(result.status, 0);
-    assert.ok(result.stdout.indexOf("Task files to inspect first:") < result.stdout.indexOf("Context docs:"));
-    assert.ok(result.stdout.indexOf("Cheapest path:") < result.stdout.indexOf("Fast lookup:"));
+    assert.ok(result.stdout.indexOf("Task files:") < result.stdout.indexOf("Context if unclear:"));
+    assert.ok(result.stdout.indexOf("Cheapest path:") < result.stdout.indexOf("Lookup hints:"));
     assert.match(taskFiles, /src\/core\/repoFileClassifier\.ts/);
     assert.match(taskFiles, /src\/cli\/commands\/work\.ts/);
     assert.doesNotMatch(taskFiles, /AGENTS\.md/);
@@ -947,11 +932,8 @@ test("work human output separates docs for Turkish role investigation", async ()
     assert.match(workflowDocs, /AGENTS\.md/);
     assert.match(contextDocs, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(contextDocs, /docs\/ai-context\/MODULE_INDEX\.md/);
-    assert.match(readFirst, /Agent rule file:\n- AGENTS\.md\n  reason: repository agent workflow/);
-    assert.doesNotMatch(readFirst, /Required:\n- AGENTS\.md/);
-    assert.doesNotMatch(readFirst, /docs\/ai-context\/RISK_REGISTER\.md[\s\S]*reason: task has/);
+    assert.doesNotMatch(result.stdout, /Read-first guidance:/);
     assert.doesNotMatch(result.stdout, /Recommended:\nrcc map --write/);
-    assert.match(result.stdout, /Avoid:\n- broad rg\/find before checking task files/);
     assert.match(result.stdout, /Next cheapest command:\nrcc find "role"/);
   });
 });
@@ -1083,8 +1065,8 @@ test("work --json does not let weak semantic source matches outrank workflow pac
 test("work human output keeps workflow task files out of agent rules", async () => {
   await withWorkflowRankingRepo(async (tempDir) => {
     const result = runCli(["work", "find Workflow risks"], { cwd: tempDir });
-    const taskFiles = sectionItems(result.stdout, "Task files to inspect first", "Supporting tests");
-    const agentRules = sectionItems(result.stdout, "Agent rules", "Context docs");
+    const taskFiles = sectionItems(result.stdout, "Task files", "Tests");
+    const agentRules = sectionItems(result.stdout, "Agent rules", "Context if unclear");
     const taskPaths = taskFiles.map((line) => line.replace(/^- /, "").replace(/\s+\(.+$/, ""));
     const agentRulePaths = agentRules.map((line) => line.replace(/^- /, "").replace(/\s+\(.+$/, ""));
 
@@ -1192,12 +1174,11 @@ test("work --json keeps paired tests visible without letting them dominate", asy
 test("work human lookup hints include reason and confidence", async () => {
   await withLookupRankingRepo(async (tempDir) => {
     const result = runCli(["work", "Improve work command lookup hints"], { cwd: tempDir });
-    const hints = sectionBody(result.stdout, "Targeted lookup hints", "Fast lookup");
+    const hints = sectionBody(result.stdout, "Lookup hints", "Next cheapest command");
 
     assert.equal(result.status, 0);
     assert.match(hints, /1\. src\/cli\/commands\/work\.ts/);
-    assert.match(hints, /reason: matched command name "work"/);
-    assert.match(hints, /confidence: high/);
+    assert.match(hints, /matched command name "work"; high/);
   });
 });
 
@@ -1206,23 +1187,22 @@ test("work output recommends done with auto file detection", async () => {
     const result = runCli(["work", "fix login bug"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
+    assert.match(result.stdout, /Done:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
     assert.doesNotMatch(result.stdout, /--files "<files>"/);
   });
 });
 
 test("work includes deterministic targeted lookup hints for duplicate AGENTS workflow tasks", () => {
   const result = runCli(["work", "Fix duplicate AGENTS workflow instructions"]);
-  const hints = sectionBody(result.stdout, "Targeted lookup hints", "Fast lookup");
+  const hints = sectionBody(result.stdout, "Lookup hints", "Next cheapest command");
 
   assert.equal(result.status, 0);
-  assert.ok(result.stdout.includes("Read-first guidance:\n"), result.stdout);
-  assert.ok(result.stdout.indexOf("Read-first guidance:") < result.stdout.indexOf("Targeted lookup hints:"));
-  assert.ok(result.stdout.indexOf("Targeted lookup hints:") < result.stdout.indexOf("Fast lookup:"));
-  assert.ok(hints.split(/\r?\n/).filter((line) => /^\d+\. /.test(line)).length <= 5, hints);
+  assert.doesNotMatch(result.stdout, /Read-first guidance:/);
+  assert.ok(result.stdout.indexOf("Lookup hints:") < result.stdout.indexOf("Next cheapest command:"));
+  assert.ok(hints.split(/\r?\n/).filter((line) => /^\d+\. /.test(line)).length <= 3, hints);
   assert.match(hints, /AGENTS\.md/);
   assert.match(hints, /src\/templates\/generic\/AGENTS\.md/);
-  assert.match(hints, /confidence: high/);
+  assert.match(hints, /; high/);
   assert.ok(!hints.includes("docs/ai-context/"), hints);
 });
 
@@ -1230,7 +1210,7 @@ test("work suggests --files auto in the next done command", async () => {
   await withWorkRepo(async (tempDir) => {
     const result = runCli(["work", "fix login bug"], { cwd: tempDir });
     const nextDoneCommand = result.stdout.match(
-      /Next command after meaningful work:\n```sh\n(?<command>rcc done .+)\n```/
+      /Done:\n```sh\n(?<command>rcc done .+)\n```/
     )?.groups?.command;
 
     assert.equal(result.status, 0);
@@ -1278,9 +1258,9 @@ test("work recommends RCC context files when context matches but source is missi
     const result = runCli(["work", "fix billing issue"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Task files to inspect first:\n- none\. No focused task files were identified\. Use the next cheapest command before broad search\./);
+    assert.match(result.stdout, /Task files:\n- none\. No focused task files were identified\. Use the next cheapest command before broad search\./);
     assert.match(result.stdout, /Agent rules:\n- AGENTS\.md/);
-    assert.match(result.stdout, /Context docs:\n- docs\/ai-context\/TASK_ROUTING\.md\n- docs\/ai-context\/MODULE_INDEX\.md\n- docs\/ai-context\/HOTSPOTS\.md/);
+    assert.match(result.stdout, /Context if unclear:\n- docs\/ai-context\/TASK_ROUTING\.md\n- docs\/ai-context\/MODULE_INDEX\.md\n- docs\/ai-context\/HOTSPOTS\.md/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -1301,7 +1281,7 @@ test("work shows duplicate decisions only once", async () => {
       ].join("\n")
     );
 
-    const result = runCli(["work", "fix login bug"], { cwd: tempDir });
+    const result = runCli(["work", "--context-budget", "deep", "fix login bug"], { cwd: tempDir });
     const matches = result.stdout.match(/Keep login flow server-side/g) ?? [];
 
     assert.equal(result.status, 0);
@@ -1313,18 +1293,22 @@ test("work output is concise and agent-oriented", async () => {
   await withWorkRepo(async (tempDir) => {
     const result = runCli(["work", "fix login bug"], { cwd: tempDir });
     const lines = result.stdout.trim().split(/\r?\n/);
+    const roughTokens = Math.ceil(result.stdout.length / 4);
 
     assert.equal(result.status, 0);
     assert.ok(lines.length <= 90, `work output has ${lines.length} lines`);
+    assert.ok(roughTokens <= 450, `work output is roughly ${roughTokens} tokens`);
     assert.doesNotMatch(result.stdout, /generate code/i);
-    assert.match(result.stdout, /Map freshness:/);
+    assert.match(result.stdout, /Freshness:/);
     assert.match(result.stdout, /Cheapest path:/);
-    assert.match(result.stdout, /Task files to inspect first:/);
-    assert.match(result.stdout, /Supporting tests:/);
-    assert.match(result.stdout, /Avoid:/);
-    assert.match(result.stdout, /Relevant decisions:/);
-    assert.match(result.stdout, /Recent logs:/);
-    assert.match(result.stdout, /Token estimate:/);
-    assert.match(result.stdout, /Suggested|Next command after meaningful work:/);
+    assert.match(result.stdout, /Task files:/);
+    assert.match(result.stdout, /Tests:/);
+    assert.match(result.stdout, /Agent rules:/);
+    assert.match(result.stdout, /Context if unclear:/);
+    assert.match(result.stdout, /Lookup hints:/);
+    assert.match(result.stdout, /Done:/);
+    assert.doesNotMatch(result.stdout, /Recent logs:/);
+    assert.doesNotMatch(result.stdout, /Read-first guidance:/);
+    assert.doesNotMatch(result.stdout, /Fast lookup:/);
   });
 });

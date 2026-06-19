@@ -123,4 +123,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Fixed workflow-domain task file ranking so workflow/config/package candidates outrank weak semantic source matches while preserving explicit command and role-task behavior.
 - Changed files: `auto`
 - Verification: node --test tests/work.test.js; node --test tests/taskIntent.test.js; npm test; npm run build
+
+## 2026-06-18T23:37:10.528Z
+- Summary: Compact default rcc work human output and gate verbose guidance behind deep context budget
+- Changed files: `auto`
+- Verification: node --test tests/work.test.js; node --test tests/taskIntent.test.js; npm test; npm run build
 <!-- repo-context-center:work-log:end -->

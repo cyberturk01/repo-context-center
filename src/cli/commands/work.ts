@@ -326,24 +326,22 @@ function recommendationItemsWithHints(
   return uniquePaths(paths).map((file) => recommendationFromPath(file, startup, hints));
 }
 
-function formatRecommendationSection(items: WorkRecommendation[], fallback: string): string[] {
+function formatRecommendationSection(items: WorkRecommendation[], fallback: string, includeReasons = true): string[] {
   if (items.length === 0) {
     return [`- none. ${fallback}`];
   }
 
-  return items.map((item) => `- ${item.path}${compactReason(item.reasons)}`);
+  return items.map((item) => `- ${item.path}${includeReasons ? compactReason(item.reasons) : ""}`);
 }
 
-function formatTargetedLookupHints(hints: TargetedLookupHint[]): string[] {
+function formatTargetedLookupHints(hints: TargetedLookupHint[], limit: number): string[] {
   if (hints.length === 0) {
     return ['- none. use rcc find "<keyword>" for targeted lookup.'];
   }
 
-  return hints.flatMap((hint, index) => [
-    `${index + 1}. ${hint.path}`,
-    `   reason: ${hint.reason}`,
-    `   confidence: ${hint.confidence}`
-  ]);
+  return hints.slice(0, limit).map((hint, index) => (
+    `${index + 1}. ${hint.path} — ${hint.reason}; ${hint.confidence}`
+  ));
 }
 
 function basenameWithoutExtensions(filePath: string): string {
@@ -1312,6 +1310,31 @@ function mapFreshnessLines(mapFreshness: WorkMapFreshness): string[] {
   return lines;
 }
 
+function compactMapFreshnessLine(mapFreshness: WorkMapFreshness): string {
+  const reason = {
+    fresh: "context is current",
+    maybe_stale: "some repo files changed after context generation",
+    stale: "important files changed after context generation",
+    unknown: mapFreshness.reason
+  }[mapFreshness.status];
+  const recommendation = mapFreshness.status === "fresh"
+    ? "continue with task files."
+    : "continue with task files, then run `rcc map --write`.";
+
+  return `${mapFreshness.status} ${mapFreshness.score}/100 — ${reason}; ${recommendation}`;
+}
+
+function compactRiskLines(risks: string[]): string[] {
+  if (risks.includes("critical")) {
+    return ["- critical — check docs/ai-context/RISK_REGISTER.md before editing."];
+  }
+  if (risks.includes("high")) {
+    return ["- high — check docs/ai-context/RISK_REGISTER.md before editing."];
+  }
+
+  return [];
+}
+
 function riskLines(startup: StartupContext): string[] {
   const lines = [`- ${startup.riskLevel}`];
   const riskReasons = startup.reasons.filter((reason) => (
@@ -1579,30 +1602,63 @@ function renderWorkBriefLines(brief: WorkBrief): string[] {
   const taskFileFallback = analyzeTaskIntent(brief.task).isCodeInvestigation
     ? "No focused task files were identified. Use the next cheapest command before broad search."
     : "Start with workflow/context docs before broad search.";
-
-  return [
+  const deep = brief.contextBudget === "deep";
+  const lookupHintLimit = deep ? targetedLookupLimit : 3;
+  const highRisk = brief.risks.some((risk) => risk === "high" || risk === "critical");
+  const compactLines = [
     "repo-context-center work brief",
     "",
-    "Task intent:",
+    "Task:",
     brief.task,
     "",
-    "Map freshness:",
-    ...mapFreshnessLines(brief.mapFreshness),
+    "Freshness:",
+    compactMapFreshnessLine(brief.mapFreshness),
     "",
     "Cheapest path:",
     ...formatNumberedList(brief.cheapestPath),
     "",
-    "Task files to inspect first:",
-    ...formatRecommendationSection(brief.taskFiles, taskFileFallback).slice(0, 8),
+    "Task files:",
+    ...formatRecommendationSection(brief.taskFiles, taskFileFallback, false).slice(0, 8),
     "",
-    "Supporting tests:",
-    ...formatRecommendationSection(brief.supportingTests, "Find nearby tests after inspecting source.").slice(0, 6),
+    "Tests:",
+    ...formatRecommendationSection(brief.supportingTests, "Find nearby tests after inspecting source.", false).slice(0, 6),
     "",
     "Agent rules:",
-    ...formatRecommendationSection(brief.workflowDocs, "No agent rule files were detected.").slice(0, 6),
+    ...formatRecommendationSection(brief.workflowDocs, "No agent rule files were detected.", false).slice(0, 6),
     "",
-    "Context docs:",
-    ...formatRecommendationSection(brief.contextDocs, "Use only if task files are insufficient.").slice(0, 6),
+    "Context if unclear:",
+    ...formatRecommendationSection(brief.contextDocs, "Use only if task files are insufficient.", false).slice(0, 6),
+    "",
+    "Lookup hints:",
+    ...formatTargetedLookupHints(brief.targetedLookupHints.map(targetLookupHintForText), lookupHintLimit),
+    "",
+    "Next cheapest command:",
+    brief.nextCheapestCommand,
+    "",
+    "Done:",
+    "```sh",
+    brief.nextCommand,
+    "```"
+  ];
+
+  if (!deep) {
+    if (highRisk) {
+      compactLines.splice(
+        compactLines.indexOf("Lookup hints:"),
+        0,
+        "Known risks:",
+        ...compactRiskLines(brief.risks),
+        ""
+      );
+    }
+    return compactLines;
+  }
+
+  return [
+    ...compactLines,
+    "",
+    "Map freshness:",
+    ...mapFreshnessLines(brief.mapFreshness),
     "",
     "Relevant decisions:",
     ...formatList(brief.relevantDecisions, "none. no matching decision was found."),
@@ -1622,20 +1678,8 @@ function renderWorkBriefLines(brief: WorkBrief): string[] {
     "Read-first guidance:",
     ...formatReadFirstGuidance(brief.readFirstGuidance),
     "",
-    "Targeted lookup hints:",
-    ...formatTargetedLookupHints(brief.targetedLookupHints.map(targetLookupHintForText)),
-    "",
-    "Fast lookup:",
-    '- For targeted lookup, use: rcc find "<keyword>"',
-    "- Prefer this before broad repo search when the target is unclear.",
-    "",
-    "Next cheapest command:",
-    brief.nextCheapestCommand,
-    "",
-    "Next command after meaningful work:",
-    "```sh",
-    brief.nextCommand,
-    "```"
+    "Avoid:",
+    ...brief.avoid.map((item) => `- ${item}`)
   ];
 }
 
