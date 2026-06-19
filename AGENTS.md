@@ -5,19 +5,15 @@ Read this file first.
 <!-- repo-context-center:workflow:start -->
 ## RCC Workflow
 
-For any coding task, the first shell command must be:
+For any coding task, first run once at startup:
 
 `rcc work "<task>"`
 
-- Do not begin repository exploration, manual file reading, or broad searching before running `rcc work`.
-- Follow the read-first files from the work brief.
-- For a single task, call `rcc work "<task>"` once at startup.
-- Do not call `rcc work` again after every edit.
-- For targeted lookup, prefer `rcc find "<keyword>"` before broad grep/search.
-- Use `rcc find "<keyword>"` for follow-up lookup.
+- Do not explore, read files, or broad-search before `rcc work`.
+- Follow the brief's read-first files.
+- Do not rerun `rcc work` after every edit; rerun only if the task/context changes or the first brief is insufficient.
+- Use `rcc find "<keyword>"` for follow-up lookup before broad grep/search.
 - Do not ask the human to run RCC commands.
-- Use `rcc done` only after meaningful work.
-- Re-run `rcc work` only if the task changes, context files are regenerated, or the first brief is clearly insufficient.
 
 After meaningful changes:
 1. Run relevant tests.
@@ -26,10 +22,8 @@ After meaningful changes:
 
 ## Local RCC Development
 
-- For this repository, prefer `node dist/cli/index.js <command>`.
-- Do not use global `rcc` to validate local changes.
-- Use `npx repo-context-center@latest` only for published package smoke tests.
-- If source changed, run `npm run build` before using `node dist/cli/index.js`.
+- In this repo, use `node dist/cli/index.js <command>` instead of global `rcc`; run `npm run build` first if source changed.
+- Use `npx repo-context-center@latest` only for published-package smoke tests.
 
 - If shell commands are unavailable, fallback to reading `docs/ai-context/COMMUNICATION_MODE.md`, `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/TOKEN_BUDGET.md`, and `docs/ai-context/DO_NOT_READ.md`.
 - Use `docs/ai-context/MODULE_INDEX.md` only when routing is missing or the task spans modules.

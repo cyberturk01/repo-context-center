@@ -23,4 +23,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Added guidance and benchmark to prevent repeated RCC work calls
 - Changed files: `AGENTS.md`, `package.json`, `scripts/benchmark-work-repeat.js`, `src/cli/commands/work.ts`, `tests/work.test.js`
 - Verification: npm run build; npm run benchmark:work-repeat; node --test tests/work.test.js; npm test
+
+## 2026-06-19T12:54:41.164Z
+- Summary: Compacted AGENTS RCC workflow guidance
+- Changed files: `AGENTS.md`
+- Verification: npm run build; node --test tests/work.test.js; npm test
 <!-- repo-context-center:work-log:end -->
