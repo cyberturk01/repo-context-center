@@ -19,6 +19,13 @@ After meaningful changes:
 2. Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`.
 <!-- repo-context-center:workflow:end -->
 
+## Local RCC Development
+
+- For this repository, prefer `node dist/cli/index.js <command>`.
+- Do not use global `rcc` to validate local changes.
+- Use `npx repo-context-center@latest` only for published package smoke tests.
+- If source changed, run `npm run build` before using `node dist/cli/index.js`.
+
 - If shell commands are unavailable, fallback to reading `docs/ai-context/COMMUNICATION_MODE.md`, `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/TOKEN_BUDGET.md`, and `docs/ai-context/DO_NOT_READ.md`.
 - Use `docs/ai-context/MODULE_INDEX.md` only when routing is missing or the task spans modules.
 - Verify source; keep changes focused.

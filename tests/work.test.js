@@ -227,6 +227,55 @@ async function withRecommendedRankingRepo(callback) {
   }
 }
 
+async function withSelfDevelopmentRoutingRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-self-dev-routing-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", [
+      "# AGENTS.md",
+      "",
+      "- For this repository, prefer `node dist/cli/index.js <command>`.",
+      "- Do not use global `rcc` to validate local changes."
+    ].join("\n"));
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Workflow-domain tasklarda: read `src/core/taskIntent.ts` and `tests/taskIntent.test.js`.",
+        "- RCC work output assembly: for task files, recommended files, lookup hints, targeted lookup hints, promoted lookup, weak semantic match, semantic source match, work brief, human output, output categorization, agent rules, context docs, or cheapest path, start with `src/cli/commands/work.ts` and `tests/work.test.js`. Use `src/core/taskIntent.ts` only when tokenization or intent classification must change."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "docs/ai-context/MODULE_INDEX.md", "# Module Index\n");
+    await writeFixtureFile(
+      tempDir,
+      "src/cli/commands/work.ts",
+      [
+        "export function workCommand() {",
+        "  return 'task files recommended files lookup hints targeted lookup hints promoted lookup weak semantic match semantic source match work brief human output output categorization agent rules context docs cheapest path';",
+        "}"
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "tests/work.test.js", "test('work command output assembly', () => {});\n");
+    await writeFixtureFile(
+      tempDir,
+      "src/core/taskIntent.ts",
+      [
+        "export function analyzeTaskIntent() {",
+        "  return 'workflow domain weak semantic source matches task files';",
+        "}",
+        "// workflow domain weak semantic source matches task files workflow domain weak semantic source matches task files"
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "tests/taskIntent.test.js", "test('task intent', () => {});\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function withRiskClassificationRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-risk-"));
 
@@ -1016,6 +1065,24 @@ test("work --json ranks matching command implementation first", async () => {
     assert.equal(result.status, 0);
     assert.equal(paths[0], "src/cli/commands/work.ts", paths.join("\n"));
     assert.ok(paths.indexOf("src/cli/commands/work.ts") < paths.indexOf("src/cli/index.ts"), paths.join("\n"));
+  });
+});
+
+test("work --json routes RCC work output assembly tasks to work command implementation", async () => {
+  await withSelfDevelopmentRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "Workflow-domain tasklarda weak semantic source matches'i task files listesinden çıkar"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const recommendedPaths = brief.recommendedFiles.map((file) => file.path);
+    const taskPaths = brief.taskFiles.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.equal(taskPaths[0], "src/cli/commands/work.ts", taskPaths.join("\n"));
+    assert.ok(recommendedPaths.includes("src/cli/commands/work.ts"), recommendedPaths.join("\n"));
+    assert.ok(recommendedPaths.includes("tests/work.test.js"), recommendedPaths.join("\n"));
+    assert.ok(brief.supportingTests.some((file) => file.path === "tests/work.test.js"), JSON.stringify(brief.supportingTests));
+
+    const taskIntentIndex = taskPaths.indexOf("src/core/taskIntent.ts");
+    assert.ok(taskIntentIndex === -1 || taskIntentIndex > taskPaths.indexOf("src/cli/commands/work.ts"), taskPaths.join("\n"));
   });
 });
 

@@ -219,6 +219,25 @@ const workflowTaskLookupRoleOrder: RepoFileRole[] = [
   "unknown"
 ];
 const contextFiles = requiredContextFiles;
+const workOutputAssemblyPatterns = [
+  /\btask\s+files?\b/i,
+  /\brecommended\s+files?\b/i,
+  /\blookup\s+hints?\b/i,
+  /\btargeted\s+lookup(?:\s+hints?)?\b/i,
+  /\bpromoted\s+lookup\b/i,
+  /\bweak\s+semantic\s+match(?:es)?\b/i,
+  /\bsemantic\s+source\s+match(?:es)?\b/i,
+  /\bwork\s+brief\b/i,
+  /\bhuman\s+output\b/i,
+  /\boutput\s+categorization\b/i,
+  /\bagent\s+rules?\b/i,
+  /\bcontext\s+docs?\b/i,
+  /\bcheapest\s+path\b/i
+];
+const workOutputAssemblyRoutes = [
+  "src/cli/commands/work.ts",
+  "tests/work.test.js"
+];
 
 function parseWorkOptions(args: string[]): WorkOptions | undefined {
   let contextBudget: ContextBudget = "balanced";
@@ -391,6 +410,10 @@ function lookupRoleRank(role: RepoFileRole, taskIntent: TaskIntentAnalysis): num
   const index = order.indexOf(role);
 
   return index === -1 ? order.length : index;
+}
+
+function isWorkOutputAssemblyTask(taskIntent: TaskIntentAnalysis): boolean {
+  return workOutputAssemblyPatterns.some((pattern) => pattern.test(taskIntent.normalizedTask));
 }
 
 function makeLookupHint(
@@ -715,7 +738,8 @@ function buildTaskFileRecommendations(
     ...supportingTestPaths,
     ...workflowTaskPaths
   ]);
-  const recommendedPaths = codeInvestigationTask && taskCandidatePaths.length > 0
+  const taskFilesAndTestsAreCheapestPath = codeInvestigationTask || isWorkOutputAssemblyTask(taskIntent);
+  const recommendedPaths = taskFilesAndTestsAreCheapestPath && taskCandidatePaths.length > 0
     ? taskCandidatePaths
     : uniquePaths([
       ...taskFilePaths,
@@ -941,6 +965,24 @@ async function targetedLookupHints(cwd: string, taskIntent: TaskIntentAnalysis, 
   const pairedTestStems = sourceToPairedTestStems(repoFiles);
   const memorySignals = await lookupMemorySignals(cwd, terms);
   const candidates: TargetedLookupHint[] = [];
+
+  if (isWorkOutputAssemblyTask(taskIntent)) {
+    const routeTerm = terms.find((term) => ["work", "task", "files", "lookup", "output"].includes(term)) ?? terms[0] ?? "work";
+    for (const routePath of workOutputAssemblyRoutes) {
+      const routeIndex = repoFiles.indexOf(routePath);
+      if (routeIndex === -1) {
+        continue;
+      }
+      candidates.push(makeLookupHint(
+        routePath,
+        routeTerm,
+        routePath.endsWith("work.ts") ? 86 : 84,
+        "routed by RCC work output assembly guidance",
+        "task-routing",
+        routeIndex
+      ));
+    }
+  }
 
   for (let index = 0; index < repoFiles.length; index += 1) {
     const filePath = repoFiles[index];
