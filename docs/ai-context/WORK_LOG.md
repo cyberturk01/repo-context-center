@@ -43,4 +43,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Added measure command to compare naive scan token estimates with RCC work startup estimates
 - Changed files: `AGENTS.md`, `package.json`, `scripts/benchmark-routing.js`, `src/cli/commands/doctor.ts`, `src/cli/commands/measure.ts`, `src/cli/commands/work.ts`, `src/cli/index.ts`, `src/core/tokenEstimator.ts`, `tests/cli.test.js`, `tests/estimate.test.js`
 - Verification: npm run build; node dist/cli/index.js measure "fix workflow bug"; node dist/cli/index.js measure "fix workflow bug" --json; npm test
+
+## 2026-06-19T13:31:10.968Z
+- Summary: Fixed routing benchmark warn and fail cases
+- Changed files: `scripts/benchmark-routing.js`, `src/cli/commands/work.ts`, `tests/work.test.js`
+- Verification: npm run build; npm run benchmark:routing; npm test
 <!-- repo-context-center:work-log:end -->

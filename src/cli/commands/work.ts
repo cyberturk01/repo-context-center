@@ -266,6 +266,16 @@ const workOutputAssemblyRoutes = [
   "src/cli/commands/work.ts",
   "tests/work.test.js"
 ];
+const tokenMeasurementRoutes = [
+  "src/cli/commands/measure.ts",
+  "src/core/tokenEstimator.ts",
+  "tests/estimate.test.js"
+];
+const localGlobalDoctorRoutes = [
+  "src/cli/commands/doctor.ts",
+  "src/cli/index.ts",
+  "tests/cli.test.js"
+];
 
 function parseWorkOptions(args: string[]): WorkOptions | undefined {
   let contextBudget: ContextBudget = "balanced";
@@ -449,6 +459,27 @@ function lookupRoleRank(role: RepoFileRole, taskIntent: TaskIntentAnalysis): num
 
 function isWorkOutputAssemblyTask(taskIntent: TaskIntentAnalysis): boolean {
   return workOutputAssemblyPatterns.some((pattern) => pattern.test(taskIntent.normalizedTask));
+}
+
+function isTokenMeasurementTask(taskIntent: TaskIntentAnalysis): boolean {
+  return /\b(token|tokens)\b/.test(taskIntent.normalizedTask)
+    && /\b(measure|measurement|mode|estimate|estimator)\b/.test(taskIntent.normalizedTask);
+}
+
+function isLocalGlobalDoctorTask(taskIntent: TaskIntentAnalysis): boolean {
+  return (
+    /\b(local|global)\b/.test(taskIntent.normalizedTask)
+    && /\b(rcc|doctor|warning|warn|version|binary|cli)\b/.test(taskIntent.normalizedTask)
+  ) || (
+    /\bdoctor\b/.test(taskIntent.normalizedTask)
+    && /\b(rcc|local|global|version|warning|warn|cli)\b/.test(taskIntent.normalizedTask)
+  );
+}
+
+function shouldSuppressWeakSemanticTaskFiles(taskIntent: TaskIntentAnalysis): boolean {
+  return taskIntent.hasWorkflowDomain
+    || isTokenMeasurementTask(taskIntent)
+    || isLocalGlobalDoctorTask(taskIntent);
 }
 
 function makeLookupHint(
@@ -735,13 +766,21 @@ function buildTaskFileRecommendations(
   const workflowTaskPaths = promotedByRole(["config", "workflow", "package"]);
   const hasStrongWorkflowTaskCandidates = taskIntent.hasWorkflowDomain
     && promoted.some((hint) => isWorkflowConfigOrPackageHint(hint));
+  const suppressWeakSemanticTaskFiles = shouldSuppressWeakSemanticTaskFiles(taskIntent);
   const promotedTaskPaths = taskIntent.hasWorkflowDomain
     ? promoted
       .filter((hint) => ["source", "config", "workflow", "package"].includes(classifyRepoFile(hint.path).role))
       .filter((hint) => !hasStrongWorkflowTaskCandidates || !isWeakSemanticSourceHint(hint))
       .map((hint) => hint.path)
     : [
-      ...promotedByRole(["source"]),
+      ...promotedByRole(["source"]).filter((filePath) => {
+        if (!suppressWeakSemanticTaskFiles) {
+          return true;
+        }
+
+        const hint = promoted.find((candidate) => candidate.path === filePath);
+        return !hint || !isWeakSemanticSourceHint(hint);
+      }),
       ...workflowTaskPaths
     ];
   const taskFilePaths = uniquePaths([
@@ -1013,6 +1052,42 @@ async function targetedLookupHints(cwd: string, taskIntent: TaskIntentAnalysis, 
         routeTerm,
         routePath.endsWith("work.ts") ? 86 : 84,
         "routed by RCC work output assembly guidance",
+        "task-routing",
+        routeIndex
+      ));
+    }
+  }
+
+  if (isTokenMeasurementTask(taskIntent)) {
+    const routeTerm = terms.find((term) => ["measure", "measurement", "token", "tokens", "estimate"].includes(term)) ?? terms[0] ?? "token";
+    for (const routePath of tokenMeasurementRoutes) {
+      const routeIndex = repoFiles.indexOf(routePath);
+      if (routeIndex === -1) {
+        continue;
+      }
+      candidates.push(makeLookupHint(
+        routePath,
+        routeTerm,
+        routePath.endsWith("measure.ts") ? 88 : 84,
+        "routed by RCC token measurement guidance",
+        "task-routing",
+        routeIndex
+      ));
+    }
+  }
+
+  if (isLocalGlobalDoctorTask(taskIntent)) {
+    const routeTerm = terms.find((term) => ["doctor", "local", "global", "rcc", "warning", "version"].includes(term)) ?? terms[0] ?? "doctor";
+    for (const routePath of localGlobalDoctorRoutes) {
+      const routeIndex = repoFiles.indexOf(routePath);
+      if (routeIndex === -1) {
+        continue;
+      }
+      candidates.push(makeLookupHint(
+        routePath,
+        routeTerm,
+        routePath.endsWith("doctor.ts") ? 88 : 84,
+        "routed by RCC local/global doctor guidance",
         "task-routing",
         routeIndex
       ));

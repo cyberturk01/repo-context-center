@@ -1243,6 +1243,65 @@ test("work --json keeps explicit rcc find command tasks focused on find implemen
   });
 });
 
+test("work --json routes token measurement tasks to measure command and estimator", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-token-measure-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/TASK_ROUTING.md", "# Task Routing\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/measure.ts", "export function measureCommand() {}\n");
+    await writeFixtureFile(tempDir, "src/core/tokenEstimator.ts", "export function estimateTokens() {}\n");
+    await writeFixtureFile(tempDir, "tests/estimate.test.js", "test('measure token estimate', () => {});\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/estimate.ts", "export const mode = 'mode mode mode mode mode mode mode mode mode mode';\n");
+    await writeFixtureFile(tempDir, "src/core/taskIntent.ts", "export const token = 'token token token token token token token token token token';\n");
+
+    const result = runCli(["work", "--json", "--debug", "add token measurement mode"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const taskPaths = brief.taskFiles.map((file) => file.path);
+    const testPaths = brief.supportingTests.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(taskPaths.slice(0, 2), [
+      "src/cli/commands/measure.ts",
+      "src/core/tokenEstimator.ts"
+    ], taskPaths.join("\n"));
+    assert.ok(testPaths.includes("tests/estimate.test.js"), testPaths.join("\n"));
+    assert.equal(taskPaths.includes("src/cli/commands/estimate.ts"), false, taskPaths.join("\n"));
+    assert.equal(taskPaths.includes("src/core/taskIntent.ts"), false, taskPaths.join("\n"));
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work --json routes local/global RCC warning tasks to doctor command and CLI dispatch", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-doctor-routing-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/TASK_ROUTING.md", "# Task Routing\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/doctor.ts", "export function doctorCommand() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/index.ts", "export const commands = { doctor: true };\n");
+    await writeFixtureFile(tempDir, "tests/cli.test.js", "test('doctor warning', () => {});\n");
+    await writeFixtureFile(tempDir, "src/core/config.ts", "export const warning = 'local global rcc warning warning warning warning warning';\n");
+    await writeFixtureFile(tempDir, "package.json", "{\"name\":\"repo-context-center\",\"version\":\"0.0.0\"}\n");
+
+    const result = runCli(["work", "--json", "--debug", "improve local vs global rcc warning"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const taskPaths = brief.taskFiles.map((file) => file.path);
+    const testPaths = brief.supportingTests.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(taskPaths.slice(0, 2), [
+      "src/cli/commands/doctor.ts",
+      "src/cli/index.ts"
+    ], taskPaths.join("\n"));
+    assert.ok(testPaths.includes("tests/cli.test.js"), testPaths.join("\n"));
+    assert.equal(taskPaths.includes("src/core/config.ts"), false, taskPaths.join("\n"));
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("work --json gives action verbs little direct filename boost", async () => {
   await withWorkflowRankingRepo(async (tempDir) => {
     const result = runCli(["work", "--json", "--debug", "search Workflow risks"], { cwd: tempDir });

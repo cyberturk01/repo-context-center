@@ -32,14 +32,17 @@ const cases = [
   {
     task: "add token measurement mode",
     expectedTaskFiles: [
+      "src/cli/commands/measure.ts",
       "src/core/tokenEstimator.ts",
-      "src/cli/commands/estimate.ts"
     ],
     expectedTests: ["tests/estimate.test.js"]
   },
   {
     task: "improve local vs global rcc warning",
-    expectedTaskFiles: ["src/core/config.ts"],
+    expectedTaskFiles: [
+      "src/cli/commands/doctor.ts",
+      "src/cli/index.ts"
+    ],
     expectedTests: ["tests/cli.test.js"]
   }
 ];
