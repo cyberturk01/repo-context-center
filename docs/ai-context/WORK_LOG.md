@@ -138,4 +138,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Extracted work file recommendation and categorization logic into src/cli/work/taskFileRecommendations.ts while preserving output categories.
 - Changed files: `src/cli/commands/work.ts`, `src/cli/work/taskFileRecommendations.ts`
 - Verification: npm run build; node --test tests/work.test.js tests/repoFileClassifier.test.js
+
+## 2026-06-19T16:25:20.969Z
+- Summary: Extracted WorkBrief assembly into src/cli/work/buildWorkBrief.ts and kept work.ts focused on rendering/public wrappers.
+- Changed files: `src/cli/commands/work.ts`, `src/cli/work/buildWorkBrief.ts`
+- Verification: npm run build; node --test tests/work.test.js
 <!-- repo-context-center:work-log:end -->
