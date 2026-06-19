@@ -1,11 +1,17 @@
-import type { HandoffBrief } from "./handoffTypes";
+import type { CompactAgentHandoff, HandoffBrief } from "./handoffTypes";
 
-export function toAgentHandoff(brief: HandoffBrief): Record<string, unknown> {
+export function toAgentHandoff(brief: HandoffBrief): CompactAgentHandoff {
   return {
+    schemaVersion: brief.schemaVersion,
+    command: brief.command,
     task: brief.task,
-    status: brief.status,
-    summary: brief.summary,
-    next: "Use this placeholder handoff structure until full handoff assembly is implemented."
+    generatedAt: brief.generatedAt,
+    currentState: brief.currentState,
+    memory: brief.memory,
+    readFirst: brief.readFirst,
+    nextActions: brief.nextActions,
+    avoid: brief.avoid,
+    nextCommand: brief.nextCommand
   };
 }
 

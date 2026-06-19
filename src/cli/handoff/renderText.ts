@@ -5,9 +5,12 @@ export function renderHandoffText(brief: HandoffBrief): string {
     "repo-context-center handoff",
     "",
     `Task: ${brief.task ?? "(none)"}`,
-    `Status: ${brief.status}`,
+    `Generated: ${brief.generatedAt}`,
     "",
-    brief.summary
+    "Current state:",
+    ...brief.currentState.map((item) => `- ${item}`),
+    "",
+    `Next command: ${brief.nextCommand}`
   ];
 
   return `${lines.join("\n")}\n`;
