@@ -1,5 +1,16 @@
 # ChangeLog
 
+## 0.8.3
+
+### Added
+Improved rcc work for cheaper AI agent handoff:
+- compact default output
+- task files before context docs
+- agent rules separated from task files
+- action/domain-aware routing
+- targeted lookup promotion
+- workflow-domain ranking improvements
+
 ## 0.7.0
 
 ### Added
