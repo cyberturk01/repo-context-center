@@ -63,4 +63,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Aligned generic and repo AGENTS guidance around concise RCC workflow and current local development commands
 - Changed files: `AGENTS.md`, `src/core/repoMapper.ts`, `src/core/templateInstaller.ts`, `src/templates/generic/AGENTS.md`, `tests/agent-startup-adoption.test.js`, `tests/init.test.js`, `tests/map.test.js`, `tests/templates.test.js`, `tests/v07-release.test.js`
 - Verification: npm run build; node --test tests/templates.test.js tests/init.test.js tests/map.test.js tests/agent-startup-adoption.test.js tests/v07-release.test.js; npm test
+
+## 2026-06-19T14:17:44.174Z
+- Summary: Recalibrated AGENTS.md for command-first RCC workflow
+- Changed files: `AGENTS.md`, `src/templates/generic/AGENTS.md`, `tests/agent-startup-adoption.test.js`, `tests/init.test.js`, `tests/map.test.js`, `tests/templates.test.js`
+- Verification: npm run build; npm run benchmark:routing; npm run benchmark:work-repeat; npm test
 <!-- repo-context-center:work-log:end -->

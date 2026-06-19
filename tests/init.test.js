@@ -341,21 +341,25 @@ test("init dry-run does not write files", async () => {
 
   try {
     const result = runInit(tempDir, ["--dry-run"]);
+    const agentsPreview = result.stdout.slice(0, result.stdout.indexOf("Would create file: docs/ai-context/COMMUNICATION_MODE.md"));
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Dry run complete/);
-    assert.match(result.stdout, /For coding tasks, first run once:/);
-    assert.match(result.stdout, /`rcc work "<task>"`/);
-    assert.match(result.stdout, /Follow the brief before reading files or searching broadly\./);
-    assert.match(result.stdout, /rcc find "<keyword>"/);
-    assert.match(result.stdout, /Do not ask the human to run RCC commands\./);
-    assert.match(result.stdout, /After meaningful changes, run tests and record:/);
-    assert.match(result.stdout, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);
-    assert.match(result.stdout, /If shell commands are unavailable, fallback to reading/);
-    assert.match(result.stdout, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
-    assert.match(result.stdout, /docs\/ai-context\/TASK_ROUTING\.md/);
-    assert.match(result.stdout, /docs\/ai-context\/DO_NOT_READ\.md/);
-    assert.match(result.stdout, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
+    assert.match(agentsPreview, /For coding tasks, first run once:/);
+    assert.match(agentsPreview, /`rcc work "<task>"`/);
+    assert.match(agentsPreview, /Follow the brief before reading files or searching broadly\./);
+    assert.match(agentsPreview, /rcc find "<keyword>"/);
+    assert.match(agentsPreview, /Do not ask the human to run RCC commands\./);
+    assert.match(agentsPreview, /After meaningful changes, run tests and record:/);
+    assert.match(agentsPreview, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);
+    assert.match(agentsPreview, /Use `rcc doctor` for local\/global RCC confusion\./);
+    assert.match(agentsPreview, /Use `rcc measure "<task>"` for token-saving estimates\./);
+    assert.match(agentsPreview, /If RCC commands are unavailable/);
+    assert.match(agentsPreview, /docs\/ai-context\/TASK_ROUTING\.md/);
+    assert.match(agentsPreview, /docs\/ai-context\/TOKEN_BUDGET\.md/);
+    assert.match(agentsPreview, /docs\/ai-context\/DO_NOT_READ\.md/);
+    assert.doesNotMatch(agentsPreview, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
+    assert.doesNotMatch(agentsPreview, /docs\/ai-context\/MODULE_INDEX\.md/);
 
     for (const file of requiredTemplates) {
       await assert.rejects(() => stat(path.join(tempDir, file)), { code: "ENOENT" });

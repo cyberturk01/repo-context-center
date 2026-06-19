@@ -18,8 +18,8 @@ Then:
   `rcc done --summary "<summary>" --files auto --verify "<checks>"`
 <!-- repo-context-center:workflow:end -->
 
-- If shell commands are unavailable, fallback to reading `docs/ai-context/COMMUNICATION_MODE.md`, `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/TOKEN_BUDGET.md`, and `docs/ai-context/DO_NOT_READ.md`.
-- Use `docs/ai-context/MODULE_INDEX.md` only when routing is missing or the task spans modules.
-- Verify source; keep changes focused.
-- Run smallest useful verification.
-- Do not edit generated context files manually.
+- Use `rcc doctor` for local/global RCC confusion.
+- Use `rcc measure "<task>"` for token-saving estimates.
+- If RCC commands are unavailable, read only `docs/ai-context/TASK_ROUTING.md` and `docs/ai-context/TOKEN_BUDGET.md`; check `docs/ai-context/DO_NOT_READ.md` before manual broad scans.
+
+Keep changes focused. Avoid unnecessary repository scanning.

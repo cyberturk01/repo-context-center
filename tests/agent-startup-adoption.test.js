@@ -52,7 +52,7 @@ test("v0.5 adoption flow generates AGENTS.md task startup guidance", async () =>
     assert.equal(mapResult.status, 0);
 
     const agents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
-    const noShellLine = agents.split("\n").find((line) => line.includes("shell commands are unavailable")) ?? "";
+    const fallbackLine = agents.split("\n").find((line) => line.includes("RCC commands are unavailable")) ?? "";
 
     assert.match(agents, /## RCC Workflow/);
     assert.match(agents, /For coding tasks, first run once:/);
@@ -63,12 +63,13 @@ test("v0.5 adoption flow generates AGENTS.md task startup guidance", async () =>
     assert.match(agents, /Do not ask the human to run RCC commands\./);
     assert.match(agents, /After meaningful changes, run tests and record:/);
     assert.match(agents, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);
-    assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
-    assert.match(noShellLine, /docs\/ai-context\/TASK_ROUTING\.md/);
-    assert.match(noShellLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
-    assert.match(noShellLine, /docs\/ai-context\/DO_NOT_READ\.md/);
-    assert.doesNotMatch(noShellLine, /docs\/ai-context\/MODULE_INDEX\.md/);
-    assert.match(agents, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
+    assert.match(agents, /rcc doctor/);
+    assert.match(agents, /rcc measure "<task>"/);
+    assert.match(fallbackLine, /docs\/ai-context\/TASK_ROUTING\.md/);
+    assert.match(fallbackLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
+    assert.match(fallbackLine, /docs\/ai-context\/DO_NOT_READ\.md/);
+    assert.doesNotMatch(agents, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
+    assert.doesNotMatch(agents, /docs\/ai-context\/MODULE_INDEX\.md/);
     assert.doesNotMatch(agents, /repo-context-center:generated:start/);
     assert.doesNotMatch(agents, /Compact generated entrypoint\./);
     assert.doesNotMatch(agents, /^Before a task:$/m);

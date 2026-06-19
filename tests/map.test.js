@@ -439,17 +439,18 @@ test("AGENTS.md avoids duplicate startup guidance after init and map write", asy
   await withMappedRepo(async (tempDir) => {
     const result = runCli(tempDir, ["map", "--write"]);
     const content = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
-    const noShellLine = content.split("\n").find((line) => line.includes("shell commands are unavailable")) ?? "";
+    const fallbackLine = content.split("\n").find((line) => line.includes("RCC commands are unavailable")) ?? "";
 
     assert.equal(result.status, 0);
     assert.equal(countMatches(content, /`rcc work "<task>"`/g), 1);
     assert.match(content, /Read this first\./);
-    assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
-    assert.match(noShellLine, /docs\/ai-context\/TASK_ROUTING\.md/);
-    assert.match(noShellLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
-    assert.match(noShellLine, /docs\/ai-context\/DO_NOT_READ\.md/);
-    assert.doesNotMatch(noShellLine, /docs\/ai-context\/MODULE_INDEX\.md/);
-    assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
+    assert.match(content, /rcc doctor/);
+    assert.match(content, /rcc measure "<task>"/);
+    assert.match(fallbackLine, /docs\/ai-context\/TASK_ROUTING\.md/);
+    assert.match(fallbackLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
+    assert.match(fallbackLine, /docs\/ai-context\/DO_NOT_READ\.md/);
+    assert.doesNotMatch(content, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
+    assert.doesNotMatch(content, /docs\/ai-context\/MODULE_INDEX\.md/);
     assert.match(content, /rcc find "<keyword>"/);
     assert.doesNotMatch(content, /repo-context-center:generated:start/);
     assert.doesNotMatch(content, /Compact generated entrypoint\./);

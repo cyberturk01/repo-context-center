@@ -60,7 +60,7 @@ const templateTitles = {
 };
 
 function shellFallbackLine(content) {
-  return content.split("\n").find((line) => line.includes("shell commands are unavailable")) ?? "";
+  return content.split("\n").find((line) => line.includes("RCC commands are unavailable")) ?? "";
 }
 
 function workflowSection(content) {
@@ -102,17 +102,15 @@ test("AGENTS template keeps low-token startup references", async () => {
   const noShellLine = shellFallbackLine(content);
 
   assert.equal(workflowSection(content), expectedWorkflowSection);
-  assert.match(content, /If shell commands are unavailable, fallback to reading/);
   assert.match(content, /Read this first\./);
-  assert.match(content, /Verify source; keep changes focused\./);
-  assert.match(content, /Run smallest useful verification\./);
-  assert.match(content, /Do not edit generated context files manually\./);
-  assert.match(noShellLine, /COMMUNICATION_MODE\.md/);
-  assert.match(content, /TOKEN_BUDGET\.md/);
-  assert.match(content, /DO_NOT_READ\.md/);
+  assert.match(content, /rcc doctor/);
+  assert.match(content, /rcc measure "<task>"/);
   assert.match(content, /TASK_ROUTING\.md/);
-  assert.doesNotMatch(noShellLine, /MODULE_INDEX\.md/);
-  assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
+  assert.match(noShellLine, /TOKEN_BUDGET\.md/);
+  assert.match(content, /DO_NOT_READ\.md/);
+  assert.doesNotMatch(content, /COMMUNICATION_MODE\.md/);
+  assert.doesNotMatch(content, /MODULE_INDEX\.md/);
+  assert.match(content, /Avoid unnecessary repository scanning\./);
 });
 
 test("AGENTS template remains startup-only", async () => {
@@ -169,14 +167,15 @@ test("generated AGENTS template keeps core startup rules", async () => {
   const noShellLine = shellFallbackLine(content);
 
   assert.equal(workflowSection(content), expectedWorkflowSection);
-  assert.match(content, /If shell commands are unavailable, fallback to reading/);
-  assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
+  assert.match(content, /rcc doctor/);
+  assert.match(content, /rcc measure "<task>"/);
   assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
+  assert.match(noShellLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
   assert.match(content, /docs\/ai-context\/DO_NOT_READ\.md/);
-  assert.doesNotMatch(noShellLine, /docs\/ai-context\/MODULE_INDEX\.md/);
-  assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
+  assert.doesNotMatch(content, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
+  assert.doesNotMatch(content, /docs\/ai-context\/MODULE_INDEX\.md/);
   assert.match(content, /Read this first\./);
-  assert.match(content, /Run smallest useful verification\./);
+  assert.match(content, /Avoid unnecessary repository scanning\./);
   assert.doesNotMatch(content, /^Read:$/m);
   assert.doesNotMatch(content, /^Modes:$/m);
 });
