@@ -448,6 +448,23 @@ test("work runs without arguments", async () => {
   });
 });
 
+test("work rejects invalid arguments with usage", async () => {
+  await withWorkRepo(async (tempDir) => {
+    for (const args of [
+      ["work", "fix login bug", "--unknown"],
+      ["work", "--context-budget", "wide", "fix login bug"],
+      ["work", "--max-files", "0", "fix login bug"],
+      ["work", "--max-files", "many", "fix login bug"]
+    ]) {
+      const result = runCli(args, { cwd: tempDir });
+
+      assert.notEqual(result.status, 0, args.join(" "));
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /^Usage: rcc work "<task>"/, args.join(" "));
+    }
+  });
+});
+
 test("work accepts a task string and recommends focused files", async () => {
   await withWorkRepo(async (tempDir) => {
     const result = runCli(["work", "fix login bug"], { cwd: tempDir });
