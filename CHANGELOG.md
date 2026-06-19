@@ -1,8 +1,8 @@
 # ChangeLog
 
-## [0.9.3]
+## [0.9.0]
 
-RCC v0.9.3 summarizes the v0.9.x series shift from startup context generation toward task continuation and agent handoff workflows. The release keeps `rcc work` as the task entrypoint while adding handoff-focused outputs and structured memory for continuing work across sessions.
+RCC v0.9.0 summarizes the v0.9 series shift from startup context generation toward task continuation and agent handoff workflows. The release keeps `rcc work` as the task entrypoint while adding handoff-focused outputs and structured memory for continuing work across sessions.
 
 ### Added
 
