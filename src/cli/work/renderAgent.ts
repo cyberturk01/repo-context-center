@@ -58,3 +58,7 @@ export function toAgentRoute(brief: WorkBrief, verbose: boolean): PublicAgentRou
 export function renderWorkBriefAgentJson(brief: WorkBrief, verbose: boolean): string {
   return `${JSON.stringify(toAgentRoute(brief, verbose))}\n`;
 }
+
+export function renderAgent(brief: WorkBrief, verbose: boolean): string {
+  return renderWorkBriefAgentJson(brief, verbose);
+}

@@ -1,81 +1,39 @@
 import { buildWorkBriefForTask } from "../work/buildWorkBrief";
-import { renderWorkBriefAgentJson, toAgentRoute } from "../work/renderAgent";
-import {
-  renderWorkBriefCompactJson,
-  renderWorkBriefDebugJson,
-  toCompactWorkBrief
-} from "../work/renderJson";
-import { formatWorkBrief, renderWorkBriefLines } from "../work/renderText";
-import { formatWorkOptionsUsage, parseWorkOptions } from "../work/workOptions";
-import type {
-  CompactWorkBrief,
-  ContextBudget,
-  PublicAgentRoute,
-  PublicAgentRouteItem,
-  PublicCompactWorkFile,
-  WorkBrief
-} from "../work/workTypes";
-import type { CliIO } from "../index";
+import { renderAgent } from "../work/renderAgent";
+import { renderJson } from "../work/renderJson";
+import { renderText } from "../work/renderText";
+import { usage } from "../work/workConstants";
+import { parseWorkOptions } from "../work/workOptions";
 
-export type {
-  CompactWorkBrief,
-  PublicAgentRoute,
-  PublicAgentRouteItem,
-  PublicCompactWorkFile
-} from "../work/workTypes";
-
-function estimateRenderedWorkBriefTokens(brief: WorkBrief): number {
-  return Math.ceil(renderWorkBriefLines(brief).join("\n").length / 4);
-}
-
-export async function buildCompactWorkBrief(
-  cwd: string,
-  task: string,
-  options: { contextBudget?: ContextBudget; maxFiles?: number } = {}
-): Promise<CompactWorkBrief> {
-  return toCompactWorkBrief(await buildWorkBriefForTask(cwd, task, {
-    ...options,
-    estimateTokens: estimateRenderedWorkBriefTokens
-  }));
-}
-
-export async function buildAgentWorkRoute(
-  cwd: string,
-  task: string,
-  options: { contextBudget?: ContextBudget; maxFiles?: number; verbose?: boolean } = {}
-): Promise<PublicAgentRoute> {
-  return toAgentRoute(
-    await buildWorkBriefForTask(cwd, task, {
-      ...options,
-      estimateTokens: estimateRenderedWorkBriefTokens
-    }),
-    options.verbose ?? false
-  );
-}
-
-export async function workCommand(io: CliIO, args: string[] = []): Promise<number> {
+export async function workCommand(
+  io: {
+    cwd: string;
+    stdout: (message: string) => void;
+    stderr: (message: string) => void;
+  },
+  args: string[] = []
+): Promise<number> {
   const options = parseWorkOptions(args);
   if (!options) {
-    io.stderr(formatWorkOptionsUsage());
+    io.stderr(`${usage}\n`);
     return 1;
   }
 
   const brief = await buildWorkBriefForTask(io.cwd, options.task, {
     contextBudget: options.contextBudget,
-    maxFiles: options.maxFiles,
-    estimateTokens: estimateRenderedWorkBriefTokens
+    maxFiles: options.maxFiles
   });
 
   if (options.agent) {
-    io.stdout(renderWorkBriefAgentJson(brief, options.verbose));
+    io.stdout(renderAgent(brief, options.verbose));
     return 0;
   }
 
   if (options.json) {
-    io.stdout(options.debug ? renderWorkBriefDebugJson(brief) : renderWorkBriefCompactJson(brief));
+    io.stdout(renderJson(brief, options.debug));
     return 0;
   }
 
-  io.stdout(formatWorkBrief(brief));
+  io.stdout(renderText(brief));
   return 0;
 }

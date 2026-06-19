@@ -176,3 +176,7 @@ export function renderWorkBriefCompactJson(brief: WorkBrief): string {
 
   return `${JSON.stringify(compactBrief, null, 2)}\n`;
 }
+
+export function renderJson(brief: WorkBrief, debug: boolean): string {
+  return debug ? renderWorkBriefDebugJson(brief) : renderWorkBriefCompactJson(brief);
+}

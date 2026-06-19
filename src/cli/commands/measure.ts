@@ -1,6 +1,7 @@
 import { estimateNaiveScan, estimateSavingPercent } from "../../core/tokenEstimator";
 import type { CliIO } from "../index";
-import { buildAgentWorkRoute, type PublicAgentRoute } from "./work";
+import { buildAgentWorkRoute } from "../work/buildWorkBrief";
+import type { PublicAgentRoute } from "../work/workTypes";
 
 interface MeasureOptions {
   json: boolean;

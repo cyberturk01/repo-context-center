@@ -245,3 +245,7 @@ export function renderWorkBriefLines(brief: WorkBrief): string[] {
 export function formatWorkBrief(brief: WorkBrief): string {
   return `${renderWorkBriefLines(brief).join("\n")}\n`;
 }
+
+export function renderText(brief: WorkBrief): string {
+  return formatWorkBrief(brief);
+}

@@ -10,13 +10,18 @@ import {
   existingReadFirstContextFiles,
   readFirstCompatibilityPaths
 } from "./readFirstGuidance";
+import { toAgentRoute } from "./renderAgent";
+import { toCompactWorkBrief } from "./renderJson";
+import { renderWorkBriefLines } from "./renderText";
 import {
   buildTaskFileRecommendations,
   buildWorkFileCategorization
 } from "./taskFileRecommendations";
 import { targetedLookupHints } from "./targetedLookup";
 import type {
+  CompactWorkBrief,
   ContextBudget,
+  PublicAgentRoute,
   ReadFirstGuidance,
   TargetedLookupHint,
   WorkBrief,
@@ -54,7 +59,7 @@ function riskValues(startup: StartupContext): string[] {
 }
 
 function fallbackTokenEstimate(brief: WorkBrief): number {
-  return Math.ceil(JSON.stringify(brief).length / 4);
+  return Math.ceil(renderWorkBriefLines(brief).join("\n").length / 4);
 }
 
 export function buildBriefWithTokenEstimate(
@@ -195,5 +200,24 @@ export async function buildWorkBriefForTask(
     contextBudget,
     taskIntent,
     options.estimateTokens
+  );
+}
+
+export async function buildCompactWorkBrief(
+  cwd: string,
+  task: string,
+  options: { contextBudget?: ContextBudget; maxFiles?: number } = {}
+): Promise<CompactWorkBrief> {
+  return toCompactWorkBrief(await buildWorkBriefForTask(cwd, task, options));
+}
+
+export async function buildAgentWorkRoute(
+  cwd: string,
+  task: string,
+  options: { contextBudget?: ContextBudget; maxFiles?: number; verbose?: boolean } = {}
+): Promise<PublicAgentRoute> {
+  return toAgentRoute(
+    await buildWorkBriefForTask(cwd, task, options),
+    options.verbose ?? false
   );
 }
