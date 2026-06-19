@@ -98,4 +98,29 @@ Lightweight RCC memory from completed agent work.
 - Summary: updated README for v0.9 agent routing and measurement workflow
 - Changed files: `README.md`
 - Verification: npm test; node dist/cli/index.js measure "fix workflow risk detection"
+
+## 2026-06-19T15:50:23.848Z
+- Summary: Added baseline invalid-argument coverage for rcc work command before refactor
+- Changed files: _not detected_
+- Verification: node --test tests/work.test.js
+
+## 2026-06-19T15:54:08.085Z
+- Summary: Extracted RCC work command types and constants into dedicated modules
+- Changed files: `src/cli/commands/work.ts`, `src/cli/work/workConstants.ts`, `src/cli/work/workTypes.ts`
+- Verification: npm run build; node --test tests/work.test.js; npm test
+
+## 2026-06-19T15:58:26.750Z
+- Summary: Extracted RCC work command option parsing into workOptions module
+- Changed files: `src/cli/commands/work.ts`, `src/cli/work/workConstants.ts`, `src/cli/work/workOptions.ts`, `src/cli/work/workTypes.ts`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/work.test.js; npm test
+
+## 2026-06-19T16:02:00.275Z
+- Summary: Extracted RCC work map freshness logic into mapFreshness module
+- Changed files: `src/cli/commands/work.ts`, `src/cli/work/mapFreshness.ts`, `src/cli/work/workConstants.ts`, `src/cli/work/workOptions.ts`, `src/cli/work/workTypes.ts`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/work.test.js; npm test
+
+## 2026-06-19T16:07:07.287Z
+- Summary: Extracted RCC work memory and log readers into memorySignals module
+- Changed files: `src/cli/commands/work.ts`, `src/cli/work/mapFreshness.ts`, `src/cli/work/memorySignals.ts`, `src/cli/work/workConstants.ts`, `src/cli/work/workOptions.ts`, `src/cli/work/workTypes.ts`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/work.test.js; npm test
 <!-- repo-context-center:work-log:end -->

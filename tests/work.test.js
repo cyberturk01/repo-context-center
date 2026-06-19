@@ -15,6 +15,16 @@ function runCli(args, options = {}) {
   });
 }
 
+function assertInvalidWorkArgs(args, cwd) {
+  const result = runCli(args, { cwd });
+
+  assert.notEqual(result.status, 0, args.join(" "));
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /^Usage: rcc work "<task>"/, args.join(" "));
+
+  return result;
+}
+
 function sectionItems(output, heading, nextHeading) {
   const pattern = new RegExp(`${heading}:\\n(?<body>[\\s\\S]*?)\\n\\n${nextHeading}:`);
   const body = output.match(pattern)?.groups?.body ?? "";
@@ -439,29 +449,38 @@ async function withGuidanceRepo(callback) {
 
 test("work runs without arguments", async () => {
   await withWorkRepo(async (tempDir) => {
-    const result = runCli(["work"], { cwd: tempDir });
+    const result = assertInvalidWorkArgs(["work"], tempDir);
 
-    assert.notEqual(result.status, 0);
-    assert.equal(result.stdout, "");
-    assert.match(result.stderr, /^Usage: rcc work "<task>"/);
     assert.doesNotMatch(result.stdout, /Unspecified task/);
   });
 });
 
-test("work rejects invalid arguments with usage", async () => {
+test("work rejects missing task with usage", async () => {
+  await withWorkRepo(async (tempDir) => {
+    assertInvalidWorkArgs(["work", "--json"], tempDir);
+  });
+});
+
+test("work rejects invalid context budget with usage", async () => {
+  await withWorkRepo(async (tempDir) => {
+    assertInvalidWorkArgs(["work", "--context-budget", "wide", "fix login bug"], tempDir);
+  });
+});
+
+test("work rejects invalid max-files with usage", async () => {
   await withWorkRepo(async (tempDir) => {
     for (const args of [
-      ["work", "fix login bug", "--unknown"],
-      ["work", "--context-budget", "wide", "fix login bug"],
       ["work", "--max-files", "0", "fix login bug"],
       ["work", "--max-files", "many", "fix login bug"]
     ]) {
-      const result = runCli(args, { cwd: tempDir });
-
-      assert.notEqual(result.status, 0, args.join(" "));
-      assert.equal(result.stdout, "");
-      assert.match(result.stderr, /^Usage: rcc work "<task>"/, args.join(" "));
+      assertInvalidWorkArgs(args, tempDir);
     }
+  });
+});
+
+test("work rejects unknown flags with usage", async () => {
+  await withWorkRepo(async (tempDir) => {
+    assertInvalidWorkArgs(["work", "fix login bug", "--unknown"], tempDir);
   });
 });
 
@@ -1052,6 +1071,28 @@ test("work --json includes structured freshness output", async () => {
     assert.equal(brief.mapFreshness.latestRelevantSourceChange, "2026-06-17T13:00:00.000Z");
     assert.deepEqual(brief.mapFreshness.affectedFiles, ["src/index.ts"]);
     assert.ok(brief.mapFreshness.affectedContextFiles.includes("docs/ai-context/TASK_ROUTING.md"));
+  });
+});
+
+test("work freshness uses map generation date from changelog metadata", async () => {
+  await withFreshnessRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/CHANGE_LOG.md", [
+      "# Change Log",
+      "",
+      "| Date | Command | Files updated | Reason |",
+      "| --- | --- | --- | --- |",
+      "| 2026-06-18 | `repo-context-center map --write` | 13 context files | generated repo-specific context map |"
+    ].join("\n"));
+    await setFixtureMtime(tempDir, "docs/ai-context/CHANGE_LOG.md", new Date("2026-06-17T11:00:00.000Z"));
+    await setFixtureMtime(tempDir, "src/index.ts", new Date("2026-06-17T13:00:00.000Z"));
+
+    const result = runCli(["work", "--json", "--debug", "update cli"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.mapFreshness.status, "fresh");
+    assert.equal(brief.mapFreshness.latestContextUpdate, "2026-06-18T00:00:00.000Z");
+    assert.equal(brief.mapFreshness.latestRelevantSourceChange, "2026-06-17T13:00:00.000Z");
   });
 });
 
@@ -1783,6 +1824,38 @@ test("work shows duplicate decisions only once", async () => {
 
     assert.equal(result.status, 0);
     assert.equal(matches.length, 1);
+  });
+});
+
+test("work reads recent memory logs from work, change, and lessons files", async () => {
+  await withWorkRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "- Summary: fixed login issue"
+    ].join("\n"));
+    await writeFixtureFile(tempDir, "docs/ai-context/CHANGE_LOG.md", [
+      "# Change Log",
+      "",
+      "| Date | Command | Files updated | Reason |",
+      "| --- | --- | --- | --- |",
+      "| 2026-06-18 | `repo-context-center log` | `src/auth/login.ts` | login change |"
+    ].join("\n"));
+    await writeFixtureFile(tempDir, "docs/ai-context/LESSONS_LEARNED.md", [
+      "# Lessons Learned",
+      "",
+      "- login lesson"
+    ].join("\n"));
+
+    const result = runCli(["work", "--json", "--debug", "fix login bug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(brief.recentLogs, [
+      "Work: fixed login issue",
+      "Change: 2026-06-18 | repo-context-center log | src/auth/login.ts | login change",
+      "Lesson: login lesson"
+    ]);
   });
 });
 

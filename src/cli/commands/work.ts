@@ -1,408 +1,58 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
-import { requiredContextFiles } from "../../core/contextFiles";
 import { classifyRepoFile, type RepoFileRole } from "../../core/repoFileClassifier";
 import { listFilesRecursive, pathExists, readTextFile } from "../../core/fileSystem";
 import { buildStartupContext, focusStartupContextForStart, type StartupContext } from "../../core/suggester";
 import { analyzeTaskIntent, weightedScore, type TaskIntentAnalysis } from "../../core/taskIntent";
+import {
+  contextFiles,
+  defaultLookupRoleOrder,
+  documentationTaskLookupRoleOrder,
+  localGlobalDoctorRoutes,
+  nextCommand,
+  packageTaskLookupRoleOrder,
+  releaseTaskRoutes,
+  strongLookupScoreThreshold,
+  targetedContentReadLimit,
+  targetedLookupLimit,
+  tokenMeasurementRoutes,
+  workflowTaskLookupRoleOrder,
+  workLogPath,
+  workOutputAssemblyPatterns,
+  workOutputAssemblyRoutes
+} from "../work/workConstants";
+import { assessMapFreshness } from "../work/mapFreshness";
+import { lookupMemorySignals, readRecentLogs, readRelevantDecisions } from "../work/memorySignals";
+import { formatWorkOptionsUsage, parseWorkOptions } from "../work/workOptions";
+import type {
+  CompactWorkBrief,
+  ContextBudget,
+  PublicAgentRoute,
+  PublicAgentRouteItem,
+  PublicCompactWorkFile,
+  PublicReadFirstGuidanceItem,
+  PublicTargetedLookupHint,
+  PublicWorkBrief,
+  PublicWorkFile,
+  PublicWorkRisk,
+  ReadFirstGuidance,
+  ReadFirstGuidanceItem,
+  ReadFirstPriority,
+  TargetedLookupHint,
+  TargetedLookupSignal,
+  WorkBrief,
+  WorkFileCategorization,
+  WorkMapFreshness,
+  WorkRecommendation
+} from "../work/workTypes";
 import type { CliIO } from "../index";
 
-interface WorkOptions {
-  agent: boolean;
-  contextBudget: ContextBudget;
-  debug: boolean;
-  json: boolean;
-  maxFiles: number;
-  task: string;
-  verbose: boolean;
-}
-
-interface TargetedLookupHint {
-  path: string;
-  term: string;
-  reason: string;
-  signal: TargetedLookupSignal;
-  confidence: "high" | "medium" | "low";
-  score: number;
-  index: number;
-}
-
-type TargetedLookupSignal =
-  | "exact-filename-match"
-  | "command-name-match"
-  | "filename-match"
-  | "paired-test"
-  | "task-routing"
-  | "decision-memory"
-  | "work-log"
-  | "path-match"
-  | "semantic-match";
-
-interface WorkRecommendation {
-  path: string;
-  reasons: string[];
-}
-
-type ContextBudget = "minimal" | "balanced" | "deep";
-type ReadFirstPriority = "required" | "task_specific" | "optional" | "skipped";
-
-interface ReadFirstGuidanceItem {
-  path: string;
-  reason: string;
-  priority: ReadFirstPriority;
-}
-
-interface ReadFirstGuidance {
-  required: ReadFirstGuidanceItem[];
-  taskSpecific: ReadFirstGuidanceItem[];
-  optional: ReadFirstGuidanceItem[];
-  skipped: ReadFirstGuidanceItem[];
-}
-
-interface WorkMapFreshness {
-  status: "fresh" | "maybe_stale" | "stale" | "unknown";
-  score: number;
-  reason: string;
-  latestContextUpdate: string | null;
-  latestRelevantSourceChange: string | null;
-  affectedFiles: string[];
-  affectedContextFiles: string[];
-  message: string;
-}
-
-interface WorkBrief {
-  command: "work";
-  task: string;
-  contextBudget: ContextBudget;
-  mapFreshness: WorkMapFreshness;
-  routingGuidance: string[];
-  startupContext: StartupContext;
-  primaryFiles: WorkRecommendation[];
-  supportingFiles: WorkRecommendation[];
-  tests: WorkRecommendation[];
-  agentRules: WorkRecommendation[];
-  contextIfUnclear: WorkRecommendation[];
-  taskFiles: WorkRecommendation[];
-  supportingTests: WorkRecommendation[];
-  workflowDocs: WorkRecommendation[];
-  contextDocs: WorkRecommendation[];
-  recommendedFiles: WorkRecommendation[];
-  relevantTests: WorkRecommendation[];
-  targetedLookupHints: Array<Omit<TargetedLookupHint, "index">>;
-  promotedFromTargetedLookup: Array<Omit<TargetedLookupHint, "index">>;
-  relevantDecisions: string[];
-  recentLogs: string[];
-  tokenEstimate: {
-    roughTokens: number | null;
-    text: string;
-  };
-  risks: string[];
-  cheapestPath: string[];
-  avoid: string[];
-  readFirst: string[];
-  readFirstGuidance: ReadFirstGuidance;
-  nextCheapestCommand: string;
-  nextCommand: string;
-}
-
-interface PublicWorkBrief {
-  schemaVersion: 1;
-  command: "work";
-  task: string;
-  contextBudget: ContextBudget;
-  mapFreshness: {
-    status: WorkMapFreshness["status"];
-    score: number;
-    reason: string;
-    latestContextUpdate: string | null;
-    latestRelevantSourceChange: string | null;
-    affectedFiles: string[];
-    affectedContextFiles: string[];
-  };
-  recommendedFiles: PublicWorkFile[];
-  relevantTests: PublicWorkFile[];
-  primaryFiles: PublicWorkFile[];
-  supportingFiles: PublicWorkFile[];
-  tests: PublicWorkFile[];
-  agentRules: PublicWorkFile[];
-  contextIfUnclear: PublicWorkFile[];
-  taskFiles: PublicWorkFile[];
-  supportingTests: PublicWorkFile[];
-  workflowDocs: PublicWorkFile[];
-  contextDocs: PublicWorkFile[];
-  cheapestPath: string[];
-  avoid: string[];
-  nextCheapestCommand: string;
-  promotedFromTargetedLookup: PublicTargetedLookupHint[];
-  relevantDecisions: string[];
-  recentLogs: string[];
-  risks: PublicWorkRisk[];
-  readFirstGuidance: {
-    required: PublicReadFirstGuidanceItem[];
-    taskSpecific: PublicReadFirstGuidanceItem[];
-    optionalIfUnclear: PublicReadFirstGuidanceItem[];
-    skippedForNow: PublicReadFirstGuidanceItem[];
-  };
-  readFirst: string[];
-  targetedLookupHints: PublicTargetedLookupHint[];
-  tokenEstimate: {
-    humanBriefTokens: number | null;
-  };
-  fastLookup: {
-    command: string;
-    guidance: string;
-  };
-  nextCommand: {
-    command: string;
-    when: string;
-  };
-}
-
-export interface CompactWorkBrief {
-  schemaVersion: 1;
-  command: "work";
-  task: string;
-  contextBudget: ContextBudget;
-  freshness: {
-    status: WorkMapFreshness["status"];
-    score: number;
-    reason: string;
-  };
-  taskFiles: PublicCompactWorkFile[];
-  primaryFiles: PublicCompactWorkFile[];
-  supportingFiles: PublicCompactWorkFile[];
-  tests: PublicCompactWorkFile[];
-  agentRules: PublicCompactWorkFile[];
-  readFirst: string[];
-  contextIfUnclear: string[];
-  nextLookup: string;
-  nextCommand: string;
-  reusePolicy: "Call once per task. Do not rerun work unless task meaning changes. Use rcc find if route is insufficient.";
-  tokens: {
-    jsonEstimate: number;
-  };
-}
-
-interface PublicWorkFile {
-  path: string;
-  reason: string | null;
-  confidence: TargetedLookupHint["confidence"] | null;
-  score: number | null;
-}
-
-export interface PublicCompactWorkFile {
-  path: string;
-  reason?: string;
-}
-
-interface PublicReadFirstGuidanceItem {
-  path: string;
-  reason: string;
-}
-
-interface PublicTargetedLookupHint extends PublicWorkFile {
-  signal: TargetedLookupSignal;
-}
-
-interface PublicWorkRisk {
-  level: string;
-  reason: string | null;
-}
-
-export type PublicAgentRouteItem = string | PublicCompactWorkFile;
-
-export interface PublicAgentRoute {
-  task: string;
-  primaryFiles: PublicAgentRouteItem[];
-  supportingFiles: PublicAgentRouteItem[];
-  tests: PublicAgentRouteItem[];
-  readFirst: PublicAgentRouteItem[];
-  next: string;
-  briefTokens: number;
-}
-
-interface WorkFileCategorization {
-  primaryFiles: WorkRecommendation[];
-  supportingFiles: WorkRecommendation[];
-  tests: WorkRecommendation[];
-  agentRules: WorkRecommendation[];
-  contextIfUnclear: WorkRecommendation[];
-}
-
-const decisionsPath = "docs/ai-context/DECISIONS.md";
-const workLogPath = "docs/ai-context/WORK_LOG.md";
-const lessonsPath = "docs/ai-context/LESSONS_LEARNED.md";
-const changeLogPath = "docs/ai-context/CHANGE_LOG.md";
-const logLimit = 3;
-const decisionLimit = 3;
-const targetedLookupLimit = 5;
-const targetedContentReadLimit = 64 * 1024;
-const strongLookupScoreThreshold = 70;
-const usage = 'Usage: rcc work "<task>" [--json|--agent] [--verbose] [--debug] [--context-budget minimal|balanced|deep] [--max-files <number>]';
-const nextCommand = 'rcc done --summary "<summary>" --files auto --verify "<check>"';
-const freshnessAffectedFileLimit = 5;
-const freshnessImportantRoles = new Set(["source", "test", "workflow", "config", "package"]);
-const defaultLookupRoleOrder: RepoFileRole[] = [
-  "source",
-  "test",
-  "workflow",
-  "config",
-  "package",
-  "docs",
-  "fixture",
-  "snapshot",
-  "asset",
-  "generated",
-  "unknown"
-];
-const packageTaskLookupRoleOrder: RepoFileRole[] = [
-  "source",
-  "test",
-  "package",
-  "workflow",
-  "config",
-  "docs",
-  "fixture",
-  "snapshot",
-  "asset",
-  "generated",
-  "unknown"
-];
-const workflowTaskLookupRoleOrder: RepoFileRole[] = [
-  "workflow",
-  "config",
-  "package",
-  "source",
-  "test",
-  "docs",
-  "fixture",
-  "snapshot",
-  "asset",
-  "generated",
-  "unknown"
-];
-const documentationTaskLookupRoleOrder: RepoFileRole[] = [
-  "docs",
-  "source",
-  "test",
-  "workflow",
-  "config",
-  "package",
-  "fixture",
-  "snapshot",
-  "asset",
-  "generated",
-  "unknown"
-];
-const contextFiles = requiredContextFiles;
-const workOutputAssemblyPatterns = [
-  /\btask\s+files?\b/i,
-  /\brecommended\s+files?\b/i,
-  /\blookup\s+hints?\b/i,
-  /\btargeted\s+lookup(?:\s+hints?)?\b/i,
-  /\bpromoted\s+lookup\b/i,
-  /\bweak\s+semantic\s+match(?:es)?\b/i,
-  /\bsemantic\s+source\s+match(?:es)?\b/i,
-  /\bwork\s+brief\b/i,
-  /\bhuman\s+output\b/i,
-  /\boutput\s+categorization\b/i,
-  /\bagent\s+rules?\b/i,
-  /\bcontext\s+docs?\b/i,
-  /\bcheapest\s+path\b/i
-];
-const workOutputAssemblyRoutes = [
-  "src/cli/commands/work.ts",
-  "tests/work.test.js"
-];
-const tokenMeasurementRoutes = [
-  "src/cli/commands/measure.ts",
-  "src/core/tokenEstimator.ts",
-  "tests/estimate.test.js"
-];
-const releaseTaskRoutes = [
-  "package.json",
-  "CHANGELOG.md"
-];
-const localGlobalDoctorRoutes = [
-  "src/cli/commands/doctor.ts",
-  "src/cli/index.ts",
-  "tests/cli.test.js"
-];
-
-function parseWorkOptions(args: string[]): WorkOptions | undefined {
-  let agent = false;
-  let contextBudget: ContextBudget = "balanced";
-  let debug = false;
-  let json = false;
-  let maxFiles = 50;
-  let verbose = false;
-  const taskParts: string[] = [];
-
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-
-    if (arg === "--json") {
-      json = true;
-      continue;
-    }
-
-    if (arg === "--agent") {
-      agent = true;
-      continue;
-    }
-
-    if (arg === "--verbose") {
-      verbose = true;
-      continue;
-    }
-
-    if (arg === "--debug") {
-      debug = true;
-      continue;
-    }
-
-    if (arg === "--context-budget") {
-      const value = args[index + 1];
-      if (value !== "minimal" && value !== "balanced" && value !== "deep") {
-        return undefined;
-      }
-      contextBudget = value;
-      index += 1;
-      continue;
-    }
-
-    if (arg === "--max-files") {
-      const value = Number.parseInt(args[index + 1] ?? "", 10);
-      if (!Number.isInteger(value) || value < 1) {
-        return undefined;
-      }
-      maxFiles = value;
-      index += 1;
-      continue;
-    }
-
-    if (arg.startsWith("--")) {
-      return undefined;
-    }
-
-    taskParts.push(arg);
-  }
-
-  const task = taskParts.join(" ").trim();
-  if (!task) {
-    return undefined;
-  }
-
-  return {
-    agent,
-    contextBudget,
-    debug,
-    json,
-    maxFiles,
-    task,
-    verbose
-  };
-}
+export type {
+  CompactWorkBrief,
+  PublicAgentRoute,
+  PublicAgentRouteItem,
+  PublicCompactWorkFile
+} from "../work/workTypes";
 
 function formatList(values: string[], fallback: string): string[] {
   if (values.length === 0) {
@@ -1144,42 +794,6 @@ function buildWorkFileCategorization(
   };
 }
 
-async function lookupMemorySignals(cwd: string, terms: string[]): Promise<Map<string, TargetedLookupSignal>> {
-  const signals = new Map<string, TargetedLookupSignal>();
-  const files = [
-    { path: decisionsPath, signal: "decision-memory" as const },
-    { path: workLogPath, signal: "work-log" as const },
-    { path: changeLogPath, signal: "work-log" as const },
-    { path: lessonsPath, signal: "work-log" as const }
-  ];
-
-  for (const file of files) {
-    const fullPath = path.join(cwd, file.path);
-    if (!(await pathExists(fullPath))) {
-      continue;
-    }
-
-    const content = await readTextFile(fullPath);
-    const relevantLines = content
-      .split(/\r?\n/)
-      .filter((line) => terms.some((term) => termPattern(term).test(line)))
-      .slice(-10);
-
-    for (const line of relevantLines) {
-      for (const repoPath of extractRepoPaths(line)) {
-        if (!(await pathExists(path.join(cwd, repoPath)))) {
-          continue;
-        }
-        if (!signals.has(repoPath) || file.signal === "decision-memory") {
-          signals.set(repoPath, file.signal);
-        }
-      }
-    }
-  }
-
-  return signals;
-}
-
 function memoryHint(
   filePath: string,
   signal: TargetedLookupSignal,
@@ -1235,7 +849,7 @@ async function targetedLookupHints(cwd: string, taskIntent: TaskIntentAnalysis, 
   const repoFiles = (await listFilesRecursive(cwd)).filter((file) => shouldScanForTargetedLookup(file, taskIntent));
   const startupReferenced = routingReferencedPaths(startup);
   const pairedTestStems = sourceToPairedTestStems(repoFiles);
-  const memorySignals = await lookupMemorySignals(cwd, terms);
+  const memorySignals = await lookupMemorySignals(cwd, terms, { extractRepoPaths, termPattern });
   const candidates: TargetedLookupHint[] = [];
 
   if (isWorkOutputAssemblyTask(taskIntent)) {
@@ -1400,272 +1014,6 @@ async function targetedLookupHints(cwd: string, taskIntent: TaskIntentAnalysis, 
   const qualityHints = sortedHints.filter((hint) => hint.confidence !== "low");
 
   return (qualityHints.length >= targetedLookupLimit ? qualityHints : sortedHints).slice(0, targetedLookupLimit);
-}
-
-function splitMarkdownTableRow(line: string): string[] {
-  const trimmed = line.trim();
-  if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) {
-    return [];
-  }
-
-  const cells: string[] = [];
-  let cell = "";
-  const inner = trimmed.slice(1, -1);
-
-  for (let index = 0; index < inner.length; index += 1) {
-    const char = inner[index];
-    if (char === "|" && inner[index - 1] !== "\\") {
-      cells.push(cell.replace(/\\\|/g, "|").replace(/`/g, "").trim());
-      cell = "";
-      continue;
-    }
-
-    cell += char;
-  }
-
-  cells.push(cell.replace(/\\\|/g, "|").replace(/`/g, "").trim());
-  return cells;
-}
-
-function recentTableRows(content: string, limit: number): string[] {
-  return content
-    .split(/\r?\n/)
-    .map((line) => splitMarkdownTableRow(line))
-    .filter((cells) => cells.length >= 3 && cells[0] !== "Date" && !cells.every((cell) => /^-+$/.test(cell)))
-    .slice(-limit)
-    .reverse()
-    .map((cells) => cells.slice(0, 4).filter(Boolean).join(" | "));
-}
-
-function recentBulletLines(content: string, limit: number): string[] {
-  return content
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.startsWith("- ") && !line.includes("repo-context-center:"))
-    .slice(-limit)
-    .reverse()
-    .map((line) => line.replace(/^- /, ""));
-}
-
-function recentWorkSummaryLines(content: string, limit: number): string[] {
-  return content
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.startsWith("- Summary: "))
-    .slice(-limit)
-    .reverse()
-    .map((line) => line.replace(/^- Summary: /, ""));
-}
-
-function normalizeEntry(entry: string): string {
-  return entry
-    .replace(/^[^:]+:\s*/, "")
-    .replace(/^\d{4}-\d{2}-\d{2}(?:T[^\s|]+)?\s*\|\s*/, "")
-    .replace(/`/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-function dedupeEntries(entries: string[]): string[] {
-  const seen = new Set<string>();
-  const deduped: string[] = [];
-
-  for (const entry of entries) {
-    const key = normalizeEntry(entry);
-    if (!key || seen.has(key)) {
-      continue;
-    }
-
-    seen.add(key);
-    deduped.push(entry);
-  }
-
-  return deduped;
-}
-
-function decisionMatches(cells: string[], startup: StartupContext, taskIntent: TaskIntentAnalysis): boolean {
-  const haystack = cells.slice(1).join(" ").toLowerCase();
-  const taskTokens = taskIntent.rawTokens;
-  const likelyFiles = [...startup.likelySourceFiles, ...startup.likelyTests];
-
-  return taskTokens.some((token) => haystack.includes(token))
-    || likelyFiles.some((file) => file && haystack.includes(file.toLowerCase()));
-}
-
-async function readRelevantDecisions(cwd: string, startup: StartupContext, taskIntent: TaskIntentAnalysis): Promise<string[]> {
-  const fullPath = path.join(cwd, decisionsPath);
-  if (!(await pathExists(fullPath))) {
-    return [];
-  }
-
-  const content = await readTextFile(fullPath);
-  const rows = content
-    .split(/\r?\n/)
-    .map((line) => splitMarkdownTableRow(line))
-    .filter((cells) => cells.length >= 5 && cells[0] !== "Date" && !cells.every((cell) => /^-+$/.test(cell)))
-    .filter((cells) => decisionMatches(cells, startup, taskIntent))
-    .slice(-decisionLimit)
-    .reverse()
-    .map((cells) => `${cells[0]} | ${cells[1]} | ${cells[2]} | ${cells[3]}`);
-
-  return dedupeEntries(rows).slice(0, decisionLimit);
-}
-
-async function readRecentLogs(cwd: string): Promise<string[]> {
-  const entries: string[] = [];
-  const logFiles = [
-    { label: "Work", path: workLogPath, reader: recentWorkSummaryLines },
-    { label: "Change", path: changeLogPath, reader: recentTableRows },
-    { label: "Lesson", path: lessonsPath, reader: recentBulletLines }
-  ];
-
-  for (const file of logFiles) {
-    const fullPath = path.join(cwd, file.path);
-    if (!(await pathExists(fullPath))) {
-      continue;
-    }
-
-    const content = await readTextFile(fullPath);
-    for (const entry of file.reader(content, logLimit * 2)) {
-      entries.push(`${file.label}: ${entry}`);
-    }
-  }
-
-  return dedupeEntries(entries).slice(0, logLimit);
-}
-
-async function fileMtimeMs(cwd: string, filePath: string): Promise<number | undefined> {
-  try {
-    return (await stat(path.join(cwd, filePath))).mtimeMs;
-  } catch {
-    return undefined;
-  }
-}
-
-function isoFromMs(value: number | undefined): string | null {
-  return typeof value === "number" ? new Date(value).toISOString() : null;
-}
-
-function statusMessage(freshness: Omit<WorkMapFreshness, "message">): string {
-  return `${freshness.status}. ${freshness.reason}`;
-}
-
-function parsedMapGeneratedAt(content: string): number | undefined {
-  const generatedRow = content
-    .split(/\r?\n/)
-    .map((line) => splitMarkdownTableRow(line))
-    .find((cells) => cells.length >= 4 && cells[1] === "repo-context-center map --write");
-
-  const date = generatedRow?.[0];
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return undefined;
-  }
-
-  const parsed = Date.parse(`${date}T00:00:00.000Z`);
-  return Number.isNaN(parsed) ? undefined : parsed;
-}
-
-async function contextFileUpdate(cwd: string, filePath: string): Promise<{ path: string; time: number } | undefined> {
-  const mtime = await fileMtimeMs(cwd, filePath);
-  if (mtime === undefined) {
-    return undefined;
-  }
-
-  if (filePath !== changeLogPath) {
-    return { path: filePath, time: mtime };
-  }
-
-  try {
-    const metadataTime = parsedMapGeneratedAt(await readTextFile(path.join(cwd, filePath)));
-    return { path: filePath, time: Math.max(mtime, metadataTime ?? 0) };
-  } catch {
-    return { path: filePath, time: mtime };
-  }
-}
-
-function isFreshnessRelevantRepoFile(filePath: string): boolean {
-  if (filePath.startsWith(".git/") || filePath.startsWith("docs/ai-context/archive/")) {
-    return false;
-  }
-
-  const info = classifyRepoFile(filePath);
-  return !info.isNoise && info.role !== "asset" && info.role !== "generated" && !contextFiles.includes(filePath as typeof contextFiles[number]);
-}
-
-function isImportantFreshnessFile(filePath: string): boolean {
-  return freshnessImportantRoles.has(classifyRepoFile(filePath).role);
-}
-
-async function assessMapFreshness(cwd: string): Promise<WorkMapFreshness> {
-  const contextUpdates = (await Promise.all(contextFiles.map((file) => contextFileUpdate(cwd, file))))
-    .filter((value): value is { path: string; time: number } => value !== undefined);
-
-  if (contextUpdates.length === 0) {
-    const base = {
-      status: "unknown" as const,
-      score: 0,
-      reason: "Run npx repo-context-center init to generate context.",
-      latestContextUpdate: null,
-      latestRelevantSourceChange: null,
-      affectedFiles: [],
-      affectedContextFiles: []
-    };
-    return { ...base, message: statusMessage(base) };
-  }
-
-  const latestContext = contextUpdates.reduce((latest, entry) => entry.time > latest.time ? entry : latest);
-  const repoFiles = await listFilesRecursive(cwd);
-  const relevantChanges = (await Promise.all(repoFiles
-    .filter(isFreshnessRelevantRepoFile)
-    .map(async (file) => {
-      const time = await fileMtimeMs(cwd, file);
-      return time === undefined ? undefined : { path: file, time };
-    })))
-    .filter((value): value is { path: string; time: number } => value !== undefined);
-  const newerChanges = relevantChanges
-    .filter((entry) => entry.time > latestContext.time + 1000)
-    .sort((left, right) => right.time - left.time || left.path.localeCompare(right.path));
-  const importantChanges = newerChanges.filter((entry) => isImportantFreshnessFile(entry.path));
-  const latestRelevantSource = newerChanges[0] ?? relevantChanges
-    .sort((left, right) => right.time - left.time || left.path.localeCompare(right.path))[0];
-
-  if (importantChanges.length > 0) {
-    const base = {
-      status: "stale" as const,
-      score: 35,
-      reason: "Important source, config, workflow, package, or test files changed after the last context generation.",
-      latestContextUpdate: isoFromMs(latestContext.time),
-      latestRelevantSourceChange: isoFromMs(latestRelevantSource?.time),
-      affectedFiles: importantChanges.slice(0, freshnessAffectedFileLimit).map((entry) => entry.path),
-      affectedContextFiles: contextUpdates.map((entry) => entry.path)
-    };
-    return { ...base, message: statusMessage(base) };
-  }
-
-  if (newerChanges.length > 0) {
-    const base = {
-      status: "maybe_stale" as const,
-      score: 68,
-      reason: "Repository files changed after the last context generation, but their impact on context is unclear.",
-      latestContextUpdate: isoFromMs(latestContext.time),
-      latestRelevantSourceChange: isoFromMs(latestRelevantSource?.time),
-      affectedFiles: newerChanges.slice(0, freshnessAffectedFileLimit).map((entry) => entry.path),
-      affectedContextFiles: contextUpdates.map((entry) => entry.path)
-    };
-    return { ...base, message: statusMessage(base) };
-  }
-
-  const base = {
-    status: "fresh" as const,
-    score: 100,
-    reason: "Context is newer than recent source, config, workflow, package, and test changes.",
-    latestContextUpdate: isoFromMs(latestContext.time),
-    latestRelevantSourceChange: isoFromMs(latestRelevantSource?.time),
-    affectedFiles: [],
-    affectedContextFiles: contextUpdates.map((entry) => entry.path)
-  };
-  return { ...base, message: statusMessage(base) };
 }
 
 function mapFreshnessLines(mapFreshness: WorkMapFreshness): string[] {
@@ -2455,7 +1803,7 @@ async function buildWorkBriefForTask(
 export async function workCommand(io: CliIO, args: string[] = []): Promise<number> {
   const options = parseWorkOptions(args);
   if (!options) {
-    io.stderr(`${usage}\n`);
+    io.stderr(formatWorkOptionsUsage());
     return 1;
   }
 
