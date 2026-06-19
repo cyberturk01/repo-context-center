@@ -71,7 +71,7 @@ Commands:
   find      Find focused file candidates for a concept or query
             Usage: find "<query>" [--limit <number>]
   handoff   Print a handoff brief for continuing agent work
-            Usage: handoff [task] [--json|--agent] [--debug]
+            Usage: handoff [task] [--json|--agent] [--debug] [--write]
   log       Add a durable entry to docs/ai-context/CHANGE_LOG.md
             Usage: log "<summary>" [--files <path,path>] [--dry-run]
   map       Generate repo-specific context maps

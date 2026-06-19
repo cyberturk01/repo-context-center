@@ -5,6 +5,7 @@ export function parseHandoffOptions(args: string[]): HandoffOptions | undefined 
   let agent = false;
   let debug = false;
   let json = false;
+  let write = false;
   const taskParts: string[] = [];
 
   for (const arg of args) {
@@ -23,6 +24,11 @@ export function parseHandoffOptions(args: string[]): HandoffOptions | undefined 
       continue;
     }
 
+    if (arg === "--write") {
+      write = true;
+      continue;
+    }
+
     if (arg.startsWith("--")) {
       return undefined;
     }
@@ -34,7 +40,8 @@ export function parseHandoffOptions(args: string[]): HandoffOptions | undefined 
     agent,
     debug,
     json,
-    task: taskParts.join(" ").trim() || null
+    task: taskParts.join(" ").trim() || null,
+    write
   };
 }
 

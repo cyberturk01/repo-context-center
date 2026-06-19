@@ -218,4 +218,31 @@ Lightweight RCC memory from completed agent work.
   ]
 }
 ```
+
+## 2026-06-19T22:05:36.714Z
+- Summary: Added handoff --write export support for docs/ai-context/HANDOFF.md with generated-section preservation and writtenPath JSON outputs.
+- Changed files: `src/cli/commands/handoff.ts`, `src/cli/handoff/handoffConstants.ts`, `src/cli/handoff/handoffOptions.ts`, `src/cli/handoff/handoffTypes.ts`, `src/cli/handoff/renderAgent.ts`, `src/cli/handoff/renderJson.ts`, `src/cli/handoff/writeHandoff.ts`, `src/cli/index.ts`, `tests/handoff.test.js`
+- Verification: npm run build; node --test tests/handoff.test.js; node --test tests/cli.test.js
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-19T22:05:36.714Z",
+  "summary": "Added handoff --write export support for docs/ai-context/HANDOFF.md with generated-section preservation and writtenPath JSON outputs.",
+  "files": [
+    "src/cli/commands/handoff.ts",
+    "src/cli/handoff/handoffConstants.ts",
+    "src/cli/handoff/handoffOptions.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "src/cli/handoff/renderAgent.ts",
+    "src/cli/handoff/renderJson.ts",
+    "src/cli/handoff/writeHandoff.ts",
+    "src/cli/index.ts",
+    "tests/handoff.test.js"
+  ],
+  "verification": "npm run build; node --test tests/handoff.test.js; node --test tests/cli.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

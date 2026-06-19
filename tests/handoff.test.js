@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdir, mkdtemp, rm, writeFile } = require("node:fs/promises");
+const { mkdir, mkdtemp, readFile, rm, writeFile } = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
@@ -262,6 +262,73 @@ test("rcc handoff invalid args return usage and non-zero exit", () => {
   assert.notEqual(result.status, 0);
   assert.equal(result.stdout, "");
   assert.match(result.stderr, /^Usage: rcc handoff \[task\] \[--json\|--agent\] \[--debug\]/);
+});
+
+test("rcc handoff --write writes HANDOFF.md and prints confirmation", async () => {
+  await withTempRepo(async (tempDir) => {
+    const result = runCli(["handoff", "--write"], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "HANDOFF.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.equal(result.stdout, "Wrote docs/ai-context/HANDOFF.md\n");
+    assert.match(content, /^# Agent Handoff/);
+    assert.match(content, /<!-- repo-context-center:generated:start -->/);
+    assert.match(content, /## Generated Handoff/);
+    assert.match(content, /repo-context-center handoff brief/);
+    assert.match(content, /<!-- repo-context-center:generated:end -->/);
+  });
+});
+
+test("rcc handoff --json --write prints JSON with writtenPath", async () => {
+  await withTempRepo(async (tempDir) => {
+    const result = runCli(["handoff", "--json", "--write"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "HANDOFF.md"), "utf8");
+
+    assert.equal(brief.writtenPath, "docs/ai-context/HANDOFF.md");
+    assert.match(content, /repo-context-center handoff brief/);
+  });
+});
+
+test("rcc handoff --agent --write prints compact JSON with writtenPath", async () => {
+  await withTempRepo(async (tempDir) => {
+    const result = runCli(["handoff", "--agent", "--write"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "HANDOFF.md"), "utf8");
+
+    assert.equal(brief.writtenPath, "docs/ai-context/HANDOFF.md");
+    assert.equal(brief.command, "handoff");
+    assert.match(content, /repo-context-center handoff brief/);
+  });
+});
+
+test("rcc handoff --write preserves manual HANDOFF.md sections", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/HANDOFF.md", [
+      "# Agent Handoff",
+      "",
+      "Manual note before generated content.",
+      "",
+      "<!-- repo-context-center:generated:start -->",
+      "old generated handoff",
+      "<!-- repo-context-center:generated:end -->",
+      "",
+      "Manual note after generated content.",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["handoff", "continue exports", "--write"], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "HANDOFF.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /Manual note before generated content\./);
+    assert.match(content, /Manual note after generated content\./);
+    assert.doesNotMatch(content, /old generated handoff/);
+    assert.match(content, /Task:\ncontinue exports/);
+    assert.equal((content.match(/repo-context-center:generated:start/g) ?? []).length, 1);
+    assert.equal((content.match(/repo-context-center:generated:end/g) ?? []).length, 1);
+  });
 });
 
 test("rcc handoff reads present context sources conservatively", async () => {

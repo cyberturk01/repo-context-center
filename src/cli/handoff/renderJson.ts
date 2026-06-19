@@ -1,7 +1,7 @@
 import type { HandoffBrief, PublicHandoffBrief } from "./handoffTypes";
 
 export function toPublicHandoffBrief(brief: HandoffBrief): PublicHandoffBrief {
-  return {
+  const publicBrief: PublicHandoffBrief = {
     schemaVersion: brief.schemaVersion,
     command: brief.command,
     task: brief.task,
@@ -17,6 +17,15 @@ export function toPublicHandoffBrief(brief: HandoffBrief): PublicHandoffBrief {
     nextLookup: brief.nextLookup,
     nextCommand: brief.nextCommand
   };
+
+  if (brief.writtenPath) {
+    return {
+      ...publicBrief,
+      writtenPath: brief.writtenPath
+    };
+  }
+
+  return publicBrief;
 }
 
 export function renderHandoffJson(brief: HandoffBrief, debug = false): string {

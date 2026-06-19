@@ -3,6 +3,7 @@ export interface HandoffOptions {
   debug: boolean;
   json: boolean;
   task: string | null;
+  write: boolean;
 }
 
 export interface HandoffFile {
@@ -25,6 +26,7 @@ export interface HandoffBrief {
   avoid: string[];
   nextLookup: string;
   nextCommand: string;
+  writtenPath?: string;
   debug?: {
     cwd: string;
     sources: {
@@ -55,6 +57,7 @@ export interface PublicHandoffBrief {
   avoid: string[];
   nextLookup: string;
   nextCommand: string;
+  writtenPath?: string;
 }
 
 export interface CompactAgentHandoff {
@@ -72,4 +75,5 @@ export interface CompactAgentHandoff {
   avoid: string[];
   nextLookup: string;
   nextCommand: string;
+  writtenPath?: string;
 }
