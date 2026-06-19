@@ -48,7 +48,7 @@ Usage:
 
 Agent workflow:
   work      Print a concise work brief for an AI coding agent
-            Usage: work "<task>" [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
+            Usage: work "<task>" [--agent|--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
   done      Save lightweight memory after completed agent work
             Usage: done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]
 
@@ -72,8 +72,9 @@ Commands:
             Usage: log "<summary>" [--files <path,path>] [--dry-run]
   map       Generate repo-specific context maps
             Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>
-  measure   Estimate naive scan tokens vs RCC startup tokens for a task
-            Usage: measure "<task>" [--json]
+  measure   Estimate RCC token savings for a task
+            Usage: rcc measure "<task>"
+                   rcc measure "<task>" --json
   scan      Suggest lightweight context entries from repo layout
             Options: --json
   start     Print a startup prompt for an AI coding agent

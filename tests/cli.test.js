@@ -41,8 +41,9 @@ test("CLI help prints usage", () => {
   assert.match(result.stdout, /log\s+Add a durable entry to docs\/ai-context\/CHANGE_LOG\.md/);
   assert.match(result.stdout, /Usage: log "<summary>" \[--files <path,path>\] \[--dry-run\]/);
   assert.match(result.stdout, /Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>/);
-  assert.match(result.stdout, /measure\s+Estimate naive scan tokens vs RCC startup tokens for a task/);
-  assert.match(result.stdout, /Usage: measure "<task>" \[--json\]/);
+  assert.match(result.stdout, /measure\s+Estimate RCC token savings for a task/);
+  assert.match(result.stdout, /Usage: rcc measure "<task>"/);
+  assert.match(result.stdout, /rcc measure "<task>" --json/);
   assert.match(result.stdout, /start\s+Print a startup prompt for an AI coding agent/);
   assert.match(result.stdout, /Usage: start "<task>" \[--max-files <number>\] \[--copy\]/);
 });

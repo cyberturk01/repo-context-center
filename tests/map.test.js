@@ -442,7 +442,7 @@ test("AGENTS.md avoids duplicate startup guidance after init and map write", asy
     const fallbackLine = content.split("\n").find((line) => line.includes("RCC commands are unavailable")) ?? "";
 
     assert.equal(result.status, 0);
-    assert.equal(countMatches(content, /`rcc work "<task>"`/g), 1);
+    assert.equal(countMatches(content, /`rcc work "<task>" --agent`/g), 1);
     assert.match(content, /Read this first\./);
     assert.match(content, /rcc doctor/);
     assert.match(content, /rcc measure "<task>"/);

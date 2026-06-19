@@ -27,14 +27,14 @@ const requiredTemplates = [
 const expectedWorkflowSection = `<!-- repo-context-center:workflow:start -->
 ## RCC Workflow
 
-For coding tasks, first run once:
+For coding tasks, first run once at task start:
 
-\`rcc work "<task>"\`
+\`rcc work "<task>" --agent\`
 
 Then:
-- Follow the brief before reading files or searching broadly.
-- Use \`rcc find "<keyword>"\` for follow-up lookup.
-- Do not rerun \`rcc work\` unless the task/context changes or the brief is insufficient.
+- Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly.
+- Do not repeatedly run \`rcc work\` for the same task.
+- Use \`rcc find "<keyword>"\` only if the route is insufficient.
 - Do not ask the human to run RCC commands.
 - After meaningful changes, run tests and record:
   \`rcc done --summary "<summary>" --files auto --verify "<checks>"\`
@@ -345,10 +345,11 @@ test("init dry-run does not write files", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Dry run complete/);
-    assert.match(agentsPreview, /For coding tasks, first run once:/);
-    assert.match(agentsPreview, /`rcc work "<task>"`/);
-    assert.match(agentsPreview, /Follow the brief before reading files or searching broadly\./);
-    assert.match(agentsPreview, /rcc find "<keyword>"/);
+    assert.match(agentsPreview, /For coding tasks, first run once at task start:/);
+    assert.match(agentsPreview, /`rcc work "<task>" --agent`/);
+    assert.match(agentsPreview, /Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly\./);
+    assert.match(agentsPreview, /Do not repeatedly run `rcc work` for the same task\./);
+    assert.match(agentsPreview, /Use `rcc find "<keyword>"` only if the route is insufficient\./);
     assert.match(agentsPreview, /Do not ask the human to run RCC commands\./);
     assert.match(agentsPreview, /After meaningful changes, run tests and record:/);
     assert.match(agentsPreview, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);

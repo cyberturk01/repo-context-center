@@ -55,10 +55,11 @@ test("v0.5 adoption flow generates AGENTS.md task startup guidance", async () =>
     const fallbackLine = agents.split("\n").find((line) => line.includes("RCC commands are unavailable")) ?? "";
 
     assert.match(agents, /## RCC Workflow/);
-    assert.match(agents, /For coding tasks, first run once:/);
-    assert.match(agents, /`rcc work "<task>"`/);
-    assert.match(agents, /Follow the brief before reading files or searching broadly\./);
-    assert.match(agents, /Do not rerun `rcc work` unless the task\/context changes or the brief is insufficient\./);
+    assert.match(agents, /For coding tasks, first run once at task start:/);
+    assert.match(agents, /`rcc work "<task>" --agent`/);
+    assert.match(agents, /Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly\./);
+    assert.match(agents, /Do not repeatedly run `rcc work` for the same task\./);
+    assert.match(agents, /Use `rcc find "<keyword>"` only if the route is insufficient\./);
     assert.match(agents, /rcc find "<keyword>"/);
     assert.match(agents, /Do not ask the human to run RCC commands\./);
     assert.match(agents, /After meaningful changes, run tests and record:/);

@@ -1,6 +1,6 @@
 import { estimateNaiveScan, estimateSavingPercent } from "../../core/tokenEstimator";
 import type { CliIO } from "../index";
-import { buildCompactWorkBrief } from "./work";
+import { buildAgentWorkRoute, type PublicAgentRoute } from "./work";
 
 interface MeasureOptions {
   json: boolean;
@@ -8,15 +8,19 @@ interface MeasureOptions {
 }
 
 interface MeasureReport {
+  schemaVersion: 1;
+  command: "measure";
   task: string;
   naiveTokens: number;
   rccTokens: number;
-  suggestedFiles: number;
+  primaryFiles: number;
+  supportingFiles: number;
+  tests: number;
   estimatedSavingTokens: number;
   estimatedSavingPercent: number;
 }
 
-const usage = 'Usage: repo-context-center measure "<task>" [--json]';
+const usage = 'Usage: rcc measure "<task>" [--json]';
 const naiveMaxFiles = Number.MAX_SAFE_INTEGER;
 
 function parseMeasureOptions(args: string[]): MeasureOptions | undefined {
@@ -52,26 +56,27 @@ function formatPercent(value: number): string {
   return value.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
-function suggestedFileCount(brief: Awaited<ReturnType<typeof buildCompactWorkBrief>>): number {
-  return new Set([
-    ...brief.taskFiles.map((file) => file.path),
-    ...brief.tests.map((file) => file.path)
-  ]).size;
+function routeItemCount(items: PublicAgentRoute["primaryFiles"]): number {
+  return items.length;
 }
 
 async function measureTask(cwd: string, task: string): Promise<MeasureReport> {
-  const [naive, brief] = await Promise.all([
+  const [naive, route] = await Promise.all([
     estimateNaiveScan(cwd, naiveMaxFiles),
-    buildCompactWorkBrief(cwd, task)
+    buildAgentWorkRoute(cwd, task)
   ]);
-  const rccTokens = brief.tokens.jsonEstimate;
+  const rccTokens = route.briefTokens;
   const estimatedSavingTokens = Math.max(0, naive.tokens - rccTokens);
 
   return {
+    schemaVersion: 1,
+    command: "measure",
     task,
     naiveTokens: naive.tokens,
     rccTokens,
-    suggestedFiles: suggestedFileCount(brief),
+    primaryFiles: routeItemCount(route.primaryFiles),
+    supportingFiles: routeItemCount(route.supportingFiles),
+    tests: routeItemCount(route.tests),
     estimatedSavingTokens,
     estimatedSavingPercent: estimateSavingPercent(naive.tokens, rccTokens, estimatedSavingTokens)
   };
@@ -79,16 +84,25 @@ async function measureTask(cwd: string, task: string): Promise<MeasureReport> {
 
 function formatMeasureReport(report: MeasureReport): string {
   return [
-    "RCC measurement estimate",
+    "RCC measurement",
+    "",
+    "Task:",
+    report.task,
     "",
     "Naive scan estimate:",
     `${formatNumber(report.naiveTokens)} tokens`,
     "",
-    "RCC startup:",
+    "RCC agent route:",
     `${formatNumber(report.rccTokens)} tokens`,
     "",
-    "Suggested files:",
-    `${formatNumber(report.suggestedFiles)}`,
+    "Primary files:",
+    `${formatNumber(report.primaryFiles)}`,
+    "",
+    "Supporting files:",
+    `${formatNumber(report.supportingFiles)}`,
+    "",
+    "Tests:",
+    `${formatNumber(report.tests)}`,
     "",
     "Estimated saving:",
     `${formatNumber(report.estimatedSavingTokens)} tokens (${formatPercent(report.estimatedSavingPercent)}%)`

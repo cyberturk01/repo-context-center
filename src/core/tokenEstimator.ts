@@ -2,6 +2,7 @@ import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { contextArchiveDir } from "./contextFiles";
 import { pathExists, readTextFile } from "./fileSystem";
+import { classifyRepoFile } from "./repoFileClassifier";
 import { suggestContext } from "./suggester";
 
 export type EstimateMode = "compact" | "investigation" | "detailed";
@@ -109,9 +110,22 @@ const naiveGeneratedExclusions = [
   "build",
   "coverage",
   ".next",
+  "generated",
+  "out",
   "target",
+  "vendor",
   "docs/ai-context/archive"
 ];
+
+const naiveLockFileNames = new Set([
+  "bun.lockb",
+  "cargo.lock",
+  "composer.lock",
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "poetry.lock",
+  "yarn.lock"
+]);
 
 export function estimateTokens(characterCount: number): number {
   return Math.ceil(characterCount / 4);
@@ -215,6 +229,33 @@ function isSourceOrDocFile(filePath: string): boolean {
   return sourceExtensions.has(path.extname(filePath).toLowerCase());
 }
 
+function isNaiveScanReadableFile(filePath: string): boolean {
+  if (!isSourceOrDocFile(filePath)) {
+    return false;
+  }
+
+  const normalized = filePath.replace(/\\/g, "/");
+  const basename = path.posix.basename(normalized).toLowerCase();
+  if (naiveLockFileNames.has(basename)) {
+    return false;
+  }
+
+  const info = classifyRepoFile(normalized);
+  return info.role !== "generated"
+    && info.role !== "fixture"
+    && info.role !== "snapshot"
+    && info.role !== "asset";
+}
+
+function isNaiveScanExcludedPath(filePath: string, excludedPaths: string[]): boolean {
+  if (isExcluded(filePath, excludedPaths)) {
+    return true;
+  }
+
+  const role = classifyRepoFile(filePath).role;
+  return role === "generated" || role === "fixture" || role === "snapshot" || role === "asset";
+}
+
 async function collectNaiveFiles(
   cwd: string,
   dir: string,
@@ -241,13 +282,13 @@ async function collectNaiveFiles(
     }
 
     const relativePath = dir ? `${dir}/${entry.name}` : entry.name;
-    if (entry.name === ".git" || isExcluded(relativePath, excludedPaths)) {
+    if (entry.name === ".git" || isNaiveScanExcludedPath(relativePath, excludedPaths)) {
       continue;
     }
 
     if (entry.isDirectory()) {
       await collectNaiveFiles(cwd, relativePath, excludedPaths, maxFiles, files);
-    } else if (entry.isFile() && isSourceOrDocFile(relativePath)) {
+    } else if (entry.isFile() && isNaiveScanReadableFile(relativePath)) {
       files.push(relativePath);
     }
   }

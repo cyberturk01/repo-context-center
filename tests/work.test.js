@@ -132,6 +132,7 @@ async function withLookupRankingRepo(callback) {
 
   try {
     await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\nrole role role role role role role role role role\n");
+    await writeFixtureFile(tempDir, "src/templates/generic/AGENTS.md", "Generic repo guidance\ncurrent RCC architecture\n");
     await writeFixtureFile(
       tempDir,
       "docs/ai-context/TASK_ROUTING.md",
@@ -178,7 +179,9 @@ async function withLookupRankingRepo(callback) {
     );
     await writeFixtureFile(tempDir, "src/core/workRouting.ts", "export const routed = true;\n");
     await writeFixtureFile(tempDir, "src/features/work/index.ts", "export const folder = 'work';\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/doctor.ts", "export const doctor = 'current RCC architecture architecture architecture';\n");
     await writeFixtureFile(tempDir, "src/cli/commands/other.ts", "export const note = 'work lookup hint';\n");
+    await writeFixtureFile(tempDir, "src/core/scanner.ts", "export const scanner = 'current RCC architecture architecture architecture';\n");
     await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", "- Summary: work command history\n");
     await writeFixtureFile(tempDir, ".repo-context-center/config.json", "{\"work\":true}\n");
     await writeFixtureFile(tempDir, "fixtures/work.ts", "export const fixture = true;\n");
@@ -420,16 +423,23 @@ test("work accepts a task string and recommends focused files", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Task:\nfix login bug/);
     assert.match(result.stdout, /Freshness:\n(fresh|maybe_stale|stale|unknown) \d+\/100 — /);
-    assert.match(result.stdout, /Cheapest path:\n1\. Inspect the task files listed below\.\n2\. Check supporting tests\.\n3\. If more search is needed, run: rcc find "login"\n4\. Avoid broad rg\/find until targeted lookup is exhausted\./);
-    assert.match(result.stdout, /Task files:\n- src\/auth\/login\.ts/);
+    assert.match(result.stdout, /Primary files:\n- src\/auth\/login\.ts/);
     assert.match(result.stdout, /Tests:\n- tests\/auth\/login\.test\.ts/);
+    assert.match(result.stdout, /Supporting files:\n- none\. Use only if primary files are insufficient\./);
     assert.match(result.stdout, /Agent rules:\n- AGENTS\.md/);
     assert.match(result.stdout, /Context if unclear:\n- docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(result.stdout, /Known risks:\n- high/);
-    assert.match(result.stdout, /Lookup hints:\n1\. src\/auth\/login\.ts — matched filename stem "login"; high/);
-    assert.match(result.stdout, /Next cheapest command:\nrcc find "login"/);
-    assert.ok(result.stdout.indexOf("Task files:") < result.stdout.indexOf("Context if unclear:"));
-    assert.match(result.stdout, /Done:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
+    assert.match(result.stdout, /Next:\nStart with primary files\./);
+    assert.match(result.stdout, /Do not rerun rcc work for the same task unless the task meaning changes\./);
+    assert.match(result.stdout, /Use rcc find "login" only if primary\/supporting files are insufficient\./);
+    assert.ok(result.stdout.indexOf("Primary files:") < result.stdout.indexOf("Tests:"));
+    assert.ok(result.stdout.indexOf("Tests:") < result.stdout.indexOf("Supporting files:"));
+    assert.ok(result.stdout.indexOf("Supporting files:") < result.stdout.indexOf("Agent rules:"));
+    assert.ok(result.stdout.indexOf("Agent rules:") < result.stdout.indexOf("Context if unclear:"));
+    assert.doesNotMatch(result.stdout, /Cheapest path:/);
+    assert.doesNotMatch(result.stdout, /Lookup hints:/);
+    assert.doesNotMatch(result.stdout, /Next cheapest command:/);
+    assert.doesNotMatch(result.stdout, /Done:/);
     assert.doesNotMatch(result.stdout, /Recent logs:/);
     assert.doesNotMatch(result.stdout, /Read-first guidance:/);
     assert.doesNotMatch(result.stdout, /Fast lookup:/);
@@ -453,7 +463,10 @@ test("work --json returns compact machine-readable startup JSON", async () => {
         "contextBudget",
         "freshness",
         "taskFiles",
+        "primaryFiles",
+        "supportingFiles",
         "tests",
+        "agentRules",
         "readFirst",
         "contextIfUnclear",
         "nextLookup",
@@ -469,13 +482,16 @@ test("work --json returns compact machine-readable startup JSON", async () => {
     assert.equal(typeof brief.freshness.status, "string");
     assert.equal(typeof brief.freshness.score, "number");
     assert.equal(typeof brief.freshness.reason, "string");
+    assert.ok(brief.primaryFiles.some((file) => file.path === "src/auth/login.ts"));
+    assert.deepEqual(brief.supportingFiles, []);
     assert.ok(brief.taskFiles.some((file) => file.path === "src/auth/login.ts"));
     assert.ok(brief.tests.some((file) => file.path === "tests/auth/login.test.ts"));
+    assert.ok(brief.agentRules.some((file) => file.path === "AGENTS.md"));
     assert.ok(brief.readFirst.includes("AGENTS.md"));
     assert.ok(brief.contextIfUnclear.includes("docs/ai-context/TASK_ROUTING.md"));
     assert.equal(brief.nextLookup, 'rcc find "login"');
     assert.equal(brief.nextCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
-    assert.equal(brief.reusePolicy, "Call once per task. Use rcc find for follow-up lookup.");
+    assert.equal(brief.reusePolicy, "Call once per task. Do not rerun work unless task meaning changes. Use rcc find if route is insufficient.");
     assert.equal(typeof brief.tokens.jsonEstimate, "number");
     assert.equal(result.stdout, `${JSON.stringify(brief, null, 2)}\n`);
     assert.equal(result.stdout.trim().startsWith("{"), true);
@@ -492,6 +508,81 @@ test("work --json returns compact machine-readable startup JSON", async () => {
     ]) {
       assert.equal(omitted in brief, false);
     }
+  });
+});
+
+test("work --agent prints valid compact JSON only", async () => {
+  await withWorkRepo(async (tempDir) => {
+    const result = runCli(["work", "fix login bug", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.equal(result.stdout, `${JSON.stringify(route)}\n`);
+    assert.deepEqual(
+      Object.keys(route),
+      [
+        "task",
+        "primaryFiles",
+        "supportingFiles",
+        "tests",
+        "readFirst",
+        "next",
+        "briefTokens"
+      ]
+    );
+    assert.equal(route.task, "fix login bug");
+    assert.deepEqual(route.primaryFiles, ["src/auth/login.ts"]);
+    assert.deepEqual(route.supportingFiles, []);
+    assert.deepEqual(route.tests, ["tests/auth/login.test.ts"]);
+    assert.ok(route.readFirst.includes("AGENTS.md"));
+    assert.equal(route.next, 'Start with primaryFiles. Do not rerun work for this task. Use rcc find "login" only if needed.');
+    assert.equal(typeof route.briefTokens, "number");
+    assert.doesNotMatch(result.stdout, /```|repo-context-center work brief|Primary files:/);
+  });
+});
+
+test("work --agent compact output omits duplicated legacy arrays", async () => {
+  await withWorkRepo(async (tempDir) => {
+    const result = runCli(["work", "--agent", "fix login bug"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    for (const omitted of [
+      "recommendedFiles",
+      "taskFiles",
+      "lookupHints",
+      "targetedLookupHints",
+      "supportingTests",
+      "workflowDocs",
+      "contextDocs",
+      "agentRules",
+      "contextIfUnclear",
+      "naiveTokens",
+      "rccTokens",
+      "estimatedSavingTokens",
+      "estimatedSavingPercent"
+    ]) {
+      assert.equal(omitted in route, false);
+    }
+    assert.ok(route.primaryFiles.every((file) => typeof file === "string"));
+    assert.ok(route.tests.every((file) => typeof file === "string"));
+  });
+});
+
+test("work --agent --verbose includes route reasons without legacy arrays", async () => {
+  await withWorkRepo(async (tempDir) => {
+    const result = runCli(["work", "--agent", "--verbose", "fix login bug"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(route.primaryFiles[0], {
+      path: "src/auth/login.ts",
+      reason: 'matched filename stem "login"'
+    });
+    assert.equal(typeof route.tests[0].path, "string");
+    assert.equal(typeof route.tests[0].reason, "string");
+    assert.equal("targetedLookupHints" in route, false);
   });
 });
 
@@ -513,6 +604,11 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
         "mapFreshness",
         "recommendedFiles",
         "relevantTests",
+        "primaryFiles",
+        "supportingFiles",
+        "tests",
+        "agentRules",
+        "contextIfUnclear",
         "taskFiles",
         "supportingTests",
         "workflowDocs",
@@ -542,12 +638,17 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
     assert.ok("latestRelevantSourceChange" in brief.mapFreshness);
     assert.ok(brief.recommendedFiles.some((file) => file.path === "src/auth/login.ts"));
     assert.ok(brief.relevantTests.some((file) => file.path === "tests/auth/login.test.ts"));
+    assert.equal(brief.primaryFiles[0].path, "src/auth/login.ts");
+    assert.deepEqual(brief.supportingFiles, []);
+    assert.ok(brief.tests.some((file) => file.path === "tests/auth/login.test.ts"));
+    assert.ok(brief.agentRules.some((file) => file.path === "AGENTS.md"));
+    assert.ok(brief.contextIfUnclear.some((file) => file.path === "docs/ai-context/TASK_ROUTING.md"));
     assert.equal(brief.taskFiles[0].path, "src/auth/login.ts");
     assert.ok(brief.supportingTests.some((file) => file.path === "tests/auth/login.test.ts"));
     assert.ok(brief.workflowDocs.some((file) => file.path === "AGENTS.md"));
     assert.ok(brief.contextDocs.some((file) => file.path === "docs/ai-context/TASK_ROUTING.md"));
     assert.deepEqual(brief.cheapestPath, [
-      "Inspect the task files listed below.",
+      "Inspect the primary files listed below.",
       "Check supporting tests.",
       'If more search is needed, run: rcc find "login"',
       "Avoid broad rg/find until targeted lookup is exhausted."
@@ -657,11 +758,15 @@ test("work handles missing RCC files gracefully", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Freshness:\nunknown 0\/100 — Run npx repo-context-center init to generate context\.; continue with task files, then run `rcc map --write`\./);
     assert.match(result.stdout, /Lookup hints:\n- none\. use rcc find "<keyword>" for targeted lookup\./);
+    assert.match(result.stdout, /Next:\nStart with primary files if listed\./);
+    assert.match(result.stdout, /No strong primary files were found\./);
+    assert.match(result.stdout, /Do not rerun rcc work for the same task unless the task meaning changes\./);
+    assert.match(result.stdout, /Use rcc find "unknown" only if primary\/supporting files are insufficient\./);
     assert.doesNotMatch(result.stdout, /Recent logs:/);
     assert.doesNotMatch(result.stdout, /Read-first guidance:/);
     assert.doesNotMatch(result.stdout, /Fast lookup:/);
     assert.match(result.stdout, /rcc find "<keyword>"/);
-    assert.match(result.stdout, /```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
+    assert.doesNotMatch(result.stdout, /Done:/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -1022,18 +1127,21 @@ test("work --json promotes role task source and tests ahead of docs", async () =
 test("work human output separates docs for Turkish role investigation", async () => {
   await withLookupRankingRepo(async (tempDir) => {
     const result = runCli(["work", "Role lerle ilgili bug ihtimallerini bul"], { cwd: tempDir });
-    const taskFiles = sectionBody(result.stdout, "Task files", "Tests");
+    const taskFiles = sectionBody(result.stdout, "Primary files", "Tests");
     const supportingTests = sectionBody(result.stdout, "Tests", "Agent rules");
+    const supportingFiles = sectionBody(result.stdout, "Supporting files", "Agent rules");
     const workflowDocs = sectionBody(result.stdout, "Agent rules", "Context if unclear");
-    const contextDocs = sectionBody(result.stdout, "Context if unclear", "Lookup hints");
+    const contextDocs = sectionBody(result.stdout, "Context if unclear", "Next");
 
     assert.equal(result.status, 0);
-    assert.ok(result.stdout.indexOf("Task files:") < result.stdout.indexOf("Context if unclear:"));
-    assert.ok(result.stdout.indexOf("Cheapest path:") < result.stdout.indexOf("Lookup hints:"));
+    assert.ok(result.stdout.indexOf("Primary files:") < result.stdout.indexOf("Context if unclear:"));
+    assert.ok(result.stdout.indexOf("Primary files:") < result.stdout.indexOf("Tests:"));
+    assert.ok(result.stdout.indexOf("Tests:") < result.stdout.indexOf("Supporting files:"));
     assert.match(taskFiles, /src\/core\/repoFileClassifier\.ts/);
     assert.match(taskFiles, /src\/cli\/commands\/work\.ts/);
     assert.doesNotMatch(taskFiles, /AGENTS\.md/);
     assert.doesNotMatch(taskFiles, /docs\/ai-context/);
+    assert.match(supportingFiles, /none/);
     assert.match(supportingTests, /tests\/repoFileClassifier\.test\.js/);
     assert.doesNotMatch(supportingTests, /tests\/estimate\.test\.js/);
     assert.match(workflowDocs, /AGENTS\.md/);
@@ -1041,7 +1149,10 @@ test("work human output separates docs for Turkish role investigation", async ()
     assert.match(contextDocs, /docs\/ai-context\/MODULE_INDEX\.md/);
     assert.doesNotMatch(result.stdout, /Read-first guidance:/);
     assert.doesNotMatch(result.stdout, /Recommended:\nrcc map --write/);
-    assert.match(result.stdout, /Next cheapest command:\nrcc find "role"/);
+    assert.doesNotMatch(result.stdout, /Lookup hints:/);
+    assert.match(result.stdout, /Next:\nStart with primary files\./);
+    assert.match(result.stdout, /Do not rerun rcc work for the same task unless the task meaning changes\./);
+    assert.match(result.stdout, /Use rcc find "role" only if primary\/supporting files are insufficient\./);
   });
 });
 
@@ -1144,6 +1255,78 @@ test("work --json routes RCC work output assembly tasks to work command implemen
   });
 });
 
+test("work categorizes exact AGENTS filename matches as primary files", async () => {
+  await withLookupRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "recalibrate AGENTS.md for current RCC architecture"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const primaryPaths = brief.primaryFiles.map((file) => file.path);
+    const supportingPaths = brief.supportingFiles.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.ok(primaryPaths.includes("AGENTS.md"), primaryPaths.join("\n"));
+    assert.ok(primaryPaths.includes("src/templates/generic/AGENTS.md"), primaryPaths.join("\n"));
+    assert.ok(!supportingPaths.includes("AGENTS.md"), supportingPaths.join("\n"));
+    assert.ok(!supportingPaths.includes("src/templates/generic/AGENTS.md"), supportingPaths.join("\n"));
+    assert.ok(primaryPaths.indexOf("AGENTS.md") < supportingPaths.indexOf("src/cli/commands/doctor.ts") || !supportingPaths.includes("src/cli/commands/doctor.ts"));
+    assert.ok(!primaryPaths.includes("src/cli/commands/doctor.ts"), primaryPaths.join("\n"));
+    assert.ok(!primaryPaths.includes("src/core/scanner.ts"), primaryPaths.join("\n"));
+  });
+});
+
+test("work --agent exact filename task puts AGENTS files in primaryFiles", async () => {
+  await withLookupRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "recalibrate AGENTS.md for current RCC architecture", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(route.primaryFiles.includes("AGENTS.md"), route.primaryFiles.join("\n"));
+    assert.ok(route.primaryFiles.includes("src/templates/generic/AGENTS.md"), route.primaryFiles.join("\n"));
+    assert.ok(!route.primaryFiles.includes("src/cli/commands/doctor.ts"), route.primaryFiles.join("\n"));
+    assert.ok(route.readFirst.includes("AGENTS.md"), route.readFirst.join("\n"));
+    assert.equal(route.next, 'Start with primaryFiles. Do not rerun work for this task. Use rcc find "agents.md" only if needed.');
+  });
+});
+
+test("work categorizes workflow risk files as primary over weak semantic source matches", async () => {
+  await withWorkflowRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "fix workflow risk detection"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const primaryPaths = brief.primaryFiles.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.ok(primaryPaths.includes(".github/workflows/ai-project-guardian.yml"), primaryPaths.join("\n"));
+    assert.ok(primaryPaths.includes(".github/workflows/ci.yml"), primaryPaths.join("\n"));
+    assert.equal(primaryPaths.includes("src/cli/commands/done.ts"), false, primaryPaths.join("\n"));
+  });
+});
+
+test("work --agent workflow task keeps weak semantic source matches out of primaryFiles", async () => {
+  await withWorkflowRankingRepo(async (tempDir) => {
+    const result = runCli(["work", "fix workflow risk detection", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(route.primaryFiles.includes(".github/workflows/ai-project-guardian.yml"), route.primaryFiles.join("\n"));
+    assert.ok(route.primaryFiles.includes(".github/workflows/ci.yml"), route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.includes("src/cli/commands/done.ts"), false, route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.some((file) => file.startsWith("src/cli/commands/")), false, route.primaryFiles.join("\n"));
+  });
+});
+
+test("work categorizes output assembly implementation as primary and tests separately", async () => {
+  await withSelfDevelopmentRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "improve rcc work output assembly"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const primaryPaths = brief.primaryFiles.map((file) => file.path);
+    const testPaths = brief.tests.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.ok(primaryPaths.includes("src/cli/commands/work.ts"), primaryPaths.join("\n"));
+    assert.ok(testPaths.includes("tests/work.test.js"), testPaths.join("\n"));
+    assert.equal(primaryPaths.includes("tests/work.test.js"), false, primaryPaths.join("\n"));
+  });
+});
+
 test("work --json ranks workflow domain files over bare find action verb", async () => {
   await withWorkflowRankingRepo(async (tempDir) => {
     const result = runCli(["work", "--json", "--debug", "find Workflow risks"], { cwd: tempDir });
@@ -1191,7 +1374,7 @@ test("work --json does not let weak semantic source matches outrank workflow pac
 test("work human output keeps workflow task files out of agent rules", async () => {
   await withWorkflowRankingRepo(async (tempDir) => {
     const result = runCli(["work", "find Workflow risks"], { cwd: tempDir });
-    const taskFiles = sectionItems(result.stdout, "Task files", "Tests");
+    const taskFiles = sectionItems(result.stdout, "Primary files", "Supporting files");
     const agentRules = sectionItems(result.stdout, "Agent rules", "Context if unclear");
     const taskPaths = taskFiles.map((line) => line.replace(/^- /, "").replace(/\s+\(.+$/, ""));
     const agentRulePaths = agentRules.map((line) => line.replace(/^- /, "").replace(/\s+\(.+$/, ""));
@@ -1356,50 +1539,50 @@ test("work --json keeps paired tests visible without letting them dominate", asy
   });
 });
 
-test("work human lookup hints include reason and confidence", async () => {
+test("work json lookup hints include reason and confidence", async () => {
   await withLookupRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "Improve work command lookup hints"], { cwd: tempDir });
-    const hints = sectionBody(result.stdout, "Lookup hints", "Next cheapest command");
+    const result = runCli(["work", "--json", "--debug", "Improve work command lookup hints"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const hint = brief.targetedLookupHints.find((item) => item.path === "src/cli/commands/work.ts");
 
     assert.equal(result.status, 0);
-    assert.match(hints, /1\. src\/cli\/commands\/work\.ts/);
-    assert.match(hints, /matched command name "work"; high/);
+    assert.equal(hint.reason, 'matched command name "work"');
+    assert.equal(hint.confidence, "high");
   });
 });
 
-test("work output recommends done with auto file detection", async () => {
+test("work json recommends done with auto file detection", async () => {
   await withWorkRepo(async (tempDir) => {
-    const result = runCli(["work", "fix login bug"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "fix login bug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Done:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
-    assert.doesNotMatch(result.stdout, /--files "<files>"/);
+    assert.equal(brief.nextCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
   });
 });
 
-test("work includes deterministic targeted lookup hints for duplicate AGENTS workflow tasks", () => {
-  const result = runCli(["work", "Fix duplicate AGENTS workflow instructions"]);
-  const hints = sectionBody(result.stdout, "Lookup hints", "Next cheapest command");
+test("work human output promotes AGENTS route files instead of showing lookup hints", () => {
+  const result = runCli(["work", "recalibrate AGENTS.md for current RCC architecture"]);
+  const primaryFiles = sectionBody(result.stdout, "Primary files", "Tests");
 
   assert.equal(result.status, 0);
   assert.doesNotMatch(result.stdout, /Read-first guidance:/);
-  assert.ok(result.stdout.indexOf("Lookup hints:") < result.stdout.indexOf("Next cheapest command:"));
-  assert.ok(hints.split(/\r?\n/).filter((line) => /^\d+\. /.test(line)).length <= 3, hints);
-  assert.match(hints, /AGENTS\.md/);
-  assert.match(hints, /src\/templates\/generic\/AGENTS\.md/);
-  assert.match(hints, /; high/);
-  assert.ok(!hints.includes("docs/ai-context/"), hints);
+  assert.doesNotMatch(result.stdout, /Lookup hints:/);
+  assert.match(primaryFiles, /AGENTS\.md/);
+  assert.match(primaryFiles, /src\/templates\/generic\/AGENTS\.md/);
+  assert.doesNotMatch(primaryFiles, /docs\/ai-context/);
+  assert.match(result.stdout, /Next:\nStart with primary files\./);
+  assert.match(result.stdout, /Do not rerun rcc work for the same task unless the task meaning changes\./);
+  assert.match(result.stdout, /Use rcc find "agents\.md" only if primary\/supporting files are insufficient\./);
 });
 
 test("work suggests --files auto in the next done command", async () => {
   await withWorkRepo(async (tempDir) => {
-    const result = runCli(["work", "fix login bug"], { cwd: tempDir });
-    const nextDoneCommand = result.stdout.match(
-      /Done:\n```sh\n(?<command>rcc done .+)\n```/
-    )?.groups?.command;
+    const result = runCli(["work", "--json", "fix login bug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
-    assert.equal(nextDoneCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
+    assert.equal(brief.nextCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
   });
 });
 
@@ -1443,9 +1626,14 @@ test("work recommends RCC context files when context matches but source is missi
     const result = runCli(["work", "fix billing issue"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Task files:\n- none\. No focused task files were identified\. Use the next cheapest command before broad search\./);
+    assert.match(result.stdout, /Primary files:\n- none\. No focused task files were identified\. Use Next before broad search\./);
     assert.match(result.stdout, /Agent rules:\n- AGENTS\.md/);
     assert.match(result.stdout, /Context if unclear:\n- docs\/ai-context\/TASK_ROUTING\.md\n- docs\/ai-context\/MODULE_INDEX\.md\n- docs\/ai-context\/HOTSPOTS\.md/);
+    assert.match(result.stdout, /Lookup hints:\n1\. AGENTS\.md — referenced by task routing guidance; medium/);
+    assert.match(result.stdout, /Next:\nStart with primary files if listed\./);
+    assert.match(result.stdout, /No strong primary files were found\./);
+    assert.match(result.stdout, /Do not rerun rcc work for the same task unless the task meaning changes\./);
+    assert.match(result.stdout, /Use rcc find "billing" only if primary\/supporting files are insufficient\./);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -1485,13 +1673,16 @@ test("work output is concise and agent-oriented", async () => {
     assert.ok(roughTokens <= 450, `work output is roughly ${roughTokens} tokens`);
     assert.doesNotMatch(result.stdout, /generate code/i);
     assert.match(result.stdout, /Freshness:/);
-    assert.match(result.stdout, /Cheapest path:/);
-    assert.match(result.stdout, /Task files:/);
+    assert.match(result.stdout, /Primary files:/);
     assert.match(result.stdout, /Tests:/);
+    assert.match(result.stdout, /Supporting files:/);
     assert.match(result.stdout, /Agent rules:/);
     assert.match(result.stdout, /Context if unclear:/);
-    assert.match(result.stdout, /Lookup hints:/);
-    assert.match(result.stdout, /Done:/);
+    assert.match(result.stdout, /Next:/);
+    assert.doesNotMatch(result.stdout, /Cheapest path:/);
+    assert.doesNotMatch(result.stdout, /Lookup hints:/);
+    assert.doesNotMatch(result.stdout, /Next cheapest command:/);
+    assert.doesNotMatch(result.stdout, /Done:/);
     assert.doesNotMatch(result.stdout, /Recent logs:/);
     assert.doesNotMatch(result.stdout, /Read-first guidance:/);
     assert.doesNotMatch(result.stdout, /Fast lookup:/);

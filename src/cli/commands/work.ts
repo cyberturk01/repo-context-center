@@ -8,11 +8,13 @@ import { analyzeTaskIntent, weightedScore, type TaskIntentAnalysis } from "../..
 import type { CliIO } from "../index";
 
 interface WorkOptions {
+  agent: boolean;
   contextBudget: ContextBudget;
   debug: boolean;
   json: boolean;
   maxFiles: number;
   task: string;
+  verbose: boolean;
 }
 
 interface TargetedLookupHint {
@@ -75,6 +77,11 @@ interface WorkBrief {
   mapFreshness: WorkMapFreshness;
   routingGuidance: string[];
   startupContext: StartupContext;
+  primaryFiles: WorkRecommendation[];
+  supportingFiles: WorkRecommendation[];
+  tests: WorkRecommendation[];
+  agentRules: WorkRecommendation[];
+  contextIfUnclear: WorkRecommendation[];
   taskFiles: WorkRecommendation[];
   supportingTests: WorkRecommendation[];
   workflowDocs: WorkRecommendation[];
@@ -114,6 +121,11 @@ interface PublicWorkBrief {
   };
   recommendedFiles: PublicWorkFile[];
   relevantTests: PublicWorkFile[];
+  primaryFiles: PublicWorkFile[];
+  supportingFiles: PublicWorkFile[];
+  tests: PublicWorkFile[];
+  agentRules: PublicWorkFile[];
+  contextIfUnclear: PublicWorkFile[];
   taskFiles: PublicWorkFile[];
   supportingTests: PublicWorkFile[];
   workflowDocs: PublicWorkFile[];
@@ -157,12 +169,15 @@ export interface CompactWorkBrief {
     reason: string;
   };
   taskFiles: PublicCompactWorkFile[];
+  primaryFiles: PublicCompactWorkFile[];
+  supportingFiles: PublicCompactWorkFile[];
   tests: PublicCompactWorkFile[];
+  agentRules: PublicCompactWorkFile[];
   readFirst: string[];
   contextIfUnclear: string[];
   nextLookup: string;
   nextCommand: string;
-  reusePolicy: "Call once per task. Use rcc find for follow-up lookup.";
+  reusePolicy: "Call once per task. Do not rerun work unless task meaning changes. Use rcc find if route is insufficient.";
   tokens: {
     jsonEstimate: number;
   };
@@ -175,7 +190,7 @@ interface PublicWorkFile {
   score: number | null;
 }
 
-interface PublicCompactWorkFile {
+export interface PublicCompactWorkFile {
   path: string;
   reason?: string;
 }
@@ -194,6 +209,26 @@ interface PublicWorkRisk {
   reason: string | null;
 }
 
+export type PublicAgentRouteItem = string | PublicCompactWorkFile;
+
+export interface PublicAgentRoute {
+  task: string;
+  primaryFiles: PublicAgentRouteItem[];
+  supportingFiles: PublicAgentRouteItem[];
+  tests: PublicAgentRouteItem[];
+  readFirst: PublicAgentRouteItem[];
+  next: string;
+  briefTokens: number;
+}
+
+interface WorkFileCategorization {
+  primaryFiles: WorkRecommendation[];
+  supportingFiles: WorkRecommendation[];
+  tests: WorkRecommendation[];
+  agentRules: WorkRecommendation[];
+  contextIfUnclear: WorkRecommendation[];
+}
+
 const decisionsPath = "docs/ai-context/DECISIONS.md";
 const workLogPath = "docs/ai-context/WORK_LOG.md";
 const lessonsPath = "docs/ai-context/LESSONS_LEARNED.md";
@@ -203,7 +238,7 @@ const decisionLimit = 3;
 const targetedLookupLimit = 5;
 const targetedContentReadLimit = 64 * 1024;
 const strongLookupScoreThreshold = 70;
-const usage = 'Usage: rcc work "<task>" [--json] [--debug] [--context-budget minimal|balanced|deep] [--max-files <number>]';
+const usage = 'Usage: rcc work "<task>" [--json|--agent] [--verbose] [--debug] [--context-budget minimal|balanced|deep] [--max-files <number>]';
 const nextCommand = 'rcc done --summary "<summary>" --files auto --verify "<check>"';
 const freshnessAffectedFileLimit = 5;
 const freshnessImportantRoles = new Set(["source", "test", "workflow", "config", "package"]);
@@ -278,10 +313,12 @@ const localGlobalDoctorRoutes = [
 ];
 
 function parseWorkOptions(args: string[]): WorkOptions | undefined {
+  let agent = false;
   let contextBudget: ContextBudget = "balanced";
   let debug = false;
   let json = false;
   let maxFiles = 50;
+  let verbose = false;
   const taskParts: string[] = [];
 
   for (let index = 0; index < args.length; index += 1) {
@@ -289,6 +326,16 @@ function parseWorkOptions(args: string[]): WorkOptions | undefined {
 
     if (arg === "--json") {
       json = true;
+      continue;
+    }
+
+    if (arg === "--agent") {
+      agent = true;
+      continue;
+    }
+
+    if (arg === "--verbose") {
+      verbose = true;
       continue;
     }
 
@@ -330,11 +377,13 @@ function parseWorkOptions(args: string[]): WorkOptions | undefined {
   }
 
   return {
+    agent,
     contextBudget,
     debug,
     json,
     maxFiles,
-    task
+    task,
+    verbose
   };
 }
 
@@ -944,6 +993,106 @@ function extractRepoPaths(value: string): string[] {
   }
 
   return [...paths];
+}
+
+function normalizeRepoPathText(filePath: string): string {
+  return filePath.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/g, "").toLowerCase();
+}
+
+function taskMentionsExplicitPath(task: string, filePath: string): boolean {
+  const normalizedFile = normalizeRepoPathText(filePath);
+  return extractRepoPaths(task).some((candidate) => normalizeRepoPathText(candidate) === normalizedFile);
+}
+
+function taskMentionsExactFilename(task: string, filePath: string): boolean {
+  const basename = path.posix.basename(filePath).toLowerCase();
+  const pattern = new RegExp(`(^|[^a-z0-9._-])${escapeRegExp(basename)}([^a-z0-9._-]|$)`, "i");
+
+  return pattern.test(task);
+}
+
+function taskExplicitlyTargetsContextDocs(taskIntent: TaskIntentAnalysis): boolean {
+  return taskIntent.lookupTerms.some((term) => [
+    "context",
+    "docs",
+    "documentation",
+    "task",
+    "routing",
+    "token",
+    "budget"
+  ].includes(term));
+}
+
+function isDirectTaskTargetHint(hint: TargetedLookupHint | Omit<TargetedLookupHint, "index">, task: string, taskIntent: TaskIntentAnalysis): boolean {
+  const role = classifyRepoFile(hint.path).role;
+  const explicitPath = taskMentionsExplicitPath(task, hint.path);
+  const exactFilename = taskMentionsExactFilename(task, hint.path);
+
+  if (explicitPath) {
+    return true;
+  }
+
+  if (hint.path.startsWith("docs/ai-context/") && !taskExplicitlyTargetsContextDocs(taskIntent)) {
+    return false;
+  }
+
+  if (exactFilename) {
+    return true;
+  }
+
+  if (hint.signal === "command-name-match") {
+    return true;
+  }
+
+  if (["workflow", "config", "package"].includes(role) && hint.signal !== "semantic-match") {
+    return true;
+  }
+
+  return false;
+}
+
+function buildWorkFileCategorization(
+  categorized: {
+    taskFiles: WorkRecommendation[];
+    supportingTests: WorkRecommendation[];
+    workflowDocs: WorkRecommendation[];
+    contextDocs: WorkRecommendation[];
+    recommendedFiles: WorkRecommendation[];
+  },
+  startup: StartupContext,
+  lookupHints: TargetedLookupHint[],
+  taskIntent: TaskIntentAnalysis
+): WorkFileCategorization {
+  const directPrimaryPaths = lookupHints
+    .filter((hint) => classifyRepoFile(hint.path).role !== "test")
+    .filter((hint) => isDirectTaskTargetHint(hint, startup.task, taskIntent))
+    .map((hint) => hint.path);
+  const legacyTaskPaths = categorized.taskFiles.map((file) => file.path);
+  const primaryPaths = directPrimaryPaths.length > 0
+    ? directPrimaryPaths
+    : legacyTaskPaths;
+  const primarySet = new Set(primaryPaths);
+  const testPaths = categorized.supportingTests.map((file) => file.path);
+  const testSet = new Set(testPaths);
+  const supportingPaths = directPrimaryPaths.length > 0
+    ? uniquePaths([
+      ...legacyTaskPaths,
+      ...categorized.recommendedFiles
+        .map((file) => file.path)
+        .filter((file) => {
+          const role = classifyRepoFile(file).role;
+          return ["source", "workflow", "config", "package"].includes(role);
+        })
+    ]).filter((file) => !primarySet.has(file) && !testSet.has(file))
+    : [];
+
+  return {
+    primaryFiles: recommendationItemsWithHints(primaryPaths, startup, lookupHints),
+    supportingFiles: recommendationItemsWithHints(supportingPaths, startup, lookupHints),
+    tests: categorized.supportingTests,
+    agentRules: categorized.workflowDocs.filter((file) => !primarySet.has(file.path)),
+    contextIfUnclear: categorized.contextDocs.filter((file) => !primarySet.has(file.path))
+  };
 }
 
 async function lookupMemorySignals(cwd: string, terms: string[]): Promise<Map<string, TargetedLookupSignal>> {
@@ -1749,21 +1898,34 @@ function targetLookupHintForText(hint: Omit<TargetedLookupHint, "index">): Targe
   };
 }
 
-function formatNumberedList(values: string[]): string[] {
-  if (values.length === 0) {
-    return ["- none"];
+function renderNextLines(brief: WorkBrief, hasPrimaryFiles: boolean): string[] {
+  const lookup = `Use ${brief.nextCheapestCommand} only if primary/supporting files are insufficient.`;
+  const rerun = "Do not rerun rcc work for the same task unless the task meaning changes.";
+
+  if (hasPrimaryFiles) {
+    return [
+      "Start with primary files.",
+      rerun,
+      lookup
+    ];
   }
 
-  return values.map((value, index) => `${index + 1}. ${value}`);
+  return [
+    "Start with primary files if listed.",
+    "No strong primary files were found.",
+    rerun,
+    lookup
+  ];
 }
 
 function renderWorkBriefLines(brief: WorkBrief): string[] {
   const taskFileFallback = analyzeTaskIntent(brief.task).isCodeInvestigation
-    ? "No focused task files were identified. Use the next cheapest command before broad search."
+    ? "No focused task files were identified. Use Next before broad search."
     : "Start with workflow/context docs before broad search.";
   const deep = brief.contextBudget === "deep";
   const lookupHintLimit = deep ? targetedLookupLimit : 3;
   const highRisk = brief.risks.some((risk) => risk === "high" || risk === "critical");
+  const hasPrimaryFiles = brief.primaryFiles.length > 0;
   const compactLines = [
     "repo-context-center work brief",
     "",
@@ -1773,44 +1935,55 @@ function renderWorkBriefLines(brief: WorkBrief): string[] {
     "Freshness:",
     compactMapFreshnessLine(brief.mapFreshness),
     "",
-    "Cheapest path:",
-    ...formatNumberedList(brief.cheapestPath),
-    "",
-    "Task files:",
-    ...formatRecommendationSection(brief.taskFiles, taskFileFallback, false).slice(0, 8),
+    "Primary files:",
+    ...formatRecommendationSection(brief.primaryFiles, taskFileFallback, false).slice(0, 8),
     "",
     "Tests:",
-    ...formatRecommendationSection(brief.supportingTests, "Find nearby tests after inspecting source.", false).slice(0, 6),
+    ...formatRecommendationSection(brief.tests, "Find nearby tests after inspecting source.", false).slice(0, 6),
+    "",
+    "Supporting files:",
+    ...formatRecommendationSection(brief.supportingFiles, "Use only if primary files are insufficient.", false).slice(0, 8),
     "",
     "Agent rules:",
-    ...formatRecommendationSection(brief.workflowDocs, "No agent rule files were detected.", false).slice(0, 6),
+    ...formatRecommendationSection(brief.agentRules, "No agent rule files were detected.", false).slice(0, 6),
     "",
     "Context if unclear:",
-    ...formatRecommendationSection(brief.contextDocs, "Use only if task files are insufficient.", false).slice(0, 6),
+    ...formatRecommendationSection(brief.contextIfUnclear, "Use only if primary/supporting files are insufficient.", false).slice(0, 6),
     "",
-    "Lookup hints:",
-    ...formatTargetedLookupHints(brief.targetedLookupHints.map(targetLookupHintForText), lookupHintLimit),
-    "",
-    "Next cheapest command:",
-    brief.nextCheapestCommand,
-    "",
-    "Done:",
-    "```sh",
-    brief.nextCommand,
-    "```"
+    "Next:",
+    ...renderNextLines(brief, hasPrimaryFiles)
   ];
 
   if (!deep) {
     if (highRisk) {
       compactLines.splice(
-        compactLines.indexOf("Lookup hints:"),
+        compactLines.indexOf("Next:"),
         0,
         "Known risks:",
         ...compactRiskLines(brief.risks),
         ""
       );
     }
+    if (!hasPrimaryFiles) {
+      compactLines.splice(
+        compactLines.indexOf("Next:"),
+        0,
+        "Lookup hints:",
+        ...formatTargetedLookupHints(brief.targetedLookupHints.map(targetLookupHintForText), lookupHintLimit),
+        ""
+      );
+    }
     return compactLines;
+  }
+
+  if (!hasPrimaryFiles) {
+    compactLines.splice(
+      compactLines.indexOf("Next:"),
+      0,
+      "Lookup hints:",
+      ...formatTargetedLookupHints(brief.targetedLookupHints.map(targetLookupHintForText), lookupHintLimit),
+      ""
+    );
   }
 
   return [
@@ -1876,6 +2049,7 @@ function buildWorkBrief(
   taskIntent: TaskIntentAnalysis
 ): WorkBrief {
   const categorized = buildTaskFileRecommendations(startup, lookupHints, readFirstGuidance, taskIntent);
+  const fileCategories = buildWorkFileCategorization(categorized, startup, lookupHints, taskIntent);
   const nextCheapest = nextCheapestLookupCommand(taskIntent);
   const brief: WorkBrief = {
     command: "work",
@@ -1884,6 +2058,11 @@ function buildWorkBrief(
     mapFreshness,
     routingGuidance: startup.startupInstructions,
     startupContext: startup,
+    primaryFiles: fileCategories.primaryFiles,
+    supportingFiles: fileCategories.supportingFiles,
+    tests: fileCategories.tests,
+    agentRules: fileCategories.agentRules,
+    contextIfUnclear: fileCategories.contextIfUnclear,
     taskFiles: categorized.taskFiles,
     supportingTests: categorized.supportingTests,
     workflowDocs: categorized.workflowDocs,
@@ -1914,14 +2093,14 @@ function buildWorkBrief(
     },
     risks: riskValues(startup),
     cheapestPath: [
-      "Inspect the task files listed below.",
+      "Inspect the primary files listed below.",
       "Check supporting tests.",
       `If more search is needed, run: ${nextCheapest}`,
       "Avoid broad rg/find until targeted lookup is exhausted."
     ],
     avoid: [
-      "broad rg/find before checking task files",
-      "reading all docs/ai-context before task files",
+      "broad rg/find before checking primary files",
+      "reading all docs/ai-context before primary files",
       "generated/assets/fixtures unless explicitly relevant",
       "full repository scans for narrow bug investigation tasks"
     ],
@@ -1979,6 +2158,53 @@ function compactRecommendationSignal(recommendation: WorkRecommendation): Public
   return reason ? { path: recommendation.path, reason } : { path: recommendation.path };
 }
 
+function agentRouteItems(items: WorkRecommendation[], verbose: boolean): PublicAgentRouteItem[] {
+  if (!verbose) {
+    return items.map((item) => item.path);
+  }
+
+  return items.map(compactRecommendationSignal);
+}
+
+function agentReadFirstItems(brief: WorkBrief, verbose: boolean): PublicAgentRouteItem[] {
+  const readFirstFiles = brief.readFirstGuidance.required.length > 0
+    ? brief.readFirstGuidance.required.map((item) => item.path)
+    : brief.readFirst;
+
+  if (!verbose) {
+    return readFirstFiles;
+  }
+
+  const guidanceItems = brief.readFirstGuidance.required;
+
+  return readFirstFiles.map((filePath) => {
+    const guidance = guidanceItems.find((item) => item.path === filePath);
+    return guidance ? { path: filePath, reason: guidance.reason } : { path: filePath };
+  });
+}
+
+function toAgentRoute(brief: WorkBrief, verbose: boolean): PublicAgentRoute {
+  const withoutTokens: Omit<PublicAgentRoute, "briefTokens"> = {
+    task: brief.task,
+    primaryFiles: agentRouteItems(brief.primaryFiles, verbose),
+    supportingFiles: agentRouteItems(brief.supportingFiles, verbose),
+    tests: agentRouteItems(brief.tests, verbose),
+    readFirst: agentReadFirstItems(brief, verbose),
+    next: `Start with primaryFiles. Do not rerun work for this task. Use ${brief.nextCheapestCommand} only if needed.`
+  };
+  const preliminary = { ...withoutTokens, briefTokens: 0 };
+  const briefTokens = Math.ceil(JSON.stringify(preliminary).length / 4);
+
+  return {
+    ...withoutTokens,
+    briefTokens
+  };
+}
+
+function renderWorkBriefAgentJson(brief: WorkBrief, verbose: boolean): string {
+  return `${JSON.stringify(toAgentRoute(brief, verbose))}\n`;
+}
+
 function publicRisks(risks: string[]): PublicWorkRisk[] {
   if (risks.length === 0) {
     return [];
@@ -2011,6 +2237,11 @@ function renderWorkBriefDebugJson(brief: WorkBrief): string {
     },
     recommendedFiles: brief.recommendedFiles.map((file) => recommendationSignal(file, lookupHints)),
     relevantTests: brief.relevantTests.map((file) => recommendationSignal(file, lookupHints)),
+    primaryFiles: brief.primaryFiles.map((file) => recommendationSignal(file, lookupHints)),
+    supportingFiles: brief.supportingFiles.map((file) => recommendationSignal(file, lookupHints)),
+    tests: brief.tests.map((file) => recommendationSignal(file, lookupHints)),
+    agentRules: brief.agentRules.map((file) => recommendationSignal(file, lookupHints)),
+    contextIfUnclear: brief.contextIfUnclear.map((file) => recommendationSignal(file, lookupHints)),
     taskFiles: brief.taskFiles.map((file) => recommendationSignal(file, lookupHints)),
     supportingTests: brief.supportingTests.map((file) => recommendationSignal(file, lookupHints)),
     workflowDocs: brief.workflowDocs.map((file) => recommendationSignal(file, lookupHints)),
@@ -2065,12 +2296,15 @@ function toCompactWorkBrief(brief: WorkBrief): CompactWorkBrief {
       reason: brief.mapFreshness.reason
     },
     taskFiles: brief.taskFiles.map(compactRecommendationSignal),
-    tests: brief.supportingTests.map(compactRecommendationSignal),
+    primaryFiles: brief.primaryFiles.map(compactRecommendationSignal),
+    supportingFiles: brief.supportingFiles.map(compactRecommendationSignal),
+    tests: brief.tests.map(compactRecommendationSignal),
+    agentRules: brief.agentRules.map(compactRecommendationSignal),
     readFirst: brief.readFirst,
     contextIfUnclear: compactContextIfUnclear(brief),
     nextLookup: brief.nextCheapestCommand,
     nextCommand: brief.nextCommand,
-    reusePolicy: "Call once per task. Use rcc find for follow-up lookup."
+    reusePolicy: "Call once per task. Do not rerun work unless task meaning changes. Use rcc find if route is insufficient."
   };
   const preliminary = { ...withoutTokens, tokens: { jsonEstimate: 0 } };
   const jsonEstimate = Math.ceil(JSON.stringify(preliminary, null, 2).length / 4);
@@ -2096,6 +2330,17 @@ export async function buildCompactWorkBrief(
   options: { contextBudget?: ContextBudget; maxFiles?: number } = {}
 ): Promise<CompactWorkBrief> {
   return toCompactWorkBrief(await buildWorkBriefForTask(cwd, task, options));
+}
+
+export async function buildAgentWorkRoute(
+  cwd: string,
+  task: string,
+  options: { contextBudget?: ContextBudget; maxFiles?: number; verbose?: boolean } = {}
+): Promise<PublicAgentRoute> {
+  return toAgentRoute(
+    await buildWorkBriefForTask(cwd, task, options),
+    options.verbose ?? false
+  );
 }
 
 async function buildWorkBriefForTask(
@@ -2151,6 +2396,11 @@ export async function workCommand(io: CliIO, args: string[] = []): Promise<numbe
     contextBudget: options.contextBudget,
     maxFiles: options.maxFiles
   });
+
+  if (options.agent) {
+    io.stdout(renderWorkBriefAgentJson(brief, options.verbose));
+    return 0;
+  }
 
   if (options.json) {
     io.stdout(options.debug ? renderWorkBriefDebugJson(brief) : renderWorkBriefCompactJson(brief));

@@ -5,14 +5,14 @@ Read this first.
 <!-- repo-context-center:workflow:start -->
 ## RCC Workflow
 
-For coding tasks, first run once:
+For coding tasks, first run once at task start:
 
-`rcc work "<task>"`
+`rcc work "<task>" --agent`
 
 Then:
-- Follow the brief before reading files or searching broadly.
-- Use `rcc find "<keyword>"` for follow-up lookup.
-- Do not rerun `rcc work` unless the task/context changes or the brief is insufficient.
+- Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly.
+- Do not repeatedly run `rcc work` for the same task.
+- Use `rcc find "<keyword>"` only if the route is insufficient.
 - Do not ask the human to run RCC commands.
 - After meaningful changes, run tests and record:
   `rcc done --summary "<summary>" --files auto --verify "<checks>"`

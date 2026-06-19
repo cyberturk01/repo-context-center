@@ -68,4 +68,29 @@ Lightweight RCC memory from completed agent work.
 - Summary: Recalibrated AGENTS.md for command-first RCC workflow
 - Changed files: `AGENTS.md`, `src/templates/generic/AGENTS.md`, `tests/agent-startup-adoption.test.js`, `tests/init.test.js`, `tests/map.test.js`, `tests/templates.test.js`
 - Verification: npm run build; npm run benchmark:routing; npm run benchmark:work-repeat; npm test
+
+## 2026-06-19T14:35:58.336Z
+- Summary: Implemented primary/supporting rcc work file categorization
+- Changed files: `src/cli/commands/work.ts`, `tests/v07-release.test.js`, `tests/work.test.js`
+- Verification: npm run build; node dist/cli/index.js work "recalibrate AGENTS.md for current RCC architecture"; node dist/cli/index.js work "fix workflow risk detection"; node --test tests/work.test.js; npm test
+
+## 2026-06-19T14:42:44.772Z
+- Summary: Added compact agent JSON route output for rcc work
+- Changed files: `src/cli/commands/work.ts`, `tests/v07-release.test.js`, `tests/work.test.js`
+- Verification: npm run build; node dist/cli/index.js work "recalibrate AGENTS.md for current RCC architecture" --agent; node dist/cli/index.js work "fix workflow risk detection" --agent; node --test tests/work.test.js; npm test
+
+## 2026-06-19T14:54:16.289Z
+- Summary: Polished human rcc work output routing sections
+- Changed files: `src/cli/commands/work.ts`, `tests/v07-release.test.js`, `tests/work.test.js`
+- Verification: npm run build; node dist/cli/index.js work "recalibrate AGENTS.md for current RCC architecture"; node dist/cli/index.js work "fix workflow risk detection"; node --test tests/work.test.js; npm test
+
+## 2026-06-19T15:07:58.229Z
+- Summary: Implemented rcc measure MVP using work --agent route tokens and tightened naive scan exclusions
+- Changed files: `auto`
+- Verification: npm run build; node dist/cli/index.js measure "recalibrate AGENTS.md for current RCC architecture"; node dist/cli/index.js measure "recalibrate AGENTS.md for current RCC architecture" --json; npm test
+
+## 2026-06-19T15:15:41.799Z
+- Summary: Implemented v0.9 measurement workflow and single-use rcc work guidance
+- Changed files: `auto`
+- Verification: npm run build; node dist/cli/index.js work "recalibrate AGENTS.md for current RCC architecture" --agent; node dist/cli/index.js measure "recalibrate AGENTS.md for current RCC architecture"; node dist/cli/index.js measure "recalibrate AGENTS.md for current RCC architecture" --json; node --test tests...
 <!-- repo-context-center:work-log:end -->
