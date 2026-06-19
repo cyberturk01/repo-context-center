@@ -64,7 +64,21 @@ test("code investigation detection includes English and Turkish signals", () => 
 
 test("workflow-domain detection includes expanded CI and release signals", () => {
   assert.equal(analyzeTaskIntent("inspect ci release risk").hasWorkflowDomain, true);
+  assert.equal(analyzeTaskIntent("inspect ci release risk").hasCiWorkflowIntent, true);
   assert.equal(analyzeTaskIntent("fix login bug").hasWorkflowDomain, false);
+});
+
+test("documentation workflow intent does not imply CI workflow intent", () => {
+  const intent = analyzeTaskIntent("document the new agent workflow in README");
+
+  assert.equal(intent.hasDocumentationIntent, true);
+  assert.equal(intent.hasWorkflowDomain, true);
+  assert.equal(intent.hasCiWorkflowIntent, false);
+});
+
+test("version strings alone do not imply release intent", () => {
+  assert.equal(analyzeTaskIntent("update README for v1.0 roadmap").hasReleaseIntent, false);
+  assert.equal(analyzeTaskIntent("prepare npm release for v1.0").hasReleaseIntent, true);
 });
 
 test("next lookup keyword follows filtered lookup term order", () => {

@@ -281,6 +281,19 @@ const workflowTaskLookupRoleOrder: RepoFileRole[] = [
   "generated",
   "unknown"
 ];
+const documentationTaskLookupRoleOrder: RepoFileRole[] = [
+  "docs",
+  "source",
+  "test",
+  "workflow",
+  "config",
+  "package",
+  "fixture",
+  "snapshot",
+  "asset",
+  "generated",
+  "unknown"
+];
 const contextFiles = requiredContextFiles;
 const workOutputAssemblyPatterns = [
   /\btask\s+files?\b/i,
@@ -305,6 +318,10 @@ const tokenMeasurementRoutes = [
   "src/cli/commands/measure.ts",
   "src/core/tokenEstimator.ts",
   "tests/estimate.test.js"
+];
+const releaseTaskRoutes = [
+  "package.json",
+  "CHANGELOG.md"
 ];
 const localGlobalDoctorRoutes = [
   "src/cli/commands/doctor.ts",
@@ -492,7 +509,11 @@ function isMediumHighLookupHint(hint: TargetedLookupHint | Omit<TargetedLookupHi
 }
 
 function lookupRoleOrder(taskIntent: TaskIntentAnalysis): RepoFileRole[] {
-  if (taskIntent.hasWorkflowDomain) {
+  if (taskIntent.hasDocumentationIntent) {
+    return documentationTaskLookupRoleOrder;
+  }
+
+  if (taskIntent.hasCiWorkflowIntent) {
     return workflowTaskLookupRoleOrder;
   }
 
@@ -526,7 +547,8 @@ function isLocalGlobalDoctorTask(taskIntent: TaskIntentAnalysis): boolean {
 }
 
 function shouldSuppressWeakSemanticTaskFiles(taskIntent: TaskIntentAnalysis): boolean {
-  return taskIntent.hasWorkflowDomain
+  return taskIntent.hasCiWorkflowIntent
+    || taskIntent.hasDocumentationIntent
     || isTokenMeasurementTask(taskIntent)
     || isLocalGlobalDoctorTask(taskIntent);
 }
@@ -630,6 +652,10 @@ function sourceStemMap(files: string[]): Map<string, string> {
 }
 
 function taskAllowsLockFile(taskIntent: TaskIntentAnalysis): boolean {
+  if (taskIntent.hasDocumentationIntent && !taskIntent.hasReleaseIntent) {
+    return false;
+  }
+
   return taskIntent.lookupTerms.some((term) => [
     "dependency",
     "dependencies",
@@ -697,7 +723,7 @@ function isPromotableLookupHint(hint: TargetedLookupHint, taskIntent: TaskIntent
   const info = classifyRepoFile(hint.path);
   const promotableRoles = new Set(["source", "test", "config", "workflow", "package"]);
 
-  if (!promotableRoles.has(info.role) || info.isNoise || info.role === "asset") {
+  if (!(promotableRoles.has(info.role) || (info.role === "docs" && isDirectDocumentationHint(hint, taskIntent))) || info.isNoise || info.role === "asset") {
     return false;
   }
   if (isLockFile(hint.path) && !taskAllowsLockFile(taskIntent)) {
@@ -721,6 +747,15 @@ function isPromotableLookupHint(hint: TargetedLookupHint, taskIntent: TaskIntent
   }
 
   return hint.signal === "semantic-match" && hint.score >= strongLookupScoreThreshold;
+}
+
+function isDirectDocumentationHint(hint: TargetedLookupHint, taskIntent: TaskIntentAnalysis): boolean {
+  if (classifyRepoFile(hint.path).role !== "docs" || hint.signal === "semantic-match") {
+    return false;
+  }
+
+  return taskIntent.hasDocumentationIntent
+    || (taskIntent.hasReleaseIntent && hint.signal === "task-routing");
 }
 
 function isWeakSemanticSourceHint(hint: TargetedLookupHint): boolean {
@@ -762,7 +797,7 @@ function promotedLookupHints(lookupHints: TargetedLookupHint[], taskIntent: Task
   return lookupHints
     .filter((hint) => isPromotableLookupHint(hint, taskIntent))
     .sort((left, right) => {
-      if (taskIntent.hasWorkflowDomain) {
+      if (taskIntent.hasCiWorkflowIntent) {
         const workflowRankDelta = workflowPromotedHintRank(left) - workflowPromotedHintRank(right);
         if (workflowRankDelta !== 0) {
           return workflowRankDelta;
@@ -812,16 +847,21 @@ function buildTaskFileRecommendations(
     .filter((hint) => roles.includes(classifyRepoFile(hint.path).role))
     .map((hint) => hint.path);
   const startupTaskFiles = startup.likelySourceFiles.filter((file) => classifyRepoFile(file).role === "source");
-  const workflowTaskPaths = promotedByRole(["config", "workflow", "package"]);
-  const hasStrongWorkflowTaskCandidates = taskIntent.hasWorkflowDomain
+  const workflowTaskPaths = taskIntent.hasDocumentationIntent && !taskIntent.hasReleaseIntent
+    ? []
+    : promotedByRole(["config", "workflow", "package"]);
+  const hasStrongWorkflowTaskCandidates = taskIntent.hasCiWorkflowIntent
     && promoted.some((hint) => isWorkflowConfigOrPackageHint(hint));
   const suppressWeakSemanticTaskFiles = shouldSuppressWeakSemanticTaskFiles(taskIntent);
-  const promotedTaskPaths = taskIntent.hasWorkflowDomain
+  const docsTaskPaths = taskIntent.hasDocumentationIntent ? promotedByRole(["docs"]) : [];
+  const releaseDocPaths = taskIntent.hasReleaseIntent ? promotedByRole(["docs"]) : [];
+  const promotedTaskPaths = taskIntent.hasCiWorkflowIntent
     ? promoted
       .filter((hint) => ["source", "config", "workflow", "package"].includes(classifyRepoFile(hint.path).role))
       .filter((hint) => !hasStrongWorkflowTaskCandidates || !isWeakSemanticSourceHint(hint))
       .map((hint) => hint.path)
     : [
+      ...docsTaskPaths,
       ...promotedByRole(["source"]).filter((filePath) => {
         if (!suppressWeakSemanticTaskFiles) {
           return true;
@@ -830,7 +870,8 @@ function buildTaskFileRecommendations(
         const hint = promoted.find((candidate) => candidate.path === filePath);
         return !hint || !isWeakSemanticSourceHint(hint);
       }),
-      ...workflowTaskPaths
+      ...workflowTaskPaths,
+      ...releaseDocPaths
     ];
   const taskFilePaths = uniquePaths([
     ...promotedTaskPaths,
@@ -850,7 +891,10 @@ function buildTaskFileRecommendations(
   const filteredTestHintPaths = directTestHintPaths.length > 0
     ? directTestHintPaths
     : testHintPaths;
-  const supportingTestPaths = uniquePaths([...filteredTestHintPaths, ...startup.likelyTests]);
+  const supportingTestPaths = taskIntent.hasDocumentationIntent && !taskIntent.isCodeInvestigation
+    ? uniquePaths([...filteredTestHintPaths, ...startup.likelyTests])
+      .filter((file) => classifyRepoFile(file).role === "test" && /docs?|readme|markdown/i.test(file))
+    : uniquePaths([...filteredTestHintPaths, ...startup.likelyTests]);
   const agentRulePaths = uniquePaths(readFirstGuidance.required
     .map((item) => item.path)
     .filter(isAgentRulePath));
@@ -1044,6 +1088,10 @@ function isDirectTaskTargetHint(hint: TargetedLookupHint | Omit<TargetedLookupHi
     return true;
   }
 
+  if (taskIntent.hasDocumentationIntent && !taskIntent.hasReleaseIntent) {
+    return false;
+  }
+
   if (["workflow", "config", "package"].includes(role) && hint.signal !== "semantic-match") {
     return true;
   }
@@ -1081,7 +1129,8 @@ function buildWorkFileCategorization(
         .map((file) => file.path)
         .filter((file) => {
           const role = classifyRepoFile(file).role;
-          return ["source", "workflow", "config", "package"].includes(role);
+          return ["source", "workflow", "config", "package"].includes(role)
+            || (taskIntent.hasReleaseIntent && role === "docs");
         })
     ]).filter((file) => !primarySet.has(file) && !testSet.has(file))
     : [];
@@ -1219,6 +1268,24 @@ async function targetedLookupHints(cwd: string, taskIntent: TaskIntentAnalysis, 
         routeTerm,
         routePath.endsWith("measure.ts") ? 88 : 84,
         "routed by RCC token measurement guidance",
+        "task-routing",
+        routeIndex
+      ));
+    }
+  }
+
+  if (taskIntent.hasReleaseIntent) {
+    const routeTerm = terms.find((term) => ["release", "publish", "npm", "package", "changelog", "tag"].includes(term)) ?? terms[0] ?? "release";
+    for (const routePath of releaseTaskRoutes) {
+      const routeIndex = repoFiles.indexOf(routePath);
+      if (routeIndex === -1) {
+        continue;
+      }
+      candidates.push(makeLookupHint(
+        routePath,
+        routeTerm,
+        routePath === "package.json" ? 88 : 82,
+        "routed by release task guidance",
         "task-routing",
         routeIndex
       ));

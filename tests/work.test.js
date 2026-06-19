@@ -379,6 +379,38 @@ async function withWorkflowRankingRepo(callback) {
   }
 }
 
+async function withDocumentationRoutingRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-doc-routing-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "README.md", "# RCC\n\nAgent workflow and measurement capabilities for v0.9.\n");
+    await writeFixtureFile(tempDir, "CHANGELOG.md", "# Changelog\n");
+    await writeFixtureFile(tempDir, ".github/workflows/ai-project-guardian.yml", "name: ai-project-guardian\non: [push]\n");
+    await writeFixtureFile(tempDir, ".github/workflows/ci.yml", "name: ci\non: [push]\n");
+    await writeFixtureFile(tempDir, "package.json", "{\"name\":\"repo-context-center\",\"version\":\"0.9.0\",\"scripts\":{\"release\":\"npm publish\"}}\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/work.ts", "export function workCommand() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/measure.ts", "export function measureCommand() {}\n");
+    await writeFixtureFile(tempDir, "src/core/tokenEstimator.ts", "export function estimateTokens() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/index.ts", "export const commands = { work: true, measure: true };\n");
+    await writeFixtureFile(tempDir, "tests/estimate.test.js", "test('measure token saving', () => {});\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Workflow risk detection: read `.github/workflows/ai-project-guardian.yml` and `.github/workflows/ci.yml`.",
+        "- Measurement command: read `src/cli/commands/measure.ts`, `src/core/tokenEstimator.ts`, `src/cli/index.ts`, and `tests/estimate.test.js`."
+      ].join("\n")
+    );
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function withGuidanceRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-guidance-"));
 
@@ -1313,6 +1345,43 @@ test("work --agent workflow task keeps weak semantic source matches out of prima
   });
 });
 
+test("work --agent prioritizes explicit README target over version and workflow words", async () => {
+  await withDocumentationRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "update README for v0.9 workflow and measurement capabilities", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(route.primaryFiles.includes("README.md"), route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles[0].startsWith(".github/workflows/"), false, route.primaryFiles.join("\n"));
+    assert.ok(route.primaryFiles.indexOf("package.json") === -1 || route.primaryFiles.indexOf("README.md") < route.primaryFiles.indexOf("package.json"), route.primaryFiles.join("\n"));
+    assert.deepEqual(route.tests, [], route.tests.join("\n"));
+    assert.ok(route.briefTokens < 220, String(route.briefTokens));
+  });
+});
+
+test("work --agent treats agent workflow README task as documentation", async () => {
+  await withDocumentationRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "document the new agent workflow in README", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(route.primaryFiles.includes("README.md"), route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.some((file) => file.startsWith(".github/workflows/")), false, route.primaryFiles.join("\n"));
+  });
+});
+
+test("work --agent keeps GitHub Actions workflow task on workflow files", async () => {
+  await withDocumentationRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "fix workflow risk detection", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(route.primaryFiles.includes(".github/workflows/ai-project-guardian.yml"), route.primaryFiles.join("\n"));
+    assert.ok(route.primaryFiles.includes(".github/workflows/ci.yml"), route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.includes("README.md"), false, route.primaryFiles.join("\n"));
+  });
+});
+
 test("work categorizes output assembly implementation as primary and tests separately", async () => {
   await withSelfDevelopmentRoutingRepo(async (tempDir) => {
     const result = runCli(["work", "--json", "--debug", "improve rcc work output assembly"], { cwd: tempDir });
@@ -1454,6 +1523,44 @@ test("work --json routes token measurement tasks to measure command and estimato
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+});
+
+test("work --agent routes rcc measure token saving task to measure command", async () => {
+  await withDocumentationRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "improve rcc measure token saving calculation", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(route.primaryFiles.includes("src/cli/commands/measure.ts"), route.primaryFiles.join("\n"));
+    assert.ok(route.tests.includes("tests/estimate.test.js"), route.tests.join("\n"));
+    assert.ok(
+      route.primaryFiles.includes("src/core/tokenEstimator.ts") || route.supportingFiles.includes("src/core/tokenEstimator.ts"),
+      [...route.primaryFiles, ...route.supportingFiles].join("\n")
+    );
+    assert.equal(route.primaryFiles.some((file) => file.startsWith(".github/workflows/")), false, route.primaryFiles.join("\n"));
+  });
+});
+
+test("work --agent does not treat README roadmap version as release work", async () => {
+  await withDocumentationRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "update README for v1.0 roadmap", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(route.primaryFiles.includes("README.md"), route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.includes("package.json"), false, route.primaryFiles.join("\n"));
+  });
+});
+
+test("work --agent promotes package files for explicit npm release task", async () => {
+  await withDocumentationRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "prepare npm release for v1.0", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(route.primaryFiles.includes("package.json"), route.primaryFiles.join("\n"));
+    assert.ok(route.primaryFiles.includes("CHANGELOG.md") || route.supportingFiles.includes("CHANGELOG.md"), [...route.primaryFiles, ...route.supportingFiles].join("\n"));
+  });
 });
 
 test("work --json routes local/global RCC warning tasks to doctor command and CLI dispatch", async () => {

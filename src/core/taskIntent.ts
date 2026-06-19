@@ -8,6 +8,9 @@ export interface TaskIntentAnalysis {
   lowSignalTerms: string[];
   isCodeInvestigation: boolean;
   hasWorkflowDomain: boolean;
+  hasCiWorkflowIntent: boolean;
+  hasDocumentationIntent: boolean;
+  hasReleaseIntent: boolean;
   isExplicitCommandTask: boolean;
   nextLookupKeyword: string | null;
 }
@@ -191,6 +194,37 @@ const workflowDomainTerms = new Set([
   "workflow",
   "workflows"
 ]);
+const documentationTerms = new Set([
+  "copy",
+  "docs",
+  "documentation",
+  "example",
+  "examples",
+  "explain",
+  "guide",
+  "positioning",
+  "quick",
+  "readme",
+  "usage"
+]);
+const releaseIntentTerms = new Set([
+  "changelog",
+  "deploy",
+  "deployment",
+  "npm",
+  "package",
+  "publish",
+  "release",
+  "tag"
+]);
+const ciWorkflowIntentTerms = new Set([
+  "action",
+  "actions",
+  "ci",
+  "github",
+  "risk",
+  "risks"
+]);
 
 export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
   const filenameTerms = task
@@ -199,6 +233,9 @@ export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
   const normalizedTask = normalizeTaskText(task);
   const rawTokens = tokenize(normalizedTask);
   const expandedTerms = expandTaskTerms(rawTokens);
+  const hasDocumentationIntent = detectsDocumentationIntent(normalizedTask, expandedTerms);
+  const hasReleaseIntent = detectsReleaseIntent(normalizedTask, expandedTerms);
+  const hasCiWorkflowIntent = detectsCiWorkflowIntent(normalizedTask, expandedTerms, hasDocumentationIntent);
   const hasRoleSignal = expandedTerms.some((term) => term === "role" || term === "roles");
   const isExplicitCommandTask = expandedTerms.some((term) => explicitCommandTaskTerms.has(term));
   const termsForLookup = hasRoleSignal
@@ -226,6 +263,9 @@ export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
     lowSignalTerms: expandedTerms.filter((term) => lowSignalTerms.has(term)),
     isCodeInvestigation: expandedTerms.some((term) => codeInvestigationTerms.has(term)),
     hasWorkflowDomain: expandedTerms.some((term) => workflowDomainTerms.has(term)),
+    hasCiWorkflowIntent,
+    hasDocumentationIntent,
+    hasReleaseIntent,
     isExplicitCommandTask,
     nextLookupKeyword: lookupTerms[0] ?? null
   };
@@ -258,6 +298,32 @@ function normalizeTaskText(value: string): string {
     .replace(/\bhata(?:lar)?[iı]?\b/g, "hata")
     .replace(/\bihtimaller(?:i|ini|in|le|den)?\b/g, "ihtimalleri")
     .replace(/\bd[uü]zelt(?:mek|me|in|elim)?\b/g, "duzelt");
+}
+
+function detectsDocumentationIntent(normalizedTask: string, terms: string[]): boolean {
+  return terms.some((term) => documentationTerms.has(term))
+    || /\bquick\s+start\b/.test(normalizedTask)
+    || /\bupdate\s+readme\b/.test(normalizedTask);
+}
+
+function detectsReleaseIntent(normalizedTask: string, terms: string[]): boolean {
+  return terms.some((term) => releaseIntentTerms.has(term))
+    || /\bversion\s+bump\b/.test(normalizedTask)
+    || /\bci\s+release\b/.test(normalizedTask);
+}
+
+function detectsCiWorkflowIntent(normalizedTask: string, terms: string[], hasDocumentationIntent: boolean): boolean {
+  if (hasDocumentationIntent && /\b(?:readme|docs?|documentation|guide|usage|agent|user)\s+workflow\b/.test(normalizedTask)) {
+    return false;
+  }
+
+  return /\bgithub\s+actions?\b/.test(normalizedTask)
+    || /\bci\s+workflow\b/.test(normalizedTask)
+    || /\bworkflow\s+ya?ml\b/.test(normalizedTask)
+    || /\.github\/workflows\b/.test(normalizedTask)
+    || /\baction\s+failure\b/.test(normalizedTask)
+    || /\brelease\s+workflow\b/.test(normalizedTask)
+    || (terms.includes("workflow") && terms.some((term) => ciWorkflowIntentTerms.has(term)));
 }
 
 function tokenize(value: string): string[] {
