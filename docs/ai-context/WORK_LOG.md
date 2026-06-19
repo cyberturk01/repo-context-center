@@ -143,4 +143,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Extracted WorkBrief assembly into src/cli/work/buildWorkBrief.ts and kept work.ts focused on rendering/public wrappers.
 - Changed files: `src/cli/commands/work.ts`, `src/cli/work/buildWorkBrief.ts`
 - Verification: npm run build; node --test tests/work.test.js
+
+## 2026-06-19T16:28:42.079Z
+- Summary: Extracted work command text, JSON, and agent renderers into dedicated render modules without changing output schemas.
+- Changed files: `src/cli/commands/work.ts`, `src/cli/work/renderAgent.ts`, `src/cli/work/renderJson.ts`, `src/cli/work/renderText.ts`
+- Verification: npm run build; node --test tests/work.test.js
 <!-- repo-context-center:work-log:end -->
