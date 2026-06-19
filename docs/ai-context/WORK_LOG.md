@@ -93,4 +93,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Implemented v0.9 measurement workflow and single-use rcc work guidance
 - Changed files: `auto`
 - Verification: npm run build; node dist/cli/index.js work "recalibrate AGENTS.md for current RCC architecture" --agent; node dist/cli/index.js measure "recalibrate AGENTS.md for current RCC architecture"; node dist/cli/index.js measure "recalibrate AGENTS.md for current RCC architecture" --json; node --test tests...
+
+## 2026-06-19T15:24:19.317Z
+- Summary: updated README for v0.9 agent routing and measurement workflow
+- Changed files: `README.md`
+- Verification: npm test; node dist/cli/index.js measure "fix workflow risk detection"
 <!-- repo-context-center:work-log:end -->

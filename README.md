@@ -3,11 +3,13 @@
 ![npm](https://img.shields.io/npm/dm/repo-context-center)
 ![npm](https://img.shields.io/npm/v/repo-context-center)
 
-`repo-context-center` is a local-first ContextOps layer for AI coding agents.
+Repo Context Center (RCC) is a lightweight context-routing layer for AI coding agents.
 
-It gives agents a compact way to understand a repository before they read broadly: task routing, startup context, decision memory, lightweight project memory, token reduction, and agent guidance. It is not an AI coding agent, code generator, code reviewer, or security scanner.
+Give AI agents the smallest useful route to the right files, then prove the estimated token savings.
 
-It works with Codex, Claude Code, Cursor, Copilot-style agents, and other coding assistants that read repository instructions or Markdown docs.
+Instead of broadly scanning repositories, RCC identifies the most relevant files, tests, and supporting context for a task and provides a compact agent route. RCC can also estimate the difference between a naive repository scan and the RCC route.
+
+RCC works with Codex, Claude Code, Cursor, Copilot-style agents, and other coding assistants that can read repository instructions or call local CLI tools. It is not an AI coding agent, code generator, code reviewer, or security scanner.
 
 ## Local-First
 
@@ -17,19 +19,49 @@ It works with Codex, Claude Code, Cursor, Copilot-style agents, and other coding
 - No background process.
 - Works entirely on local repository metadata and Markdown files.
 
-Repo Context Center installs and maintains small context files inside your repository, centered around `AGENTS.md` and `docs/ai-context/*`.
-
 ![Repo Context Center workflow](https://raw.githubusercontent.com/cyberturk01/repo-context-center/c39f583/docs/assets/repo-context-center-diagram.svg)
 
 ## Quick Start
 
-Users only need to initialize the repository:
+Initialize RCC and generate the repository map:
 
 ```sh
 npx repo-context-center init
+npx repo-context-center map --write
 ```
 
-That installs `AGENTS.md`, `docs/ai-context/*`, and `.repo-context-center/config.json`.
+Then ask RCC for the smallest useful route for an agent task:
+
+```sh
+rcc work "fix workflow risk detection" --agent
+```
+
+Example output:
+
+```json
+{
+  "task": "fix workflow risk detection",
+  "primaryFiles": [
+    ".github/workflows/ai-project-guardian.yml",
+    ".github/workflows/ci.yml",
+    "package.json"
+  ],
+  "supportingFiles": [],
+  "tests": [
+    "tests/decision.test.js"
+  ],
+  "readFirst": [
+    "AGENTS.md"
+  ],
+  "next": "Start with primaryFiles. Do not rerun work for this task. Use rcc find \"workflow\" only if needed.",
+  "briefTokens": 87
+}
+```
+
+- `primaryFiles` are the files to inspect first.
+- `tests` are the most likely checks to validate changes.
+- `supportingFiles` are optional follow-up files when the route is not enough.
+- `readFirst` contains repository rules the agent should read before editing.
 
 Preview installation without writing files:
 
@@ -45,112 +77,126 @@ npx repo-context-center init --force
 
 ## Agent Workflow
 
-The primary agent workflow is intentionally small:
+Recommended workflow:
 
-```sh
-rcc work "fix login bug"
+```text
+1. Run:
+   rcc work "<task>" --agent
+
+2. Inspect:
+   primaryFiles
+   tests
+
+3. Edit code
+
+4. Verify changes
+
+5. Record:
+   rcc done
 ```
 
-`rcc work` prints a concise agent-focused work brief:
+Guidance:
 
-- task intent;
-- map freshness status and a refresh recommendation when context looks stale;
-- recommended files to inspect first;
-- relevant tests or test folders;
-- recent decisions and memory;
-- known risks;
-- read-first guidance for required, task-specific, and optional context files;
-- targeted lookup hints with deterministic reasons and confidence;
-- a rough token estimate for the brief;
-- the suggested next command after work.
+- Run `rcc work "<task>" --agent` once at task start.
+- Do not repeatedly rerun the same task route.
+- Use `rcc find "<keyword>"` only if the route is insufficient.
+- Use `rcc done` after meaningful work.
 
-Agents and integrations can request the same work brief as stable JSON:
+After completed work, record lightweight work memory:
 
 ```sh
-rcc work "fix login bug" --json
+rcc done --summary "fixed workflow risk detection" --files auto --verify "npm test"
 ```
-
-The JSON form is generated from the same internal work brief as the human-readable output and includes stable fields such as `schemaVersion`, `command`, `task`, `contextBudget`, `mapFreshness`, `recommendedFiles`, `relevantTests`, `readFirstGuidance`, `readFirst`, `targetedLookupHints`, `tokenEstimate`, `fastLookup`, and `nextCommand`.
-
-Control read-first breadth with a context budget:
-
-```sh
-rcc work "fix login bug" --context-budget minimal
-rcc work "fix login bug" --context-budget balanced
-rcc work "fix login bug" --context-budget deep
-```
-
-After meaningful completed work, the agent records lightweight work memory:
-
-```sh
-rcc done --summary "fixed login bug" --files auto --verify "npm test -- login"
-```
-
-If a durable project decision was made, record that separately with the `decision` command described in Advanced Commands.
 
 Agents should treat RCC output as navigation guidance, not proof. Source code remains the source of truth, and agents should verify source before editing.
 
-If shell access is unavailable, agents should read the fallback context docs listed in `AGENTS.md`, especially `COMMUNICATION_MODE.md`, `TASK_ROUTING.md`, `TOKEN_BUDGET.md`, and `DO_NOT_READ.md`.
+## Measurement
 
-`start` and `log` still exist for backward compatibility and lower-level workflows. New agent flows should prefer `work` and `done`.
-
-## Why It Matters
-
-AI coding agents often spend context rediscovering the same repository facts:
-
-- Which files matter for this task?
-- Which generated, vendored, build, or coverage paths should be skipped?
-- Where are the risky shared modules?
-- Which tests are likely related?
-- What did a previous session already learn?
-- Which project decisions should not be rediscovered?
-
-That repeated discovery costs tokens, time, and attention. RCC gives agents a durable place to start, so each session can begin from compact repository context instead of rebuilding it from scratch.
-
-## Token Estimate Proof
-
-Verified estimates on this repository:
-
-| Scenario | Estimate |
-| --- | ---: |
-| Naive scan | 97,917 tokens |
-| Compact startup | 546 tokens |
-| Estimated reduction | 99.4% |
-
-Validated against larger public repositories with different structures:
-
-| Repository | Files scanned | Naive scan estimate | Compact startup context | Estimated reduction |
-| --- | ---: | ---: | ---: | ---: |
-| FastAPI | 500 | ~936K tokens | ~862 tokens | ~99.9% |
-| LangChain | 500 | ~1.18M tokens | ~4.4K tokens | ~99.6% |
-
-Estimate whether RCC is reducing broad repo reads:
+Measure the difference between a naive repository scan and the RCC route for a task:
 
 ```sh
-npx repo-context-center estimate --compare-naive
+rcc measure "fix workflow risk detection"
 ```
 
-Example output excerpt from LangChain:
+Example output:
 
 ```text
-Naive comparison:
-- Estimated naive scan: 1,189,515 tokens
-- Estimated compact startup: 4,752 tokens
-- Estimated saving: 1,184,763 tokens
-- Estimated saving: 99.6%
+RCC measurement
+
+Task:
+fix workflow risk detection
+
+Naive scan estimate:
+195,623 tokens
+
+RCC agent route:
+87 tokens
+
+Primary files:
+3
+
+Supporting files:
+0
+
+Tests:
+1
+
+Estimated saving:
+195,536 tokens (99.9%)
 ```
 
-Estimates use `ceil(characters / 4)` and are intended for relative comparison only. Actual tokenizer costs vary by model. RCC aims to reduce broad rediscovery, not guarantee savings.
+The naive scan estimate is an approximation. Savings are estimates, not guarantees. The goal is to show the scale of repository reduction achieved by RCC routing.
 
-## Advanced Commands
-
-User should start with only:
+JSON output is available for integrations:
 
 ```sh
-npx repo-context-center init
+rcc measure "fix workflow risk detection" --json
 ```
 
-The commands below are useful for power users, CI, debugging, and integrations.
+## Why RCC
+
+Without RCC, an agent often scans many files before finding the relevant code, tests, workflows, configuration, and repository rules.
+
+With RCC, the agent starts with:
+
+- `primaryFiles`
+- `tests`
+- `supportingFiles`
+- `readFirst`
+
+and avoids broad repository exploration until necessary.
+
+That saves context, time, and attention while still leaving the agent in control of source verification.
+
+## Real Example
+
+Repository-specific estimate from this repository:
+
+```text
+Task:
+fix workflow risk detection
+
+Naive scan estimate:
+195,623 tokens
+
+RCC route:
+87 tokens
+
+Estimated saving:
+195,536 tokens (99.9%)
+```
+
+This is a repository-specific estimate, not a guaranteed benchmark. Actual tokenizer costs vary by model, and the exact route depends on the repository map and task wording.
+
+## Supporting Commands
+
+The primary workflow is:
+
+```text
+work -> edit -> verify -> done
+```
+
+The commands below support that workflow.
 
 ### Refresh Repository Maps
 
@@ -210,9 +256,26 @@ npx repo-context-center find "decision command"
 
 `find "<query>"` returns focused file candidates with short deterministic reasons. It prefers task-routing, filename, path, paired-test, and lightweight content signals while filtering noisy generated, fixture, snapshot, archive, and internal context paths.
 
-### Estimate Token Savings
+### Validate Installation
 
-Use `estimate` when evaluating whether the context layer is pulling its weight:
+Validate installed context files:
+
+```sh
+npx repo-context-center validate
+npx repo-context-center validate --strict
+```
+
+### Record Completed Work
+
+Use `done` after meaningful agent work:
+
+```sh
+npx repo-context-center done --summary "fixed auth routing" --files auto --verify "npm test"
+```
+
+### Estimate Broader Context Costs
+
+`measure` is the task-first command for the v0.9 workflow. `estimate` remains available for evaluating installed context files and broader token-cost scenarios:
 
 ```sh
 npx repo-context-center estimate --compare-naive
@@ -221,6 +284,12 @@ npx repo-context-center estimate --json
 ```
 
 ### Integrations And JSON
+
+Use `work --agent` for the compact route:
+
+```sh
+npx repo-context-center work "improve package scripts" --agent
+```
 
 Use `work --json` when an agent or tool needs the full work brief in a stable machine-readable shape:
 
@@ -241,14 +310,7 @@ Use `scan --json` to inspect only repository layout and lightweight context sugg
 npx repo-context-center scan --json
 ```
 
-### Validation, Archiving, And Decisions
-
-Validate installed context files:
-
-```sh
-npx repo-context-center validate
-npx repo-context-center validate --strict
-```
+### Archive And Decisions
 
 Archive older long-running notes:
 
@@ -264,9 +326,9 @@ npx repo-context-center decision list
 npx repo-context-center decision search "agents"
 ```
 
-### Legacy Lower-Level Commands
+### Lower-Level Commands
 
-`start` and `log` remain available for backward compatibility:
+`start` and `log` remain available for lower-level workflows:
 
 ```sh
 npx repo-context-center start "fix auth bug"
@@ -280,7 +342,8 @@ Prefer `rcc work` and `rcc done` for new agent workflows.
 ```sh
 repo-context-center --help
 repo-context-center init [--dry-run] [--force] [--github-action]
-repo-context-center work "<task>" [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
+repo-context-center work "<task>" [--agent] [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
+repo-context-center measure "<task>" [--json]
 repo-context-center done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]
 repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <number>]
 repo-context-center validate [--strict]
@@ -298,20 +361,21 @@ repo-context-center log "<summary>" [--files <path,path>] [--dry-run]
 
 | Command | Purpose | When to use |
 | --- | --- | --- |
-| `init` | install context templates | once per repo |
-| `work` | print an agent work brief | before agent work |
-| `done` | save completed-work memory | after meaningful agent work |
+| `init` | install RCC repository instructions and context templates | once per repo |
 | `map --write` | refresh generated repo maps | after structure changes |
-| `map --check` | detect stale generated maps | CI / PRs |
+| `work --agent` | print the compact agent route | once at task start |
+| `find` | locate focused candidate files | only if the route is insufficient |
+| `measure` | estimate route savings for a task | when evaluating routing efficiency |
+| `done` | save completed-work memory | after meaningful agent work |
 | `validate` | check required context files | setup and CI |
+| `map --check` | detect stale generated maps | CI / PRs |
 | `archive` | keep long-running notes compact | periodic maintenance |
-| `estimate` | estimate context/token savings | evaluation and debugging |
-| `find` | locate focused candidate files | fallback before broad search |
+| `estimate` | estimate broader context/token costs | evaluation and debugging |
 | `decision` | record durable project decisions | architecture/workflow decisions |
 | `suggest` | get recommendations or JSON | tooling and integrations |
 | `scan` | inspect repo layout | diagnostics |
-| `start` | legacy startup prompt | backward-compatible workflows |
-| `log` | legacy change log entry | backward-compatible workflows |
+| `start` | print a lower-level startup prompt | specialized workflows |
+| `log` | add a lower-level change log entry | specialized workflows |
 
 ## CI / Keeping Context Fresh
 
@@ -409,9 +473,10 @@ With `--github-action`, init also creates:
 | Capability | Status |
 | --- | --- |
 | Generic context installation | Available |
-| Agent work brief | Available |
+| Agent work route | Available |
 | Repository understanding | Available |
 | Task routing | Available |
+| Task measurement | Available |
 | Explainable recommendation reasons | Available |
 | Targeted fallback search | Available |
 | Token estimation | Available |
