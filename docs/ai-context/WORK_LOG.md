@@ -492,4 +492,144 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-19T22:41:51.701Z
+- Summary: smoke test structured handoff memory
+- Changed files: _not detected_
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "smoke test structured handoff memory",
+  "files": [],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-19T22:41:51.701Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-19T22:41:51.701Z",
+  "summary": "smoke test structured handoff memory",
+  "files": [],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-19T22:44:40.405Z
+- Summary: Updated CHANGELOG.md for the upcoming RCC v0.9.3 release with v0.9.x handoff and routing improvements.
+- Changed files: `CHANGELOG.md`
+- Verification: node --test tests/log.test.js tests/decision.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated CHANGELOG.md for the upcoming RCC v0.9.3 release with v0.9.x handoff and routing improvements.",
+  "files": [
+    "CHANGELOG.md"
+  ],
+  "verification": [
+    "node --test tests/log.test.js tests/decision.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-19T22:44:40.405Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-19T22:44:40.405Z",
+  "summary": "Updated CHANGELOG.md for the upcoming RCC v0.9.3 release with v0.9.x handoff and routing improvements.",
+  "files": [
+    "CHANGELOG.md"
+  ],
+  "verification": "node --test tests/log.test.js tests/decision.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-19T22:46:53.999Z
+- Summary: Updated README.md for RCC v0.9.3 Agent Handover capabilities and refreshed the workflow diagram.
+- Changed files: `CHANGELOG.md`, `docs/assets/repo-context-center-diagram.svg`, `README.md`
+- Verification: node dist/cli/index.js validate; git diff --check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated README.md for RCC v0.9.3 Agent Handover capabilities and refreshed the workflow diagram.",
+  "files": [
+    "CHANGELOG.md",
+    "docs/assets/repo-context-center-diagram.svg",
+    "README.md"
+  ],
+  "verification": [
+    "node dist/cli/index.js validate; git diff --check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-19T22:46:53.999Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-19T22:46:53.999Z",
+  "summary": "Updated README.md for RCC v0.9.3 Agent Handover capabilities and refreshed the workflow diagram.",
+  "files": [
+    "CHANGELOG.md",
+    "docs/assets/repo-context-center-diagram.svg",
+    "README.md"
+  ],
+  "verification": "node dist/cli/index.js validate; git diff --check",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-19T22:49:35.377Z
+- Summary: Updated README SVG image URL to use the raw GitHub link for npm rendering.
+- Changed files: `CHANGELOG.md`, `docs/assets/repo-context-center-diagram.svg`, `README.md`
+- Verification: git diff --check README.md
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated README SVG image URL to use the raw GitHub link for npm rendering.",
+  "files": [
+    "CHANGELOG.md",
+    "docs/assets/repo-context-center-diagram.svg",
+    "README.md"
+  ],
+  "verification": [
+    "git diff --check README.md"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-19T22:49:35.377Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-19T22:49:35.377Z",
+  "summary": "Updated README SVG image URL to use the raw GitHub link for npm rendering.",
+  "files": [
+    "CHANGELOG.md",
+    "docs/assets/repo-context-center-diagram.svg",
+    "README.md"
+  ],
+  "verification": "git diff --check README.md",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

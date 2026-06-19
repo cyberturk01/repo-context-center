@@ -5,8 +5,6 @@
 
 Repo Context Center (RCC) is a lightweight context-routing layer for AI coding agents.
 
-Give AI agents the smallest useful route to the right files, then prove the estimated token savings.
-
 Instead of broadly scanning repositories, RCC identifies the most relevant files, tests, and supporting context for a task and provides a compact agent route. RCC can also estimate the difference between a naive repository scan and the RCC route.
 
 RCC works with Codex, Claude Code, Cursor, Copilot-style agents, and other coding assistants that can read repository instructions or call local CLI tools. It is not an AI coding agent, code generator, code reviewer, or security scanner.
@@ -19,7 +17,16 @@ RCC works with Codex, Claude Code, Cursor, Copilot-style agents, and other codin
 - No background process.
 - Works entirely on local repository metadata and Markdown files.
 
-![Repo Context Center workflow](https://raw.githubusercontent.com/cyberturk01/repo-context-center/c39f583/docs/assets/repo-context-center-diagram.svg)
+Core capabilities:
+
+- Repository Understanding
+- Task Routing
+- Startup Context
+- Decision Memory
+- Work Tracking
+- Agent Handover
+
+![Repo Context Center workflow](https://raw.githubusercontent.com/cyberturk01/repo-context-center/main/docs/assets/repo-context-center-diagram.svg)
 
 ## Quick Start
 
@@ -79,28 +86,24 @@ npx repo-context-center init --force
 
 Recommended workflow:
 
-```text
-1. Run:
-   rcc work "<task>" --agent
+```sh
+rcc work "implement feature" --agent
 
-2. Inspect:
-   primaryFiles
-   tests
+# agent performs work
 
-3. Edit code
+rcc done --summary "implemented feature" --files auto --verify "npm test"
 
-4. Verify changes
-
-5. Record:
-   rcc done
+rcc handoff
 ```
 
 Guidance:
 
 - Run `rcc work "<task>" --agent` once at task start.
+- Inspect `primaryFiles`, `tests`, and `supportingFiles` before broader search.
 - Do not repeatedly rerun the same task route.
 - Use `rcc find "<keyword>"` only if the route is insufficient.
 - Use `rcc done` after meaningful work.
+- Use `rcc handoff` when another session or agent needs to continue.
 
 After completed work, record lightweight work memory:
 
@@ -108,7 +111,48 @@ After completed work, record lightweight work memory:
 rcc done --summary "fixed workflow risk detection" --files auto --verify "npm test"
 ```
 
+In this flow, `work` starts the task with a compact route, `done` records progress, and `handoff` prepares a continuation brief for the next agent.
+
 Agents should treat RCC output as navigation guidance, not proof. Source code remains the source of truth, and agents should verify source before editing.
+
+## Agent Handover
+
+Agents often restart without knowing what was completed, which files were touched, which decisions were made, or what should happen next. RCC can generate a continuation brief from repository memory.
+
+Print a human-readable handoff brief:
+
+```sh
+rcc handoff
+```
+
+Print machine-readable handoff JSON:
+
+```sh
+rcc handoff --json
+```
+
+Route the handoff around a specific continuation task:
+
+```sh
+rcc handoff "continue workflow validation"
+```
+
+Print a compact agent handoff payload:
+
+```sh
+rcc handoff --agent
+```
+
+The handoff brief can include recent work summaries, touched files, verification notes, follow-ups, risks, relevant decisions, and task-aware next files.
+
+## When to Use Handoff
+
+Use `rcc handoff` for:
+
+- long-running tasks
+- switching between Codex sessions
+- switching between AI agents
+- resuming work the next day
 
 ## Measurement
 
@@ -193,7 +237,7 @@ This is a repository-specific estimate, not a guaranteed benchmark. Actual token
 The primary workflow is:
 
 ```text
-work -> edit -> verify -> done
+work -> edit -> verify -> done -> handoff
 ```
 
 The commands below support that workflow.
@@ -273,6 +317,17 @@ Use `done` after meaningful agent work:
 npx repo-context-center done --summary "fixed auth routing" --files auto --verify "npm test"
 ```
 
+### Prepare Agent Handover
+
+Use `handoff` when work needs to continue in another session or with another agent:
+
+```sh
+npx repo-context-center handoff
+npx repo-context-center handoff --json
+npx repo-context-center handoff "continue workflow validation"
+npx repo-context-center handoff --agent
+```
+
 ### Estimate Broader Context Costs
 
 `measure` is the task-first command for the v0.9 workflow. `estimate` remains available for evaluating installed context files and broader token-cost scenarios:
@@ -296,6 +351,13 @@ Use `work --json` when an agent or tool needs the full work brief in a stable ma
 ```sh
 npx repo-context-center work "improve package scripts" --json
 npx repo-context-center work "improve package scripts" --json --context-budget minimal
+```
+
+Use `handoff --json` or `handoff --agent` when a tool needs continuation context:
+
+```sh
+npx repo-context-center handoff --json
+npx repo-context-center handoff --agent
 ```
 
 Use `suggest --json` when integrating RCC recommendations into another tool:
@@ -335,7 +397,7 @@ npx repo-context-center start "fix auth bug"
 npx repo-context-center log "Fixed auth routing" --files src/auth.ts,tests/auth.test.ts
 ```
 
-Prefer `rcc work` and `rcc done` for new agent workflows.
+Prefer `rcc work`, `rcc done`, and `rcc handoff` for new agent workflows.
 
 ## Command Reference
 
@@ -345,6 +407,7 @@ repo-context-center init [--dry-run] [--force] [--github-action]
 repo-context-center work "<task>" [--agent] [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
 repo-context-center measure "<task>" [--json]
 repo-context-center done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]
+repo-context-center handoff [task] [--json|--agent] [--debug] [--write]
 repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <number>]
 repo-context-center validate [--strict]
 repo-context-center archive [--keep <number>] [--dry-run]
@@ -367,6 +430,7 @@ repo-context-center log "<summary>" [--files <path,path>] [--dry-run]
 | `find` | locate focused candidate files | only if the route is insufficient |
 | `measure` | estimate route savings for a task | when evaluating routing efficiency |
 | `done` | save completed-work memory | after meaningful agent work |
+| `handoff` | prepare a continuation brief | when work continues in another session or agent |
 | `validate` | check required context files | setup and CI |
 | `map --check` | detect stale generated maps | CI / PRs |
 | `archive` | keep long-running notes compact | periodic maintenance |
@@ -477,6 +541,10 @@ With `--github-action`, init also creates:
 | Repository understanding | Available |
 | Task routing | Available |
 | Task measurement | Available |
+| Startup context | Available |
+| Decision memory | Available |
+| Work tracking | Available |
+| Agent handover | Available |
 | Explainable recommendation reasons | Available |
 | Targeted fallback search | Available |
 | Token estimation | Available |
@@ -489,7 +557,6 @@ With `--github-action`, init also creates:
 | Safer merge/update UX | Planned |
 | Project-specific packs | Planned |
 | Context analytics | Planned |
-| Agent handover improvements | Planned |
 
 ## Development
 

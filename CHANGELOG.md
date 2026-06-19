@@ -1,5 +1,42 @@
 # ChangeLog
 
+## [0.9.3]
+
+RCC v0.9.3 summarizes the v0.9.x series shift from startup context generation toward task continuation and agent handoff workflows. The release keeps `rcc work` as the task entrypoint while adding handoff-focused outputs and structured memory for continuing work across sessions.
+
+### Added
+
+- Added the new `rcc handoff` command.
+- Added `rcc handoff --json` for machine-readable handoff output.
+- Added `rcc handoff --agent` for compact agent handoff output.
+- Added agent handoff workflow support.
+- Added structured handoff memory support.
+- Added task-aware handoff routing.
+- Added optional handoff metadata:
+  - `lastSummary`
+  - `filesTouched`
+  - `verification`
+  - `followUps`
+  - `risks`
+
+### Improved
+
+- Improved task intent cleanup.
+- Reduced noisy lookup terms.
+- Improved routing keyword selection.
+- Improved relevant decision matching.
+- Improved handoff task routing.
+- Improved handoff memory quality.
+
+### Internal
+
+- Decoupled `work` command routing concerns.
+- Added handoff command architecture.
+- Kept command wrappers thin.
+- Added structured handoff memory blocks.
+- Added architecture guard tests.
+- Improved test coverage.
+
 ## 0.8.3
 
 ### Added
