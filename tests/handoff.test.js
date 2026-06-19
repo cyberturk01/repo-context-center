@@ -264,6 +264,33 @@ test("rcc handoff invalid args return usage and non-zero exit", () => {
   assert.match(result.stderr, /^Usage: rcc handoff \[task\] \[--json\|--agent\] \[--debug\]/);
 });
 
+test("handoff command stays thin and delegates architecture concerns", async () => {
+  const source = await readFile(path.join(repoRoot, "src", "cli", "commands", "handoff.ts"), "utf8");
+  const lines = source.trim().split(/\r?\n/);
+  const imports = source.match(/^import .+$/gm) ?? [];
+  const allowedImports = new Set([
+    'import { buildHandoffBrief } from "../handoff/buildHandoffBrief";',
+    'import { renderHandoffAgent } from "../handoff/renderAgent";',
+    'import { renderHandoffJson } from "../handoff/renderJson";',
+    'import { renderHandoffText } from "../handoff/renderText";',
+    'import { formatHandoffOptionsUsage, parseHandoffOptions } from "../handoff/handoffOptions";',
+    'import { writeHandoffBrief } from "../handoff/writeHandoff";',
+    'import type { CliIO } from "../index";'
+  ]);
+
+  assert.ok(lines.length <= 45, `handoff command has ${lines.length} lines`);
+  assert.deepEqual(imports.filter((line) => !allowedImports.has(line)), []);
+  assert.doesNotMatch(source, /node:fs\/promises/);
+  assert.doesNotMatch(source, /\breadFile\b|\bwriteFile\b|\bmkdir\b/);
+  assert.doesNotMatch(source, /markdown|```|repo-context-center:generated/i);
+  assert.doesNotMatch(source, /\bgit\b|git[A-Z]|from "\.\.\/.*git/i);
+  assert.match(source, /parseHandoffOptions\(args\)/);
+  assert.match(source, /buildHandoffBrief\(io\.cwd, options\)/);
+  assert.match(source, /renderHandoffAgent\(brief\)/);
+  assert.match(source, /renderHandoffJson\(brief, options\.debug\)/);
+  assert.match(source, /renderHandoffText\(brief\)/);
+});
+
 test("rcc handoff --write writes HANDOFF.md and prints confirmation", async () => {
   await withTempRepo(async (tempDir) => {
     const result = runCli(["handoff", "--write"], { cwd: tempDir });
