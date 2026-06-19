@@ -899,6 +899,76 @@ test("work prunes read-first guidance for a small focused task", async () => {
   });
 });
 
+test("work read-first guidance default balanced keeps AGENTS required and TASK_ROUTING optional", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "fix login bug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.contextBudget, "balanced");
+    assert.deepEqual(brief.readFirstGuidance.required, [
+      {
+        path: "AGENTS.md",
+        reason: "repository agent workflow"
+      }
+    ]);
+    assert.ok(brief.readFirstGuidance.optionalIfUnclear.some((item) => (
+      item.path === "docs/ai-context/TASK_ROUTING.md"
+      && item.reason === "routing appears strong, but use if targeted hints are insufficient"
+    )));
+    assert.ok(!brief.readFirst.includes("docs/ai-context/TASK_ROUTING.md"), JSON.stringify(brief.readFirst));
+  });
+});
+
+test("work read-first guidance minimal budget keeps signaled docs optional", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "--context-budget", "minimal", "fix freshness reporting risk"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(brief.readFirst, ["AGENTS.md"]);
+    assert.deepEqual(brief.readFirstGuidance.taskSpecific, []);
+    assert.ok(brief.readFirstGuidance.optionalIfUnclear.some((item) => item.path === "docs/ai-context/RISK_REGISTER.md"));
+    assert.ok(brief.readFirstGuidance.optionalIfUnclear.some((item) => item.path === "docs/ai-context/TASK_ROUTING.md"));
+  });
+});
+
+test("work read-first guidance deep budget includes broader context in readFirst", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "--context-budget", "deep", "fix login bug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.readFirst.includes("AGENTS.md"), JSON.stringify(brief.readFirst));
+    assert.ok(brief.readFirst.includes("docs/ai-context/TASK_ROUTING.md"), JSON.stringify(brief.readFirst));
+    assert.ok(brief.readFirstGuidance.taskSpecific.some((item) => item.path === "docs/ai-context/MODULE_INDEX.md"));
+    assert.ok(brief.readFirstGuidance.optionalIfUnclear.some((item) => item.path === "docs/ai-context/DEPENDENCY_MAP.md"));
+    assert.ok(brief.readFirstGuidance.optionalIfUnclear.some((item) => item.path === "docs/ai-context/RISK_REGISTER.md"));
+  });
+});
+
+test("work read-first guidance requires AGENTS.md when present", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "clean up"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(brief.readFirstGuidance.required.map((item) => item.path), ["AGENTS.md"]);
+    assert.deepEqual(brief.readFirst, ["AGENTS.md", "docs/ai-context/TASK_ROUTING.md"]);
+  });
+});
+
+test("work read-first guidance keeps TASK_ROUTING optional when routing is strong", async () => {
+  await withGuidanceRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "fix login bug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.readFirstGuidance.taskSpecific.some((item) => item.path === "docs/ai-context/TASK_ROUTING.md"), false);
+    assert.ok(brief.readFirstGuidance.optionalIfUnclear.some((item) => item.path === "docs/ai-context/TASK_ROUTING.md"));
+  });
+});
+
 test("work read-first guidance promotes risk context for security and freshness tasks", async () => {
   await withGuidanceRepo(async (tempDir) => {
     const result = runCli(["work", "--json", "--debug", "fix freshness reporting risk"], { cwd: tempDir });

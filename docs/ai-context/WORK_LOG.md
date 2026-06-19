@@ -123,4 +123,14 @@ Lightweight RCC memory from completed agent work.
 - Summary: Extracted RCC work memory and log readers into memorySignals module
 - Changed files: `src/cli/commands/work.ts`, `src/cli/work/mapFreshness.ts`, `src/cli/work/memorySignals.ts`, `src/cli/work/workConstants.ts`, `src/cli/work/workOptions.ts`, `src/cli/work/workTypes.ts`, `tests/work.test.js`
 - Verification: npm run build; node --test tests/work.test.js; npm test
+
+## 2026-06-19T16:13:52.789Z
+- Summary: Extracted targeted lookup scoring from work.ts into src/cli/work/targetedLookup.ts while preserving work routing behavior.
+- Changed files: `src/cli/commands/work.ts`, `src/cli/work/targetedLookup.ts`
+- Verification: npm run build; node --test tests/work.test.js
+
+## 2026-06-19T16:17:29.896Z
+- Summary: Extracted read-first guidance generation from work.ts into src/cli/work/readFirstGuidance.ts and added focused budget/rule-file tests.
+- Changed files: `src/cli/commands/work.ts`, `src/cli/work/readFirstGuidance.ts`, `src/cli/work/targetedLookup.ts`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/work.test.js
 <!-- repo-context-center:work-log:end -->
