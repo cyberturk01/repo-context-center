@@ -9,6 +9,7 @@ import type { CliIO } from "../index";
 
 interface WorkOptions {
   contextBudget: ContextBudget;
+  debug: boolean;
   json: boolean;
   maxFiles: number;
   task: string;
@@ -133,7 +134,7 @@ interface PublicWorkBrief {
   readFirst: string[];
   targetedLookupHints: PublicTargetedLookupHint[];
   tokenEstimate: {
-    briefTokens: number | null;
+    humanBriefTokens: number | null;
   };
   fastLookup: {
     command: string;
@@ -145,11 +146,37 @@ interface PublicWorkBrief {
   };
 }
 
+interface CompactWorkBrief {
+  schemaVersion: 1;
+  command: "work";
+  task: string;
+  contextBudget: ContextBudget;
+  freshness: {
+    status: WorkMapFreshness["status"];
+    score: number;
+    reason: string;
+  };
+  taskFiles: PublicCompactWorkFile[];
+  tests: PublicCompactWorkFile[];
+  readFirst: string[];
+  contextIfUnclear: string[];
+  nextLookup: string;
+  nextCommand: string;
+  tokens: {
+    jsonEstimate: number;
+  };
+}
+
 interface PublicWorkFile {
   path: string;
   reason: string | null;
   confidence: TargetedLookupHint["confidence"] | null;
   score: number | null;
+}
+
+interface PublicCompactWorkFile {
+  path: string;
+  reason?: string;
 }
 
 interface PublicReadFirstGuidanceItem {
@@ -175,7 +202,7 @@ const decisionLimit = 3;
 const targetedLookupLimit = 5;
 const targetedContentReadLimit = 64 * 1024;
 const strongLookupScoreThreshold = 70;
-const usage = 'Usage: rcc work "<task>" [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]';
+const usage = 'Usage: rcc work "<task>" [--json] [--debug] [--context-budget minimal|balanced|deep] [--max-files <number>]';
 const nextCommand = 'rcc done --summary "<summary>" --files auto --verify "<check>"';
 const freshnessAffectedFileLimit = 5;
 const freshnessImportantRoles = new Set(["source", "test", "workflow", "config", "package"]);
@@ -241,6 +268,7 @@ const workOutputAssemblyRoutes = [
 
 function parseWorkOptions(args: string[]): WorkOptions | undefined {
   let contextBudget: ContextBudget = "balanced";
+  let debug = false;
   let json = false;
   let maxFiles = 50;
   const taskParts: string[] = [];
@@ -250,6 +278,11 @@ function parseWorkOptions(args: string[]): WorkOptions | undefined {
 
     if (arg === "--json") {
       json = true;
+      continue;
+    }
+
+    if (arg === "--debug") {
+      debug = true;
       continue;
     }
 
@@ -287,6 +320,7 @@ function parseWorkOptions(args: string[]): WorkOptions | undefined {
 
   return {
     contextBudget,
+    debug,
     json,
     maxFiles,
     task
@@ -1863,6 +1897,12 @@ function recommendationSignal(
   };
 }
 
+function compactRecommendationSignal(recommendation: WorkRecommendation): PublicCompactWorkFile {
+  const reason = recommendation.reasons[0];
+
+  return reason ? { path: recommendation.path, reason } : { path: recommendation.path };
+}
+
 function publicRisks(risks: string[]): PublicWorkRisk[] {
   if (risks.length === 0) {
     return [];
@@ -1877,7 +1917,7 @@ function publicRisks(risks: string[]): PublicWorkRisk[] {
   ];
 }
 
-function renderWorkBriefJson(brief: WorkBrief): string {
+function renderWorkBriefDebugJson(brief: WorkBrief): string {
   const lookupHints = publicLookupHints(brief.targetedLookupHints);
   const publicBrief: PublicWorkBrief = {
     schemaVersion: 1,
@@ -1915,7 +1955,7 @@ function renderWorkBriefJson(brief: WorkBrief): string {
     readFirst: brief.readFirst,
     targetedLookupHints: lookupHints,
     tokenEstimate: {
-      briefTokens: brief.tokenEstimate.roughTokens
+      humanBriefTokens: brief.tokenEstimate.roughTokens
     },
     fastLookup: {
       command: 'rcc find "<keyword>"',
@@ -1928,6 +1968,43 @@ function renderWorkBriefJson(brief: WorkBrief): string {
   };
 
   return `${JSON.stringify(publicBrief, null, 2)}\n`;
+}
+
+function compactContextIfUnclear(brief: WorkBrief): string[] {
+  return uniquePaths([
+    ...brief.contextDocs.map((file) => file.path),
+    ...brief.readFirstGuidance.optional.map((item) => item.path)
+  ]);
+}
+
+function renderWorkBriefCompactJson(brief: WorkBrief): string {
+  const withoutTokens: Omit<CompactWorkBrief, "tokens"> = {
+    schemaVersion: 1,
+    command: brief.command,
+    task: brief.task,
+    contextBudget: brief.contextBudget,
+    freshness: {
+      status: brief.mapFreshness.status,
+      score: brief.mapFreshness.score,
+      reason: brief.mapFreshness.reason
+    },
+    taskFiles: brief.taskFiles.map(compactRecommendationSignal),
+    tests: brief.supportingTests.map(compactRecommendationSignal),
+    readFirst: brief.readFirst,
+    contextIfUnclear: compactContextIfUnclear(brief),
+    nextLookup: brief.nextCheapestCommand,
+    nextCommand: brief.nextCommand
+  };
+  const preliminary = { ...withoutTokens, tokens: { jsonEstimate: 0 } };
+  const jsonEstimate = Math.ceil(JSON.stringify(preliminary, null, 2).length / 4);
+  const compactBrief: CompactWorkBrief = {
+    ...withoutTokens,
+    tokens: {
+      jsonEstimate
+    }
+  };
+
+  return `${JSON.stringify(compactBrief, null, 2)}\n`;
 }
 
 export async function workCommand(io: CliIO, args: string[] = []): Promise<number> {
@@ -1973,7 +2050,7 @@ export async function workCommand(io: CliIO, args: string[] = []): Promise<numbe
   );
 
   if (options.json) {
-    io.stdout(renderWorkBriefJson(brief));
+    io.stdout(options.debug ? renderWorkBriefDebugJson(brief) : renderWorkBriefCompactJson(brief));
     return 0;
   }
 

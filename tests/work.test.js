@@ -437,9 +437,65 @@ test("work accepts a task string and recommends focused files", async () => {
   });
 });
 
-test("work --json returns a valid machine-readable brief", async () => {
+test("work --json returns compact machine-readable startup JSON", async () => {
   await withWorkRepo(async (tempDir) => {
     const result = runCli(["work", "--json", "fix login bug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.deepEqual(
+      Object.keys(brief),
+      [
+        "schemaVersion",
+        "command",
+        "task",
+        "contextBudget",
+        "freshness",
+        "taskFiles",
+        "tests",
+        "readFirst",
+        "contextIfUnclear",
+        "nextLookup",
+        "nextCommand",
+        "tokens"
+      ]
+    );
+    assert.equal(brief.schemaVersion, 1);
+    assert.equal(brief.command, "work");
+    assert.equal(brief.task, "fix login bug");
+    assert.equal(brief.contextBudget, "balanced");
+    assert.equal(typeof brief.freshness.status, "string");
+    assert.equal(typeof brief.freshness.score, "number");
+    assert.equal(typeof brief.freshness.reason, "string");
+    assert.ok(brief.taskFiles.some((file) => file.path === "src/auth/login.ts"));
+    assert.ok(brief.tests.some((file) => file.path === "tests/auth/login.test.ts"));
+    assert.ok(brief.readFirst.includes("AGENTS.md"));
+    assert.ok(brief.contextIfUnclear.includes("docs/ai-context/TASK_ROUTING.md"));
+    assert.equal(brief.nextLookup, 'rcc find "login"');
+    assert.equal(brief.nextCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
+    assert.equal(typeof brief.tokens.jsonEstimate, "number");
+    assert.equal(result.stdout, `${JSON.stringify(brief, null, 2)}\n`);
+    assert.equal(result.stdout.trim().startsWith("{"), true);
+    assert.equal(result.stdout.trim().endsWith("}"), true);
+    for (const omitted of [
+      "recommendedFiles",
+      "relevantTests",
+      "promotedFromTargetedLookup",
+      "targetedLookupHints",
+      "recentLogs",
+      "avoid",
+      "readFirstGuidance",
+      "affectedContextFiles"
+    ]) {
+      assert.equal(omitted in brief, false);
+    }
+  });
+});
+
+test("work --json --debug returns the detailed machine-readable brief", async () => {
+  await withWorkRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "fix login bug"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -508,7 +564,7 @@ test("work --json returns a valid machine-readable brief", async () => {
       && typeof hint.score === "number"
     )));
     assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep login flow server-side")));
-    assert.equal(typeof brief.tokenEstimate.briefTokens, "number");
+    assert.equal(typeof brief.tokenEstimate.humanBriefTokens, "number");
     assert.deepEqual(brief.readFirstGuidance.required, [
       {
         path: "AGENTS.md",
@@ -530,7 +586,7 @@ test("work --json returns a valid machine-readable brief", async () => {
 
 test("work classifies package tasks as medium risk", async () => {
   await withRiskClassificationRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "improve package scripts"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "improve package scripts"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -540,7 +596,7 @@ test("work classifies package tasks as medium risk", async () => {
 
 test("work classifies dependency tasks as medium risk", async () => {
   await withRiskClassificationRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "update dependencies"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "update dependencies"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -550,7 +606,7 @@ test("work classifies dependency tasks as medium risk", async () => {
 
 test("work classifies docs tasks as low risk", async () => {
   await withRiskClassificationRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "fix typo in README"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "fix typo in README"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -560,7 +616,7 @@ test("work classifies docs tasks as low risk", async () => {
 
 test("work classifies auth tasks as high risk", async () => {
   await withRiskClassificationRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "fix login authorization"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "fix login authorization"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -570,7 +626,7 @@ test("work classifies auth tasks as high risk", async () => {
 
 test("work classifies deployment tasks as high risk", async () => {
   await withRiskClassificationRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "update deployment config"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "update deployment config"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -580,7 +636,7 @@ test("work classifies deployment tasks as high risk", async () => {
 
 test("work classifies workflow tasks as high risk", async () => {
   await withRiskClassificationRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "update deployment workflow"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "update deployment workflow"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -616,7 +672,7 @@ test("work --json keeps stable fields when RCC data is missing", async () => {
   try {
     await writeFixtureFile(tempDir, "src/index.ts", "export const ok = true;\n");
 
-    const result = runCli(["work", "unknown task", "--json"], { cwd: tempDir });
+    const result = runCli(["work", "unknown task", "--json", "--debug"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -644,7 +700,7 @@ test("work --json keeps stable fields when RCC data is missing", async () => {
     assert.equal(brief.nextCommand.command, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
     assert.equal(Array.isArray(brief.recommendedFiles), true);
     assert.equal(Array.isArray(brief.relevantTests), true);
-    assert.equal(brief.tokenEstimate.briefTokens === null || Number.isInteger(brief.tokenEstimate.briefTokens), true);
+    assert.equal(brief.tokenEstimate.humanBriefTokens === null || Number.isInteger(brief.tokenEstimate.humanBriefTokens), true);
     assert.equal(brief.fastLookup.guidance, "Prefer this before broad repo search when the target is unclear.");
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -653,7 +709,7 @@ test("work --json keeps stable fields when RCC data is missing", async () => {
 
 test("work prunes read-first guidance for a small focused task", async () => {
   await withGuidanceRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "fix login bug"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "fix login bug"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -670,7 +726,7 @@ test("work prunes read-first guidance for a small focused task", async () => {
 
 test("work read-first guidance promotes risk context for security and freshness tasks", async () => {
   await withGuidanceRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "fix freshness reporting risk"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "fix freshness reporting risk"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -684,7 +740,7 @@ test("work read-first guidance promotes risk context for security and freshness 
 
 test("work read-first guidance promotes dependency context for build and package tasks", async () => {
   await withGuidanceRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "update package build integration"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "update package build integration"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -697,7 +753,7 @@ test("work read-first guidance promotes dependency context for build and package
 
 test("work read-first guidance promotes module context for architecture and refactor tasks", async () => {
   await withGuidanceRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "refactor auth service architecture"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "refactor auth service architecture"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -710,7 +766,7 @@ test("work read-first guidance promotes module context for architecture and refa
 
 test("work read-first guidance promotes task routing for ambiguous work", async () => {
   await withGuidanceRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "clean up"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "clean up"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -722,7 +778,7 @@ test("work read-first guidance promotes task routing for ambiguous work", async 
 
 test("work --context-budget minimal keeps only AGENTS required", async () => {
   await withGuidanceRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "--context-budget", "minimal", "fix freshness reporting risk"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "--context-budget", "minimal", "fix freshness reporting risk"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -735,7 +791,7 @@ test("work --context-budget minimal keeps only AGENTS required", async () => {
 
 test("work --json supports balanced context budget explicitly", async () => {
   await withGuidanceRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "--context-budget", "balanced", "fix login bug"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "--context-budget", "balanced", "fix login bug"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -749,7 +805,7 @@ test("work --json supports balanced context budget explicitly", async () => {
 
 test("work --context-budget deep keeps broader read-first guidance", async () => {
   await withGuidanceRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "--context-budget", "deep", "fix login bug"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "--context-budget", "deep", "fix login bug"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const broadGuidance = [
       ...brief.readFirstGuidance.taskSpecific,
@@ -767,9 +823,9 @@ test("work --context-budget deep keeps broader read-first guidance", async () =>
 
 test("work --json accepts option order and max-files", async () => {
   await withGuidanceRepo(async (tempDir) => {
-    const minimal = runCli(["work", "fix login bug", "--json", "--context-budget", "minimal"], { cwd: tempDir });
-    const deep = runCli(["work", "fix login bug", "--context-budget", "deep", "--json"], { cwd: tempDir });
-    const maxFiles = runCli(["work", "fix login bug", "--json", "--max-files", "1"], { cwd: tempDir });
+    const minimal = runCli(["work", "fix login bug", "--json", "--debug", "--context-budget", "minimal"], { cwd: tempDir });
+    const deep = runCli(["work", "fix login bug", "--context-budget", "deep", "--json", "--debug"], { cwd: tempDir });
+    const maxFiles = runCli(["work", "fix login bug", "--json", "--debug", "--max-files", "1"], { cwd: tempDir });
 
     assert.equal(minimal.status, 0);
     assert.equal(JSON.parse(minimal.stdout).contextBudget, "minimal");
@@ -782,7 +838,7 @@ test("work --json accepts option order and max-files", async () => {
 
 test("work --json prints only parseable formatted JSON", async () => {
   await withWorkRepo(async (tempDir) => {
-    const result = runCli(["work", "fix login bug", "--json"], { cwd: tempDir });
+    const result = runCli(["work", "fix login bug", "--json", "--debug"], { cwd: tempDir });
     const parsed = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -829,7 +885,7 @@ test("work --json includes structured freshness output", async () => {
   await withFreshnessRepo(async (tempDir) => {
     await setFixtureMtime(tempDir, "src/index.ts", new Date("2026-06-17T13:00:00.000Z"));
 
-    const result = runCli(["work", "--json", "update cli"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "update cli"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
@@ -845,12 +901,12 @@ test("work --json includes structured freshness output", async () => {
 
 test("work freshness changes after touching a source file", async () => {
   await withFreshnessRepo(async (tempDir) => {
-    const fresh = JSON.parse(runCli(["work", "--json", "update cli"], { cwd: tempDir }).stdout);
+    const fresh = JSON.parse(runCli(["work", "--json", "--debug", "update cli"], { cwd: tempDir }).stdout);
     assert.equal(fresh.mapFreshness.status, "fresh");
 
     await setFixtureMtime(tempDir, "src/index.ts", new Date("2026-06-17T13:00:00.000Z"));
 
-    const stale = JSON.parse(runCli(["work", "--json", "update cli"], { cwd: tempDir }).stdout);
+    const stale = JSON.parse(runCli(["work", "--json", "--debug", "update cli"], { cwd: tempDir }).stdout);
     assert.equal(stale.mapFreshness.status, "stale");
     assert.ok(stale.mapFreshness.affectedFiles.includes("src/index.ts"));
   });
@@ -858,7 +914,7 @@ test("work freshness changes after touching a source file", async () => {
 
 test("work --json ranks exact command hints above folder and weak matches", async () => {
   await withLookupRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "Improve work command lookup hints"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "Improve work command lookup hints"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const paths = brief.targetedLookupHints.map((hint) => hint.path);
 
@@ -877,7 +933,7 @@ test("work --json ranks exact command hints above folder and weak matches", asyn
 
 test("work --json keeps paired tests near source hints", async () => {
   await withLookupRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "Improve work command lookup hints"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "Improve work command lookup hints"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const paths = brief.targetedLookupHints.map((hint) => hint.path);
     const sourceIndex = paths.indexOf("src/cli/commands/work.ts");
@@ -895,7 +951,7 @@ test("work --json keeps paired tests near source hints", async () => {
 
 test("work --json penalizes context, generated, fixture, snapshot, archive, lock, and duplicate lookup paths", async () => {
   await withLookupRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "Improve work command lookup hints"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "Improve work command lookup hints"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const paths = brief.targetedLookupHints.map((hint) => hint.path);
 
@@ -921,7 +977,7 @@ test("work --json does not promote generated, fixture, snapshot, asset, archive,
   await withLookupRankingRepo(async (tempDir) => {
     await writeFixtureFile(tempDir, "assets/work.svg", "<svg>work work work work work</svg>\n");
 
-    const result = runCli(["work", "--json", "Improve work command lookup hints"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "Improve work command lookup hints"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const promotedPaths = brief.promotedFromTargetedLookup.map((hint) => hint.path);
 
@@ -937,7 +993,7 @@ test("work --json does not promote generated, fixture, snapshot, asset, archive,
 
 test("work --json promotes role task source and tests ahead of docs", async () => {
   await withLookupRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "Role lerle ilgili bug ihtimallerini bul"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "Role lerle ilgili bug ihtimallerini bul"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const recommendedPaths = brief.recommendedFiles.map((file) => file.path);
 
@@ -998,7 +1054,7 @@ test("work --json role tie-break keeps source ahead of package and noise roles",
     await writeFixtureFile(tempDir, "dist/role.js", "const role = 'role';\n// role role role role role role role role\n");
     await writeFixtureFile(tempDir, "src/logo.svg", "<svg>role role role role role role role role</svg>\n");
 
-    const result = runCli(["work", "--json", "role"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "role"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const paths = brief.recommendedFiles.map((file) => file.path);
 
@@ -1017,7 +1073,7 @@ test("work --json ranks exact filename above weak semantic matches", async () =>
   await withLookupRankingRepo(async (tempDir) => {
     await writeFixtureFile(tempDir, "src/notes/unrelated.ts", "export const text = 'package package package package package';\n");
 
-    const result = runCli(["work", "--json", "improve package scripts"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "improve package scripts"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const paths = brief.targetedLookupHints.map((hint) => hint.path);
 
@@ -1031,7 +1087,7 @@ test("work --json ranks exact filename above weak semantic matches", async () =>
 
 test("work --json ranks package task package.json first", async () => {
   await withRecommendedRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "improve package scripts"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "improve package scripts"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const paths = brief.recommendedFiles.map((file) => file.path);
 
@@ -1045,7 +1101,7 @@ test("work --json ranks package task package.json first", async () => {
 
 test("work --json ranks build task build and config files first", async () => {
   await withRecommendedRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "update build configuration"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "update build configuration"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const paths = brief.recommendedFiles.map((file) => file.path);
 
@@ -1058,7 +1114,7 @@ test("work --json ranks build task build and config files first", async () => {
 
 test("work --json ranks matching command implementation first", async () => {
   await withRecommendedRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "fix work command"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "fix work command"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const paths = brief.recommendedFiles.map((file) => file.path);
 
@@ -1070,7 +1126,7 @@ test("work --json ranks matching command implementation first", async () => {
 
 test("work --json routes RCC work output assembly tasks to work command implementation", async () => {
   await withSelfDevelopmentRoutingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "Workflow-domain tasklarda weak semantic source matches'i task files listesinden çıkar"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "Workflow-domain tasklarda weak semantic source matches'i task files listesinden çıkar"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const recommendedPaths = brief.recommendedFiles.map((file) => file.path);
     const taskPaths = brief.taskFiles.map((file) => file.path);
@@ -1088,7 +1144,7 @@ test("work --json routes RCC work output assembly tasks to work command implemen
 
 test("work --json ranks workflow domain files over bare find action verb", async () => {
   await withWorkflowRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "find Workflow risks"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "find Workflow risks"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const taskPaths = brief.taskFiles.map((file) => file.path);
     const hintPaths = brief.targetedLookupHints.map((hint) => hint.path);
@@ -1111,7 +1167,7 @@ test("work --json ranks workflow domain files over bare find action verb", async
 
 test("work --json does not let weak semantic source matches outrank workflow package files", async () => {
   await withWorkflowRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "find Workflow risks"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "find Workflow risks"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const taskPaths = brief.taskFiles.map((file) => file.path);
     const weakSourceHint = brief.targetedLookupHints.find((hint) => hint.path === "src/cli/commands/done.ts");
@@ -1153,7 +1209,7 @@ test("work human output keeps workflow task files out of agent rules", async () 
 
 test("work targeted lookup hints rank Turkish role task files before AGENTS", async () => {
   await withLookupRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "Role lerle ilgili bug ihtimallerini bul"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "Role lerle ilgili bug ihtimallerini bul"], { cwd: tempDir });
     const paths = JSON.parse(result.stdout).targetedLookupHints.map((hint) => hint.path);
     const agentsIndex = paths.indexOf("AGENTS.md");
 
@@ -1172,7 +1228,7 @@ test("work targeted lookup hints rank Turkish role task files before AGENTS", as
 
 test("work --json keeps explicit rcc find command tasks focused on find implementation", async () => {
   await withWorkflowRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "fix rcc find command"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "fix rcc find command"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const paths = brief.recommendedFiles.map((file) => file.path);
 
@@ -1187,7 +1243,7 @@ test("work --json keeps explicit rcc find command tasks focused on find implemen
 
 test("work --json gives action verbs little direct filename boost", async () => {
   await withWorkflowRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "search Workflow risks"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "search Workflow risks"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const taskPaths = brief.taskFiles.map((file) => file.path);
     const actionHint = brief.targetedLookupHints.find((hint) => hint.path === "src/cli/commands/find.ts");
@@ -1201,7 +1257,7 @@ test("work --json gives action verbs little direct filename boost", async () => 
 
 test("work --json lets domain tokens dominate workflow ranking", async () => {
   await withWorkflowRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "inspect ci release risk"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "inspect ci release risk"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const paths = brief.taskFiles.map((file) => file.path);
 
@@ -1214,7 +1270,7 @@ test("work --json lets domain tokens dominate workflow ranking", async () => {
 
 test("work --json keeps RCC docs from outranking strong task matches", async () => {
   await withRecommendedRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "improve package scripts"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "improve package scripts"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const paths = brief.recommendedFiles.map((file) => file.path);
 
@@ -1227,7 +1283,7 @@ test("work --json keeps RCC docs from outranking strong task matches", async () 
 
 test("work --json keeps paired tests visible without letting them dominate", async () => {
   await withRecommendedRankingRepo(async (tempDir) => {
-    const result = runCli(["work", "--json", "fix work command"], { cwd: tempDir });
+    const result = runCli(["work", "--json", "--debug", "fix work command"], { cwd: tempDir });
     const brief = JSON.parse(result.stdout);
     const recommendedPaths = brief.recommendedFiles.map((file) => file.path);
     const testPaths = brief.relevantTests.map((file) => file.path);
