@@ -454,4 +454,42 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-19T22:39:45.163Z
+- Summary: Fixed compact handoff output whitespace normalization and added exact regression tests for currentState and nextActions strings.
+- Changed files: `src/cli/handoff/renderAgent.ts`, `src/cli/handoff/renderJson.ts`, `tests/handoff.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed compact handoff output whitespace normalization and added exact regression tests for currentState and nextActions strings.",
+  "files": [
+    "src/cli/handoff/renderAgent.ts",
+    "src/cli/handoff/renderJson.ts",
+    "tests/handoff.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-19T22:39:45.163Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-19T22:39:45.163Z",
+  "summary": "Fixed compact handoff output whitespace normalization and added exact regression tests for currentState and nextActions strings.",
+  "files": [
+    "src/cli/handoff/renderAgent.ts",
+    "src/cli/handoff/renderJson.ts",
+    "tests/handoff.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -4,6 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const test = require("node:test");
+const { renderHandoffAgent } = require("../dist/cli/handoff/renderAgent");
 const { renderHandoffText } = require("../dist/cli/handoff/renderText");
 
 const repoRoot = path.resolve(__dirname, "..");
@@ -290,6 +291,58 @@ test("rcc handoff --agent returns compact agent JSON", async () => {
     assert.equal(brief.nextLookup, 'rcc find "<keyword>"');
     assert.equal(brief.nextCommand, 'rcc work "<task>" --agent');
   });
+});
+
+test("rcc handoff --agent preserves exact currentState and nextAction spacing", async () => {
+  await withTempRepo(async (tempDir) => {
+    spawnSync("git", ["init"], { cwd: tempDir, encoding: "utf8" });
+    await writeFixtureFile(tempDir, "AGENTS.md", "# Repo Agents\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Handoff work: read `src/cli/handoff/buildHandoffBrief.ts` and `tests/handoff.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "src/cli/handoff/buildHandoffBrief.ts", "export function buildHandoffBrief() {}\n");
+    await writeFixtureFile(tempDir, "tests/handoff.test.js", "test('handoff', () => {});\n");
+
+    const result = runCli(["handoff", "continue handoff work", "--agent"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+    const serialized = result.stdout;
+
+    assert.ok(brief.currentState.includes("Working tree changed: AGENTS.md"));
+    assert.ok(brief.nextActions.includes("Use nextLookup only if the routed files are insufficient."));
+    assert.doesNotMatch(serialized, /Workingtree changed/);
+    assert.doesNotMatch(serialized, /files areinsufficient/);
+  });
+});
+
+test("renderHandoffAgent repairs joined whitespace in compact text fields", () => {
+  const output = renderHandoffAgent({
+    schemaVersion: 1,
+    command: "handoff",
+    task: "continue handoff",
+    generatedAt: "2026-06-20T12:00:00.000Z",
+    currentState: ["Workingtree changed: src/cli/handoff/renderAgent.ts"],
+    memory: [],
+    readFirst: [],
+    nextRecommendedFiles: [],
+    relevantTests: [],
+    relevantDecisions: [],
+    nextActions: ["Use nextLookup only if the routed files areinsufficient."],
+    avoid: [],
+    nextLookup: 'rcc find "handoff"',
+    nextCommand: 'rcc work "<task>" --agent'
+  });
+  const brief = JSON.parse(output);
+
+  assert.deepEqual(brief.currentState, ["Working tree changed: src/cli/handoff/renderAgent.ts"]);
+  assert.deepEqual(brief.nextActions, ["Use nextLookup only if the routed files are insufficient."]);
+  assert.doesNotMatch(output, /Workingtree changed/);
+  assert.doesNotMatch(output, /files areinsufficient/);
 });
 
 test("rcc handoff invalid args return usage and non-zero exit", () => {

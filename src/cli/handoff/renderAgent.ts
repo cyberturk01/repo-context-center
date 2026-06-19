@@ -1,19 +1,31 @@
 import type { CompactAgentHandoff, HandoffBrief } from "./handoffTypes";
 
+function normalizeHandoffText(value: string): string {
+  return value
+    .replace(/\bWorkingtree\b/gi, "Working tree")
+    .replace(/\bareinsufficient\b/gi, "are insufficient")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeTextItems(items: string[]): string[] {
+  return items.map(normalizeHandoffText);
+}
+
 export function toAgentHandoff(brief: HandoffBrief): CompactAgentHandoff {
   const agentHandoff: CompactAgentHandoff = {
     schemaVersion: brief.schemaVersion,
     command: brief.command,
     task: brief.task,
     generatedAt: brief.generatedAt,
-    currentState: brief.currentState,
-    memory: brief.memory,
+    currentState: normalizeTextItems(brief.currentState),
+    memory: normalizeTextItems(brief.memory),
     readFirst: brief.readFirst,
     nextRecommendedFiles: brief.nextRecommendedFiles,
     relevantTests: brief.relevantTests,
-    relevantDecisions: brief.relevantDecisions,
-    nextActions: brief.nextActions,
-    avoid: brief.avoid,
+    relevantDecisions: normalizeTextItems(brief.relevantDecisions),
+    nextActions: normalizeTextItems(brief.nextActions),
+    avoid: normalizeTextItems(brief.avoid),
     nextLookup: brief.nextLookup,
     nextCommand: brief.nextCommand
   };
