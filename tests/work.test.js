@@ -458,6 +458,7 @@ test("work --json returns compact machine-readable startup JSON", async () => {
         "contextIfUnclear",
         "nextLookup",
         "nextCommand",
+        "reusePolicy",
         "tokens"
       ]
     );
@@ -474,6 +475,7 @@ test("work --json returns compact machine-readable startup JSON", async () => {
     assert.ok(brief.contextIfUnclear.includes("docs/ai-context/TASK_ROUTING.md"));
     assert.equal(brief.nextLookup, 'rcc find "login"');
     assert.equal(brief.nextCommand, 'rcc done --summary "<summary>" --files auto --verify "<check>"');
+    assert.equal(brief.reusePolicy, "Call once per task. Use rcc find for follow-up lookup.");
     assert.equal(typeof brief.tokens.jsonEstimate, "number");
     assert.equal(result.stdout, `${JSON.stringify(brief, null, 2)}\n`);
     assert.equal(result.stdout.trim().startsWith("{"), true);

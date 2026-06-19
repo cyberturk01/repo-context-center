@@ -11,8 +11,13 @@ For any coding task, the first shell command must be:
 
 - Do not begin repository exploration, manual file reading, or broad searching before running `rcc work`.
 - Follow the read-first files from the work brief.
+- For a single task, call `rcc work "<task>"` once at startup.
+- Do not call `rcc work` again after every edit.
 - For targeted lookup, prefer `rcc find "<keyword>"` before broad grep/search.
+- Use `rcc find "<keyword>"` for follow-up lookup.
 - Do not ask the human to run RCC commands.
+- Use `rcc done` only after meaningful work.
+- Re-run `rcc work` only if the task changes, context files are regenerated, or the first brief is clearly insufficient.
 
 After meaningful changes:
 1. Run relevant tests.

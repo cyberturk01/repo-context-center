@@ -162,6 +162,7 @@ interface CompactWorkBrief {
   contextIfUnclear: string[];
   nextLookup: string;
   nextCommand: string;
+  reusePolicy: "Call once per task. Use rcc find for follow-up lookup.";
   tokens: {
     jsonEstimate: number;
   };
@@ -1993,7 +1994,8 @@ function renderWorkBriefCompactJson(brief: WorkBrief): string {
     readFirst: brief.readFirst,
     contextIfUnclear: compactContextIfUnclear(brief),
     nextLookup: brief.nextCheapestCommand,
-    nextCommand: brief.nextCommand
+    nextCommand: brief.nextCommand,
+    reusePolicy: "Call once per task. Use rcc find for follow-up lookup."
   };
   const preliminary = { ...withoutTokens, tokens: { jsonEstimate: 0 } };
   const jsonEstimate = Math.ceil(JSON.stringify(preliminary, null, 2).length / 4);
