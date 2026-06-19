@@ -133,4 +133,9 @@ Lightweight RCC memory from completed agent work.
 - Summary: Extracted read-first guidance generation from work.ts into src/cli/work/readFirstGuidance.ts and added focused budget/rule-file tests.
 - Changed files: `src/cli/commands/work.ts`, `src/cli/work/readFirstGuidance.ts`, `src/cli/work/targetedLookup.ts`, `tests/work.test.js`
 - Verification: npm run build; node --test tests/work.test.js
+
+## 2026-06-19T16:21:20.056Z
+- Summary: Extracted work file recommendation and categorization logic into src/cli/work/taskFileRecommendations.ts while preserving output categories.
+- Changed files: `src/cli/commands/work.ts`, `src/cli/work/taskFileRecommendations.ts`
+- Verification: npm run build; node --test tests/work.test.js tests/repoFileClassifier.test.js
 <!-- repo-context-center:work-log:end -->
