@@ -16,7 +16,13 @@ export interface HandoffSources {
   decisions: string[];
   gitStatus: string[];
   lessons: string[];
+  recentTouchedFiles: string[];
   workLog: string[];
+}
+
+interface WorkLogEntry {
+  changedFiles: string[];
+  summary: string | null;
 }
 
 async function readOptionalText(cwd: string, relativePath: string): Promise<string | null> {
@@ -71,17 +77,6 @@ function recentTableRows(content: string, limit = handoffSourceLimit): string[] 
     .map((cells) => cells.slice(0, 5).filter(Boolean).join(" | "));
 }
 
-function recentPrefixedLines(content: string, prefix: string, limit = handoffSourceLimit): string[] {
-  return content
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.startsWith(prefix))
-    .slice(-limit)
-    .reverse()
-    .map((line) => line.slice(prefix.length).trim())
-    .filter(Boolean);
-}
-
 function recentBulletLines(content: string, limit = handoffSourceLimit): string[] {
   return content
     .split(/\r?\n/)
@@ -91,6 +86,66 @@ function recentBulletLines(content: string, limit = handoffSourceLimit): string[
     .reverse()
     .map((line) => line.replace(/^- /, "").trim())
     .filter(Boolean);
+}
+
+function parseChangedFilesLine(line: string): string[] {
+  const value = line.replace(/^- Changed files:\s*/, "").trim();
+  if (!value || value === "_none_" || value === "_not detected_" || value === "`auto`" || value === "auto") {
+    return [];
+  }
+
+  const backtickPaths = [...value.matchAll(/`([^`]+)`/g)]
+    .map((match) => match[1].trim())
+    .filter(Boolean);
+
+  if (backtickPaths.length > 0) {
+    return backtickPaths;
+  }
+
+  return value
+    .split(",")
+    .map((item) => item.trim().replace(/^`|`$/g, ""))
+    .filter(Boolean);
+}
+
+function recentWorkLogEntries(content: string, limit = handoffSourceLimit): WorkLogEntry[] {
+  const entries: WorkLogEntry[] = [];
+  let current: WorkLogEntry | null = null;
+
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith("## ")) {
+      if (current) {
+        entries.push(current);
+      }
+      current = { changedFiles: [], summary: null };
+      continue;
+    }
+
+    if (!current) {
+      continue;
+    }
+
+    if (trimmed.startsWith("- Summary: ")) {
+      current.summary = trimmed.replace(/^- Summary:\s*/, "").trim() || null;
+      continue;
+    }
+
+    if (trimmed.startsWith("- Changed files: ")) {
+      current.changedFiles = parseChangedFilesLine(trimmed);
+    }
+  }
+
+  if (current) {
+    entries.push(current);
+  }
+
+  return entries.slice(-limit).reverse();
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
 function parseGitStatusFiles(output: string): string[] {
@@ -133,6 +188,7 @@ export async function readHandoffSources(cwd: string): Promise<HandoffSources> {
     readOptionalText(cwd, changeLogPath),
     readOptionalText(cwd, lessonsPath)
   ]);
+  const workLogEntries = workLog ? recentWorkLogEntries(workLog) : [];
 
   return {
     agents: agents?.trim() || null,
@@ -140,6 +196,7 @@ export async function readHandoffSources(cwd: string): Promise<HandoffSources> {
     decisions: decisions ? recentTableRows(decisions) : [],
     gitStatus: readGitStatus(cwd),
     lessons: lessons ? recentBulletLines(lessons) : [],
-    workLog: workLog ? recentPrefixedLines(workLog, "- Summary: ") : []
+    recentTouchedFiles: uniqueSorted(workLogEntries.flatMap((entry) => entry.changedFiles)),
+    workLog: workLogEntries.map((entry) => entry.summary).filter((summary): summary is string => Boolean(summary))
   };
 }

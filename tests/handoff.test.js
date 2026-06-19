@@ -126,15 +126,20 @@ test("rcc handoff reads present context sources conservatively", async () => {
     assert.equal(result.stderr, "");
     assert.equal(brief.task, "continue source readers");
     assert.deepEqual(brief.readFirst, ["AGENTS.md"]);
-    assert.ok(brief.memory.includes("Work: Added source readers"));
+    assert.ok(brief.memory.includes("Last summary: Added source readers"));
     assert.ok(brief.memory.some((entry) => entry.includes("Decision: 2026-06-18 | Keep handoff parsing conservative")));
     assert.ok(brief.memory.some((entry) => entry.includes("Change: 2026-06-18 | repo-context-center done")));
     assert.ok(brief.memory.includes("Lesson: Handoff readers should tolerate absent files."));
+    assert.ok(brief.currentState.includes("Recently touched: src/cli/handoff/handoffSources.ts"));
+    assert.ok(brief.avoid.includes("Do not rerun broad discovery before reading handoff files."));
+    assert.ok(brief.avoid.includes("Do not rerun rcc work unless task meaning changed."));
+    assert.ok(brief.avoid.includes("Do not edit generated/assets/fixtures unless relevant."));
     assert.equal(brief.debug.sources.agentsPresent, true);
     assert.equal(brief.debug.sources.workLogCount, 1);
     assert.equal(brief.debug.sources.decisionsCount, 1);
     assert.equal(brief.debug.sources.changeLogCount, 1);
     assert.equal(brief.debug.sources.lessonsCount, 1);
+    assert.equal(brief.debug.sources.recentTouchedFilesCount, 1);
   });
 });
 
@@ -147,12 +152,13 @@ test("rcc handoff tolerates missing context sources", async () => {
     assert.equal(result.stderr, "");
     assert.deepEqual(brief.memory, []);
     assert.deepEqual(brief.readFirst, []);
-    assert.deepEqual(brief.nextActions, []);
-    assert.deepEqual(brief.avoid, []);
+    assert.ok(brief.nextActions.length > 0);
+    assert.ok(brief.avoid.includes("Do not rerun broad discovery before reading handoff files."));
     assert.equal(brief.debug.sources.agentsPresent, false);
     assert.equal(brief.debug.sources.workLogCount, 0);
     assert.equal(brief.debug.sources.decisionsCount, 0);
     assert.equal(brief.debug.sources.changeLogCount, 0);
     assert.equal(brief.debug.sources.lessonsCount, 0);
+    assert.equal(brief.debug.sources.recentTouchedFilesCount, 0);
   });
 });

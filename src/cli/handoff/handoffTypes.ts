@@ -24,6 +24,7 @@ export interface HandoffBrief {
       decisionsCount: number;
       gitStatusCount: number;
       lessonsCount: number;
+      recentTouchedFilesCount: number;
       workLogCount: number;
     };
   };

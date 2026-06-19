@@ -15,7 +15,7 @@ export async function handoffCommand(
     return 1;
   }
 
-  const brief = await buildHandoffBrief(io.cwd, options.task, options.debug);
+  const brief = await buildHandoffBrief(io.cwd, options);
 
   if (options.agent) {
     io.stdout(renderHandoffAgent(brief));
