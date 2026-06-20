@@ -263,7 +263,9 @@ function formatSavedMessage(options: DoneOptions, files: string[]): string {
   const lines = [
     `Summary: ${cleanInline(options.summary)}`,
     `Changed files: ${files.length > 0 ? files.slice(0, 10).join(", ") : options.fileMode === "none" ? "none" : "not detected"}`,
-    `RCC memory ${options.dryRun ? "would update" : "updated"}: ${workLogPath}`
+    `RCC memory ${options.dryRun ? "would update" : "updated"}: ${workLogPath}`,
+    `RCC work index ${options.dryRun ? "would update" : "updated"}: ${workIndexPath}`,
+    `RCC learning ${options.dryRun ? "would update" : "updated"}: ${repositoryLearningPath}`
   ];
 
   if (options.verify) {

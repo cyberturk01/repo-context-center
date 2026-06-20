@@ -1,8 +1,11 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ensureDir, pathExists, writeTextFile } from "./fileSystem";
+import { upsertRepositoryLearning } from "./renderRepositoryLearning";
+import { buildRepositoryLearningModel } from "./repositoryLearning";
 import {
   parseWorkMemoryEntries,
+  repositoryLearningPath,
   renderWorkIndex,
   workIndexPath,
   workLogArchivePath,
@@ -27,6 +30,7 @@ export interface ArchiveFileResult {
 
 export interface ArchiveResult {
   files: ArchiveFileResult[];
+  updatedPaths: string[];
 }
 
 interface TargetFile {
@@ -309,9 +313,13 @@ async function readIfPresent(filePath: string): Promise<string | undefined> {
   return (await pathExists(filePath)) ? readFile(filePath, "utf8") : undefined;
 }
 
-async function writeWorkIndex(options: ArchiveOptions, workLogContent: string, archiveContent?: string): Promise<void> {
+async function writeWorkMemorySummaries(
+  options: ArchiveOptions,
+  workLogContent: string,
+  archiveContent?: string
+): Promise<string[]> {
   if (options.dryRun) {
-    return;
+    return [];
   }
 
   const entries = [
@@ -320,21 +328,30 @@ async function writeWorkIndex(options: ArchiveOptions, workLogContent: string, a
   ];
 
   await writeTextFile(path.join(options.cwd, workIndexPath), renderWorkIndex(entries));
+  const learningTargetPath = path.join(options.cwd, repositoryLearningPath);
+  const existingLearning = await readIfPresent(learningTargetPath);
+  await writeTextFile(learningTargetPath, upsertRepositoryLearning(existingLearning, buildRepositoryLearningModel({
+    workLog: [workLogContent, archiveContent].filter((content): content is string => Boolean(content)).join("\n\n")
+  })));
+  return [workIndexPath, repositoryLearningPath];
 }
 
-async function archiveWorkLog(options: ArchiveOptions): Promise<ArchiveFileResult> {
+async function archiveWorkLog(options: ArchiveOptions): Promise<{ result: ArchiveFileResult; updatedPaths: string[] }> {
   const sourcePath = path.join(options.cwd, workLogPath);
   const archivePath = path.join(options.cwd, workLogArchivePath);
 
   if (!(await pathExists(sourcePath))) {
     const existingArchive = await readIfPresent(archivePath);
-    await writeWorkIndex(options, "", existingArchive);
+    const updatedPaths = await writeWorkMemorySummaries(options, "", existingArchive);
     return {
-      sourcePath: workLogPath,
-      archivePath: workLogArchivePath,
-      kept: 0,
-      archived: 0,
-      missing: true
+      result: {
+        sourcePath: workLogPath,
+        archivePath: workLogArchivePath,
+        kept: 0,
+        archived: 0,
+        missing: true
+      },
+      updatedPaths
     };
   }
 
@@ -342,13 +359,16 @@ async function archiveWorkLog(options: ArchiveOptions): Promise<ArchiveFileResul
   const parsed = extractGeneratedSection(content, workLogStart, workLogEnd);
   const existingArchive = await readIfPresent(archivePath);
   if (parsed.entries.length <= options.keep) {
-    await writeWorkIndex(options, content, existingArchive);
+    const updatedPaths = await writeWorkMemorySummaries(options, content, existingArchive);
     return {
-      sourcePath: workLogPath,
-      archivePath: workLogArchivePath,
-      kept: parsed.entries.length,
-      archived: 0,
-      missing: false
+      result: {
+        sourcePath: workLogPath,
+        archivePath: workLogArchivePath,
+        kept: parsed.entries.length,
+        archived: 0,
+        missing: false
+      },
+      updatedPaths
     };
   }
 
@@ -360,15 +380,21 @@ async function archiveWorkLog(options: ArchiveOptions): Promise<ArchiveFileResul
     await writeTextFile(sourcePath, nextWorkLog);
     await ensureDir(path.dirname(archivePath));
     await writeTextFile(archivePath, nextArchive);
-    await writeWorkIndex(options, nextWorkLog, nextArchive);
   }
+  const updatedPaths = [
+    ...(!options.dryRun ? [workLogPath] : []),
+    ...await writeWorkMemorySummaries(options, nextWorkLog, nextArchive)
+  ];
 
   return {
-    sourcePath: workLogPath,
-    archivePath: workLogArchivePath,
-    kept: keptEntries.length,
-    archived: archivedEntries.length,
-    missing: false
+    result: {
+      sourcePath: workLogPath,
+      archivePath: workLogArchivePath,
+      kept: keptEntries.length,
+      archived: archivedEntries.length,
+      missing: false
+    },
+    updatedPaths
   };
 }
 
@@ -377,9 +403,10 @@ export async function archiveContextFiles(options: ArchiveOptions): Promise<Arch
     throw new Error("--keep must be a positive integer");
   }
 
+  const workLogResult = await archiveWorkLog(options);
   const files = [
     ...(await Promise.all(targetFiles.map((target) => archiveFile(target, options)))),
-    await archiveWorkLog(options)
+    workLogResult.result
   ];
-  return { files };
+  return { files, updatedPaths: workLogResult.updatedPaths };
 }

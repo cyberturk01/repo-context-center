@@ -931,4 +931,46 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T11:15:06.463Z
+- Summary: Integrated repository learning updates into archive lifecycle
+- Changed files: `src/cli/commands/archive.ts`, `src/cli/commands/done.ts`, `src/core/archiver.ts`, `tests/archive.test.js`, `tests/done.test.js`
+- Verification: npm run build; node --test tests/done.test.js tests/archive.test.js tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js; node --test tests/*.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Integrated repository learning updates into archive lifecycle",
+  "files": [
+    "src/cli/commands/archive.ts",
+    "src/cli/commands/done.ts",
+    "src/core/archiver.ts",
+    "tests/archive.test.js",
+    "tests/done.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/done.test.js tests/archive.test.js tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js; node --test tests/*.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T11:15:06.463Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T11:15:06.463Z",
+  "summary": "Integrated repository learning updates into archive lifecycle",
+  "files": [
+    "src/cli/commands/archive.ts",
+    "src/cli/commands/done.ts",
+    "src/core/archiver.ts",
+    "tests/archive.test.js",
+    "tests/done.test.js"
+  ],
+  "verification": "npm run build; node --test tests/done.test.js tests/archive.test.js tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js; node --test tests/*.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

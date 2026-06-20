@@ -62,6 +62,16 @@ function formatResult(result: ArchiveResult, dryRun: boolean): string {
 
   if (dryRun) {
     lines.push("", "No files were written.");
+  } else {
+    for (const updatedPath of result.updatedPaths) {
+      if (updatedPath === "docs/ai-context/WORK_LOG.md") {
+        lines.push(`RCC memory updated: ${updatedPath}`);
+      } else if (updatedPath === "docs/ai-context/WORK_INDEX.md") {
+        lines.push(`RCC work index updated: ${updatedPath}`);
+      } else if (updatedPath === "docs/ai-context/REPOSITORY_LEARNING.md") {
+        lines.push(`RCC learning updated: ${updatedPath}`);
+      }
+    }
   }
 
   return `${lines.join("\n")}\n`;

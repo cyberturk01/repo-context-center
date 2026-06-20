@@ -23,6 +23,10 @@ async function writeFixtureFile(root, relativePath, content) {
   await writeFile(fullPath, content, "utf8");
 }
 
+function countOccurrences(content, value) {
+  return (content.match(new RegExp(value, "g")) ?? []).length;
+}
+
 async function withDoneRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-done-"));
 
@@ -229,6 +233,9 @@ test("done updates repository learning with compact generated patterns", async (
     const content = await readFile(path.join(tempDir, repositoryLearningPath), "utf8");
 
     assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /RCC work index updated: docs\/ai-context\/WORK_INDEX\.md/);
+    assert.match(result.stdout, /RCC learning updated: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
     assert.match(content, /^# Repository Learning$/m);
     assert.match(content, /<!-- repo-context-center:generated:start -->/);
     assert.match(content, /<!-- repo-context-center:generated:end -->/);
@@ -241,6 +248,8 @@ test("done updates repository learning with compact generated patterns", async (
     assert.match(content, /\| none detected yet \| - \| - \|/);
     assert.match(content, /\| done \| `node --test tests\/done\.test\.js` \| 1 \|/);
     assert.doesNotMatch(content, /- Summary:/);
+    assert.equal(countOccurrences(content, "<!-- repo-context-center:generated:start -->"), 1);
+    assert.equal(countOccurrences(content, "<!-- repo-context-center:generated:end -->"), 1);
   });
 });
 
@@ -282,6 +291,8 @@ test("done dry-run does not write work log", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /RCC memory would update: docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /RCC work index would update: docs\/ai-context\/WORK_INDEX\.md/);
+    assert.match(result.stdout, /RCC learning would update: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
     await assert.rejects(() => readFile(path.join(tempDir, workLogPath), "utf8"), { code: "ENOENT" });
   });
 });
