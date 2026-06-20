@@ -49,6 +49,11 @@ export function renderHandoffText(brief: HandoffBrief): string {
     "Relevant decisions:",
     ...bulletItems(brief.relevantDecisions),
     "",
+    ...(brief.repositoryLearning && brief.repositoryLearning.length > 0 ? [
+      "Repository learning:",
+      ...bulletItems(brief.repositoryLearning),
+      ""
+    ] : []),
     "Next actions:",
     ...numberedItems(brief.nextActions),
     "",

@@ -7,7 +7,7 @@ import {
   placeholderHandoffNextLookup
 } from "./handoffConstants";
 import { readHandoffSources } from "./handoffSources";
-import type { WorkRecommendation } from "../work/workTypes";
+import type { WorkBrief, WorkRecommendation } from "../work/workTypes";
 
 function buildCurrentState(gitStatus: string[], recentTouchedFiles: string[]): string[] {
   const state: string[] = [];
@@ -88,6 +88,39 @@ function taskNextActions(task: string | null, hasRoute: boolean): string[] {
   ];
 }
 
+function taskLearningTerms(task: string): string[] {
+  return (task.toLowerCase().match(/[a-z0-9][a-z0-9._-]*/g) ?? [])
+    .flatMap((term) => term.split(/[._-]+/))
+    .filter((term) => term.length > 1 && !["continue", "finish", "fix", "add", "update", "work", "task"].includes(term));
+}
+
+function taskLearningScope(task: string, learnedFiles: string[]): string {
+  const terms = taskLearningTerms(task);
+  const [matchedPathTerm] = terms.filter((term) => (
+    learnedFiles.some((file) => file.toLowerCase().split(/[\/._-]+/).includes(term))
+  ));
+  const [fallbackTerm] = terms;
+
+  return matchedPathTerm ?? fallbackTerm ?? "similar";
+}
+
+function repositoryLearningHints(task: string | null, workBrief: WorkBrief | null): string[] {
+  if (!task || !workBrief) {
+    return [];
+  }
+
+  const learnedFiles = [...workBrief.learnedTests, ...workBrief.learnedRelatedFiles];
+  const scope = taskLearningScope(task, learnedFiles);
+  const hints = [
+    ...learnedFiles.slice(0, 1).map((file) => `${scope} changes often touch ${file}`),
+    ...workBrief.learnedVerification.slice(0, 1).map((command) => `${scope} work often verifies with ${command}`),
+    ...learnedFiles.slice(1, 2).map((file) => `${scope} changes often touch ${file}`),
+    ...workBrief.learnedHabits.slice(0, 1)
+  ];
+
+  return uniqueValues(hints).slice(0, 4);
+}
+
 export async function buildHandoffBrief(cwd: string, options: { task: string | null; debug?: boolean }): Promise<HandoffBrief> {
   const sources = await readHandoffSources(cwd);
   const workBrief = options.task
@@ -102,6 +135,7 @@ export async function buildHandoffBrief(cwd: string, options: { task: string | n
     sources.changeLog
   );
   const currentState = buildCurrentState(sources.gitStatus, sources.recentTouchedFiles);
+  const repositoryLearning = repositoryLearningHints(options.task, workBrief);
 
   const brief: HandoffBrief = {
     schemaVersion: 1,
@@ -117,6 +151,7 @@ export async function buildHandoffBrief(cwd: string, options: { task: string | n
     nextRecommendedFiles: workBrief ? routeItems(workBrief.primaryFiles) : [],
     relevantTests: workBrief ? routeItems(workBrief.relevantTests) : [],
     relevantDecisions: workBrief ? workBrief.relevantDecisions.slice(0, handoffRouteLimit) : [],
+    ...(repositoryLearning.length > 0 ? { repositoryLearning } : {}),
     ...(sources.latestDoneEntry ? {
       lastSummary: sources.latestDoneEntry.summary,
       filesTouched: sources.latestDoneEntry.files,

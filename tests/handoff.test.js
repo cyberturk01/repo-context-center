@@ -78,6 +78,44 @@ async function writeHandoffDecisionFixture(root) {
   await writeFixtureFile(root, "src/billing/webhook.ts", "export function webhook() {}\n");
 }
 
+async function writeRepositoryLearningFixture(root) {
+  await writeFixtureFile(root, "docs/ai-context/REPOSITORY_LEARNING.md", [
+    "# Repository Learning",
+    "",
+    "Compact learned repository behavior from completed RCC work.",
+    "",
+    "<!-- repo-context-center:repository-learning:start -->",
+    "## Common File Relationships",
+    "",
+    "| Source | Related | Reason | Count |",
+    "| --- | --- | --- | ---: |",
+    "| handoff | `tests/handoff.test.js` | Observed in completed handoff work | 4 |",
+    "| handoff | `src/cli/commands/handoff.ts` | Observed in completed handoff work | 3 |",
+    "",
+    "## Frequently Modified Together",
+    "",
+    "| Files | Count | Recent summary |",
+    "| --- | ---: | --- |",
+    "| `src/cli/handoff/buildHandoffBrief.ts`, `tests/handoff.test.js` | 3 | Added compact handoff memory |",
+    "",
+    "## Verification Patterns",
+    "",
+    "| Scope | Command | Count |",
+    "| --- | --- | ---: |",
+    "| handoff | `npm test` | 3 |",
+    "",
+    "## Repository Habits",
+    "",
+    "- CLI command files should stay thin.",
+    "- Tests are commonly changed with related implementation work.",
+    "<!-- repo-context-center:repository-learning:end -->",
+    ""
+  ].join("\n"));
+  await writeFixtureFile(root, "src/cli/commands/handoff.ts", "export function handoffCommand() {}\n");
+  await writeFixtureFile(root, "src/cli/handoff/buildHandoffBrief.ts", "export function buildHandoffBrief() {}\n");
+  await writeFixtureFile(root, "tests/handoff.test.js", "test('handoff', () => {});\n");
+}
+
 test("rcc handoff prints a placeholder handoff brief", () => {
   const result = runCli(["handoff"]);
 
@@ -290,6 +328,64 @@ test("rcc handoff --agent returns compact agent JSON", async () => {
     assert.ok(Array.isArray(brief.currentState));
     assert.equal(brief.nextLookup, 'rcc find "<keyword>"');
     assert.equal(brief.nextCommand, 'rcc work "<task>" --agent');
+  });
+});
+
+test("handoff task receives relevant repository learning hints", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeRepositoryLearningFixture(tempDir);
+
+    const result = runCli(["handoff", "continue handoff memory", "--json"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.deepEqual(brief.repositoryLearning, [
+      "handoff changes often touch tests/handoff.test.js",
+      "handoff work often verifies with npm test",
+      "handoff changes often touch src/cli/commands/handoff.ts",
+      "CLI command files should stay thin."
+    ]);
+  });
+});
+
+test("handoff human output includes repository learning only when task signals exist", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeRepositoryLearningFixture(tempDir);
+
+    const handoffResult = runCli(["handoff", "continue handoff memory"], { cwd: tempDir });
+    const unrelatedResult = runCli(["handoff", "continue billing memory"], { cwd: tempDir });
+
+    assert.equal(handoffResult.status, 0);
+    assert.match(handoffResult.stdout, /Repository learning:\n- handoff changes often touch tests\/handoff\.test\.js/);
+    assert.match(handoffResult.stdout, /- handoff work often verifies with npm test/);
+    assert.equal(unrelatedResult.status, 0);
+    assert.doesNotMatch(unrelatedResult.stdout, /Repository learning:/);
+  });
+});
+
+test("handoff JSON repositoryLearning field is optional", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeRepositoryLearningFixture(tempDir);
+
+    const result = runCli(["handoff", "continue billing memory", "--json"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.equal(Object.hasOwn(brief, "repositoryLearning"), false);
+  });
+});
+
+test("handoff agent output caps repository learning hints", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeRepositoryLearningFixture(tempDir);
+
+    const result = runCli(["handoff", "continue handoff memory", "--agent"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.deepEqual(brief.repositoryLearning, [
+      "handoff changes often touch tests/handoff.test.js",
+      "handoff work often verifies with npm test"
+    ]);
+    assert.ok(brief.repositoryLearning.length <= 2);
+    assert.doesNotMatch(result.stdout, /WORK_LOG/);
   });
 });
 

@@ -1119,4 +1119,92 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T11:46:29.904Z
+- Summary: Made handoff output include task-matched repository learning hints
+- Changed files: `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffTypes.ts`, `src/cli/handoff/renderAgent.ts`, `src/cli/handoff/renderJson.ts`, `src/cli/handoff/renderText.ts`, `tests/handoff.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Made handoff output include task-matched repository learning hints",
+  "files": [
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "src/cli/handoff/renderAgent.ts",
+    "src/cli/handoff/renderJson.ts",
+    "src/cli/handoff/renderText.ts",
+    "tests/handoff.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T11:46:29.904Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T11:46:29.904Z",
+  "summary": "Made handoff output include task-matched repository learning hints",
+  "files": [
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "src/cli/handoff/renderAgent.ts",
+    "src/cli/handoff/renderJson.ts",
+    "src/cli/handoff/renderText.ts",
+    "tests/handoff.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-20T11:47:32.868Z
+- Summary: Polished handoff repository learning hint ordering
+- Changed files: `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffTypes.ts`, `src/cli/handoff/renderAgent.ts`, `src/cli/handoff/renderJson.ts`, `src/cli/handoff/renderText.ts`, `tests/handoff.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Polished handoff repository learning hint ordering",
+  "files": [
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "src/cli/handoff/renderAgent.ts",
+    "src/cli/handoff/renderJson.ts",
+    "src/cli/handoff/renderText.ts",
+    "tests/handoff.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T11:47:32.868Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T11:47:32.868Z",
+  "summary": "Polished handoff repository learning hint ordering",
+  "files": [
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "src/cli/handoff/renderAgent.ts",
+    "src/cli/handoff/renderJson.ts",
+    "src/cli/handoff/renderText.ts",
+    "tests/handoff.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
