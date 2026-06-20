@@ -1473,4 +1473,50 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T14:02:39.662Z
+- Summary: Refactor work memory artifact refresh into shared helper
+- Changed files: `src/cli/commands/done.ts`, `src/core/archiver.ts`, `src/core/workMemoryRefresh.ts`, `tests/archive.test.js`, `tests/commandArchitecture.test.js`, `tests/done.test.js`, `tests/start.test.js`
+- Verification: npm run build; node --test tests/*.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Refactor work memory artifact refresh into shared helper",
+  "files": [
+    "src/cli/commands/done.ts",
+    "src/core/archiver.ts",
+    "src/core/workMemoryRefresh.ts",
+    "tests/archive.test.js",
+    "tests/commandArchitecture.test.js",
+    "tests/done.test.js",
+    "tests/start.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/*.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T14:02:39.662Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T14:02:39.662Z",
+  "summary": "Refactor work memory artifact refresh into shared helper",
+  "files": [
+    "src/cli/commands/done.ts",
+    "src/core/archiver.ts",
+    "src/core/workMemoryRefresh.ts",
+    "tests/archive.test.js",
+    "tests/commandArchitecture.test.js",
+    "tests/done.test.js",
+    "tests/start.test.js"
+  ],
+  "verification": "npm run build; node --test tests/*.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

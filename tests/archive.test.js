@@ -73,6 +73,41 @@ async function writeWorkLog(tempDir, entries) {
   return content;
 }
 
+async function writeArchivedWorkLog(tempDir, entries) {
+  const content = [
+    "# Work Log Archive",
+    "",
+    "Older completed-work entries archived from WORK_LOG.md.",
+    "",
+    "<!-- repo-context-center:work-log:start -->",
+    "",
+    ...entries.flatMap((entry) => [
+      `## ${entry.timestamp}`,
+      `- Summary: ${entry.summary}`,
+      `- Changed files: ${entry.files.map((file) => `\`${file}\``).join(", ")}`,
+      `- Verification: ${entry.verify}`,
+      "<!-- rcc:handoff",
+      JSON.stringify({
+        schemaVersion: 1,
+        timestamp: entry.timestamp,
+        summary: entry.summary,
+        files: entry.files,
+        verification: [entry.verify],
+        followUps: [],
+        risks: []
+      }, null, 2),
+      "-->",
+      "",
+    ]),
+    "<!-- repo-context-center:work-log:end -->",
+    ""
+  ].join("\n");
+
+  await mkdir(path.join(tempDir, "docs", "ai-context", "archive"), { recursive: true });
+  await writeFile(path.join(tempDir, "docs", "ai-context", "archive", "WORK_LOG_ARCHIVE.md"), content, "utf8");
+  return content;
+}
+
 function countOccurrences(content, value) {
   return (content.match(new RegExp(value, "g")) ?? []).length;
 }
@@ -263,6 +298,35 @@ test("archive updates repository learning from retained and archived work log en
     assert.doesNotMatch(learning, /\bwork work\b/);
     assert.equal(countOccurrences(learning, "<!-- repo-context-center:repository-learning:start -->"), 1);
     assert.equal(countOccurrences(learning, "<!-- repo-context-center:repository-learning:end -->"), 1);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("archive refreshes compact memory from archived work log when live work log is missing", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeArchivedWorkLog(tempDir, [
+      {
+        timestamp: "2026-06-18T10:00:00.000Z",
+        summary: "Preserved archived memory refresh",
+        files: ["src/core/archiver.ts", "tests/archive.test.js"],
+        verify: "node --test tests/archive.test.js"
+      }
+    ]);
+
+    const result = runArchive(tempDir, ["--keep", "2"]);
+    const workIndex = await readFile(path.join(tempDir, "docs", "ai-context", "WORK_INDEX.md"), "utf8");
+    const learning = await readFile(path.join(tempDir, "docs", "ai-context", "REPOSITORY_LEARNING.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Skipped missing optional file: docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /RCC work index updated: docs\/ai-context\/WORK_INDEX\.md/);
+    assert.match(result.stdout, /RCC learning updated: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
+    assert.match(workIndex, /Preserved archived memory refresh/);
+    assert.match(learning, /archive \(1\)/);
+    assert.match(learning, /`node --test tests\/archive\.test\.js`/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

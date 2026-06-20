@@ -1,11 +1,8 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathExists, readTextFile, writeTextFile } from "../../core/fileSystem";
-import { upsertRepositoryLearning } from "../../core/renderRepositoryLearning";
-import { buildRepositoryLearningModel } from "../../core/repositoryLearning";
+import { refreshWorkMemoryArtifacts } from "../../core/workMemoryRefresh";
 import {
-  parseWorkMemoryEntries,
-  renderWorkIndex,
   repositoryLearningPath,
   workIndexPath
 } from "../../core/workMemory";
@@ -304,13 +301,7 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
 
   if (!options.dryRun) {
     await writeTextFile(targetPath, nextContent);
-    const entries = parseWorkMemoryEntries(nextContent);
-    await writeTextFile(path.join(io.cwd, workIndexPath), renderWorkIndex(entries));
-    const learningTargetPath = path.join(io.cwd, repositoryLearningPath);
-    const existingLearning = (await pathExists(learningTargetPath)) ? await readTextFile(learningTargetPath) : undefined;
-    await writeTextFile(learningTargetPath, upsertRepositoryLearning(existingLearning, buildRepositoryLearningModel({
-      workLog: nextContent
-    })));
+    await refreshWorkMemoryArtifacts(io.cwd, { workLogContent: nextContent });
   }
 
   io.stdout(formatSavedMessage(options, files));

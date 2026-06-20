@@ -1,13 +1,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ensureDir, pathExists, writeTextFile } from "./fileSystem";
-import { upsertRepositoryLearning } from "./renderRepositoryLearning";
-import { buildRepositoryLearningModel } from "./repositoryLearning";
+import { refreshWorkMemoryArtifacts } from "./workMemoryRefresh";
 import {
-  parseWorkMemoryEntries,
-  repositoryLearningPath,
-  renderWorkIndex,
-  workIndexPath,
   workLogArchivePath,
   workLogEnd,
   workLogPath,
@@ -313,36 +308,16 @@ async function readIfPresent(filePath: string): Promise<string | undefined> {
   return (await pathExists(filePath)) ? readFile(filePath, "utf8") : undefined;
 }
 
-async function writeWorkMemorySummaries(
-  options: ArchiveOptions,
-  workLogContent: string,
-  archiveContent?: string
-): Promise<string[]> {
-  if (options.dryRun) {
-    return [];
-  }
-
-  const entries = [
-    ...parseWorkMemoryEntries(workLogContent),
-    ...(archiveContent ? parseWorkMemoryEntries(archiveContent) : [])
-  ];
-
-  await writeTextFile(path.join(options.cwd, workIndexPath), renderWorkIndex(entries));
-  const learningTargetPath = path.join(options.cwd, repositoryLearningPath);
-  const existingLearning = await readIfPresent(learningTargetPath);
-  await writeTextFile(learningTargetPath, upsertRepositoryLearning(existingLearning, buildRepositoryLearningModel({
-    workLog: [workLogContent, archiveContent].filter((content): content is string => Boolean(content)).join("\n\n")
-  })));
-  return [workIndexPath, repositoryLearningPath];
-}
-
 async function archiveWorkLog(options: ArchiveOptions): Promise<{ result: ArchiveFileResult; updatedPaths: string[] }> {
   const sourcePath = path.join(options.cwd, workLogPath);
   const archivePath = path.join(options.cwd, workLogArchivePath);
 
   if (!(await pathExists(sourcePath))) {
     const existingArchive = await readIfPresent(archivePath);
-    const updatedPaths = await writeWorkMemorySummaries(options, "", existingArchive);
+    const updatedPaths = await refreshWorkMemoryArtifacts(options.cwd, {
+      dryRun: options.dryRun,
+      archivedWorkLogContent: existingArchive
+    });
     return {
       result: {
         sourcePath: workLogPath,
@@ -359,7 +334,11 @@ async function archiveWorkLog(options: ArchiveOptions): Promise<{ result: Archiv
   const parsed = extractGeneratedSection(content, workLogStart, workLogEnd);
   const existingArchive = await readIfPresent(archivePath);
   if (parsed.entries.length <= options.keep) {
-    const updatedPaths = await writeWorkMemorySummaries(options, content, existingArchive);
+    const updatedPaths = await refreshWorkMemoryArtifacts(options.cwd, {
+      dryRun: options.dryRun,
+      workLogContent: content,
+      archivedWorkLogContent: existingArchive
+    });
     return {
       result: {
         sourcePath: workLogPath,
@@ -383,7 +362,11 @@ async function archiveWorkLog(options: ArchiveOptions): Promise<{ result: Archiv
   }
   const updatedPaths = [
     ...(!options.dryRun ? [workLogPath] : []),
-    ...await writeWorkMemorySummaries(options, nextWorkLog, nextArchive)
+    ...await refreshWorkMemoryArtifacts(options.cwd, {
+      dryRun: options.dryRun,
+      workLogContent: nextWorkLog,
+      archivedWorkLogContent: nextArchive
+    })
   ];
 
   return {

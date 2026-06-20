@@ -8,6 +8,7 @@ const test = require("node:test");
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
 const workLogPath = path.join("docs", "ai-context", "WORK_LOG.md");
+const workIndexPath = path.join("docs", "ai-context", "WORK_INDEX.md");
 const repositoryLearningPath = path.join("docs", "ai-context", "REPOSITORY_LEARNING.md");
 
 function runCli(args, options = {}) {
@@ -252,6 +253,30 @@ test("done updates repository learning with compact generated patterns", async (
     assert.doesNotMatch(content, /- Summary:/);
     assert.equal(countOccurrences(content, "<!-- repo-context-center:repository-learning:start -->"), 1);
     assert.equal(countOccurrences(content, "<!-- repo-context-center:repository-learning:end -->"), 1);
+  });
+});
+
+test("done refreshes work index and repository learning from the completed entry", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Refreshed memory artifacts",
+      "--verify",
+      "node --test tests/done.test.js",
+      "--files",
+      "src/cli/commands/done.ts,tests/done.test.js"
+    ], { cwd: tempDir });
+    const workIndex = await readFile(path.join(tempDir, workIndexPath), "utf8");
+    const learning = await readFile(path.join(tempDir, repositoryLearningPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC work index updated: docs\/ai-context\/WORK_INDEX\.md/);
+    assert.match(result.stdout, /RCC learning updated: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
+    assert.match(workIndex, /Refreshed memory artifacts/);
+    assert.match(workIndex, /src\/cli\/commands\/done\.ts/);
+    assert.match(learning, /\| done \| `tests\/done\.test\.js` \| Observed in completed done work \| 1 \|/);
+    assert.match(learning, /\| done \| `node --test tests\/done\.test\.js` \| 1 \|/);
   });
 });
 

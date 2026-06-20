@@ -110,9 +110,13 @@ test("handoff uses work brief helpers through handoff builders without importing
 test("done and archive may use learning helpers without importing learnCommand", async () => {
   const doneSource = await readFile(path.join(commandsDir, "done.ts"), "utf8");
   const archiveSource = await readFile(path.join(commandsDir, "archive.ts"), "utf8");
+  const archiverSource = await readFile(path.join(repoRoot, "src", "core", "archiver.ts"), "utf8");
 
-  assert.match(doneSource, /repositoryLearning|renderRepositoryLearning|buildRepositoryLearningModel/);
+  assert.match(doneSource, /workMemoryRefresh/);
   assert.match(archiveSource, /archiveContextFiles/);
+  assert.match(archiverSource, /workMemoryRefresh/);
+  assert.doesNotMatch(doneSource, /renderRepositoryLearning|buildRepositoryLearningModel/);
+  assert.doesNotMatch(archiverSource, /renderRepositoryLearning|buildRepositoryLearningModel/);
   assert.doesNotMatch(doneSource, /\blearnCommand\b/);
   assert.doesNotMatch(archiveSource, /\blearnCommand\b/);
 });
