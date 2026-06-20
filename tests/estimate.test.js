@@ -224,6 +224,145 @@ test("compare-naive reports near-100 percent savings without rounding to 100", a
   });
 });
 
+test("measure prints human-readable token estimates for a task", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/workflow.ts", "w".repeat(4000));
+
+    const result = runCli(["measure", "fix workflow bug"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.match(result.stdout, /RCC measurement/);
+    assert.match(result.stdout, /Task:\nfix workflow bug/);
+    assert.match(result.stdout, /Naive scan estimate:\n[\d,]+ tokens/);
+    assert.match(result.stdout, /RCC agent route:\n[\d,]+ tokens/);
+    assert.match(result.stdout, /Primary files:\n\d+/);
+    assert.match(result.stdout, /Supporting files:\n\d+/);
+    assert.match(result.stdout, /Tests:\n\d+/);
+    assert.match(result.stdout, /Estimated saving:\n[\d,]+ tokens \(\d+\.\d%\)/);
+    assert.doesNotMatch(result.stdout, /```/);
+  });
+});
+
+test("measure --json returns parseable measurement output", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/workflow.ts", "w".repeat(4000));
+
+    const result = runCli(["measure", "fix workflow bug", "--json"], { cwd: tempDir });
+    const report = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.deepEqual(
+      Object.keys(report),
+      [
+        "schemaVersion",
+        "command",
+        "task",
+        "naiveTokens",
+        "rccTokens",
+        "primaryFiles",
+        "supportingFiles",
+        "tests",
+        "estimatedSavingTokens",
+        "estimatedSavingPercent"
+      ]
+    );
+    assert.equal(report.schemaVersion, 1);
+    assert.equal(report.command, "measure");
+    assert.equal(report.task, "fix workflow bug");
+    assert.equal(typeof report.naiveTokens, "number");
+    assert.equal(typeof report.rccTokens, "number");
+    assert.equal(typeof report.primaryFiles, "number");
+    assert.equal(typeof report.supportingFiles, "number");
+    assert.equal(typeof report.tests, "number");
+    assert.equal(result.stdout, `${JSON.stringify(report, null, 2)}\n`);
+  });
+});
+
+test("measure calculates saving percentage from naive and RCC token estimates", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/large.ts", "x".repeat(12000));
+
+    const result = runCli(["measure", "fix UI work", "--json"], { cwd: tempDir });
+    const report = JSON.parse(result.stdout);
+    const expectedSaving = Math.max(0, report.naiveTokens - report.rccTokens);
+    const expectedPercent = report.naiveTokens <= 0
+      ? 0
+      : Math.min(99.9, Math.max(0, Math.round((expectedSaving / report.naiveTokens) * 1000) / 10));
+
+    assert.equal(result.status, 0);
+    assert.equal(report.estimatedSavingTokens, expectedSaving);
+    assert.equal(report.estimatedSavingPercent, expectedPercent);
+  });
+});
+
+test("measure naive estimate excludes files ignored by RCC rules", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/app.ts", "a".repeat(80));
+    await writeText(tempDir, "generated/huge.ts", "g".repeat(40_000));
+    await writeText(tempDir, "dist/bundle.js", "d".repeat(40_000));
+    await writeText(tempDir, "fixtures/example.ts", "f".repeat(40_000));
+    await writeText(tempDir, "tests/__snapshots__/app.test.js.snap", "s".repeat(40_000));
+    await writeText(tempDir, "node_modules/noise.js", "n".repeat(40_000));
+    await writeText(tempDir, "package-lock.json", "l".repeat(40_000));
+    await writeText(tempDir, "src/styles.css", "c".repeat(40_000));
+
+    const result = runCli(["measure", "fix UI work", "--json"], { cwd: tempDir });
+    const report = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(report.naiveTokens > 0);
+    assert.ok(report.naiveTokens < 2000);
+  });
+});
+
+test("measure compact route token count comes from work --agent route model", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/workflow.ts", "export function workflow() {}\n");
+    await writeText(tempDir, "tests/workflow.test.ts", "test('workflow', () => {});\n");
+
+    const measureResult = runCli(["measure", "fix workflow bug", "--json"], { cwd: tempDir });
+    const routeResult = runCli(["work", "fix workflow bug", "--agent"], { cwd: tempDir });
+    const measure = JSON.parse(measureResult.stdout);
+    const route = JSON.parse(routeResult.stdout);
+
+    assert.equal(measureResult.status, 0);
+    assert.equal(routeResult.status, 0);
+    assert.equal(measure.rccTokens, route.briefTokens);
+    assert.equal(measure.primaryFiles, route.primaryFiles.length);
+    assert.equal(measure.supportingFiles, route.supportingFiles.length);
+    assert.equal(measure.tests, route.tests.length);
+  });
+});
+
+test("work --agent does not include measurement fields by default", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/workflow.ts", "export function workflow() {}\n");
+
+    const result = runCli(["work", "fix workflow bug", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    for (const field of [
+      "schemaVersion",
+      "command",
+      "naiveTokens",
+      "rccTokens",
+      "estimatedSavingTokens",
+      "estimatedSavingPercent"
+    ]) {
+      assert.equal(field in route, false);
+    }
+  });
+});
+
 test("estimate task recommendation counts source-only files", async () => {
   await withTempRepo(async (tempDir) => {
     await writeText(tempDir, "docs/ai-context/TASK_ROUTING.md", "- API work: read `src/api`.");

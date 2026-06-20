@@ -170,6 +170,50 @@ test("done output tells agent what was saved", async () => {
   });
 });
 
+test("done writes structured handoff-friendly data", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Finished handoff integration",
+      "--verify",
+      "node --test tests/handoff.test.js",
+      "--risk",
+      "Parser should tolerate legacy entries",
+      "--follow-ups",
+      "Wire full handoff assembly",
+      "--files",
+      "src/cli/commands/done.ts,src/cli/handoff/handoffSources.ts"
+    ], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, workLogPath), "utf8");
+    const handoffMatch = content.match(/<!-- rcc:handoff\s*(?<json>[\s\S]*?)-->/);
+    const match = content.match(/```json repo-context-center:done\s*\n(?<json>[\s\S]*?)\n```/);
+    assert.ok(handoffMatch);
+    assert.ok(match);
+    const handoffEntry = JSON.parse(handoffMatch.groups.json);
+    const entry = JSON.parse(match.groups.json);
+
+    assert.equal(result.status, 0);
+    assert.match(content, /- Summary: Finished handoff integration/);
+    assert.match(content, /- Changed files: `src\/cli\/commands\/done\.ts`, `src\/cli\/handoff\/handoffSources\.ts`/);
+    assert.equal(handoffEntry.schemaVersion, 1);
+    assert.match(handoffEntry.timestamp, /^\d{4}-\d{2}-\d{2}T/);
+    assert.equal(handoffEntry.summary, "Finished handoff integration");
+    assert.deepEqual(handoffEntry.files, ["src/cli/commands/done.ts", "src/cli/handoff/handoffSources.ts"]);
+    assert.deepEqual(handoffEntry.verification, ["node --test tests/handoff.test.js"]);
+    assert.deepEqual(handoffEntry.followUps, ["Wire full handoff assembly"]);
+    assert.deepEqual(handoffEntry.risks, ["Parser should tolerate legacy entries"]);
+    assert.equal(entry.schemaVersion, 1);
+    assert.equal(entry.command, "done");
+    assert.match(entry.timestamp, /^\d{4}-\d{2}-\d{2}T/);
+    assert.equal(entry.summary, "Finished handoff integration");
+    assert.deepEqual(entry.files, ["src/cli/commands/done.ts", "src/cli/handoff/handoffSources.ts"]);
+    assert.equal(entry.verification, "node --test tests/handoff.test.js");
+    assert.deepEqual(entry.followUps, ["Wire full handoff assembly"]);
+    assert.deepEqual(entry.risks, ["Parser should tolerate legacy entries"]);
+  });
+});
+
 test("done dry-run does not write work log", async () => {
   await withDoneRepo(async (tempDir) => {
     const result = runCli(["done", "Preview routing docs", "--verify", "npm test -- routing", "--dry-run"], { cwd: tempDir });

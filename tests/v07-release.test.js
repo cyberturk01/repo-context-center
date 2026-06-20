@@ -93,16 +93,25 @@ test("v0.7 release: rcc work produces useful focused output", async () => {
     const result = runCli(["work", "fix login bug"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Task intent:\nfix login bug/);
-    assert.match(result.stdout, /Map freshness:\nStatus: (fresh|maybe_stale|stale|unknown)\nScore: \d+\/100\nReason: /);
-    assert.match(result.stdout, /Recommended files to inspect first:\n- src\/auth\/login\.ts/);
-    assert.match(result.stdout, /Relevant tests or test folders:\n- tests\/auth\/login\.test\.ts/);
-    assert.match(result.stdout, /Relevant decisions:\n- 2026-06-16 \| Keep login server-side/);
-    assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
-    assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
+    assert.match(result.stdout, /Task:\nfix login bug/);
+    assert.match(result.stdout, /Freshness:\n(fresh|maybe_stale|stale|unknown) \d+\/100 — /);
+    assert.match(result.stdout, /Primary files:\n- src\/auth\/login\.ts/);
+    assert.match(result.stdout, /Tests:\n- tests\/auth\/login\.test\.ts/);
+    assert.match(result.stdout, /Supporting files:\n- none\. Use only if primary files are insufficient\./);
+    assert.match(result.stdout, /Agent rules:\n- AGENTS\.md/);
+    assert.match(result.stdout, /Context if unclear:\n- docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(result.stdout, /Known risks:\n- high/);
-    assert.match(result.stdout, /Fast lookup:\n- For targeted lookup, use: rcc find "<keyword>"/);
-    assert.match(result.stdout, /Next command after meaningful work:\n```sh\nrcc done --summary "<summary>" --files auto --verify "<check>"\n```/);
+    assert.match(result.stdout, /Next:\nStart with primary files\./);
+    assert.match(result.stdout, /Do not rerun rcc work for the same task unless the task meaning changes\./);
+    assert.ok(result.stdout.indexOf("Primary files:") < result.stdout.indexOf("Tests:"));
+    assert.ok(result.stdout.indexOf("Tests:") < result.stdout.indexOf("Supporting files:"));
+    assert.doesNotMatch(result.stdout, /Cheapest path:/);
+    assert.doesNotMatch(result.stdout, /Lookup hints:/);
+    assert.doesNotMatch(result.stdout, /Next cheapest command:/);
+    assert.doesNotMatch(result.stdout, /Done:/);
+    assert.doesNotMatch(result.stdout, /Recent logs:/);
+    assert.doesNotMatch(result.stdout, /Read-first guidance:/);
+    assert.doesNotMatch(result.stdout, /Fast lookup:/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
   });
 });
@@ -114,14 +123,16 @@ test("v0.7 release: rcc work works with missing context files", async () => {
     const result = runCli(["work", "small change"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Map freshness:\nStatus: unknown\nScore: 0\/100\nReason: Run npx repo-context-center init to generate context\./);
-    assert.match(result.stdout, /Recommended:\nrcc map --write/);
-    assert.match(result.stdout, /Relevant decisions:\n- none\. no matching decision was found\./);
-    assert.match(result.stdout, /Recent logs:\n- none\. no recent log was found\./);
-    assert.match(result.stdout, /Token estimate:\n- roughly \d+ tokens for this brief\./);
-    assert.match(result.stdout, /Read-first guidance:\n- no RCC context files found; run npx repo-context-center init to install them/);
-    assert.match(result.stdout, /Fast lookup:/);
-    assert.match(result.stdout, /rcc done --summary "<summary>" --files auto --verify "<check>"/);
+    assert.match(result.stdout, /Freshness:\nunknown 0\/100 — Run npx repo-context-center init to generate context\.; continue with task files, then run `rcc map --write`\./);
+    assert.match(result.stdout, /Lookup hints:\n- none\. use rcc find "<keyword>" for targeted lookup\./);
+    assert.match(result.stdout, /Next:\nStart with primary files if listed\./);
+    assert.match(result.stdout, /No strong primary files were found\./);
+    assert.match(result.stdout, /Do not rerun rcc work for the same task unless the task meaning changes\./);
+    assert.match(result.stdout, /Use rcc find "small" only if primary\/supporting files are insufficient\./);
+    assert.doesNotMatch(result.stdout, /Recent logs:/);
+    assert.doesNotMatch(result.stdout, /Read-first guidance:/);
+    assert.doesNotMatch(result.stdout, /Fast lookup:/);
+    assert.doesNotMatch(result.stdout, /Done:/);
     assert.doesNotMatch(result.stdout, /rcc done "<summary>"/);
   });
 });
@@ -160,8 +171,8 @@ test("v0.7 release: init creates or updates AGENTS.md", async () => {
 
     assert.equal(created.status, 0);
     assert.match(createdAgents, /## RCC Workflow/);
-    assert.match(createdAgents, /For any coding task, the first shell command must be:/);
-    assert.match(createdAgents, /`rcc work "<task>"`/);
+    assert.match(createdAgents, /For coding tasks, first run once at task start:/);
+    assert.match(createdAgents, /`rcc work "<task>" --agent`/);
 
     await writeFixtureFile(tempDir, "AGENTS.md", "# Existing Agents\n\nKeep this guidance.\n");
     const updated = runCli(["init"], { cwd: tempDir });
@@ -173,7 +184,8 @@ test("v0.7 release: init creates or updates AGENTS.md", async () => {
     assert.match(updatedAgents, /## RCC Workflow/);
     assert.match(updatedAgents, /rcc find "<keyword>"/);
     assert.match(updatedAgents, /Do not ask the human to run RCC commands\./);
-    assert.match(updatedAgents, /2\. Run `rcc done --summary "<summary>" --files auto --verify "<checks>"`\./);
+    assert.match(updatedAgents, /After meaningful changes, run tests and record:/);
+    assert.match(updatedAgents, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);
   });
 });
 

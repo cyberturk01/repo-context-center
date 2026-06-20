@@ -4,6 +4,7 @@
 - Feature: `PROJECT_MAP.md`, `MODULE_INDEX.md`, `DEPENDENCY_MAP.md`, examples.
 - Refactor: `DEPENDENCY_MAP.md`, `SYMBOL_MAP.md`, callers.
 - Docs/config: `PROJECT_MAP.md`, target files.
+- RCC work output assembly: for task files, recommended files, lookup hints, targeted lookup hints, promoted lookup, weak semantic match, semantic source match, work brief, human output, output categorization, agent rules, context docs, or cheapest path, start with `src/cli/commands/work.ts` and `tests/work.test.js`. Use `src/core/taskIntent.ts` only when tokenization or intent classification must change.
 
 Before broad search: check `DO_NOT_READ.md`.
 

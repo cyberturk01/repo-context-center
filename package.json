@@ -1,6 +1,6 @@
 {
   "name": "repo-context-center",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "description": "A ContextOps toolkit for AI coding agents.",
   "keywords": [
     "ai",
@@ -37,6 +37,8 @@
     "docs/assets/repo-context-center-diagram.svg"
   ],
   "scripts": {
+    "benchmark:routing": "node scripts/benchmark-routing.js",
+    "benchmark:work-repeat": "node scripts/benchmark-work-repeat.js",
     "build": "tsc -p tsconfig.json && node scripts/copy-templates.js",
     "lint": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "npm run build && npm test",
@@ -51,6 +53,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "repo-context-center": "^0.7.3"
+    "repo-context-center": "^0.8.3"
   }
 }

@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdtemp, readFile, rm } = require("node:fs/promises");
+const { mkdtemp, readFile, rm, writeFile } = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
@@ -35,13 +35,77 @@ test("CLI help prints usage", () => {
   assert.match(result.stdout, /Usage: decision add "<decision>" --reason "<reason>" \[--status <status>\] \[--files <path,path>\]/);
   assert.match(result.stdout, /decision list/);
   assert.match(result.stdout, /decision search "<query>"/);
+  assert.match(result.stdout, /doctor\s+Check local development CLI\/version alignment/);
   assert.match(result.stdout, /find\s+Find focused file candidates for a concept or query/);
   assert.match(result.stdout, /Usage: find "<query>" \[--limit <number>\]/);
   assert.match(result.stdout, /log\s+Add a durable entry to docs\/ai-context\/CHANGE_LOG\.md/);
   assert.match(result.stdout, /Usage: log "<summary>" \[--files <path,path>\] \[--dry-run\]/);
   assert.match(result.stdout, /Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>/);
+  assert.match(result.stdout, /measure\s+Estimate RCC token savings for a task/);
+  assert.match(result.stdout, /Usage: rcc measure "<task>"/);
+  assert.match(result.stdout, /rcc measure "<task>" --json/);
   assert.match(result.stdout, /start\s+Print a startup prompt for an AI coding agent/);
   assert.match(result.stdout, /Usage: start "<task>" \[--max-files <number>\] \[--copy\]/);
+});
+
+test("doctor reports matching local development version without warning", () => {
+  const result = runCli(["doctor"]);
+  const packageJson = require(path.join(repoRoot, "package.json"));
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stderr, "");
+  assert.match(result.stdout, /repo-context-center doctor/);
+  assert.match(result.stdout, new RegExp(`Running CLI version: ${packageJson.version}`));
+  assert.match(result.stdout, new RegExp(`Repo package version: ${packageJson.version}`));
+  assert.match(result.stdout, /Execution path: /);
+  assert.match(result.stdout, /Warnings: none/);
+  assert.doesNotMatch(result.stdout, /Warning: running global RCC version/);
+});
+
+test("doctor warns when a repo-context-center repo version differs from the running CLI outside that repo", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-doctor-mismatch-"));
+  const packageJson = require(path.join(repoRoot, "package.json"));
+
+  try {
+    await writeFile(
+      path.join(tempDir, "package.json"),
+      JSON.stringify({ name: "repo-context-center", version: "9.9.9" }, null, 2),
+      "utf8"
+    );
+
+    const result = runCli(["doctor"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.match(
+      result.stdout,
+      new RegExp(`Warning: running global RCC version ${packageJson.version} while repo package version is 9\\.9\\.9\\. Use node dist/cli/index\\.js during local development\\.`)
+    );
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("doctor does not warn noisily outside a repo-context-center repo", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-doctor-other-"));
+
+  try {
+    await writeFile(
+      path.join(tempDir, "package.json"),
+      JSON.stringify({ name: "not-rcc", version: "9.9.9" }, null, 2),
+      "utf8"
+    );
+
+    const result = runCli(["doctor"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.match(result.stdout, /Repo package version: not repo-context-center/);
+    assert.match(result.stdout, /Warnings: none/);
+    assert.doesNotMatch(result.stdout, /Warning: running global RCC version/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("unknown command returns an error", () => {

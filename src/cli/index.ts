@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 import { archiveCommand } from "./commands/archive";
 import { decisionCommand } from "./commands/decision";
+import { doctorCommand } from "./commands/doctor";
 import { doneCommand } from "./commands/done";
 import { estimateCommand } from "./commands/estimate";
 import { findCommand } from "./commands/find";
+import { handoffCommand } from "./commands/handoff";
 import { initCommand } from "./commands/init";
 import { logCommand } from "./commands/log";
 import { mapCommand } from "./commands/map";
+import { measureCommand } from "./commands/measure";
 import { scanCommand } from "./commands/scan";
 import { startCommand } from "./commands/start";
 import { suggestCommand } from "./commands/suggest";
@@ -26,11 +29,14 @@ const commands: Record<string, CommandHandler> = {
   validate: validateCommand,
   archive: archiveCommand,
   decision: decisionCommand,
+  doctor: doctorCommand,
   done: doneCommand,
   estimate: estimateCommand,
   find: findCommand,
+  handoff: handoffCommand,
   log: logCommand,
   map: mapCommand,
+  measure: measureCommand,
   scan: scanCommand,
   start: startCommand,
   suggest: suggestCommand,
@@ -44,7 +50,7 @@ Usage:
 
 Agent workflow:
   work      Print a concise work brief for an AI coding agent
-            Usage: work "<task>" [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
+            Usage: work "<task>" [--agent|--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
   done      Save lightweight memory after completed agent work
             Usage: done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]
 
@@ -59,14 +65,20 @@ Commands:
             Usage: decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
                    decision list
                    decision search "<query>"
+  doctor    Check local development CLI/version alignment
   estimate  Estimate context token costs and rough savings
             Options: --json, --mode <mode>, --task <text>, --compare-naive, --max-files <number>
   find      Find focused file candidates for a concept or query
             Usage: find "<query>" [--limit <number>]
+  handoff   Print a handoff brief for continuing agent work
+            Usage: handoff [task] [--json|--agent] [--debug] [--write]
   log       Add a durable entry to docs/ai-context/CHANGE_LOG.md
             Usage: log "<summary>" [--files <path,path>] [--dry-run]
   map       Generate repo-specific context maps
             Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>
+  measure   Estimate RCC token savings for a task
+            Usage: rcc measure "<task>"
+                   rcc measure "<task>" --json
   scan      Suggest lightweight context entries from repo layout
             Options: --json
   start     Print a startup prompt for an AI coding agent

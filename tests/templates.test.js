@@ -30,18 +30,17 @@ const requiredTemplates = [
 const expectedWorkflowSection = `<!-- repo-context-center:workflow:start -->
 ## RCC Workflow
 
-For any coding task, the first shell command must be:
+For coding tasks, first run once at task start:
 
-\`rcc work "<task>"\`
+\`rcc work "<task>" --agent\`
 
-- Do not begin repository exploration, manual file reading, or broad searching before running \`rcc work\`.
-- Follow the read-first files from the work brief.
-- For targeted lookup, prefer \`rcc find "<keyword>"\` before broad grep/search.
+Then:
+- Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly.
+- Do not repeatedly run \`rcc work\` for the same task.
+- Use \`rcc find "<keyword>"\` only if the route is insufficient.
 - Do not ask the human to run RCC commands.
-
-After meaningful changes:
-1. Run relevant tests.
-2. Run \`rcc done --summary "<summary>" --files auto --verify "<checks>"\`.
+- After meaningful changes, run tests and record:
+  \`rcc done --summary "<summary>" --files auto --verify "<checks>"\`
 <!-- repo-context-center:workflow:end -->`;
 
 const templateTitles = {
@@ -61,7 +60,7 @@ const templateTitles = {
 };
 
 function shellFallbackLine(content) {
-  return content.split("\n").find((line) => line.includes("shell commands are unavailable")) ?? "";
+  return content.split("\n").find((line) => line.includes("RCC commands are unavailable")) ?? "";
 }
 
 function workflowSection(content) {
@@ -103,17 +102,15 @@ test("AGENTS template keeps low-token startup references", async () => {
   const noShellLine = shellFallbackLine(content);
 
   assert.equal(workflowSection(content), expectedWorkflowSection);
-  assert.match(content, /If shell commands are unavailable, fallback to reading/);
-  assert.match(content, /Read this file first\./);
-  assert.match(content, /Verify source; keep changes focused\./);
-  assert.match(content, /Run smallest useful verification\./);
-  assert.match(content, /Do not manually edit generated sections\./);
-  assert.match(noShellLine, /COMMUNICATION_MODE\.md/);
-  assert.match(content, /TOKEN_BUDGET\.md/);
-  assert.match(content, /DO_NOT_READ\.md/);
+  assert.match(content, /Read this first\./);
+  assert.match(content, /rcc doctor/);
+  assert.match(content, /rcc measure "<task>"/);
   assert.match(content, /TASK_ROUTING\.md/);
-  assert.doesNotMatch(noShellLine, /MODULE_INDEX\.md/);
-  assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
+  assert.match(noShellLine, /TOKEN_BUDGET\.md/);
+  assert.match(content, /DO_NOT_READ\.md/);
+  assert.doesNotMatch(content, /COMMUNICATION_MODE\.md/);
+  assert.doesNotMatch(content, /MODULE_INDEX\.md/);
+  assert.match(content, /Avoid unnecessary repository scanning\./);
 });
 
 test("AGENTS template remains startup-only", async () => {
@@ -170,14 +167,15 @@ test("generated AGENTS template keeps core startup rules", async () => {
   const noShellLine = shellFallbackLine(content);
 
   assert.equal(workflowSection(content), expectedWorkflowSection);
-  assert.match(content, /If shell commands are unavailable, fallback to reading/);
-  assert.match(noShellLine, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
+  assert.match(content, /rcc doctor/);
+  assert.match(content, /rcc measure "<task>"/);
   assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
+  assert.match(noShellLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
   assert.match(content, /docs\/ai-context\/DO_NOT_READ\.md/);
-  assert.doesNotMatch(noShellLine, /docs\/ai-context\/MODULE_INDEX\.md/);
-  assert.match(content, /Use `docs\/ai-context\/MODULE_INDEX\.md` only when routing is missing or the task spans modules\./);
-  assert.match(content, /Read this file first\./);
-  assert.match(content, /Run smallest useful verification\./);
+  assert.doesNotMatch(content, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
+  assert.doesNotMatch(content, /docs\/ai-context\/MODULE_INDEX\.md/);
+  assert.match(content, /Read this first\./);
+  assert.match(content, /Avoid unnecessary repository scanning\./);
   assert.doesNotMatch(content, /^Read:$/m);
   assert.doesNotMatch(content, /^Modes:$/m);
 });
