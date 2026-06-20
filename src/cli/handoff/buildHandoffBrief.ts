@@ -44,6 +44,7 @@ function compactHandoffMemory(
   changeLog: string[]
 ): string[] {
   const memory: string[] = [];
+  const lastCompletedText = entry ? normalizeMemoryText(entry.summary) : null;
 
   if (entry) {
     memory.push(
@@ -57,7 +58,7 @@ function compactHandoffMemory(
     }
   }
 
-  const [workIndexItem] = workIndex;
+  const workIndexItem = workIndex.find((item) => normalizeMemoryText(item) !== lastCompletedText);
   if (workIndexItem) {
     memory.push(workIndexItem);
   }
@@ -68,6 +69,14 @@ function compactHandoffMemory(
   }
 
   return memory.slice(0, handoffMemoryLimit);
+}
+
+function normalizeMemoryText(value: string): string {
+  return value
+    .replace(/^(?:Last completed|Work index):\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function uniqueValues(values: string[]): string[] {

@@ -758,6 +758,133 @@ test("rcc handoff uses WORK_INDEX as compact memory with latest work log tail", 
   });
 });
 
+test("rcc handoff omits duplicate WORK_INDEX memory matching last completed", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_INDEX.md", [
+      "# Work Index",
+      "",
+      "- Compact handoff currentState and repositoryLearning output",
+      ""
+    ].join("\n"));
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "<!-- rcc:handoff",
+      JSON.stringify({
+        schemaVersion: 1,
+        timestamp: "2026-06-20T12:00:00.000Z",
+        summary: "Compact handoff currentState and repositoryLearning output",
+        files: ["src/cli/handoff/buildHandoffBrief.ts"],
+        verification: ["node --test tests/handoff.test.js"],
+        followUps: [],
+        risks: []
+      }, null, 2),
+      "-->",
+      ""
+    ].join("\n"));
+    await writeFixtureFile(tempDir, "docs/ai-context/CHANGE_LOG.md", [
+      "# Change Log",
+      "",
+      "| Date | Command | Files updated | Reason |",
+      "| --- | --- | --- | --- |",
+      "| 2026-06-20 | `repo-context-center done` | 1 file | handoff compaction |"
+    ].join("\n"));
+
+    const result = runCli(["handoff", "--json"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.ok(brief.memory.includes("Last completed: Compact handoff currentState and repositoryLearning output"));
+    assert.ok(brief.memory.includes("Completed at: 2026-06-20T12:00:00.000Z"));
+    assert.ok(brief.memory.includes("Verification: node --test tests/handoff.test.js"));
+    assert.equal(brief.memory.some((entry) => entry.startsWith("Work index:")), false);
+    assert.ok(brief.memory.some((entry) => entry.includes("Change: 2026-06-20 | repo-context-center done")));
+    assert.ok(brief.memory.length <= 5);
+  });
+});
+
+test("rcc handoff preserves different WORK_INDEX memory theme", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_INDEX.md", [
+      "# Work Index",
+      "",
+      "- Handoff archive cleanup often touches WORK_LOG_ARCHIVE",
+      ""
+    ].join("\n"));
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "<!-- rcc:handoff",
+      JSON.stringify({
+        schemaVersion: 1,
+        timestamp: "2026-06-20T12:00:00.000Z",
+        summary: "Compact handoff currentState and repositoryLearning output",
+        files: ["src/cli/handoff/buildHandoffBrief.ts"],
+        verification: ["node --test tests/handoff.test.js"],
+        followUps: [],
+        risks: []
+      }, null, 2),
+      "-->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["handoff", "--json"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.ok(brief.memory.includes("Last completed: Compact handoff currentState and repositoryLearning output"));
+    assert.ok(brief.memory.includes("Work index: Handoff archive cleanup often touches WORK_LOG_ARCHIVE"));
+    assert.equal(brief.memory.filter((entry) => entry.startsWith("Work index:")).length, 1);
+    assert.ok(brief.memory.length <= 5);
+  });
+});
+
+test("rcc handoff memory limit stays enforced while keeping latest change", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_INDEX.md", [
+      "# Work Index",
+      "",
+      "- Different useful handoff theme",
+      "- Extra handoff theme should not enter compact memory",
+      ""
+    ].join("\n"));
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "<!-- rcc:handoff",
+      JSON.stringify({
+        schemaVersion: 1,
+        timestamp: "2026-06-20T12:00:00.000Z",
+        summary: "Latest handoff memory cap summary",
+        files: ["src/cli/handoff/buildHandoffBrief.ts"],
+        verification: ["node --test tests/handoff.test.js"],
+        followUps: ["Not part of compact memory"],
+        risks: ["Not part of compact memory"]
+      }, null, 2),
+      "-->",
+      ""
+    ].join("\n"));
+    await writeFixtureFile(tempDir, "docs/ai-context/CHANGE_LOG.md", [
+      "# Change Log",
+      "",
+      "| Date | Command | Files updated | Reason |",
+      "| --- | --- | --- | --- |",
+      "| 2026-06-19 | `repo-context-center done` | 1 file | older handoff change |",
+      "| 2026-06-20 | `repo-context-center done` | 2 files | latest handoff change |"
+    ].join("\n"));
+
+    const result = runCli(["handoff", "--json"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.deepEqual(brief.memory, [
+      "Last completed: Latest handoff memory cap summary",
+      "Completed at: 2026-06-20T12:00:00.000Z",
+      "Verification: node --test tests/handoff.test.js",
+      "Work index: Different useful handoff theme",
+      "Change: 2026-06-20 | repo-context-center done | 2 files | latest handoff change"
+    ]);
+    assert.equal(brief.memory.length, 5);
+  });
+});
+
 test("rcc handoff reads latest structured done entry", async () => {
   await withTempRepo(async (tempDir) => {
     await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [

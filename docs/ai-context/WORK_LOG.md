@@ -1245,4 +1245,40 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T12:00:00.159Z
+- Summary: Deduplicate handoff Work index memory against Last completed
+- Changed files: `src/cli/handoff/buildHandoffBrief.ts`, `tests/handoff.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Deduplicate handoff Work index memory against Last completed",
+  "files": [
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "tests/handoff.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T12:00:00.159Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T12:00:00.159Z",
+  "summary": "Deduplicate handoff Work index memory against Last completed",
+  "files": [
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "tests/handoff.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -6,20 +6,20 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Deduplicate handoff Work index memory against Last completed
 - Compact handoff currentState and repositoryLearning output
 - Polished handoff repository learning hint ordering
 - Made handoff output include task-matched repository learning hints
 - Add learning-aware work hints to rcc work
 - Implemented learning-aware work routing
 - Polished repository learning markdown output
-- smoke test repository learning
 
 ## Hot Files
 
 | File | Reason | Last touched |
 | ---- | ------ | ------------ |
-| `tests/handoff.test.js` | 21 touches; Compact handoff currentState and repositoryLearning output | 2026-06-20 |
-| `src/cli/handoff/buildHandoffBrief.ts` | 14 touches; Compact handoff currentState and repositoryLearning output | 2026-06-20 |
+| `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
+| `src/cli/handoff/buildHandoffBrief.ts` | 15 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
 | `src/cli/handoff/handoffTypes.ts` | 13 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/commands/work.ts` | 13 touches; Made work command a thin wrapper by moving route helper exports and render facade calls into work modules. | 2026-06-19 |
 | `src/cli/handoff/renderAgent.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
@@ -33,7 +33,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Handoff | 22 | Compact handoff currentState and repositoryLearning output |
+| Handoff | 23 | Deduplicate handoff Work index memory against Last completed |
 | Work routing | 20 | Add learning-aware work hints to rcc work |
 | Repository context | 4 | Polished repository learning markdown output |
 | Work memory | 3 | Integrated repository learning updates into archive lifecycle |
@@ -45,7 +45,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 ## Verification Patterns
 
 - `npm run build` (34)
-- `npm test` (28)
+- `npm test` (29)
 - `node --test tests/handoff.test.js` (12)
 - `node --test tests/work.test.js` (12)
 - `node --test tests/cli.test.js` (9)
