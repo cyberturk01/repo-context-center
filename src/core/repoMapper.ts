@@ -1,7 +1,8 @@
 import path from "node:path";
 import { requiredContextFiles, type RequiredContextFile } from "./contextFiles";
 import { ensureDir, listDirectoryNames, readTextFile, writeTextFile, pathExists } from "./fileSystem";
-import { buildRepositoryLearningModel, renderRepositoryLearningBody } from "./repositoryLearning";
+import { renderRepositoryLearningBody } from "./renderRepositoryLearning";
+import { buildRepositoryLearningModel } from "./repositoryLearning";
 import { buildRepositoryUnderstanding, type RepositoryUnderstanding } from "./repositoryUnderstanding";
 import { extractExportedSymbols, type ScannedSymbol } from "./scanner";
 import { renderWorkIndex } from "./workMemory";

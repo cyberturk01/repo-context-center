@@ -2,9 +2,9 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
-  buildRepositoryLearningModel,
-  renderRepositoryLearningBody
+  buildRepositoryLearningModel
 } = require("../dist/core/repositoryLearning.js");
+const { renderRepositoryLearningBody } = require("../dist/core/renderRepositoryLearning.js");
 
 function structuredEntry(entry) {
   return [

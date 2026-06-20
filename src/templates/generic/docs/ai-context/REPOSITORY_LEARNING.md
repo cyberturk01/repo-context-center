@@ -1,6 +1,6 @@
 # Repository Learning
 
-Compact generated patterns from completed RCC work.
+Compact learned repository behavior from completed RCC work.
 
 <!-- repo-context-center:generated:start -->
 ## Generated Repo Map
@@ -11,15 +11,21 @@ Compact generated patterns from completed RCC work.
 
 ## Common File Relationships
 
-- none detected yet
+| Source | Related | Reason | Count |
+| --- | --- | --- | --: |
+| none detected yet | - | - | - |
 
 ## Frequently Modified Together
 
-- none detected yet
+| Files | Count | Recent summary |
+| --- | --: | --- |
+| none detected yet | - | - |
 
 ## Verification Patterns
 
-- none detected yet
+| Scope | Command | Count |
+| --- | --- | --: |
+| none detected yet | - | - |
 
 ## Repository Habits
 

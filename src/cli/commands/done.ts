@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathExists, readTextFile, writeTextFile } from "../../core/fileSystem";
-import { buildRepositoryLearningModel, upsertRepositoryLearning } from "../../core/repositoryLearning";
+import { upsertRepositoryLearning } from "../../core/renderRepositoryLearning";
+import { buildRepositoryLearningModel } from "../../core/repositoryLearning";
 import {
   parseWorkMemoryEntries,
   renderWorkIndex,

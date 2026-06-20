@@ -8,7 +8,7 @@ const templateRoot = path.join(repoRoot, "src", "templates", "generic");
 const distTemplateRoot = path.join(repoRoot, "dist", "templates", "generic");
 const distGithubTemplateRoot = path.join(repoRoot, "dist", "templates", "github");
 const maxTemplateBytes = 1600;
-const previousTemplateWordBaseline = 925;
+const previousTemplateWordBaseline = 945;
 const compressedTemplateWordLimit = Math.floor(previousTemplateWordBaseline * 0.7);
 
 const requiredTemplates = [

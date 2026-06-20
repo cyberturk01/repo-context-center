@@ -237,9 +237,9 @@ test("done updates repository learning with compact generated patterns", async (
     assert.match(content, /^## Frequently Modified Together$/m);
     assert.match(content, /^## Verification Patterns$/m);
     assert.match(content, /^## Repository Habits$/m);
-    assert.match(content, /repository context -> `tests\/done\.test\.js` \(1\)/);
-    assert.match(content, /- none detected yet/);
-    assert.match(content, /done: `node --test tests\/done\.test\.js` \(1\)/);
+    assert.match(content, /\| repository context \| `tests\/done\.test\.js` \| Observed in completed repository context work \| 1 \|/);
+    assert.match(content, /\| none detected yet \| - \| - \|/);
+    assert.match(content, /\| done \| `node --test tests\/done\.test\.js` \| 1 \|/);
     assert.doesNotMatch(content, /- Summary:/);
   });
 });

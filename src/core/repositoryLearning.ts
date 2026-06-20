@@ -36,16 +36,16 @@ export interface RepositoryLearningSources {
   workLog?: string;
 }
 
-const maxRecentFocusAreas = 5;
-const maxCommonFileRelationships = 8;
-const maxFrequentlyModifiedTogether = 8;
-const maxVerificationPatterns = 8;
-const maxRepositoryHabits = 6;
+export const repositoryLearningLimits = {
+  recentFocusAreas: 5,
+  commonFileRelationships: 8,
+  frequentlyModifiedTogether: 8,
+  verificationPatterns: 8,
+  repositoryHabits: 6
+} as const;
 const workLogPath = "docs/ai-context/WORK_LOG.md";
 const workIndexPath = "docs/ai-context/WORK_INDEX.md";
 const decisionsPath = "docs/ai-context/DECISIONS.md";
-const generatedStart = "<!-- repo-context-center:generated:start -->";
-const generatedEnd = "<!-- repo-context-center:generated:end -->";
 const ignoredContextFiles = new Set([
   "docs/ai-context/WORK_LOG.md",
   "docs/ai-context/WORK_INDEX.md",
@@ -153,7 +153,7 @@ function recentFocusAreas(entries: WorkMemoryEntry[]): string[] {
 
   return [...scopes.entries()]
     .sort((left, right) => right[1].count - left[1].count || right[1].latest.localeCompare(left[1].latest))
-    .slice(0, maxRecentFocusAreas)
+    .slice(0, repositoryLearningLimits.recentFocusAreas)
     .map(([scope, info]) => `${scope} (${info.count})`);
 }
 
@@ -177,7 +177,7 @@ function commonFileRelationships(entries: WorkMemoryEntry[]): RepositoryLearning
   const repeated = rows.filter((row) => row.count > 1);
   return (repeated.length > 0 ? repeated : rows)
     .sort((left, right) => right.count - left.count || right.latest.localeCompare(left.latest) || left.related.localeCompare(right.related))
-    .slice(0, maxCommonFileRelationships)
+    .slice(0, repositoryLearningLimits.commonFileRelationships)
     .map(({ source, related, count }) => ({
       source,
       related,
@@ -208,7 +208,7 @@ function frequentlyModifiedTogether(entries: WorkMemoryEntry[]): RepositoryLearn
 
   return sortedRepeatedEntries([...pairs.entries()].map(([, value]) => [value.files.join("\0"), value]))
     .filter(([, info]) => info.count > 1)
-    .slice(0, maxFrequentlyModifiedTogether)
+    .slice(0, repositoryLearningLimits.frequentlyModifiedTogether)
     .map(([, info]) => ({
       files: info.files,
       count: info.count,
@@ -254,7 +254,7 @@ function verificationPatterns(entries: WorkMemoryEntry[]): RepositoryLearningVer
 
   return [...counts.values()]
     .sort((left, right) => right.count - left.count || left.scope.localeCompare(right.scope) || left.command.localeCompare(right.command))
-    .slice(0, maxVerificationPatterns);
+    .slice(0, repositoryLearningLimits.verificationPatterns);
 }
 
 function splitMarkdownTableRow(line: string): string[] {
@@ -349,7 +349,7 @@ function repositoryHabits(entries: WorkMemoryEntry[], decisions: string[][]): st
     habits.push(`Active decision memory is maintained in DECISIONS.md (${activeDecisions}).`);
   }
 
-  return habits.slice(0, maxRepositoryHabits);
+  return habits.slice(0, repositoryLearningLimits.repositoryHabits);
 }
 
 export function buildRepositoryLearningModelFromEntries(
@@ -396,74 +396,4 @@ export async function readRepositoryLearningSources(cwd: string): Promise<Reposi
 
 export async function buildRepositoryLearningModelForRepo(cwd: string): Promise<RepositoryLearningModel> {
   return buildRepositoryLearningModel(await readRepositoryLearningSources(cwd));
-}
-
-function noneDetected(): string[] {
-  return ["- none detected yet"];
-}
-
-function formatFiles(files: string[]): string {
-  return files.map((file) => `\`${file.replace(/`/g, "")}\``).join(", ");
-}
-
-export function renderRepositoryLearningBody(model: RepositoryLearningModel): string {
-  return [
-    "## Recent Focus Areas",
-    "",
-    ...(model.recentFocusAreas.length > 0 ? model.recentFocusAreas.map((area) => `- ${area}`) : noneDetected()),
-    "",
-    "## Common File Relationships",
-    "",
-    ...(model.commonFileRelationships.length > 0
-      ? model.commonFileRelationships.map((relationship) => `- ${relationship.source} -> \`${relationship.related.replace(/`/g, "")}\` (${relationship.count}): ${relationship.reason}`)
-      : noneDetected()),
-    "",
-    "## Frequently Modified Together",
-    "",
-    ...(model.frequentlyModifiedTogether.length > 0
-      ? model.frequentlyModifiedTogether.map((item) => `- ${formatFiles(item.files)} (${item.count})${item.recentSummary ? `: ${item.recentSummary}` : ""}`)
-      : noneDetected()),
-    "",
-    "## Verification Patterns",
-    "",
-    ...(model.verificationPatterns.length > 0
-      ? model.verificationPatterns.map((pattern) => `- ${pattern.scope}: \`${pattern.command.replace(/`/g, "")}\` (${pattern.count})`)
-      : noneDetected()),
-    "",
-    "## Repository Habits",
-    "",
-    ...(model.repositoryHabits.length > 0 ? model.repositoryHabits.map((habit) => `- ${habit}`) : noneDetected())
-  ].join("\n");
-}
-
-function renderGeneratedRepositoryLearning(model: RepositoryLearningModel): string {
-  return [
-    generatedStart,
-    "## Generated Repo Map",
-    "",
-    renderRepositoryLearningBody(model),
-    "",
-    "_Generated by repo-context-center. Edit outside this section._",
-    generatedEnd
-  ].join("\n");
-}
-
-export function upsertRepositoryLearning(existing: string | undefined, model: RepositoryLearningModel): string {
-  const generated = renderGeneratedRepositoryLearning(model);
-
-  if (!existing || existing.trim().length === 0) {
-    return `# Repository Learning\n\nCompact generated patterns from completed RCC work.\n\n${generated}\n`;
-  }
-
-  const normalized = existing.replace(/\r\n/g, "\n");
-  const start = normalized.indexOf(generatedStart);
-  const end = normalized.indexOf(generatedEnd);
-
-  if (start !== -1 && end !== -1 && end > start) {
-    const before = normalized.slice(0, start).trimEnd();
-    const after = normalized.slice(end + generatedEnd.length).trimStart();
-    return `${before}\n\n${generated}${after ? `\n\n${after.trimEnd()}` : ""}\n`;
-  }
-
-  return `${normalized.trimEnd()}\n\n${generated}\n`;
 }
