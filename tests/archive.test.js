@@ -253,13 +253,16 @@ test("archive updates repository learning from retained and archived work log en
 
     assert.equal(result.status, 0);
     assert.match(learning, /^# Repository Learning$/m);
-    assert.match(learning, /<!-- repo-context-center:generated:start -->/);
+    assert.match(learning, /<!-- repo-context-center:repository-learning:start -->/);
     assert.match(learning, /^## Recent Focus Areas$/m);
-    assert.match(learning, /work \(2\)/);
+    assert.match(learning, /archive \(1\)/);
+    assert.match(learning, /work \(1\)/);
     assert.match(learning, /handoff \(1\)/);
     assert.match(learning, /`node --test tests\/work\.test\.js`/);
-    assert.equal(countOccurrences(learning, "<!-- repo-context-center:generated:start -->"), 1);
-    assert.equal(countOccurrences(learning, "<!-- repo-context-center:generated:end -->"), 1);
+    assert.doesNotMatch(learning, /(^|\|)\s*--:\s*(?=\|)/);
+    assert.doesNotMatch(learning, /\bwork work\b/);
+    assert.equal(countOccurrences(learning, "<!-- repo-context-center:repository-learning:start -->"), 1);
+    assert.equal(countOccurrences(learning, "<!-- repo-context-center:repository-learning:end -->"), 1);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -281,7 +284,7 @@ test("archive creates missing repository learning file and preserves manual sect
     const first = runArchive(tempDir, ["--keep", "5"]);
     const created = await readFile(path.join(tempDir, "docs", "ai-context", "REPOSITORY_LEARNING.md"), "utf8");
     assert.equal(first.status, 0);
-    assert.match(created, /work memory \(1\)/);
+    assert.match(created, /archive \(1\)/);
     assert.match(created, /`node --test tests\/archive\.test\.js`/);
 
     await writeFile(path.join(tempDir, "docs", "ai-context", "REPOSITORY_LEARNING.md"), [
@@ -289,9 +292,9 @@ test("archive creates missing repository learning file and preserves manual sect
       "",
       "Manual note before.",
       "",
-      "<!-- repo-context-center:generated:start -->",
+      "<!-- repo-context-center:repository-learning:start -->",
       "stale generated content",
-      "<!-- repo-context-center:generated:end -->",
+      "<!-- repo-context-center:repository-learning:end -->",
       "",
       "Manual note after.",
       ""
@@ -305,8 +308,8 @@ test("archive creates missing repository learning file and preserves manual sect
     assert.match(preserved, /Manual note after\./);
     assert.match(preserved, /^## Recent Focus Areas$/m);
     assert.doesNotMatch(preserved, /stale generated content/);
-    assert.equal(countOccurrences(preserved, "<!-- repo-context-center:generated:start -->"), 1);
-    assert.equal(countOccurrences(preserved, "<!-- repo-context-center:generated:end -->"), 1);
+    assert.equal(countOccurrences(preserved, "<!-- repo-context-center:repository-learning:start -->"), 1);
+    assert.equal(countOccurrences(preserved, "<!-- repo-context-center:repository-learning:end -->"), 1);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

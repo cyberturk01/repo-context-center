@@ -86,8 +86,41 @@ test("repository learning model relates repeated handoff and work changes to the
 
   assert.equal(relationship(model, "handoff", "tests/handoff.test.js")?.count, 2);
   assert.equal(relationship(model, "work", "tests/work.test.js")?.count, 2);
+  assert.equal(relationship(model, "handoff", "tests/handoff.test.js")?.reason, "Observed in completed handoff work");
+  assert.equal(relationship(model, "work", "tests/work.test.js")?.reason, "Observed in completed work tasks");
   assert.ok(model.recentFocusAreas.includes("handoff (2)"));
   assert.ok(model.recentFocusAreas.includes("work (2)"));
+});
+
+test("repository learning model uses readable relationship reasons for archive and done scopes", () => {
+  const model = buildRepositoryLearningModel({
+    workLog: workLog([
+      {
+        timestamp: "2026-06-20T10:00:00.000Z",
+        summary: "Updated archive learning",
+        files: ["src/core/archiver.ts", "tests/archive.test.js"]
+      },
+      {
+        timestamp: "2026-06-20T11:00:00.000Z",
+        summary: "Fixed archive retention",
+        files: ["src/core/archiver.ts", "tests/archive.test.js"]
+      },
+      {
+        timestamp: "2026-06-20T12:00:00.000Z",
+        summary: "Updated done learning",
+        files: ["src/cli/commands/done.ts", "tests/done.test.js"]
+      },
+      {
+        timestamp: "2026-06-20T13:00:00.000Z",
+        summary: "Fixed done output",
+        files: ["src/cli/commands/done.ts", "tests/done.test.js"]
+      }
+    ])
+  });
+
+  assert.equal(relationship(model, "archive", "tests/archive.test.js")?.reason, "Observed in completed archive work");
+  assert.equal(relationship(model, "done", "tests/done.test.js")?.reason, "Observed in completed done work");
+  assert.equal(model.commonFileRelationships.some((item) => /\bwork work\b/.test(item.reason)), false);
 });
 
 test("repository learning model counts verification commands by scope", () => {
@@ -148,6 +181,7 @@ test("repository learning model keeps one-off unrelated files from dominating re
   assert.equal(relationship(model, "handoff", "tests/handoff.test.js")?.count, 2);
   assert.equal(model.commonFileRelationships.some((item) => item.related.startsWith("src/one-off/")), false);
   assert.equal(model.frequentlyModifiedTogether.some((item) => item.files.some((file) => file.startsWith("src/one-off/"))), false);
+  assert.equal(model.frequentlyModifiedTogether.some((item) => item.recentSummary === null), false);
 });
 
 test("repository learning model ignores generated asset and archive files", () => {

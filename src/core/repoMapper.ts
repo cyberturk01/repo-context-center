@@ -1,7 +1,7 @@
 import path from "node:path";
 import { requiredContextFiles, type RequiredContextFile } from "./contextFiles";
 import { ensureDir, listDirectoryNames, readTextFile, writeTextFile, pathExists } from "./fileSystem";
-import { renderRepositoryLearningBody } from "./renderRepositoryLearning";
+import { renderRepositoryLearningBody, upsertRepositoryLearning } from "./renderRepositoryLearning";
 import { buildRepositoryLearningModel } from "./repositoryLearning";
 import { buildRepositoryUnderstanding, type RepositoryUnderstanding } from "./repositoryUnderstanding";
 import { extractExportedSymbols, type ScannedSymbol } from "./scanner";
@@ -1976,7 +1976,9 @@ async function buildChanges(cwd: string, data: RepoMapData): Promise<RepoMapChan
     const rendered = renderer.render(data, existing);
     const content = generatedFile === "docs/ai-context/WORK_INDEX.md"
       ? rendered
-      : upsertGeneratedSection(existing, renderer.title, rendered);
+      : generatedFile === "docs/ai-context/REPOSITORY_LEARNING.md"
+        ? upsertRepositoryLearning(existing, buildRepositoryLearningModel({}))
+        : upsertGeneratedSection(existing, renderer.title, rendered);
     changes.push({
       path: file,
       action: existing === undefined ? "create" : "update",

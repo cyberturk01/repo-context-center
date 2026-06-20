@@ -110,8 +110,8 @@ test("init creates missing context files and populates real map content", async 
     assert.match(taskRouting, /<!-- repo-context-center:generated:start -->/);
     assert.match(taskRouting, /src\/auth\/login\.ts/);
     assert.match(moduleIndex, /tests\/auth\/login\.test\.ts/);
-    assert.match(repositoryLearning, /<!-- repo-context-center:generated:start -->/);
-    assert.match(repositoryLearning, /<!-- repo-context-center:generated:end -->/);
+    assert.match(repositoryLearning, /<!-- repo-context-center:repository-learning:start -->/);
+    assert.match(repositoryLearning, /<!-- repo-context-center:repository-learning:end -->/);
     assert.match(repositoryLearning, /## Recent Focus Areas/);
     assert.doesNotMatch(agents, /repo-context-center:generated:start/);
     assert.doesNotMatch(agents, /Compact generated entrypoint\./);
@@ -129,9 +129,9 @@ test("init preserves manual repository learning sections outside generated marke
       "",
       "Manual note before generated content.",
       "",
-      "<!-- repo-context-center:generated:start -->",
+      "<!-- repo-context-center:repository-learning:start -->",
       "stale generated content",
-      "<!-- repo-context-center:generated:end -->",
+      "<!-- repo-context-center:repository-learning:end -->",
       "",
       "Manual note after generated content.",
       ""

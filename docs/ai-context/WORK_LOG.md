@@ -4,6 +4,262 @@ Lightweight RCC memory from completed agent work.
 
 <!-- repo-context-center:work-log:start -->
 
+## 2026-06-20T11:17:10.708Z
+- Summary: smoke test repository learning
+- Changed files: _not detected_
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "smoke test repository learning",
+  "files": [],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T11:17:10.708Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T11:17:10.708Z",
+  "summary": "smoke test repository learning",
+  "files": [],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-20T11:15:06.463Z
+- Summary: Integrated repository learning updates into archive lifecycle
+- Changed files: `src/cli/commands/archive.ts`, `src/cli/commands/done.ts`, `src/core/archiver.ts`, `tests/archive.test.js`, `tests/done.test.js`
+- Verification: npm run build; node --test tests/done.test.js tests/archive.test.js tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js; node --test tests/*.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Integrated repository learning updates into archive lifecycle",
+  "files": [
+    "src/cli/commands/archive.ts",
+    "src/cli/commands/done.ts",
+    "src/core/archiver.ts",
+    "tests/archive.test.js",
+    "tests/done.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/done.test.js tests/archive.test.js tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js; node --test tests/*.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T11:15:06.463Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T11:15:06.463Z",
+  "summary": "Integrated repository learning updates into archive lifecycle",
+  "files": [
+    "src/cli/commands/archive.ts",
+    "src/cli/commands/done.ts",
+    "src/core/archiver.ts",
+    "tests/archive.test.js",
+    "tests/done.test.js"
+  ],
+  "verification": "npm run build; node --test tests/done.test.js tests/archive.test.js tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js; node --test tests/*.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-20T11:10:28.636Z
+- Summary: Added Repository Learning markdown renderer
+- Changed files: `src/core/renderRepositoryLearning.ts`, `src/core/repositoryLearning.ts`, `src/core/repoMapper.ts`, `src/cli/commands/done.ts`, `src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md`, `docs/ai-context/REPOSITORY_LEARNING.md`, `tests/renderRepositoryLearning.test.js`, `tests/repositoryLearning.test.js`, `tests/done.test.js`, `tests/templates.test.js`
+- Verification: npm run build; node --test tests/renderRepositoryLearning.test.js tests/repositoryLearning.test.js tests/done.test.js tests/templates.test.js tests/init.test.js; node --test tests/*.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added Repository Learning markdown renderer",
+  "files": [
+    "src/core/renderRepositoryLearning.ts",
+    "src/core/repositoryLearning.ts",
+    "src/core/repoMapper.ts",
+    "src/cli/commands/done.ts",
+    "src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md",
+    "docs/ai-context/REPOSITORY_LEARNING.md",
+    "tests/renderRepositoryLearning.test.js",
+    "tests/repositoryLearning.test.js",
+    "tests/done.test.js",
+    "tests/templates.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/renderRepositoryLearning.test.js tests/repositoryLearning.test.js tests/done.test.js tests/templates.test.js tests/init.test.js; node --test tests/*.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T11:10:28.636Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T11:10:28.636Z",
+  "summary": "Added Repository Learning markdown renderer",
+  "files": [
+    "src/core/renderRepositoryLearning.ts",
+    "src/core/repositoryLearning.ts",
+    "src/core/repoMapper.ts",
+    "src/cli/commands/done.ts",
+    "src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md",
+    "docs/ai-context/REPOSITORY_LEARNING.md",
+    "tests/renderRepositoryLearning.test.js",
+    "tests/repositoryLearning.test.js",
+    "tests/done.test.js",
+    "tests/templates.test.js"
+  ],
+  "verification": "npm run build; node --test tests/renderRepositoryLearning.test.js tests/repositoryLearning.test.js tests/done.test.js tests/templates.test.js tests/init.test.js; node --test tests/*.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-20T11:02:08.316Z
+- Summary: Built repository learning model from work memory
+- Changed files: `src/core/repositoryLearning.ts`, `src/core/workMemory.ts`, `src/core/repoMapper.ts`, `src/cli/commands/done.ts`, `tests/repositoryLearning.test.js`, `tests/done.test.js`
+- Verification: npm run build; node --test tests/repositoryLearning.test.js tests/done.test.js tests/init.test.js tests/templates.test.js; node --test tests/*.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Built repository learning model from work memory",
+  "files": [
+    "src/core/repositoryLearning.ts",
+    "src/core/workMemory.ts",
+    "src/core/repoMapper.ts",
+    "src/cli/commands/done.ts",
+    "tests/repositoryLearning.test.js",
+    "tests/done.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/repositoryLearning.test.js tests/done.test.js tests/init.test.js tests/templates.test.js; node --test tests/*.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T11:02:08.316Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T11:02:08.316Z",
+  "summary": "Built repository learning model from work memory",
+  "files": [
+    "src/core/repositoryLearning.ts",
+    "src/core/workMemory.ts",
+    "src/core/repoMapper.ts",
+    "src/cli/commands/done.ts",
+    "tests/repositoryLearning.test.js",
+    "tests/done.test.js"
+  ],
+  "verification": "npm run build; node --test tests/repositoryLearning.test.js tests/done.test.js tests/init.test.js tests/templates.test.js; node --test tests/*.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-20T10:54:22.568Z
+- Summary: Added repository learning context generation
+- Changed files: `src/templates/generic/index.ts`, `src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md`, `docs/ai-context/REPOSITORY_LEARNING.md`, `src/core/workMemory.ts`, `src/core/repoMapper.ts`, `src/cli/commands/done.ts`, `tests/templates.test.js`, `tests/init.test.js`, `tests/done.test.js`
+- Verification: npm run build; node --test tests/templates.test.js tests/init.test.js tests/done.test.js; node --test tests/*.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added repository learning context generation",
+  "files": [
+    "src/templates/generic/index.ts",
+    "src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md",
+    "docs/ai-context/REPOSITORY_LEARNING.md",
+    "src/core/workMemory.ts",
+    "src/core/repoMapper.ts",
+    "src/cli/commands/done.ts",
+    "tests/templates.test.js",
+    "tests/init.test.js",
+    "tests/done.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/templates.test.js tests/init.test.js tests/done.test.js; node --test tests/*.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T10:54:22.568Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T10:54:22.568Z",
+  "summary": "Added repository learning context generation",
+  "files": [
+    "src/templates/generic/index.ts",
+    "src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md",
+    "docs/ai-context/REPOSITORY_LEARNING.md",
+    "src/core/workMemory.ts",
+    "src/core/repoMapper.ts",
+    "src/cli/commands/done.ts",
+    "tests/templates.test.js",
+    "tests/init.test.js",
+    "tests/done.test.js"
+  ],
+  "verification": "npm run build; node --test tests/templates.test.js tests/init.test.js tests/done.test.js; node --test tests/*.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-20T09:55:32.667Z
+- Summary: Compacted handoff memory to five prioritized continuation entries while preserving handoff schema fields.
+- Changed files: `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffConstants.ts`, `tests/handoff.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Compacted handoff memory to five prioritized continuation entries while preserving handoff schema fields.",
+  "files": [
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffConstants.ts",
+    "tests/handoff.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T09:55:32.667Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T09:55:32.667Z",
+  "summary": "Compacted handoff memory to five prioritized continuation entries while preserving handoff schema fields.",
+  "files": [
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffConstants.ts",
+    "tests/handoff.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
 ## 2026-06-20T09:46:54.089Z
 - Summary: Implemented WORK_INDEX generation from completed work, archive compaction for WORK_LOG, and handoff use of compact work memory.
 - Changed files: `AGENTS.md`, `src/cli/commands/done.ts`, `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffConstants.ts`, `src/cli/handoff/handoffSources.ts`, `src/cli/handoff/handoffTypes.ts`, `src/core/archiver.ts`, `src/core/repoMapper.ts`, `src/core/workMemory.ts`, `src/templates/generic/AGENTS.md`
@@ -718,257 +974,55 @@ Lightweight RCC memory from completed agent work.
 - Changed files: `AGENTS.md`
 - Verification: reviewed AGENTS.md diff (docs-only change)
 
-## 2026-06-19T13:31:10.968Z
-- Summary: Fixed routing benchmark warn and fail cases
-- Changed files: `scripts/benchmark-routing.js`, `src/cli/commands/work.ts`, `tests/work.test.js`
-- Verification: npm run build; npm run benchmark:routing; npm test
-
-## 2026-06-19T13:24:20.904Z
-- Summary: Added measure command to compare naive scan token estimates with RCC work startup estimates
-- Changed files: `AGENTS.md`, `package.json`, `scripts/benchmark-routing.js`, `src/cli/commands/doctor.ts`, `src/cli/commands/measure.ts`, `src/cli/commands/work.ts`, `src/cli/index.ts`, `src/core/tokenEstimator.ts`, `tests/cli.test.js`, `tests/estimate.test.js`
-- Verification: npm run build; node dist/cli/index.js measure "fix workflow bug"; node dist/cli/index.js measure "fix workflow bug" --json; npm test
-
-## 2026-06-19T13:13:24.289Z
-- Summary: Added doctor command to warn when local RCC development repo is run with a mismatched external CLI
-- Changed files: `AGENTS.md`, `package.json`, `scripts/benchmark-routing.js`, `src/cli/commands/doctor.ts`, `src/cli/index.ts`, `tests/cli.test.js`
-- Verification: npm run build; node dist/cli/index.js doctor; npm test
-
-## 2026-06-19T13:01:46.551Z
-- Summary: Added dependency-free routing benchmark script and npm alias for representative rcc work tasks
-- Changed files: `AGENTS.md`, `package.json`, `scripts/benchmark-routing.js`
-- Verification: npm run build; npm run benchmark:routing; npm test
-
-## 2026-06-19T12:54:41.164Z
-- Summary: Compacted AGENTS RCC workflow guidance
-- Changed files: `AGENTS.md`
-- Verification: npm run build; node --test tests/work.test.js; npm test
-
-## 2026-06-19T12:42:59.828Z
-- Summary: Added guidance and benchmark to prevent repeated RCC work calls
-- Changed files: `AGENTS.md`, `package.json`, `scripts/benchmark-work-repeat.js`, `src/cli/commands/work.ts`, `tests/work.test.js`
-- Verification: npm run build; npm run benchmark:work-repeat; node --test tests/work.test.js; npm test
-
-## 2026-06-20T09:55:32.667Z
-- Summary: Compacted handoff memory to five prioritized continuation entries while preserving handoff schema fields.
-- Changed files: `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffConstants.ts`, `tests/handoff.test.js`
-- Verification: npm test
+## 2026-06-20T11:23:57.942Z
+- Summary: Polished repository learning markdown output
+- Changed files: `src/core/renderRepositoryLearning.ts`, `src/core/repositoryLearning.ts`, `src/core/repoMapper.ts`, `src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md`, `docs/ai-context/REPOSITORY_LEARNING.md`, `tests/renderRepositoryLearning.test.js`, `tests/repositoryLearning.test.js`, `tests/done.test.js`, `tests/archive.test.js`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js tests/done.test.js tests/archive.test.js; node --test tests/*.test.js
 <!-- rcc:handoff
 {
   "schemaVersion": 1,
-  "summary": "Compacted handoff memory to five prioritized continuation entries while preserving handoff schema fields.",
-  "files": [
-    "src/cli/handoff/buildHandoffBrief.ts",
-    "src/cli/handoff/handoffConstants.ts",
-    "tests/handoff.test.js"
-  ],
-  "verification": [
-    "npm test"
-  ],
-  "followUps": [],
-  "risks": [],
-  "timestamp": "2026-06-20T09:55:32.667Z"
-}
--->
-```json repo-context-center:done
-{
-  "schemaVersion": 1,
-  "command": "done",
-  "timestamp": "2026-06-20T09:55:32.667Z",
-  "summary": "Compacted handoff memory to five prioritized continuation entries while preserving handoff schema fields.",
-  "files": [
-    "src/cli/handoff/buildHandoffBrief.ts",
-    "src/cli/handoff/handoffConstants.ts",
-    "tests/handoff.test.js"
-  ],
-  "verification": "npm test",
-  "followUps": [],
-  "risks": []
-}
-```
-
-## 2026-06-20T10:54:22.568Z
-- Summary: Added repository learning context generation
-- Changed files: `src/templates/generic/index.ts`, `src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md`, `docs/ai-context/REPOSITORY_LEARNING.md`, `src/core/workMemory.ts`, `src/core/repoMapper.ts`, `src/cli/commands/done.ts`, `tests/templates.test.js`, `tests/init.test.js`, `tests/done.test.js`
-- Verification: npm run build; node --test tests/templates.test.js tests/init.test.js tests/done.test.js; node --test tests/*.test.js
-<!-- rcc:handoff
-{
-  "schemaVersion": 1,
-  "summary": "Added repository learning context generation",
-  "files": [
-    "src/templates/generic/index.ts",
-    "src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md",
-    "docs/ai-context/REPOSITORY_LEARNING.md",
-    "src/core/workMemory.ts",
-    "src/core/repoMapper.ts",
-    "src/cli/commands/done.ts",
-    "tests/templates.test.js",
-    "tests/init.test.js",
-    "tests/done.test.js"
-  ],
-  "verification": [
-    "npm run build; node --test tests/templates.test.js tests/init.test.js tests/done.test.js; node --test tests/*.test.js"
-  ],
-  "followUps": [],
-  "risks": [],
-  "timestamp": "2026-06-20T10:54:22.568Z"
-}
--->
-```json repo-context-center:done
-{
-  "schemaVersion": 1,
-  "command": "done",
-  "timestamp": "2026-06-20T10:54:22.568Z",
-  "summary": "Added repository learning context generation",
-  "files": [
-    "src/templates/generic/index.ts",
-    "src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md",
-    "docs/ai-context/REPOSITORY_LEARNING.md",
-    "src/core/workMemory.ts",
-    "src/core/repoMapper.ts",
-    "src/cli/commands/done.ts",
-    "tests/templates.test.js",
-    "tests/init.test.js",
-    "tests/done.test.js"
-  ],
-  "verification": "npm run build; node --test tests/templates.test.js tests/init.test.js tests/done.test.js; node --test tests/*.test.js",
-  "followUps": [],
-  "risks": []
-}
-```
-
-## 2026-06-20T11:02:08.316Z
-- Summary: Built repository learning model from work memory
-- Changed files: `src/core/repositoryLearning.ts`, `src/core/workMemory.ts`, `src/core/repoMapper.ts`, `src/cli/commands/done.ts`, `tests/repositoryLearning.test.js`, `tests/done.test.js`
-- Verification: npm run build; node --test tests/repositoryLearning.test.js tests/done.test.js tests/init.test.js tests/templates.test.js; node --test tests/*.test.js
-<!-- rcc:handoff
-{
-  "schemaVersion": 1,
-  "summary": "Built repository learning model from work memory",
-  "files": [
-    "src/core/repositoryLearning.ts",
-    "src/core/workMemory.ts",
-    "src/core/repoMapper.ts",
-    "src/cli/commands/done.ts",
-    "tests/repositoryLearning.test.js",
-    "tests/done.test.js"
-  ],
-  "verification": [
-    "npm run build; node --test tests/repositoryLearning.test.js tests/done.test.js tests/init.test.js tests/templates.test.js; node --test tests/*.test.js"
-  ],
-  "followUps": [],
-  "risks": [],
-  "timestamp": "2026-06-20T11:02:08.316Z"
-}
--->
-```json repo-context-center:done
-{
-  "schemaVersion": 1,
-  "command": "done",
-  "timestamp": "2026-06-20T11:02:08.316Z",
-  "summary": "Built repository learning model from work memory",
-  "files": [
-    "src/core/repositoryLearning.ts",
-    "src/core/workMemory.ts",
-    "src/core/repoMapper.ts",
-    "src/cli/commands/done.ts",
-    "tests/repositoryLearning.test.js",
-    "tests/done.test.js"
-  ],
-  "verification": "npm run build; node --test tests/repositoryLearning.test.js tests/done.test.js tests/init.test.js tests/templates.test.js; node --test tests/*.test.js",
-  "followUps": [],
-  "risks": []
-}
-```
-
-## 2026-06-20T11:10:28.636Z
-- Summary: Added Repository Learning markdown renderer
-- Changed files: `src/core/renderRepositoryLearning.ts`, `src/core/repositoryLearning.ts`, `src/core/repoMapper.ts`, `src/cli/commands/done.ts`, `src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md`, `docs/ai-context/REPOSITORY_LEARNING.md`, `tests/renderRepositoryLearning.test.js`, `tests/repositoryLearning.test.js`, `tests/done.test.js`, `tests/templates.test.js`
-- Verification: npm run build; node --test tests/renderRepositoryLearning.test.js tests/repositoryLearning.test.js tests/done.test.js tests/templates.test.js tests/init.test.js; node --test tests/*.test.js
-<!-- rcc:handoff
-{
-  "schemaVersion": 1,
-  "summary": "Added Repository Learning markdown renderer",
+  "summary": "Polished repository learning markdown output",
   "files": [
     "src/core/renderRepositoryLearning.ts",
     "src/core/repositoryLearning.ts",
     "src/core/repoMapper.ts",
-    "src/cli/commands/done.ts",
     "src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md",
     "docs/ai-context/REPOSITORY_LEARNING.md",
     "tests/renderRepositoryLearning.test.js",
     "tests/repositoryLearning.test.js",
     "tests/done.test.js",
+    "tests/archive.test.js",
+    "tests/init.test.js",
     "tests/templates.test.js"
   ],
   "verification": [
-    "npm run build; node --test tests/renderRepositoryLearning.test.js tests/repositoryLearning.test.js tests/done.test.js tests/templates.test.js tests/init.test.js; node --test tests/*.test.js"
+    "npm run build; node --test tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js tests/done.test.js tests/archive.test.js; node --test tests/*.test.js"
   ],
   "followUps": [],
   "risks": [],
-  "timestamp": "2026-06-20T11:10:28.636Z"
+  "timestamp": "2026-06-20T11:23:57.942Z"
 }
 -->
 ```json repo-context-center:done
 {
   "schemaVersion": 1,
   "command": "done",
-  "timestamp": "2026-06-20T11:10:28.636Z",
-  "summary": "Added Repository Learning markdown renderer",
+  "timestamp": "2026-06-20T11:23:57.942Z",
+  "summary": "Polished repository learning markdown output",
   "files": [
     "src/core/renderRepositoryLearning.ts",
     "src/core/repositoryLearning.ts",
     "src/core/repoMapper.ts",
-    "src/cli/commands/done.ts",
     "src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md",
     "docs/ai-context/REPOSITORY_LEARNING.md",
     "tests/renderRepositoryLearning.test.js",
     "tests/repositoryLearning.test.js",
     "tests/done.test.js",
+    "tests/archive.test.js",
+    "tests/init.test.js",
     "tests/templates.test.js"
   ],
-  "verification": "npm run build; node --test tests/renderRepositoryLearning.test.js tests/repositoryLearning.test.js tests/done.test.js tests/templates.test.js tests/init.test.js; node --test tests/*.test.js",
-  "followUps": [],
-  "risks": []
-}
-```
-
-## 2026-06-20T11:15:06.463Z
-- Summary: Integrated repository learning updates into archive lifecycle
-- Changed files: `src/cli/commands/archive.ts`, `src/cli/commands/done.ts`, `src/core/archiver.ts`, `tests/archive.test.js`, `tests/done.test.js`
-- Verification: npm run build; node --test tests/done.test.js tests/archive.test.js tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js; node --test tests/*.test.js
-<!-- rcc:handoff
-{
-  "schemaVersion": 1,
-  "summary": "Integrated repository learning updates into archive lifecycle",
-  "files": [
-    "src/cli/commands/archive.ts",
-    "src/cli/commands/done.ts",
-    "src/core/archiver.ts",
-    "tests/archive.test.js",
-    "tests/done.test.js"
-  ],
-  "verification": [
-    "npm run build; node --test tests/done.test.js tests/archive.test.js tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js; node --test tests/*.test.js"
-  ],
-  "followUps": [],
-  "risks": [],
-  "timestamp": "2026-06-20T11:15:06.463Z"
-}
--->
-```json repo-context-center:done
-{
-  "schemaVersion": 1,
-  "command": "done",
-  "timestamp": "2026-06-20T11:15:06.463Z",
-  "summary": "Integrated repository learning updates into archive lifecycle",
-  "files": [
-    "src/cli/commands/archive.ts",
-    "src/cli/commands/done.ts",
-    "src/core/archiver.ts",
-    "tests/archive.test.js",
-    "tests/done.test.js"
-  ],
-  "verification": "npm run build; node --test tests/done.test.js tests/archive.test.js tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js; node --test tests/*.test.js",
+  "verification": "npm run build; node --test tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js tests/done.test.js tests/archive.test.js; node --test tests/*.test.js",
   "followUps": [],
   "risks": []
 }

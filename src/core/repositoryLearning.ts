@@ -93,6 +93,12 @@ function scopeForEntry(entry: WorkMemoryEntry): string {
   if (/\bhandoff\b|handoff\//.test(haystack)) {
     return "handoff";
   }
+  if (/\barchive\b|archiver|archive\.test/.test(haystack)) {
+    return "archive";
+  }
+  if (/\bdone\b|commands\/done|done\.test/.test(haystack)) {
+    return "done";
+  }
   if (/\bwork\b|commands\/work|work\.test|cli\/work\//.test(haystack)) {
     return "work";
   }
@@ -120,6 +126,16 @@ function scopeForEntry(entry: WorkMemoryEntry): string {
 
   const firstFile = filteredFiles(entry.files)[0];
   return firstFile ? fallbackScopeFromPath(firstFile) : "general maintenance";
+}
+
+function relationshipReason(source: string): string {
+  if (source === "work") {
+    return "Observed in completed work tasks";
+  }
+  if (source === "handoff" || source === "archive" || source === "done") {
+    return `Observed in completed ${source} work`;
+  }
+  return `Observed in completed ${source} work`;
 }
 
 function increment<K>(map: Map<K, number>, key: K, amount = 1): void {
@@ -181,7 +197,7 @@ function commonFileRelationships(entries: WorkMemoryEntry[]): RepositoryLearning
     .map(({ source, related, count }) => ({
       source,
       related,
-      reason: `Observed in completed ${source} work`,
+      reason: relationshipReason(source),
       count
     }));
 }
@@ -195,7 +211,12 @@ function frequentlyModifiedTogether(entries: WorkMemoryEntry[]): RepositoryLearn
       for (let next = index + 1; next < files.length; next += 1) {
         const pairFiles = [files[index], files[next]].sort((left, right) => left.localeCompare(right));
         const key = pairFiles.join("\0");
-        const current = pairs.get(key) ?? { count: 0, files: pairFiles, latest: entry.timestamp, summary: null };
+        const current = pairs.get(key) ?? {
+          count: 0,
+          files: pairFiles,
+          latest: entry.timestamp,
+          summary: cleanInline(entry.summary, 140)
+        };
         current.count += 1;
         if (entry.timestamp > current.latest) {
           current.latest = entry.timestamp;

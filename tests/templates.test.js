@@ -201,13 +201,16 @@ test("repository learning template has generated markers and compact sections", 
   const content = await readFile(path.join(templateRoot, "docs/ai-context/REPOSITORY_LEARNING.md"), "utf8");
 
   assert.match(content, /^# Repository Learning$/m);
-  assert.match(content, /<!-- repo-context-center:generated:start -->/);
-  assert.match(content, /<!-- repo-context-center:generated:end -->/);
+  assert.match(content, /<!-- repo-context-center:repository-learning:start -->/);
+  assert.match(content, /<!-- repo-context-center:repository-learning:end -->/);
   assert.match(content, /^## Recent Focus Areas$/m);
   assert.match(content, /^## Common File Relationships$/m);
   assert.match(content, /^## Frequently Modified Together$/m);
   assert.match(content, /^## Verification Patterns$/m);
   assert.match(content, /^## Repository Habits$/m);
+  assert.match(content, /\| --- \| --- \| --- \| ---: \|/);
+  assert.match(content, /\| --- \| ---: \| --- \|/);
+  assert.doesNotMatch(content, /(^|\|)\s*--:\s*(?=\|)/);
   assert.match(content, /none detected yet/);
 });
 

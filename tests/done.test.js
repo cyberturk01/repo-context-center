@@ -237,19 +237,21 @@ test("done updates repository learning with compact generated patterns", async (
     assert.match(result.stdout, /RCC work index updated: docs\/ai-context\/WORK_INDEX\.md/);
     assert.match(result.stdout, /RCC learning updated: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
     assert.match(content, /^# Repository Learning$/m);
-    assert.match(content, /<!-- repo-context-center:generated:start -->/);
-    assert.match(content, /<!-- repo-context-center:generated:end -->/);
+    assert.match(content, /<!-- repo-context-center:repository-learning:start -->/);
+    assert.match(content, /<!-- repo-context-center:repository-learning:end -->/);
     assert.match(content, /^## Recent Focus Areas$/m);
     assert.match(content, /^## Common File Relationships$/m);
     assert.match(content, /^## Frequently Modified Together$/m);
     assert.match(content, /^## Verification Patterns$/m);
     assert.match(content, /^## Repository Habits$/m);
-    assert.match(content, /\| repository context \| `tests\/done\.test\.js` \| Observed in completed repository context work \| 1 \|/);
+    assert.match(content, /\| done \| `tests\/done\.test\.js` \| Observed in completed done work \| 1 \|/);
     assert.match(content, /\| none detected yet \| - \| - \|/);
     assert.match(content, /\| done \| `node --test tests\/done\.test\.js` \| 1 \|/);
+    assert.doesNotMatch(content, /(^|\|)\s*--:\s*(?=\|)/);
+    assert.doesNotMatch(content, /\bwork work\b/);
     assert.doesNotMatch(content, /- Summary:/);
-    assert.equal(countOccurrences(content, "<!-- repo-context-center:generated:start -->"), 1);
-    assert.equal(countOccurrences(content, "<!-- repo-context-center:generated:end -->"), 1);
+    assert.equal(countOccurrences(content, "<!-- repo-context-center:repository-learning:start -->"), 1);
+    assert.equal(countOccurrences(content, "<!-- repo-context-center:repository-learning:end -->"), 1);
   });
 });
 
@@ -260,9 +262,9 @@ test("done preserves manual repository learning content outside generated marker
       "",
       "Manual note before generated content.",
       "",
-      "<!-- repo-context-center:generated:start -->",
+      "<!-- repo-context-center:repository-learning:start -->",
       "stale generated content",
-      "<!-- repo-context-center:generated:end -->",
+      "<!-- repo-context-center:repository-learning:end -->",
       "",
       "Manual note after generated content.",
       ""

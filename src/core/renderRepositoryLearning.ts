@@ -3,10 +3,14 @@ import {
   type RepositoryLearningModel
 } from "./repositoryLearning";
 
-export const repositoryLearningGeneratedStart = "<!-- repo-context-center:generated:start -->";
-export const repositoryLearningGeneratedEnd = "<!-- repo-context-center:generated:end -->";
+export const repositoryLearningGeneratedStart = "<!-- repo-context-center:repository-learning:start -->";
+export const repositoryLearningGeneratedEnd = "<!-- repo-context-center:repository-learning:end -->";
+
+const legacyGeneratedStart = "<!-- repo-context-center:generated:start -->";
+const legacyGeneratedEnd = "<!-- repo-context-center:generated:end -->";
 
 const noneDetected = "none detected yet";
+const populatedTogetherFallback = "observed together in completed work";
 
 function cleanCell(value: string | null | undefined): string {
   return (value?.replace(/\r?\n/g, " ").replace(/\s+/g, " ").trim() || noneDetected)
@@ -32,7 +36,7 @@ function noneTableRow(columns: number): string {
 function table(headers: string[], rows: string[]): string[] {
   return [
     `| ${headers.join(" | ")} |`,
-    `| ${headers.map((header) => header === "Count" ? "--:" : "---").join(" | ")} |`,
+    `| ${headers.map((header) => header === "Count" ? "---:" : "---").join(" | ")} |`,
     ...rows
   ];
 }
@@ -41,7 +45,7 @@ export function renderRepositoryLearningBody(model: RepositoryLearningModel): st
   const relationshipRows = limited(model.commonFileRelationships, repositoryLearningLimits.commonFileRelationships)
     .map((relationship) => `| ${cleanCell(relationship.source)} | ${codeCell(relationship.related)} | ${cleanCell(relationship.reason)} | ${relationship.count} |`);
   const togetherRows = limited(model.frequentlyModifiedTogether, repositoryLearningLimits.frequentlyModifiedTogether)
-    .map((item) => `| ${item.files.map(codeCell).join(", ")} | ${item.count} | ${cleanCell(item.recentSummary)} |`);
+    .map((item) => `| ${item.files.map(codeCell).join(", ")} | ${item.count} | ${cleanCell(item.recentSummary ?? populatedTogetherFallback)} |`);
   const verificationRows = limited(model.verificationPatterns, repositoryLearningLimits.verificationPatterns)
     .map((pattern) => `| ${cleanCell(pattern.scope)} | ${codeCell(pattern.command)} | ${pattern.count} |`);
 
@@ -103,12 +107,19 @@ export function upsertRepositoryLearning(existing: string | undefined, model: Re
   }
 
   const normalized = existing.replace(/\r\n/g, "\n");
-  const start = normalized.indexOf(repositoryLearningGeneratedStart);
-  const end = normalized.indexOf(repositoryLearningGeneratedEnd);
+  let start = normalized.indexOf(repositoryLearningGeneratedStart);
+  let end = normalized.indexOf(repositoryLearningGeneratedEnd);
+  let endMarker = repositoryLearningGeneratedEnd;
+
+  if (start === -1 || end === -1 || end <= start) {
+    start = normalized.indexOf(legacyGeneratedStart);
+    end = normalized.indexOf(legacyGeneratedEnd);
+    endMarker = legacyGeneratedEnd;
+  }
 
   if (start !== -1 && end !== -1 && end > start) {
     const before = normalized.slice(0, start).trimEnd();
-    const after = normalized.slice(end + repositoryLearningGeneratedEnd.length).trimStart();
+    const after = normalized.slice(end + endMarker.length).trimStart();
     return `${before}\n\n${generated}${after ? `\n\n${after.trimEnd()}` : ""}\n`;
   }
 

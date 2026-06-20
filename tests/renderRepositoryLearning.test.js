@@ -20,13 +20,17 @@ test("renderRepositoryLearning renders an empty model with compact placeholders"
 
   assert.match(rendered, /^# Repository Learning$/m);
   assert.match(rendered, /Compact learned repository behavior from completed RCC work\./);
-  assert.match(rendered, /<!-- repo-context-center:generated:start -->/);
+  assert.match(rendered, /<!-- repo-context-center:repository-learning:start -->/);
+  assert.match(rendered, /<!-- repo-context-center:repository-learning:end -->/);
   assert.match(rendered, /^## Recent Focus Areas$/m);
   assert.match(rendered, /- none detected yet/);
   assert.match(rendered, /\| Source \| Related \| Reason \| Count \|/);
+  assert.match(rendered, /\| --- \| --- \| --- \| ---: \|/);
   assert.match(rendered, /\| none detected yet \| - \| - \| - \|/);
   assert.match(rendered, /\| Files \| Count \| Recent summary \|/);
+  assert.match(rendered, /\| --- \| ---: \| --- \|/);
   assert.match(rendered, /\| Scope \| Command \| Count \|/);
+  assert.doesNotMatch(rendered, /(^|\|)\s*--:\s*(?=\|)/);
   assert.doesNotMatch(rendered, /- Summary:/);
 });
 
@@ -57,9 +61,46 @@ test("renderRepositoryLearningBody renders populated model tables", () => {
   assert.match(rendered, /\| `src\/cli\/handoff\/renderJson\.ts`, `tests\/handoff\.test\.js` \| 2 \| Fixed handoff source parsing \|/);
   assert.match(rendered, /\| handoff \| `node --test tests\/handoff\.test\.js` \| 2 \|/);
   assert.match(rendered, /- Verification commands are recorded with completed work \(2\/2\)\./);
+  assert.doesNotMatch(rendered, /(^|\|)\s*--:\s*(?=\|)/);
+  assert.doesNotMatch(rendered, /\bwork work\b/);
+});
+
+test("renderRepositoryLearningBody uses useful fallback for populated co-change rows", () => {
+  const rendered = renderRepositoryLearningBody({
+    ...emptyModel,
+    frequentlyModifiedTogether: [{
+      files: ["src/cli/commands/done.ts", "tests/done.test.js"],
+      count: 2,
+      recentSummary: null
+    }]
+  });
+
+  assert.match(rendered, /\| `src\/cli\/commands\/done\.ts`, `tests\/done\.test\.js` \| 2 \| observed together in completed work \|/);
+  assert.doesNotMatch(rendered, /\| `src\/cli\/commands\/done\.ts`, `tests\/done\.test\.js` \| 2 \| none detected yet \|/);
 });
 
 test("upsertRepositoryLearning preserves manual content outside generated markers", () => {
+  const existing = [
+    "# Repository Learning",
+    "",
+    "Manual note before.",
+    "",
+    "<!-- repo-context-center:repository-learning:start -->",
+    "old generated content",
+    "<!-- repo-context-center:repository-learning:end -->",
+    "",
+    "Manual note after.",
+    ""
+  ].join("\n");
+  const rendered = upsertRepositoryLearning(existing, emptyModel);
+
+  assert.match(rendered, /Manual note before\./);
+  assert.match(rendered, /Manual note after\./);
+  assert.match(rendered, /Compact learned repository behavior|## Recent Focus Areas/);
+  assert.doesNotMatch(rendered, /old generated content/);
+});
+
+test("upsertRepositoryLearning migrates legacy generic markers", () => {
   const existing = [
     "# Repository Learning",
     "",
@@ -76,7 +117,9 @@ test("upsertRepositoryLearning preserves manual content outside generated marker
 
   assert.match(rendered, /Manual note before\./);
   assert.match(rendered, /Manual note after\./);
-  assert.match(rendered, /Compact learned repository behavior|## Recent Focus Areas/);
+  assert.match(rendered, /<!-- repo-context-center:repository-learning:start -->/);
+  assert.match(rendered, /<!-- repo-context-center:repository-learning:end -->/);
+  assert.doesNotMatch(rendered, /repo-context-center:generated:start/);
   assert.doesNotMatch(rendered, /old generated content/);
 });
 
@@ -84,8 +127,8 @@ test("upsertRepositoryLearning appends generated markers when none exist", () =>
   const rendered = upsertRepositoryLearning("# Repository Learning\n\nManual only.\n", emptyModel);
 
   assert.match(rendered, /Manual only\./);
-  assert.match(rendered, /<!-- repo-context-center:generated:start -->/);
-  assert.match(rendered, /<!-- repo-context-center:generated:end -->/);
+  assert.match(rendered, /<!-- repo-context-center:repository-learning:start -->/);
+  assert.match(rendered, /<!-- repo-context-center:repository-learning:end -->/);
 });
 
 test("renderRepositoryLearningBody does not exceed configured limits", () => {
