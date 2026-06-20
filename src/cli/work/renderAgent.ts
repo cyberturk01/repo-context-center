@@ -38,7 +38,11 @@ function agentReadFirstItems(brief: WorkBrief, verbose: boolean): PublicAgentRou
 }
 
 function agentNext(brief: WorkBrief): string {
-  if (brief.taskSize === "tiny" || brief.taskSize === "small") {
+  if (brief.taskSize === "tiny") {
+    return "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong.";
+  }
+
+  if (brief.taskSize === "small") {
     return "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration.";
   }
 

@@ -137,6 +137,74 @@ async function withWorkRepo(callback) {
   }
 }
 
+async function withPruningRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-pruning-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Work changes: read `src/cli/commands/work.ts`, `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderText.ts`, `src/cli/work/renderJson.ts`, `src/cli/work/renderAgent.ts`, `tests/work.test.js`, and `tests/cli.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "docs/ai-context/MODULE_INDEX.md", "# Module Index\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/work.ts", "export function workCommand() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/buildWorkBrief.ts", "export function buildWorkBrief() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/renderText.ts", "export function renderWorkText() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/renderJson.ts", "export function renderWorkJson() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/renderAgent.ts", "export function renderWorkAgent() {}\n");
+    await writeFixtureFile(tempDir, "tests/work.test.js", "test('work', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/cli.test.js", "test('cli', () => {});\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/REPOSITORY_LEARNING.md",
+      [
+        "# Repository Learning",
+        "",
+        "<!-- repo-context-center:repository-learning:start -->",
+        "## Generated Repo Map",
+        "",
+        "## Common File Relationships",
+        "",
+        "| Source | Related | Reason | Count |",
+        "| --- | --- | --- | ---: |",
+        "| work | `src/cli/work/renderText.ts` | Observed in completed work tasks | 4 |",
+        "| work | `src/cli/work/renderJson.ts` | Observed in completed work tasks | 3 |",
+        "| work | `src/cli/work/renderAgent.ts` | Observed in completed work tasks | 2 |",
+        "| work | `tests/work.test.js` | Observed in completed work tasks | 4 |",
+        "| work | `tests/cli.test.js` | Observed in completed work tasks | 3 |",
+        "",
+        "## Frequently Modified Together",
+        "",
+        "| Files | Count | Recent summary |",
+        "| --- | ---: | --- |",
+        "| `src/cli/commands/work.ts`, `tests/work.test.js` | 4 | Updated work command |",
+        "",
+        "## Verification Patterns",
+        "",
+        "| Scope | Command | Count |",
+        "| --- | --- | ---: |",
+        "| work | `node --test tests/work.test.js` | 4 |",
+        "",
+        "## Repository Habits",
+        "",
+        "- Tests are commonly changed with related implementation work (4/5).",
+        "",
+        "<!-- repo-context-center:repository-learning:end -->",
+        ""
+      ].join("\n")
+    );
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function writeHandoffDecisionFixture(root) {
   await writeFixtureFile(
     root,
@@ -756,7 +824,7 @@ test("work --agent marks tiny tasks as fast fixes with lightweight guidance", as
     assert.equal(result.status, 0);
     assert.equal(route.taskSize, "tiny");
     assert.equal(route.mode, "fast_fix");
-    assert.equal(route.next, "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration.");
+    assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong.");
   });
 });
 
@@ -774,6 +842,118 @@ test("work --agent keeps medium and large tasks on normal deep guidance", async 
     assert.equal(large.mode, "deep");
     assert.match(large.next, /^Start with primaryFiles\./);
     assert.doesNotMatch(large.next, /^Small task:/);
+  });
+});
+
+test("work prunes tiny typo tasks to one primary file where possible", async () => {
+  await withPruningRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "fix work typo"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.taskSize, "tiny");
+    assert.ok(brief.primaryFiles.length <= 1, JSON.stringify(brief.primaryFiles));
+    assert.ok(brief.supportingFiles.length <= 1, JSON.stringify(brief.supportingFiles));
+    assert.ok(brief.tests.length <= 1, JSON.stringify(brief.tests));
+    assert.ok(brief.readFirst.includes("AGENTS.md"), JSON.stringify(brief.readFirst));
+  });
+});
+
+test("work prunes small tasks and limits supporting files", async () => {
+  await withPruningRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "fix work bug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.taskSize, "small");
+    assert.ok(brief.primaryFiles.length <= 2, JSON.stringify(brief.primaryFiles));
+    assert.ok(brief.supportingFiles.length <= 2, JSON.stringify(brief.supportingFiles));
+    assert.ok(brief.tests.length <= 2, JSON.stringify(brief.tests));
+  });
+});
+
+test("work pruning preserves highly relevant learned tests for small tasks", () => {
+  const { pruneWorkBriefForTaskSize } = require("../dist/cli/work/buildWorkBrief.js");
+  const brief = {
+    taskSize: "small",
+    primaryFiles: [
+      { path: "src/one.ts", reasons: [] },
+      { path: "src/two.ts", reasons: [] },
+      { path: "src/three.ts", reasons: [] }
+    ],
+    supportingFiles: [],
+    tests: [
+      { path: "tests/one.test.ts", reasons: [] },
+      { path: "tests/two.test.ts", reasons: [] },
+      { path: "tests/learned.test.ts", reasons: ["learned repository test pattern"] }
+    ],
+    taskFiles: [
+      { path: "src/one.ts", reasons: [] },
+      { path: "src/two.ts", reasons: [] },
+      { path: "src/three.ts", reasons: [] }
+    ],
+    supportingTests: [
+      { path: "tests/one.test.ts", reasons: [] },
+      { path: "tests/two.test.ts", reasons: [] },
+      { path: "tests/learned.test.ts", reasons: ["learned repository test pattern"] }
+    ],
+    recommendedFiles: [],
+    relevantTests: [
+      { path: "tests/one.test.ts", reasons: [] },
+      { path: "tests/two.test.ts", reasons: [] },
+      { path: "tests/learned.test.ts", reasons: ["learned repository test pattern"] }
+    ],
+    learnedRelatedFiles: [],
+    learnedTests: ["tests/learned.test.ts"],
+    learnedVerification: ["node --test tests/learned.test.ts"],
+    learnedHabits: ["Tests are commonly changed with related implementation work."],
+    recentLogs: [],
+    relevantDecisions: []
+  };
+  const pruned = pruneWorkBriefForTaskSize(brief);
+  const testPaths = pruned.tests.map((file) => file.path);
+
+  assert.equal(pruned.tests.length, 2);
+  assert.ok(testPaths.includes("tests/learned.test.ts"), testPaths.join("\n"));
+  assert.deepEqual(pruned.learnedTests, ["tests/learned.test.ts"]);
+});
+
+test("work does not aggressively prune medium tasks", async () => {
+  await withPruningRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "add JSON output for work command"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.taskSize, "medium");
+    assert.ok(brief.supportingFiles.length > 2 || brief.tests.length > 2, JSON.stringify({
+      supportingFiles: brief.supportingFiles,
+      tests: brief.tests
+    }));
+  });
+});
+
+test("work keeps broader guidance for large architecture tasks", async () => {
+  await withPruningRepo(async (tempDir) => {
+    const result = runCli(["work", "--agent", "refactor work architecture"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.taskSize, "large");
+    assert.equal(route.mode, "deep");
+    assert.match(route.next, /^Start with primaryFiles\./);
+    assert.doesNotMatch(route.next, /^Tiny task:|^Small task:/);
+    assert.ok(route.supportingFiles.length > 1 || route.tests.length > 1, JSON.stringify(route));
+  });
+});
+
+test("work --agent tiny task says to skip broad exploration unless primary is wrong", async () => {
+  await withPruningRepo(async (tempDir) => {
+    const result = runCli(["work", "--agent", "fix work typo"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.taskSize, "tiny");
+    assert.match(route.next, /skip broad exploration unless the primary file is wrong/);
   });
 });
 

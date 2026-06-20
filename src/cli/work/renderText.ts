@@ -130,7 +130,13 @@ function targetLookupHintForText(hint: Omit<TargetedLookupHint, "index">): Targe
 }
 
 function renderNextLines(brief: WorkBrief, hasPrimaryFiles: boolean): string[] {
-  if (brief.taskSize === "tiny" || brief.taskSize === "small") {
+  if (brief.taskSize === "tiny") {
+    return [
+      "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and avoid broad exploration unless the primary file is wrong."
+    ];
+  }
+
+  if (brief.taskSize === "small") {
     return [
       "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and avoid broad exploration."
     ];

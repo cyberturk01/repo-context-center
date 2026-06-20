@@ -1574,4 +1574,44 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T15:38:02.010Z
+- Summary: Added task-size route pruning for rcc work so tiny and small briefs cap route files while preserving medium and large behavior.
+- Changed files: `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderAgent.ts`, `src/cli/work/renderText.ts`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/*.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added task-size route pruning for rcc work so tiny and small briefs cap route files while preserving medium and large behavior.",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderText.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/*.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T15:38:02.010Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T15:38:02.010Z",
+  "summary": "Added task-size route pruning for rcc work so tiny and small briefs cap route files while preserving medium and large behavior.",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderText.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/*.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

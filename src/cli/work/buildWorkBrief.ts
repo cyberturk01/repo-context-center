@@ -26,6 +26,7 @@ import type {
   PublicAgentRoute,
   ReadFirstGuidance,
   TargetedLookupHint,
+  WorkRecommendation,
   WorkBrief,
   WorkMapFreshness
 } from "./workTypes";
@@ -62,6 +63,77 @@ function riskValues(startup: StartupContext): string[] {
 
 function fallbackTokenEstimate(brief: WorkBrief): number {
   return Math.ceil(renderWorkBriefLines(brief).join("\n").length / 4);
+}
+
+function limitRecommendations(
+  items: WorkRecommendation[],
+  maxItems: number,
+  preserve?: (item: WorkRecommendation) => boolean
+): WorkRecommendation[] {
+  if (items.length <= maxItems) {
+    return items;
+  }
+
+  const selected = items.slice(0, maxItems);
+  const preserved = preserve ? items.find((item) => preserve(item)) : undefined;
+
+  if (preserved && !selected.some((item) => item.path === preserved.path)) {
+    return [...selected.slice(0, Math.max(0, maxItems - 1)), preserved];
+  }
+
+  return selected;
+}
+
+function isHighlyRelevantLearnedTest(item: WorkRecommendation): boolean {
+  return item.reasons.includes("learned repository test pattern");
+}
+
+export function pruneWorkBriefForTaskSize(brief: WorkBrief): WorkBrief {
+  if (brief.taskSize === "large" || brief.taskSize === "medium") {
+    return brief;
+  }
+
+  const limits = brief.taskSize === "tiny"
+    ? { primaryFiles: 1, supportingFiles: 1, tests: 1, learnedMemory: 0, recentLogs: 0 }
+    : { primaryFiles: 2, supportingFiles: 2, tests: 2, learnedMemory: 1, recentLogs: 3 };
+  const primaryFiles = limitRecommendations(brief.primaryFiles, limits.primaryFiles);
+  const supportingFiles = limitRecommendations(brief.supportingFiles, limits.supportingFiles);
+  const tests = limitRecommendations(brief.tests, limits.tests, isHighlyRelevantLearnedTest);
+  const primaryPaths = new Set(primaryFiles.map((file) => file.path));
+  const supportingPaths = new Set(supportingFiles.map((file) => file.path));
+  const testPaths = new Set(tests.map((file) => file.path));
+  const routePaths = new Set([...primaryPaths, ...supportingPaths, ...testPaths]);
+
+  return {
+    ...brief,
+    primaryFiles,
+    supportingFiles,
+    tests,
+    taskFiles: limitRecommendations(
+      brief.taskFiles.filter((file) => primaryPaths.has(file.path) || routePaths.has(file.path)),
+      limits.primaryFiles
+    ),
+    supportingTests: limitRecommendations(
+      brief.supportingTests.filter((file) => testPaths.has(file.path) || routePaths.has(file.path)),
+      limits.tests,
+      isHighlyRelevantLearnedTest
+    ),
+    recommendedFiles: limitRecommendations(
+      brief.recommendedFiles.filter((file) => routePaths.has(file.path) || primaryPaths.has(file.path)),
+      limits.primaryFiles + limits.supportingFiles + limits.tests
+    ),
+    relevantTests: limitRecommendations(
+      brief.relevantTests.filter((file) => testPaths.has(file.path) || routePaths.has(file.path)),
+      limits.tests,
+      isHighlyRelevantLearnedTest
+    ),
+    learnedRelatedFiles: brief.learnedRelatedFiles.filter((file) => supportingPaths.has(file)).slice(0, limits.learnedMemory),
+    learnedTests: brief.learnedTests.filter((file) => testPaths.has(file)).slice(0, limits.tests),
+    learnedVerification: brief.learnedVerification.slice(0, limits.learnedMemory),
+    learnedHabits: brief.learnedHabits.slice(0, limits.learnedMemory),
+    recentLogs: brief.recentLogs.slice(0, limits.recentLogs),
+    relevantDecisions: brief.relevantDecisions.slice(0, limits.learnedMemory === 0 ? 1 : limits.learnedMemory)
+  };
 }
 
 export function buildBriefWithTokenEstimate(
@@ -169,7 +241,7 @@ export function buildWorkBrief(
     nextCommand
   };
 
-  return buildBriefWithTokenEstimate(brief, estimateTokens);
+  return buildBriefWithTokenEstimate(pruneWorkBriefForTaskSize(brief), estimateTokens);
 }
 
 export async function buildWorkBriefForTask(
