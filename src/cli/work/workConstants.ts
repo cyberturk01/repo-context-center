@@ -3,9 +3,20 @@ import type { RepoFileRole } from "../../core/repoFileClassifier";
 
 export const decisionsPath = "docs/ai-context/DECISIONS.md";
 export const workLogPath = "docs/ai-context/WORK_LOG.md";
+export const workIndexPath = "docs/ai-context/WORK_INDEX.md";
+export const repositoryLearningPath = "docs/ai-context/REPOSITORY_LEARNING.md";
 export const lessonsPath = "docs/ai-context/LESSONS_LEARNED.md";
 export const changeLogPath = "docs/ai-context/CHANGE_LOG.md";
+export const compactMemoryFiles = [
+  workIndexPath,
+  repositoryLearningPath,
+  decisionsPath,
+  changeLogPath,
+  lessonsPath
+] as const;
 export const logLimit = 3;
+export const workLogTailReadLimitBytes = 64 * 1024;
+export const workLogTailLineLimit = 240;
 export const decisionLimit = 3;
 export const targetedLookupLimit = 5;
 export const targetedContentReadLimit = 64 * 1024;

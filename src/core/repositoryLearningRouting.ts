@@ -1,8 +1,8 @@
 import path from "node:path";
-import { pathExists, readTextFile } from "./fileSystem";
+import { pathExists, readTextFile, readTextFileTail } from "./fileSystem";
 import { classifyRepoFile } from "./repoFileClassifier";
 import {
-  buildRepositoryLearningModelForRepo,
+  buildRepositoryLearningModel,
   type RepositoryLearningModel
 } from "./repositoryLearning";
 
@@ -14,6 +14,11 @@ export interface LearnedRoutingSignals {
 }
 
 const repositoryLearningPath = "docs/ai-context/REPOSITORY_LEARNING.md";
+const workIndexPath = "docs/ai-context/WORK_INDEX.md";
+const decisionsPath = "docs/ai-context/DECISIONS.md";
+const workLogPath = "docs/ai-context/WORK_LOG.md";
+const workLogTailReadLimitBytes = 64 * 1024;
+const workLogTailLineLimit = 240;
 const minimumLearnedCount = 2;
 const maxLearnedFiles = 3;
 const maxLearnedRelatedFiles = 3;
@@ -199,6 +204,23 @@ async function readRenderedLearningModel(cwd: string): Promise<RepositoryLearnin
   return parseRepositoryLearningMarkdown(await readTextFile(fullPath));
 }
 
+async function readOptionalText(cwd: string, relativePath: string): Promise<string | undefined> {
+  const fullPath = path.join(cwd, relativePath);
+  return await pathExists(fullPath) ? readTextFile(fullPath) : undefined;
+}
+
+async function readBoundedWorkLogTail(cwd: string): Promise<string | undefined> {
+  const fullPath = path.join(cwd, workLogPath);
+  if (!await pathExists(fullPath)) {
+    return undefined;
+  }
+
+  return (await readTextFileTail(fullPath, workLogTailReadLimitBytes))
+    .split(/\r?\n/)
+    .slice(-workLogTailLineLimit)
+    .join("\n");
+}
+
 function hasLearnedData(model: RepositoryLearningModel): boolean {
   return model.commonFileRelationships.length > 0
     || model.frequentlyModifiedTogether.length > 0
@@ -211,9 +233,20 @@ export async function learnedRoutingSignalsForTask(cwd: string, task: string): P
     return emptySignals();
   }
 
-  let model = await buildRepositoryLearningModelForRepo(cwd);
-  if (!hasLearnedData(model)) {
-    model = await readRenderedLearningModel(cwd) ?? model;
+  let model = await readRenderedLearningModel(cwd);
+  if (!model || !hasLearnedData(model)) {
+    const [workIndex, decisions] = await Promise.all([
+      readOptionalText(cwd, workIndexPath),
+      readOptionalText(cwd, decisionsPath)
+    ]);
+    const compactModel = buildRepositoryLearningModel({ workIndex, decisions });
+    model = hasLearnedData(compactModel)
+      ? compactModel
+      : buildRepositoryLearningModel({
+        decisions,
+        workIndex,
+        workLog: workIndex ? undefined : await readBoundedWorkLogTail(cwd)
+      });
   }
 
   const signals = emptySignals();

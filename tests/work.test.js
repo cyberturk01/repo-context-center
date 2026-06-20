@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdir, mkdtemp, rm, utimes, writeFile } = require("node:fs/promises");
+const { mkdir, mkdtemp, readFile, rm, utimes, writeFile } = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
@@ -915,6 +915,142 @@ test("work routing uses learned work relationships and tests", async () => {
       "Tests are commonly changed with related implementation work (4/6)."
     ]);
   });
+});
+
+test("work memory lookup uses WORK_INDEX signals", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-index-signals-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "src/compact/worker.ts", "export const worker = true;\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/WORK_INDEX.md",
+      [
+        "# Work Index",
+        "",
+        "## Recent Focus",
+        "",
+        "- Quasar routing touched `src/compact/worker.ts`.",
+        ""
+      ].join("\n")
+    );
+
+    const result = runCli(["work", "--json", "--debug", "fix quasar routing"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.targetedLookupHints.some((hint) => (
+      hint.path === "src/compact/worker.ts"
+      && hint.signal === "work-log"
+    )), JSON.stringify(brief.targetedLookupHints, null, 2));
+    assert.ok(brief.recentLogs.some((entry) => entry.includes("Quasar routing touched")));
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work memory lookup uses REPOSITORY_LEARNING signals", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-learning-signals-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "src/compact/learning.ts", "export const learning = true;\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/REPOSITORY_LEARNING.md",
+      [
+        "# Repository Learning",
+        "",
+        "<!-- repo-context-center:repository-learning:start -->",
+        "## Common File Relationships",
+        "",
+        "| Source | Related | Reason | Count |",
+        "| --- | --- | --- | ---: |",
+        "| nebula | `src/compact/learning.ts` | Observed in completed nebula work | 3 |",
+        "",
+        "<!-- repo-context-center:repository-learning:end -->",
+        ""
+      ].join("\n")
+    );
+
+    const result = runCli(["work", "--json", "--debug", "fix nebula behavior"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.targetedLookupHints.some((hint) => (
+      hint.path === "src/compact/learning.ts"
+      && hint.signal === "work-log"
+    )), JSON.stringify(brief.targetedLookupHints, null, 2));
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work memory lookup uses bounded WORK_LOG fallback when compact memory is missing", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-log-tail-"));
+
+  try {
+    const filler = "x".repeat(70 * 1024);
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "src/old.ts", "export const oldSignal = true;\n");
+    await writeFixtureFile(tempDir, "src/recent.ts", "export const recentSignal = true;\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/WORK_LOG.md",
+      [
+        "# Work Log",
+        "",
+        "## 2026-06-18T10:00:00.000Z",
+        "- Summary: Fix aurora routing in `src/old.ts`",
+        filler,
+        "## 2026-06-20T10:00:00.000Z",
+        "- Summary: Fix aurora routing in `src/recent.ts`",
+        ""
+      ].join("\n")
+    );
+
+    const result = runCli(["work", "--json", "--debug", "fix aurora routing"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.targetedLookupHints.some((hint) => (
+      hint.path === "src/recent.ts"
+      && hint.signal === "work-log"
+    )), JSON.stringify(brief.targetedLookupHints, null, 2));
+    assert.equal(brief.targetedLookupHints.some((hint) => hint.path === "src/old.ts"), false);
+    assert.ok(brief.recentLogs.some((entry) => entry.includes("src/recent.ts")));
+    assert.equal(brief.recentLogs.some((entry) => entry.includes("src/old.ts")), false);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work does not include WORK_LOG in readFirst or default full memory reads", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-log-readfirst-"));
+  const [memorySignals, learningRouting] = await Promise.all([
+    readFile(path.join(repoRoot, "src", "cli", "work", "memorySignals.ts"), "utf8"),
+    readFile(path.join(repoRoot, "src", "core", "repositoryLearningRouting.ts"), "utf8")
+  ]);
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "src/index.ts", "export const ok = true;\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", "- Summary: should not be read first\n");
+
+    const result = runCli(["work", "--agent", "fix index"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(!route.readFirst.includes("docs/ai-context/WORK_LOG.md"), JSON.stringify(route.readFirst));
+    assert.doesNotMatch(memorySignals, /path:\s*workLogPath,\s*signal/);
+    assert.doesNotMatch(memorySignals, /readTextFile\(fullPath\)[\s\S]{0,160}workLogPath/);
+    assert.doesNotMatch(learningRouting, /buildRepositoryLearningModelForRepo/);
+    assert.match(memorySignals, /readTextFileTail\(fullPath,\s*workLogTailReadLimitBytes\)/);
+    assert.match(learningRouting, /readTextFileTail\(fullPath,\s*workLogTailReadLimitBytes\)/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("work routing leaves unrelated tasks without learned hints", async () => {
