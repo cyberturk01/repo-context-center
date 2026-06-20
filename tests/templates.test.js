@@ -22,6 +22,7 @@ const requiredTemplates = [
   "docs/ai-context/SYMBOL_MAP.md",
   "docs/ai-context/TOKEN_BUDGET.md",
   "docs/ai-context/DO_NOT_READ.md",
+  "docs/ai-context/WORK_INDEX.md",
   "docs/ai-context/HOTSPOTS.md",
   "docs/ai-context/LESSONS_LEARNED.md",
   "docs/ai-context/CHANGE_LOG.md"
@@ -54,6 +55,7 @@ const templateTitles = {
   "docs/ai-context/SYMBOL_MAP.md": "# Symbol Map",
   "docs/ai-context/TOKEN_BUDGET.md": "# Token Budget",
   "docs/ai-context/DO_NOT_READ.md": "# Do Not Read",
+  "docs/ai-context/WORK_INDEX.md": "# Work Index",
   "docs/ai-context/HOTSPOTS.md": "# Hotspots",
   "docs/ai-context/LESSONS_LEARNED.md": "# Lessons Learned",
   "docs/ai-context/CHANGE_LOG.md": "# Change Log"
@@ -82,7 +84,7 @@ test("all required generic templates exist", async () => {
 test("generic template count and names stay unchanged", async () => {
   const { genericTemplateFiles } = require("../dist/templates/generic");
 
-  assert.equal(requiredTemplates.length, 13);
+  assert.equal(requiredTemplates.length, 14);
   assert.equal(genericTemplateFiles.length, requiredTemplates.length);
   assert.deepEqual([...genericTemplateFiles].sort(), [...requiredTemplates].sort());
 });
@@ -108,6 +110,8 @@ test("AGENTS template keeps low-token startup references", async () => {
   assert.match(content, /TASK_ROUTING\.md/);
   assert.match(noShellLine, /TOKEN_BUDGET\.md/);
   assert.match(content, /DO_NOT_READ\.md/);
+  assert.match(content, /WORK_INDEX\.md/);
+  assert.match(content, /do not read full `WORK_LOG\.md` by default/);
   assert.doesNotMatch(content, /COMMUNICATION_MODE\.md/);
   assert.doesNotMatch(content, /MODULE_INDEX\.md/);
   assert.match(content, /Avoid unnecessary repository scanning\./);
@@ -117,7 +121,7 @@ test("AGENTS template remains startup-only", async () => {
   const content = await readFile(path.join(templateRoot, "AGENTS.md"), "utf8");
   const words = content.trim().split(/\s+/).filter(Boolean);
 
-  assert.ok(words.length <= 140, `AGENTS.md has ${words.length} words`);
+  assert.ok(words.length <= 165, `AGENTS.md has ${words.length} words`);
   assert.doesNotMatch(content, /^Read:$/m);
   assert.doesNotMatch(content, /^Modes:$/m);
   assert.doesNotMatch(content, /# Task Routing/);
@@ -172,6 +176,8 @@ test("generated AGENTS template keeps core startup rules", async () => {
   assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
   assert.match(noShellLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
   assert.match(content, /docs\/ai-context\/DO_NOT_READ\.md/);
+  assert.match(content, /docs\/ai-context\/WORK_INDEX\.md/);
+  assert.match(content, /do not read full `WORK_LOG\.md` by default/);
   assert.doesNotMatch(content, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
   assert.doesNotMatch(content, /docs\/ai-context\/MODULE_INDEX\.md/);
   assert.match(content, /Read this first\./);

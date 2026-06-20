@@ -527,6 +527,76 @@ test("rcc handoff reads present context sources conservatively", async () => {
   });
 });
 
+test("rcc handoff uses WORK_INDEX as compact memory with latest work log tail", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_INDEX.md", [
+      "# Work Index",
+      "",
+      "<!-- repo-context-center:work-index:start -->",
+      "",
+      "## Recent Focus",
+      "",
+      "- Compact handoff memory from work index",
+      "- Recent work favored archive and handoff compaction",
+      "",
+      "## Hot Files",
+      "",
+      "| File | Reason | Last touched |",
+      "| ---- | ------ | ------------ |",
+      "| `src/cli/handoff/handoffSources.ts` | compact context | 2026-06-20 |",
+      "",
+      "## Completed Work Themes",
+      "",
+      "| Theme | Count | Recent summary |",
+      "| ----- | ----: | -------------- |",
+      "| Handoff | 2 | Compact handoff memory from work index |",
+      "",
+      "## Verification Patterns",
+      "",
+      "- `node --test tests/handoff.test.js` (2)",
+      "",
+      "<!-- repo-context-center:work-index:end -->"
+    ].join("\n"));
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "## 2026-06-18T12:00:00.000Z",
+      "- Summary: Very old full scan sentinel should not be needed",
+      "- Changed files: `src/old-full-scan.ts`",
+      "x".repeat(26000),
+      "## 2026-06-20T12:00:00.000Z",
+      "- Summary: Latest tail summary",
+      "- Changed files: `src/latest-tail.ts`",
+      "- Verification: node --test tests/latest-tail.test.js",
+      "<!-- rcc:handoff",
+      JSON.stringify({
+        schemaVersion: 1,
+        timestamp: "2026-06-20T12:00:00.000Z",
+        summary: "Latest tail handoff summary",
+        files: ["src/latest-tail.ts"],
+        verification: ["node --test tests/latest-tail.test.js"],
+        followUps: [],
+        risks: []
+      }, null, 2),
+      "-->",
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["handoff", "--json", "--debug"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.equal(brief.lastSummary, "Latest tail handoff summary");
+    assert.ok(brief.memory.includes("Work index: Compact handoff memory from work index"));
+    assert.ok(brief.memory.includes("Work index: Recent work favored archive and handoff compaction"));
+    assert.ok(brief.currentState.includes("Recently touched: src/latest-tail.ts"));
+    assert.doesNotMatch(brief.memory.join("\n"), /Very old full scan sentinel/);
+    assert.equal(brief.debug.sources.workIndexCount, 3);
+    assert.equal(brief.debug.sources.workLogCount, 1);
+  });
+});
+
 test("rcc handoff reads latest structured done entry", async () => {
   await withTempRepo(async (tempDir) => {
     await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
@@ -704,6 +774,29 @@ test("rcc handoff falls back to old work log parsing without structured done ent
     assert.ok(brief.currentState.includes("Recently touched: src/legacy.ts"));
     assert.ok(brief.currentState.includes("Recently touched: tests/legacy.test.js"));
     assert.equal(brief.debug.sources.latestDoneEntryPresent, true);
+  });
+});
+
+test("rcc handoff falls back safely when WORK_INDEX is missing", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "## 2026-06-20T12:00:00.000Z",
+      "- Summary: Work log fallback without index",
+      "- Changed files: `src/fallback-without-index.ts`",
+      "- Verification: node --test tests/handoff.test.js",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["handoff", "--json", "--debug"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.equal(brief.lastSummary, "Work log fallback without index");
+    assert.ok(brief.memory.includes("Last completed: Work log fallback without index"));
+    assert.ok(brief.currentState.includes("Recently touched: src/fallback-without-index.ts"));
+    assert.equal(brief.debug.sources.workIndexCount, 0);
+    assert.equal(brief.debug.sources.workLogCount, 1);
   });
 });
 

@@ -1,6 +1,15 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ensureDir, pathExists, writeTextFile } from "./fileSystem";
+import {
+  parseWorkMemoryEntries,
+  renderWorkIndex,
+  workIndexPath,
+  workLogArchivePath,
+  workLogEnd,
+  workLogPath,
+  workLogStart
+} from "./workMemory";
 
 export interface ArchiveOptions {
   cwd: string;
@@ -46,6 +55,8 @@ const targetFiles: TargetFile[] = [
     archiveTitle: "Lessons Learned Archive"
   }
 ];
+
+const workLogArchiveTitle = "Work Log Archive";
 
 function isTableRow(line: string): boolean {
   return line.trim().startsWith("|") && line.trim().endsWith("|");
@@ -149,6 +160,108 @@ function renderArchive(title: string, table: ParsedTable, rows: string[], existi
   return `# ${title}\n\n${table.header}\n${table.divider}\n${rows.join("\n")}\n`;
 }
 
+function entryTimestamp(entry: string): string {
+  return entry.match(/^##\s+(.+)$/m)?.[1]?.trim() ?? "";
+}
+
+function entryTime(entry: string): number | undefined {
+  const timestamp = entryTimestamp(entry);
+  const time = Date.parse(timestamp);
+  return Number.isNaN(time) ? undefined : time;
+}
+
+function extractGeneratedSection(content: string, startMarker: string, endMarker: string): {
+  before: string;
+  entries: string[];
+  after: string;
+} {
+  const normalized = content.replace(/\r\n/g, "\n");
+  const start = normalized.indexOf(startMarker);
+  const end = normalized.indexOf(endMarker);
+
+  if (start === -1 || end === -1 || end <= start) {
+    return {
+      before: normalized.trimEnd(),
+      entries: [],
+      after: ""
+    };
+  }
+
+  const body = normalized.slice(start + startMarker.length, end).trim();
+  const entries = body
+    ? body.split(/\n(?=##\s+)/).map((entry) => entry.trim()).filter(Boolean)
+    : [];
+
+  return {
+    before: normalized.slice(0, start + startMarker.length).trimEnd(),
+    entries,
+    after: normalized.slice(end).trimStart()
+  };
+}
+
+function selectWorkLogEntries(entries: string[], keep: number): { keptEntries: string[]; archivedEntries: string[] } {
+  const ranked = entries.map((entry, index) => ({
+    entry,
+    index,
+    time: entryTime(entry)
+  }));
+
+  ranked.sort((left, right) => {
+    if (left.time !== undefined && right.time !== undefined && left.time !== right.time) {
+      return right.time - left.time;
+    }
+
+    if (left.time !== undefined && right.time === undefined) {
+      return -1;
+    }
+
+    if (left.time === undefined && right.time !== undefined) {
+      return 1;
+    }
+
+    return left.index - right.index;
+  });
+
+  return {
+    keptEntries: ranked.slice(0, keep).map((entry) => entry.entry),
+    archivedEntries: ranked.slice(keep).map((entry) => entry.entry)
+  };
+}
+
+function renderWorkLog(source: ReturnType<typeof extractGeneratedSection>, entries: string[]): string {
+  return [
+    source.before,
+    "",
+    ...entries.flatMap((entry) => [entry, ""]),
+    source.after || workLogEnd,
+    ""
+  ].join("\n").replace(/\n{3,}/g, "\n\n");
+}
+
+function renderWorkLogArchive(entries: string[], existingContent?: string): string {
+  const existing = existingContent?.trimEnd();
+  const archivedEntries = existingContent
+    ? extractGeneratedSection(existingContent, workLogStart, workLogEnd).entries
+    : [];
+  const body = [...archivedEntries, ...entries];
+
+  if (existing && archivedEntries.length === 0) {
+    return `${existing}\n\n${workLogStart}\n${body.join("\n\n")}\n${workLogEnd}\n`;
+  }
+
+  return [
+    `# ${workLogArchiveTitle}`,
+    "",
+    "Older completed-work entries archived from WORK_LOG.md.",
+    "",
+    workLogStart,
+    "",
+    ...body.flatMap((entry) => [entry, ""]),
+    workLogEnd,
+    ""
+  ].join("\n").replace(/\n{3,}/g, "\n\n");
+}
+
 async function archiveFile(target: TargetFile, options: ArchiveOptions): Promise<ArchiveFileResult> {
   const sourcePath = path.join(options.cwd, target.sourcePath);
   const archivePath = path.join(options.cwd, target.archivePath);
@@ -192,11 +305,81 @@ async function archiveFile(target: TargetFile, options: ArchiveOptions): Promise
   };
 }
 
+async function readIfPresent(filePath: string): Promise<string | undefined> {
+  return (await pathExists(filePath)) ? readFile(filePath, "utf8") : undefined;
+}
+
+async function writeWorkIndex(options: ArchiveOptions, workLogContent: string, archiveContent?: string): Promise<void> {
+  if (options.dryRun) {
+    return;
+  }
+
+  const entries = [
+    ...parseWorkMemoryEntries(workLogContent),
+    ...(archiveContent ? parseWorkMemoryEntries(archiveContent) : [])
+  ];
+
+  await writeTextFile(path.join(options.cwd, workIndexPath), renderWorkIndex(entries));
+}
+
+async function archiveWorkLog(options: ArchiveOptions): Promise<ArchiveFileResult> {
+  const sourcePath = path.join(options.cwd, workLogPath);
+  const archivePath = path.join(options.cwd, workLogArchivePath);
+
+  if (!(await pathExists(sourcePath))) {
+    const existingArchive = await readIfPresent(archivePath);
+    await writeWorkIndex(options, "", existingArchive);
+    return {
+      sourcePath: workLogPath,
+      archivePath: workLogArchivePath,
+      kept: 0,
+      archived: 0,
+      missing: true
+    };
+  }
+
+  const content = await readFile(sourcePath, "utf8");
+  const parsed = extractGeneratedSection(content, workLogStart, workLogEnd);
+  const existingArchive = await readIfPresent(archivePath);
+  if (parsed.entries.length <= options.keep) {
+    await writeWorkIndex(options, content, existingArchive);
+    return {
+      sourcePath: workLogPath,
+      archivePath: workLogArchivePath,
+      kept: parsed.entries.length,
+      archived: 0,
+      missing: false
+    };
+  }
+
+  const { keptEntries, archivedEntries } = selectWorkLogEntries(parsed.entries, options.keep);
+  const nextWorkLog = renderWorkLog(parsed, keptEntries);
+  const nextArchive = renderWorkLogArchive(archivedEntries, existingArchive);
+
+  if (!options.dryRun) {
+    await writeTextFile(sourcePath, nextWorkLog);
+    await ensureDir(path.dirname(archivePath));
+    await writeTextFile(archivePath, nextArchive);
+    await writeWorkIndex(options, nextWorkLog, nextArchive);
+  }
+
+  return {
+    sourcePath: workLogPath,
+    archivePath: workLogArchivePath,
+    kept: keptEntries.length,
+    archived: archivedEntries.length,
+    missing: false
+  };
+}
+
 export async function archiveContextFiles(options: ArchiveOptions): Promise<ArchiveResult> {
   if (!Number.isInteger(options.keep) || options.keep < 1) {
     throw new Error("--keep must be a positive integer");
   }
 
-  const files = await Promise.all(targetFiles.map((target) => archiveFile(target, options)));
+  const files = [
+    ...(await Promise.all(targetFiles.map((target) => archiveFile(target, options)))),
+    await archiveWorkLog(options)
+  ];
   return { files };
 }

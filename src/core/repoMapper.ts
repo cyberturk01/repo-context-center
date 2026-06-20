@@ -3,6 +3,7 @@ import { requiredContextFiles, type RequiredContextFile } from "./contextFiles";
 import { ensureDir, listDirectoryNames, readTextFile, writeTextFile, pathExists } from "./fileSystem";
 import { buildRepositoryUnderstanding, type RepositoryUnderstanding } from "./repositoryUnderstanding";
 import { extractExportedSymbols, type ScannedSymbol } from "./scanner";
+import { renderWorkIndex } from "./workMemory";
 
 export interface RepoMapOptions {
   cwd: string;
@@ -1877,6 +1878,10 @@ function renderChangeLog(data: RepoMapData): string {
   }]);
 }
 
+function renderExistingWorkIndex(_data: RepoMapData, existing?: string): string {
+  return existing?.trim() ? existing : renderWorkIndex([]);
+}
+
 function manualContentWithoutGeneratedSection(existing: string | undefined): string {
   if (!existing) {
     return "";
@@ -1903,6 +1908,7 @@ const renderers: Record<GeneratedContextFile, { title: string; render: (data: Re
   "docs/ai-context/SYMBOL_MAP.md": { title: "Symbol Map", render: renderSymbols },
   "docs/ai-context/TOKEN_BUDGET.md": { title: "Token Budget", render: renderTokenBudget },
   "docs/ai-context/DO_NOT_READ.md": { title: "Do Not Read", render: renderDoNotRead },
+  "docs/ai-context/WORK_INDEX.md": { title: "Work Index", render: renderExistingWorkIndex },
   "docs/ai-context/HOTSPOTS.md": { title: "Hotspots", render: renderHotspots },
   "docs/ai-context/LESSONS_LEARNED.md": {
     title: "Lessons Learned",
@@ -1960,7 +1966,10 @@ async function buildChanges(cwd: string, data: RepoMapData): Promise<RepoMapChan
     const targetPath = path.join(cwd, generatedFile);
     const renderer = renderers[generatedFile];
     const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : undefined;
-    const content = upsertGeneratedSection(existing, renderer.title, renderer.render(data, existing));
+    const rendered = renderer.render(data, existing);
+    const content = generatedFile === "docs/ai-context/WORK_INDEX.md"
+      ? rendered
+      : upsertGeneratedSection(existing, renderer.title, rendered);
     changes.push({
       path: file,
       action: existing === undefined ? "create" : "update",

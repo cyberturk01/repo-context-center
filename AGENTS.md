@@ -15,6 +15,8 @@ Then:
 - Do not ask the human to run RCC commands.
 - After meaningful changes, run tests and record:
   `rcc done --summary "<summary>" --files auto --verify "<checks>"`
+- Read `docs/ai-context/HANDOFF.md` if present.
+- Read `docs/ai-context/WORK_INDEX.md` if task/history context is unclear; do not read full `WORK_LOG.md` by default.
 
 ## Local RCC Development
 

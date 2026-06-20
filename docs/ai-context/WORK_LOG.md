@@ -700,4 +700,66 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T09:46:54.089Z
+- Summary: Implemented WORK_INDEX generation from completed work, archive compaction for WORK_LOG, and handoff use of compact work memory.
+- Changed files: `AGENTS.md`, `src/cli/commands/done.ts`, `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffConstants.ts`, `src/cli/handoff/handoffSources.ts`, `src/cli/handoff/handoffTypes.ts`, `src/core/archiver.ts`, `src/core/repoMapper.ts`, `src/core/workMemory.ts`, `src/templates/generic/AGENTS.md`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented WORK_INDEX generation from completed work, archive compaction for WORK_LOG, and handoff use of compact work memory.",
+  "files": [
+    "AGENTS.md",
+    "src/cli/commands/done.ts",
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffConstants.ts",
+    "src/cli/handoff/handoffSources.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "src/core/archiver.ts",
+    "src/core/repoMapper.ts",
+    "src/core/workMemory.ts",
+    "src/templates/generic/AGENTS.md",
+    "src/templates/generic/docs/ai-context/WORK_INDEX.md",
+    "src/templates/generic/index.ts",
+    "tests/archive.test.js",
+    "tests/handoff.test.js",
+    "tests/templates.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T09:46:54.089Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T09:46:54.089Z",
+  "summary": "Implemented WORK_INDEX generation from completed work, archive compaction for WORK_LOG, and handoff use of compact work memory.",
+  "files": [
+    "AGENTS.md",
+    "src/cli/commands/done.ts",
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/cli/handoff/handoffConstants.ts",
+    "src/cli/handoff/handoffSources.ts",
+    "src/cli/handoff/handoffTypes.ts",
+    "src/core/archiver.ts",
+    "src/core/repoMapper.ts",
+    "src/core/workMemory.ts",
+    "src/templates/generic/AGENTS.md",
+    "src/templates/generic/docs/ai-context/WORK_INDEX.md",
+    "src/templates/generic/index.ts",
+    "tests/archive.test.js",
+    "tests/handoff.test.js",
+    "tests/templates.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

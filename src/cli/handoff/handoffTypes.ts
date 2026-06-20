@@ -42,6 +42,7 @@ export interface HandoffBrief {
       lessonsCount: number;
       latestDoneEntryPresent: boolean;
       recentTouchedFilesCount: number;
+      workIndexCount: number;
       workLogCount: number;
     };
   };

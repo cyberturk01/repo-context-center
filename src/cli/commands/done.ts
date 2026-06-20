@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathExists, readTextFile, writeTextFile } from "../../core/fileSystem";
+import { parseWorkMemoryEntries, renderWorkIndex, workIndexPath } from "../../core/workMemory";
 import type { CliIO } from "../index";
 
 interface DoneOptions {
@@ -294,6 +295,7 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
 
   if (!options.dryRun) {
     await writeTextFile(targetPath, nextContent);
+    await writeTextFile(path.join(io.cwd, workIndexPath), renderWorkIndex(parseWorkMemoryEntries(nextContent)));
   }
 
   io.stdout(formatSavedMessage(options, files));

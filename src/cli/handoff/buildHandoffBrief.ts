@@ -87,6 +87,7 @@ export async function buildHandoffBrief(cwd: string, options: { task: string | n
     : null;
   const memory = [
     ...latestDoneMemory(sources.latestDoneEntry),
+    ...sources.workIndex,
     ...formatSourceItems("Decision", sources.decisions),
     ...formatSourceItems("Change", sources.changeLog),
     ...formatSourceItems("Lesson", sources.lessons)
@@ -137,6 +138,7 @@ export async function buildHandoffBrief(cwd: string, options: { task: string | n
           lessonsCount: sources.lessons.length,
           latestDoneEntryPresent: Boolean(sources.latestDoneEntry),
           recentTouchedFilesCount: sources.recentTouchedFiles.length,
+          workIndexCount: sources.workIndex.length,
           workLogCount: sources.workLog.length
         }
       }

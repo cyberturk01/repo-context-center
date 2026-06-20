@@ -12,6 +12,7 @@ export const genericTemplateFiles = [
   "docs/ai-context/SYMBOL_MAP.md",
   "docs/ai-context/TOKEN_BUDGET.md",
   "docs/ai-context/DO_NOT_READ.md",
+  "docs/ai-context/WORK_INDEX.md",
   "docs/ai-context/HOTSPOTS.md",
   "docs/ai-context/LESSONS_LEARNED.md",
   "docs/ai-context/CHANGE_LOG.md"
