@@ -1027,4 +1027,50 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T11:38:01.560Z
+- Summary: Implemented learning-aware work routing
+- Changed files: `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderJson.ts`, `src/cli/work/renderText.ts`, `src/cli/work/taskFileRecommendations.ts`, `src/cli/work/workTypes.ts`, `src/core/repositoryLearningRouting.ts`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/work.test.js tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js; node --test tests/*.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented learning-aware work routing",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/cli/work/workTypes.ts",
+    "src/core/repositoryLearningRouting.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/work.test.js tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js; node --test tests/*.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T11:38:01.560Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T11:38:01.560Z",
+  "summary": "Implemented learning-aware work routing",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/cli/work/workTypes.ts",
+    "src/core/repositoryLearningRouting.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/work.test.js tests/repositoryLearning.test.js tests/renderRepositoryLearning.test.js; node --test tests/*.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

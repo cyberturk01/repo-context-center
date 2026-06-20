@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Implemented learning-aware work routing
 - Polished repository learning markdown output
 - smoke test repository learning
 - Integrated repository learning updates into archive lifecycle
 - Added Repository Learning markdown renderer
 - Built repository learning model from work memory
 - Added repository learning context generation
-- Compacted handoff memory to five prioritized continuation entries while preserving handoff schema fields.
 
 ## Hot Files
 
@@ -22,19 +22,19 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `src/cli/commands/work.ts` | 13 touches; Made work command a thin wrapper by moving route helper exports and render facade calls into work modules. | 2026-06-19 |
 | `src/cli/handoff/buildHandoffBrief.ts` | 11 touches; Compacted handoff memory to five prioritized continuation entries while preserving handoff schema fields. | 2026-06-20 |
 | `src/cli/handoff/handoffTypes.ts` | 11 touches; Implemented WORK_INDEX generation from completed work, archive compaction for WORK_LOG, and handoff use of compact work memory. | 2026-06-20 |
+| `tests/work.test.js` | 9 touches; Implemented learning-aware work routing | 2026-06-20 |
 | `tests/done.test.js` | 9 touches; Polished repository learning markdown output | 2026-06-20 |
 | `src/cli/commands/done.ts` | 9 touches; Integrated repository learning updates into archive lifecycle | 2026-06-20 |
 | `src/cli/handoff/renderAgent.ts` | 9 touches; Fixed compact handoff output whitespace normalization and added exact regression tests for currentState and nextActions strings. | 2026-06-19 |
 | `src/cli/handoff/renderJson.ts` | 9 touches; Fixed compact handoff output whitespace normalization and added exact regression tests for currentState and nextActions strings. | 2026-06-19 |
-| `tests/work.test.js` | 8 touches; Implemented v0.9.1 relevant decision matching for work and handoff using normalized task, file, basename, and module terms with quiet fallback behav... | 2026-06-19 |
 | `src/core/repoMapper.ts` | 7 touches; Polished repository learning markdown output | 2026-06-20 |
 
 ## Completed Work Themes
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
+| Work routing | 19 | Implemented learning-aware work routing |
 | Handoff | 19 | Compacted handoff memory to five prioritized continuation entries while preserving handoff schema fields. |
-| Work routing | 18 | Made work command a thin wrapper by moving route helper exports and render facade calls into work modules. |
 | Repository context | 4 | Polished repository learning markdown output |
 | Work memory | 3 | Integrated repository learning updates into archive lifecycle |
 | Agent guidance | 3 | Updated README onboarding with latest-version commands, lifecycle guidance, manual-vs-automatic behavior, and cautious token-saving expectations. |
@@ -44,12 +44,12 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (32)
+- `npm run build` (33)
 - `npm test` (25)
 - `node --test tests/work.test.js` (12)
 - `node --test tests/handoff.test.js` (11)
 - `node --test tests/cli.test.js` (9)
-- `node --test tests/*.test.js` (5)
+- `node --test tests/*.test.js` (6)
 - `node dist/cli/index.js measure "recalibrate AGENTS.md for current RCC architecture"` (2)
 - `node dist/cli/index.js measure "recalibrate AGENTS.md for current RCC architecture" --json` (2)
 

@@ -1,4 +1,5 @@
 import { buildStartupContext, focusStartupContextForStart, type StartupContext } from "../../core/suggester";
+import { learnedRoutingSignalsForTask, type LearnedRoutingSignals } from "../../core/repositoryLearningRouting";
 import { analyzeTaskIntent, type TaskIntentAnalysis } from "../../core/taskIntent";
 import {
   nextCommand
@@ -93,10 +94,11 @@ export function buildWorkBrief(
   readFirstGuidance: ReadFirstGuidance,
   contextBudget: ContextBudget,
   taskIntent: TaskIntentAnalysis,
+  learnedSignals: LearnedRoutingSignals,
   estimateTokens?: WorkBriefTokenEstimator
 ): WorkBrief {
   const categorized = buildTaskFileRecommendations(startup, lookupHints, readFirstGuidance, taskIntent);
-  const fileCategories = buildWorkFileCategorization(categorized, startup, lookupHints, taskIntent);
+  const fileCategories = buildWorkFileCategorization(categorized, startup, lookupHints, taskIntent, learnedSignals);
   const nextCheapest = nextCheapestLookupCommand(taskIntent);
   const brief: WorkBrief = {
     command: "work",
@@ -132,6 +134,9 @@ export function buildWorkBrief(
       confidence: hint.confidence,
       score: hint.score
     })),
+    learnedRelatedFiles: learnedSignals.learnedRelatedFiles,
+    learnedTests: learnedSignals.learnedTests,
+    learnedVerification: learnedSignals.learnedVerification,
     relevantDecisions: decisions,
     recentLogs: logs,
     tokenEstimate: {
@@ -176,11 +181,12 @@ export async function buildWorkBriefForTask(
     maxSourceFiles: Math.min(maxFiles, 8),
     maxTestFiles: Math.min(maxFiles, 6)
   });
-  const [mapFreshness, decisions, logs, lookupHints] = await Promise.all([
+  const [mapFreshness, decisions, logs, lookupHints, learnedSignals] = await Promise.all([
     assessMapFreshness(cwd),
     readRelevantDecisions(cwd, focusedStartupContext, taskIntent),
     readRecentLogs(cwd),
-    targetedLookupHints(cwd, taskIntent, focusedStartupContext)
+    targetedLookupHints(cwd, taskIntent, focusedStartupContext),
+    learnedRoutingSignalsForTask(cwd, task)
   ]);
   const existingContextFiles = await existingReadFirstContextFiles(cwd);
   const readFirstGuidance = buildReadFirstGuidance(
@@ -199,6 +205,7 @@ export async function buildWorkBriefForTask(
     readFirstGuidance,
     contextBudget,
     taskIntent,
+    learnedSignals,
     options.estimateTokens
   );
 }

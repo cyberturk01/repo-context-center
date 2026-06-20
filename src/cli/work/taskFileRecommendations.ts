@@ -1,4 +1,5 @@
 import path from "node:path";
+import type { LearnedRoutingSignals } from "../../core/repositoryLearningRouting";
 import { classifyRepoFile } from "../../core/repoFileClassifier";
 import type { StartupContext } from "../../core/suggester";
 import type { TaskIntentAnalysis } from "../../core/taskIntent";
@@ -64,6 +65,28 @@ function recommendationItemsWithHints(
   hints: TargetedLookupHint[]
 ): WorkRecommendation[] {
   return uniquePaths(paths).map((file) => recommendationFromPath(file, startup, hints));
+}
+
+function learnedReason(filePath: string, learnedSignals: LearnedRoutingSignals): string | null {
+  if (learnedSignals.learnedTests.includes(filePath)) {
+    return "learned repository test pattern";
+  }
+  if (learnedSignals.learnedRelatedFiles.includes(filePath)) {
+    return "learned repository relationship";
+  }
+  return null;
+}
+
+function recommendationItemsWithLearning(
+  paths: string[],
+  startup: StartupContext,
+  hints: TargetedLookupHint[],
+  learnedSignals: LearnedRoutingSignals
+): WorkRecommendation[] {
+  return recommendationItemsWithHints(paths, startup, hints).map((item) => {
+    const reason = learnedReason(item.path, learnedSignals);
+    return reason ? { ...item, reasons: uniquePaths([...item.reasons, reason]) } : item;
+  });
 }
 
 function contextDocPaths(startup: StartupContext, guidance: ReadFirstGuidance): string[] {
@@ -235,7 +258,12 @@ export function buildWorkFileCategorization(
   },
   startup: StartupContext,
   lookupHints: TargetedLookupHint[],
-  taskIntent: TaskIntentAnalysis
+  taskIntent: TaskIntentAnalysis,
+  learnedSignals: LearnedRoutingSignals = {
+    learnedRelatedFiles: [],
+    learnedTests: [],
+    learnedVerification: []
+  }
 ): WorkFileCategorization {
   const directPrimaryPaths = lookupHints
     .filter((hint) => classifyRepoFile(hint.path).role !== "test")
@@ -246,10 +274,14 @@ export function buildWorkFileCategorization(
     ? directPrimaryPaths
     : legacyTaskPaths;
   const primarySet = new Set(primaryPaths);
-  const testPaths = categorized.supportingTests.map((file) => file.path);
+  const testPaths = uniquePaths([
+    ...categorized.supportingTests.map((file) => file.path),
+    ...learnedSignals.learnedTests
+  ]);
   const testSet = new Set(testPaths);
-  const supportingPaths = directPrimaryPaths.length > 0
-    ? uniquePaths([
+  const supportingPaths = uniquePaths([
+    ...(directPrimaryPaths.length > 0
+      ? [
       ...legacyTaskPaths,
       ...categorized.recommendedFiles
         .map((file) => file.path)
@@ -258,13 +290,15 @@ export function buildWorkFileCategorization(
           return ["source", "workflow", "config", "package"].includes(role)
             || (taskIntent.hasReleaseIntent && role === "docs");
         })
-    ]).filter((file) => !primarySet.has(file) && !testSet.has(file))
-    : [];
+      ]
+      : []),
+    ...learnedSignals.learnedRelatedFiles
+  ]).filter((file) => !primarySet.has(file) && !testSet.has(file));
 
   return {
     primaryFiles: recommendationItemsWithHints(primaryPaths, startup, lookupHints),
-    supportingFiles: recommendationItemsWithHints(supportingPaths, startup, lookupHints),
-    tests: categorized.supportingTests,
+    supportingFiles: recommendationItemsWithLearning(supportingPaths, startup, lookupHints, learnedSignals),
+    tests: recommendationItemsWithLearning(testPaths, startup, lookupHints, learnedSignals),
     agentRules: categorized.workflowDocs.filter((file) => !primarySet.has(file.path)),
     contextIfUnclear: categorized.contextDocs.filter((file) => !primarySet.has(file.path))
   };

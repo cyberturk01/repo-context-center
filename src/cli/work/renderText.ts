@@ -145,6 +145,15 @@ function renderNextLines(brief: WorkBrief, hasPrimaryFiles: boolean): string[] {
   ];
 }
 
+function repositoryLearningLines(brief: WorkBrief): string[] {
+  const lines = [
+    ...brief.learnedRelatedFiles.slice(0, 1).map((file) => `- learned related file: ${file}`),
+    ...brief.learnedVerification.slice(0, 1).map((command) => `- learned verification: ${command}`)
+  ];
+
+  return lines.length > 0 ? ["Repository learning:", ...lines, ""] : [];
+}
+
 export function renderWorkBriefLines(brief: WorkBrief): string[] {
   const taskFileFallback = analyzeTaskIntent(brief.task).isCodeInvestigation
     ? "No focused task files were identified. Use Next before broad search."
@@ -177,6 +186,7 @@ export function renderWorkBriefLines(brief: WorkBrief): string[] {
     "Context if unclear:",
     ...formatRecommendationSection(brief.contextIfUnclear, "Use only if primary/supporting files are insufficient.", false).slice(0, 6),
     "",
+    ...repositoryLearningLines(brief),
     "Next:",
     ...renderNextLines(brief, hasPrimaryFiles)
   ];

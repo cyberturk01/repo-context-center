@@ -479,6 +479,70 @@ async function withGuidanceRepo(callback) {
   }
 }
 
+async function withLearningRoutingRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-learning-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/work.ts", "export function workCommand() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/doctor.ts", "export function doctorCommand() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/renderAgent.ts", "export function renderWorkAgent() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/buildHandoffBrief.ts", "export function buildHandoffBrief() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/renderAgent.ts", "export function renderHandoffAgent() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/renderJson.ts", "export function renderHandoffJson() {}\n");
+    await writeFixtureFile(tempDir, "tests/work.test.js", "test('work', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/handoff.test.js", "test('handoff', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/doctor.test.js", "test('doctor', () => {});\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/REPOSITORY_LEARNING.md",
+      [
+        "# Repository Learning",
+        "",
+        "<!-- repo-context-center:repository-learning:start -->",
+        "## Generated Repo Map",
+        "",
+        "## Common File Relationships",
+        "",
+        "| Source | Related | Reason | Count |",
+        "| --- | --- | --- | ---: |",
+        "| handoff | `tests/handoff.test.js` | Observed in completed handoff work | 4 |",
+        "| handoff | `src/cli/handoff/buildHandoffBrief.ts` | Observed in completed handoff work | 3 |",
+        "| handoff | `src/cli/handoff/renderAgent.ts` | Observed in completed handoff work | 2 |",
+        "| work | `src/cli/commands/work.ts` | Observed in completed work tasks | 4 |",
+        "| work | `tests/work.test.js` | Observed in completed work tasks | 3 |",
+        "| repo | `src/cli/commands/doctor.ts` | generic should not route alone | 9 |",
+        "| handoff | `docs/ai-context/archive/WORK_LOG_ARCHIVE.md` | archive noise | 9 |",
+        "| handoff | `dist/cli/index.js` | generated noise | 9 |",
+        "| handoff | `src/one-off.ts` | one-off noise | 1 |",
+        "",
+        "## Frequently Modified Together",
+        "",
+        "| Files | Count | Recent summary |",
+        "| --- | ---: | --- |",
+        "| `src/cli/handoff/buildHandoffBrief.ts`, `tests/handoff.test.js` | 3 | Updated handoff brief |",
+        "| `src/cli/commands/work.ts`, `tests/work.test.js` | 3 | Updated work route |",
+        "",
+        "## Verification Patterns",
+        "",
+        "| Scope | Command | Count |",
+        "| --- | --- | ---: |",
+        "| build | `npm run build` | 8 |",
+        "| handoff | `node --test tests/handoff.test.js` | 4 |",
+        "| work | `node --test tests/work.test.js` | 3 |",
+        "| handoff | `node --test tests/one-off.test.js` | 1 |",
+        "",
+        "<!-- repo-context-center:repository-learning:end -->",
+        ""
+      ].join("\n")
+    );
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 test("work runs without arguments", async () => {
   await withWorkRepo(async (tempDir) => {
     const result = assertInvalidWorkArgs(["work"], tempDir);
@@ -717,6 +781,9 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
         "avoid",
         "nextCheapestCommand",
         "promotedFromTargetedLookup",
+        "learnedRelatedFiles",
+        "learnedTests",
+        "learnedVerification",
         "relevantDecisions",
         "recentLogs",
         "risks",
@@ -759,6 +826,9 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
     assert.ok(brief.avoid.some((item) => item.includes("full repository scans")));
     assert.equal(brief.nextCheapestCommand, 'rcc find "login"');
     assert.ok(brief.promotedFromTargetedLookup.some((hint) => hint.path === "src/auth/login.ts"));
+    assert.deepEqual(brief.learnedRelatedFiles, []);
+    assert.deepEqual(brief.learnedTests, []);
+    assert.deepEqual(brief.learnedVerification, []);
     assert.ok(brief.targetedLookupHints.some((hint) => (
       hint.path === "src/auth/login.ts"
       && hint.reason
@@ -784,6 +854,101 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
     assert.equal(result.stdout.trim().startsWith("{"), true);
     assert.equal(result.stdout.trim().endsWith("}"), true);
     assert.doesNotMatch(result.stdout, /repo-context-center work brief/);
+  });
+});
+
+test("work routing uses learned handoff relationships without adding learning to readFirst", async () => {
+  await withLearningRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "improve handoff output"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const routedFiles = [
+      ...brief.primaryFiles.map((file) => file.path),
+      ...brief.supportingFiles.map((file) => file.path)
+    ];
+    const tests = brief.tests.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.ok(routedFiles.includes("src/cli/handoff/buildHandoffBrief.ts"), routedFiles.join("\n"));
+    assert.ok(routedFiles.includes("src/cli/handoff/renderAgent.ts"), routedFiles.join("\n"));
+    assert.ok(tests.includes("tests/handoff.test.js"), tests.join("\n"));
+    assert.deepEqual(brief.learnedRelatedFiles, [
+      "src/cli/handoff/buildHandoffBrief.ts",
+      "src/cli/handoff/renderAgent.ts"
+    ]);
+    assert.deepEqual(brief.learnedTests, ["tests/handoff.test.js"]);
+    assert.deepEqual(brief.learnedVerification, ["node --test tests/handoff.test.js"]);
+    assert.ok(!brief.readFirst.includes("docs/ai-context/REPOSITORY_LEARNING.md"), JSON.stringify(brief.readFirst));
+    assert.equal(brief.learnedRelatedFiles.some((file) => file.includes("archive") || file.startsWith("dist/")), false);
+  });
+});
+
+test("work routing uses learned work relationships and tests", async () => {
+  await withLearningRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "update work routing"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const primary = brief.primaryFiles.map((file) => file.path);
+    const tests = brief.tests.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.ok(primary.includes("src/cli/commands/work.ts"), primary.join("\n"));
+    assert.ok(tests.includes("tests/work.test.js"), tests.join("\n"));
+    assert.deepEqual(brief.learnedRelatedFiles, ["src/cli/commands/work.ts"]);
+    assert.deepEqual(brief.learnedTests, ["tests/work.test.js"]);
+    assert.deepEqual(brief.learnedVerification, ["node --test tests/work.test.js"]);
+  });
+});
+
+test("work routing leaves unrelated tasks without learned hints", async () => {
+  await withLearningRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "adjust billing invoices"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(brief.learnedRelatedFiles, []);
+    assert.deepEqual(brief.learnedTests, []);
+    assert.deepEqual(brief.learnedVerification, []);
+    assert.equal(brief.supportingFiles.some((file) => file.path === "src/cli/commands/doctor.ts"), false);
+  });
+});
+
+test("work exact filename routing stays primary ahead of learned hints", async () => {
+  await withLearningRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "fix doctor.ts work routing"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const primary = brief.primaryFiles.map((file) => file.path);
+    const supporting = brief.supportingFiles.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.equal(primary[0], "src/cli/commands/doctor.ts");
+    assert.ok(primary.includes("src/cli/commands/work.ts") || supporting.includes("src/cli/commands/work.ts"));
+    assert.equal(brief.targetedLookupHints[0].signal, "exact-filename-match");
+  });
+});
+
+test("work --agent stays compact when learned routing contributes files", async () => {
+  await withLearningRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "--agent", "improve handoff output"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(
+      Object.keys(route),
+      [
+        "task",
+        "primaryFiles",
+        "supportingFiles",
+        "tests",
+        "readFirst",
+        "next",
+        "briefTokens"
+      ]
+    );
+    assert.ok(
+      [...route.primaryFiles, ...route.supportingFiles].includes("src/cli/handoff/buildHandoffBrief.ts"),
+      [...route.primaryFiles, ...route.supportingFiles].join("\n")
+    );
+    assert.ok(route.tests.includes("tests/handoff.test.js"), route.tests.join("\n"));
+    assert.doesNotMatch(result.stdout, /Repository learning|learnedRelatedFiles|learnedVerification/);
   });
 });
 

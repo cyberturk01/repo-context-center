@@ -83,6 +83,9 @@ export interface WorkBrief {
   relevantTests: WorkRecommendation[];
   targetedLookupHints: Array<Omit<TargetedLookupHint, "index">>;
   promotedFromTargetedLookup: Array<Omit<TargetedLookupHint, "index">>;
+  learnedRelatedFiles: string[];
+  learnedTests: string[];
+  learnedVerification: string[];
   relevantDecisions: string[];
   recentLogs: string[];
   tokenEstimate: {
@@ -127,6 +130,9 @@ export interface PublicWorkBrief {
   avoid: string[];
   nextCheapestCommand: string;
   promotedFromTargetedLookup: PublicTargetedLookupHint[];
+  learnedRelatedFiles?: string[];
+  learnedTests?: string[];
+  learnedVerification?: string[];
   relevantDecisions: string[];
   recentLogs: string[];
   risks: PublicWorkRisk[];
