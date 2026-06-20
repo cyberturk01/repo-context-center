@@ -11,5 +11,6 @@ export const lessonsPath = "docs/ai-context/LESSONS_LEARNED.md";
 export const handoffSourceLimit = 5;
 export const handoffMemoryLimit = 5;
 export const handoffRouteLimit = 5;
+export const handoffCurrentStateFileLimit = 5;
 export const generatedStart = "<!-- repo-context-center:generated:start -->";
 export const generatedEnd = "<!-- repo-context-center:generated:end -->";

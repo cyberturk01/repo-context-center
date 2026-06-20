@@ -6,20 +6,20 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Compact handoff currentState and repositoryLearning output
 - Polished handoff repository learning hint ordering
 - Made handoff output include task-matched repository learning hints
 - Add learning-aware work hints to rcc work
 - Implemented learning-aware work routing
 - Polished repository learning markdown output
 - smoke test repository learning
-- Integrated repository learning updates into archive lifecycle
 
 ## Hot Files
 
 | File | Reason | Last touched |
 | ---- | ------ | ------------ |
-| `tests/handoff.test.js` | 20 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
-| `src/cli/handoff/buildHandoffBrief.ts` | 13 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
+| `tests/handoff.test.js` | 21 touches; Compact handoff currentState and repositoryLearning output | 2026-06-20 |
+| `src/cli/handoff/buildHandoffBrief.ts` | 14 touches; Compact handoff currentState and repositoryLearning output | 2026-06-20 |
 | `src/cli/handoff/handoffTypes.ts` | 13 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/commands/work.ts` | 13 touches; Made work command a thin wrapper by moving route helper exports and render facade calls into work modules. | 2026-06-19 |
 | `src/cli/handoff/renderAgent.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
@@ -27,13 +27,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `tests/work.test.js` | 10 touches; Add learning-aware work hints to rcc work | 2026-06-20 |
 | `tests/done.test.js` | 9 touches; Polished repository learning markdown output | 2026-06-20 |
 | `src/cli/commands/done.ts` | 9 touches; Integrated repository learning updates into archive lifecycle | 2026-06-20 |
-| `src/cli/handoff/renderText.ts` | 7 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
+| `src/cli/handoff/handoffConstants.ts` | 8 touches; Compact handoff currentState and repositoryLearning output | 2026-06-20 |
 
 ## Completed Work Themes
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Handoff | 21 | Polished handoff repository learning hint ordering |
+| Handoff | 22 | Compact handoff currentState and repositoryLearning output |
 | Work routing | 20 | Add learning-aware work hints to rcc work |
 | Repository context | 4 | Polished repository learning markdown output |
 | Work memory | 3 | Integrated repository learning updates into archive lifecycle |
@@ -44,12 +44,12 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (33)
+- `npm run build` (34)
 - `npm test` (28)
+- `node --test tests/handoff.test.js` (12)
 - `node --test tests/work.test.js` (12)
-- `node --test tests/handoff.test.js` (11)
 - `node --test tests/cli.test.js` (9)
-- `node --test tests/*.test.js` (6)
+- `node --test tests/*.test.js` (7)
 - `node dist/cli/index.js measure "recalibrate AGENTS.md for current RCC architecture"` (2)
 - `node dist/cli/index.js measure "recalibrate AGENTS.md for current RCC architecture" --json` (2)
 

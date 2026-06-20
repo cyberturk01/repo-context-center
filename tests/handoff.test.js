@@ -341,9 +341,10 @@ test("handoff task receives relevant repository learning hints", async () => {
     assert.deepEqual(brief.repositoryLearning, [
       "handoff changes often touch tests/handoff.test.js",
       "handoff work often verifies with npm test",
-      "handoff changes often touch src/cli/commands/handoff.ts",
-      "CLI command files should stay thin."
+      "handoff changes often touch src/cli/commands/handoff.ts"
     ]);
+    assert.ok(brief.repositoryLearning.length <= 3);
+    assert.equal(brief.repositoryLearning.includes("CLI command files should stay thin."), false);
   });
 });
 
@@ -357,6 +358,8 @@ test("handoff human output includes repository learning only when task signals e
     assert.equal(handoffResult.status, 0);
     assert.match(handoffResult.stdout, /Repository learning:\n- handoff changes often touch tests\/handoff\.test\.js/);
     assert.match(handoffResult.stdout, /- handoff work often verifies with npm test/);
+    assert.match(handoffResult.stdout, /- handoff changes often touch src\/cli\/commands\/handoff\.ts/);
+    assert.doesNotMatch(handoffResult.stdout, /CLI command files should stay thin\./);
     assert.equal(unrelatedResult.status, 0);
     assert.doesNotMatch(unrelatedResult.stdout, /Repository learning:/);
   });
@@ -389,6 +392,51 @@ test("handoff agent output caps repository learning hints", async () => {
   });
 });
 
+test("handoff currentState caps recent files but preserves complete filesTouched", async () => {
+  await withTempRepo(async (tempDir) => {
+    const touchedFiles = [
+      "src/current-state-a.ts",
+      "src/current-state-b.ts",
+      "src/current-state-c.ts",
+      "src/current-state-d.ts",
+      "src/current-state-e.ts",
+      "src/current-state-f.ts",
+      "tests/current-state.test.ts"
+    ];
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "<!-- rcc:handoff",
+      JSON.stringify({
+        schemaVersion: 1,
+        timestamp: "2026-06-20T12:00:00.000Z",
+        summary: "Touched many handoff files",
+        files: touchedFiles,
+        verification: ["node --test tests/current-state.test.ts"],
+        followUps: [],
+        risks: []
+      }, null, 2),
+      "-->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["handoff", "--json"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.equal(brief.currentState[0], "Working tree has no detected changes.");
+    assert.ok(brief.currentState.length <= 8);
+    assert.deepEqual(brief.currentState.slice(1), [
+      "Recently touched: src/current-state-a.ts",
+      "Recently touched: src/current-state-b.ts",
+      "Recently touched: src/current-state-c.ts",
+      "Recently touched: src/current-state-d.ts",
+      "Recently touched: src/current-state-e.ts",
+      "...and 2 more recently touched files"
+    ]);
+    assert.deepEqual(brief.filesTouched, touchedFiles);
+  });
+});
+
 test("rcc handoff --agent preserves exact currentState and nextAction spacing", async () => {
   await withTempRepo(async (tempDir) => {
     spawnSync("git", ["init"], { cwd: tempDir, encoding: "utf8" });
@@ -409,7 +457,9 @@ test("rcc handoff --agent preserves exact currentState and nextAction spacing", 
     const brief = parseJsonOnlyOutput(result);
     const serialized = result.stdout;
 
-    assert.ok(brief.currentState.includes("Working tree changed: AGENTS.md"));
+    assert.match(brief.currentState[0], /^Working tree changed: \d+ files?\.$/);
+    assert.match(brief.currentState[1], /^Changed: /);
+    assert.ok(brief.currentState.includes("Changed: AGENTS.md"));
     assert.ok(brief.nextActions.includes("Use nextLookup only if the routed files are insufficient."));
     assert.doesNotMatch(serialized, /Workingtree changed/);
     assert.doesNotMatch(serialized, /files areinsufficient/);
