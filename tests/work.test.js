@@ -828,6 +828,24 @@ test("work --agent marks tiny tasks as fast fixes with lightweight guidance", as
   });
 });
 
+test("work --agent tiny guidance keeps word spacing stable", async () => {
+  await withWorkRepo(async (tempDir) => {
+    for (const task of [
+      "fix typo in renderAgent output",
+      "fix spacing in work renderer"
+    ]) {
+      const result = runCli(["work", task, "--agent"], { cwd: tempDir });
+      const route = JSON.parse(result.stdout);
+
+      assert.equal(result.status, 0, task);
+      assert.equal(route.taskSize, "tiny", task);
+      assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong.");
+      assert.doesNotMatch(route.next, /relevanttest/, task);
+      assert.doesNotMatch(route.next, /runthe/, task);
+    }
+  });
+});
+
 test("work --agent keeps medium and large tasks on normal deep guidance", async () => {
   await withWorkRepo(async (tempDir) => {
     const medium = JSON.parse(runCli(["work", "--agent", "add JSON output for work briefs"], { cwd: tempDir }).stdout);

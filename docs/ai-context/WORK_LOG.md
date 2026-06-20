@@ -4,6 +4,166 @@ Lightweight RCC memory from completed agent work.
 
 <!-- repo-context-center:work-log:start -->
 
+## 2026-06-20T15:38:02.010Z
+- Summary: Added task-size route pruning for rcc work so tiny and small briefs cap route files while preserving medium and large behavior.
+- Changed files: `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderAgent.ts`, `src/cli/work/renderText.ts`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/*.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added task-size route pruning for rcc work so tiny and small briefs cap route files while preserving medium and large behavior.",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderText.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/*.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T15:38:02.010Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T15:38:02.010Z",
+  "summary": "Added task-size route pruning for rcc work so tiny and small briefs cap route files while preserving medium and large behavior.",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderText.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/*.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-20T15:32:13.636Z
+- Summary: Integrated task size classification into rcc work briefs and text, JSON, and agent renderers with lightweight guidance for tiny and small tasks.
+- Changed files: `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderAgent.ts`, `src/cli/work/renderJson.ts`, `src/cli/work/renderText.ts`, `src/cli/work/taskSize.ts`, `src/cli/work/workTypes.ts`, `tests/v07-release.test.js`, `tests/work.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Integrated task size classification into rcc work briefs and text, JSON, and agent renderers with lightweight guidance for tiny and small tasks.",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/taskSize.ts",
+    "src/cli/work/workTypes.ts",
+    "tests/v07-release.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T15:32:13.636Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T15:32:13.636Z",
+  "summary": "Integrated task size classification into rcc work briefs and text, JSON, and agent renderers with lightweight guidance for tiny and small tasks.",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/taskSize.ts",
+    "src/cli/work/workTypes.ts",
+    "tests/v07-release.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-20T15:26:21.903Z
+- Summary: Added deterministic task size classification helper for RCC work briefs with tiny/small/medium/large modes and focused unit tests.
+- Changed files: `src/cli/work/taskSize.ts`, `tests/taskSize.test.js`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/taskSize.test.js tests/work.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added deterministic task size classification helper for RCC work briefs with tiny/small/medium/large modes and focused unit tests.",
+  "files": [
+    "src/cli/work/taskSize.ts",
+    "tests/taskSize.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/taskSize.test.js tests/work.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T15:26:21.903Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T15:26:21.903Z",
+  "summary": "Added deterministic task size classification helper for RCC work briefs with tiny/small/medium/large modes and focused unit tests.",
+  "files": [
+    "src/cli/work/taskSize.ts",
+    "tests/taskSize.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/taskSize.test.js tests/work.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-20T15:08:49.136Z
+- Summary: Add regression for work agent next spacing
+- Changed files: `tests/work.test.js`
+- Verification: npm run build; node --test tests/*.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add regression for work agent next spacing",
+  "files": [
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/*.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T15:08:49.136Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T15:08:49.136Z",
+  "summary": "Add regression for work agent next spacing",
+  "files": [
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/*.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
 ## 2026-06-20T14:02:39.662Z
 - Summary: Refactor work memory artifact refresh into shared helper
 - Changed files: `src/cli/commands/done.ts`, `src/core/archiver.ts`, `src/core/workMemoryRefresh.ts`, `tests/archive.test.js`, `tests/commandArchitecture.test.js`, `tests/done.test.js`, `tests/start.test.js`
@@ -1435,181 +1595,37 @@ Lightweight RCC memory from completed agent work.
 - Changed files: `src/cli/commands/work.ts`, `src/cli/work/taskFileRecommendations.ts`
 - Verification: npm run build; node --test tests/work.test.js tests/repoFileClassifier.test.js
 
-## 2026-06-19T16:17:29.896Z
-- Summary: Extracted read-first guidance generation from work.ts into src/cli/work/readFirstGuidance.ts and added focused budget/rule-file tests.
-- Changed files: `src/cli/commands/work.ts`, `src/cli/work/readFirstGuidance.ts`, `src/cli/work/targetedLookup.ts`, `tests/work.test.js`
-- Verification: npm run build; node --test tests/work.test.js
-
-## 2026-06-19T16:13:52.789Z
-- Summary: Extracted targeted lookup scoring from work.ts into src/cli/work/targetedLookup.ts while preserving work routing behavior.
-- Changed files: `src/cli/commands/work.ts`, `src/cli/work/targetedLookup.ts`
-- Verification: npm run build; node --test tests/work.test.js
-
-## 2026-06-19T16:07:07.287Z
-- Summary: Extracted RCC work memory and log readers into memorySignals module
-- Changed files: `src/cli/commands/work.ts`, `src/cli/work/mapFreshness.ts`, `src/cli/work/memorySignals.ts`, `src/cli/work/workConstants.ts`, `src/cli/work/workOptions.ts`, `src/cli/work/workTypes.ts`, `tests/work.test.js`
-- Verification: npm run build; node --test tests/work.test.js; npm test
-
-## 2026-06-19T16:02:00.275Z
-- Summary: Extracted RCC work map freshness logic into mapFreshness module
-- Changed files: `src/cli/commands/work.ts`, `src/cli/work/mapFreshness.ts`, `src/cli/work/workConstants.ts`, `src/cli/work/workOptions.ts`, `src/cli/work/workTypes.ts`, `tests/work.test.js`
-- Verification: npm run build; node --test tests/work.test.js; npm test
-
-## 2026-06-20T15:08:49.136Z
-- Summary: Add regression for work agent next spacing
-- Changed files: `tests/work.test.js`
-- Verification: npm run build; node --test tests/*.test.js
+## 2026-06-20T15:55:12.254Z
+- Summary: Fixed tiny task guidance spacing regressions by aligning tiny text guidance and adding agent output regression coverage for joined words.
+- Changed files: `src/cli/work/renderText.ts`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/work.test.js; node --test tests/*.test.js
 <!-- rcc:handoff
 {
   "schemaVersion": 1,
-  "summary": "Add regression for work agent next spacing",
+  "summary": "Fixed tiny task guidance spacing regressions by aligning tiny text guidance and adding agent output regression coverage for joined words.",
   "files": [
+    "src/cli/work/renderText.ts",
     "tests/work.test.js"
   ],
   "verification": [
-    "npm run build; node --test tests/*.test.js"
+    "npm run build; node --test tests/work.test.js; node --test tests/*.test.js"
   ],
   "followUps": [],
   "risks": [],
-  "timestamp": "2026-06-20T15:08:49.136Z"
+  "timestamp": "2026-06-20T15:55:12.254Z"
 }
 -->
 ```json repo-context-center:done
 {
   "schemaVersion": 1,
   "command": "done",
-  "timestamp": "2026-06-20T15:08:49.136Z",
-  "summary": "Add regression for work agent next spacing",
+  "timestamp": "2026-06-20T15:55:12.254Z",
+  "summary": "Fixed tiny task guidance spacing regressions by aligning tiny text guidance and adding agent output regression coverage for joined words.",
   "files": [
-    "tests/work.test.js"
-  ],
-  "verification": "npm run build; node --test tests/*.test.js",
-  "followUps": [],
-  "risks": []
-}
-```
-
-## 2026-06-20T15:26:21.903Z
-- Summary: Added deterministic task size classification helper for RCC work briefs with tiny/small/medium/large modes and focused unit tests.
-- Changed files: `src/cli/work/taskSize.ts`, `tests/taskSize.test.js`, `tests/work.test.js`
-- Verification: npm run build; node --test tests/taskSize.test.js tests/work.test.js
-<!-- rcc:handoff
-{
-  "schemaVersion": 1,
-  "summary": "Added deterministic task size classification helper for RCC work briefs with tiny/small/medium/large modes and focused unit tests.",
-  "files": [
-    "src/cli/work/taskSize.ts",
-    "tests/taskSize.test.js",
-    "tests/work.test.js"
-  ],
-  "verification": [
-    "npm run build; node --test tests/taskSize.test.js tests/work.test.js"
-  ],
-  "followUps": [],
-  "risks": [],
-  "timestamp": "2026-06-20T15:26:21.903Z"
-}
--->
-```json repo-context-center:done
-{
-  "schemaVersion": 1,
-  "command": "done",
-  "timestamp": "2026-06-20T15:26:21.903Z",
-  "summary": "Added deterministic task size classification helper for RCC work briefs with tiny/small/medium/large modes and focused unit tests.",
-  "files": [
-    "src/cli/work/taskSize.ts",
-    "tests/taskSize.test.js",
-    "tests/work.test.js"
-  ],
-  "verification": "npm run build; node --test tests/taskSize.test.js tests/work.test.js",
-  "followUps": [],
-  "risks": []
-}
-```
-
-## 2026-06-20T15:32:13.636Z
-- Summary: Integrated task size classification into rcc work briefs and text, JSON, and agent renderers with lightweight guidance for tiny and small tasks.
-- Changed files: `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderAgent.ts`, `src/cli/work/renderJson.ts`, `src/cli/work/renderText.ts`, `src/cli/work/taskSize.ts`, `src/cli/work/workTypes.ts`, `tests/v07-release.test.js`, `tests/work.test.js`
-- Verification: npm test
-<!-- rcc:handoff
-{
-  "schemaVersion": 1,
-  "summary": "Integrated task size classification into rcc work briefs and text, JSON, and agent renderers with lightweight guidance for tiny and small tasks.",
-  "files": [
-    "src/cli/work/buildWorkBrief.ts",
-    "src/cli/work/renderAgent.ts",
-    "src/cli/work/renderJson.ts",
-    "src/cli/work/renderText.ts",
-    "src/cli/work/taskSize.ts",
-    "src/cli/work/workTypes.ts",
-    "tests/v07-release.test.js",
-    "tests/work.test.js"
-  ],
-  "verification": [
-    "npm test"
-  ],
-  "followUps": [],
-  "risks": [],
-  "timestamp": "2026-06-20T15:32:13.636Z"
-}
--->
-```json repo-context-center:done
-{
-  "schemaVersion": 1,
-  "command": "done",
-  "timestamp": "2026-06-20T15:32:13.636Z",
-  "summary": "Integrated task size classification into rcc work briefs and text, JSON, and agent renderers with lightweight guidance for tiny and small tasks.",
-  "files": [
-    "src/cli/work/buildWorkBrief.ts",
-    "src/cli/work/renderAgent.ts",
-    "src/cli/work/renderJson.ts",
-    "src/cli/work/renderText.ts",
-    "src/cli/work/taskSize.ts",
-    "src/cli/work/workTypes.ts",
-    "tests/v07-release.test.js",
-    "tests/work.test.js"
-  ],
-  "verification": "npm test",
-  "followUps": [],
-  "risks": []
-}
-```
-
-## 2026-06-20T15:38:02.010Z
-- Summary: Added task-size route pruning for rcc work so tiny and small briefs cap route files while preserving medium and large behavior.
-- Changed files: `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderAgent.ts`, `src/cli/work/renderText.ts`, `tests/work.test.js`
-- Verification: npm run build; node --test tests/*.test.js
-<!-- rcc:handoff
-{
-  "schemaVersion": 1,
-  "summary": "Added task-size route pruning for rcc work so tiny and small briefs cap route files while preserving medium and large behavior.",
-  "files": [
-    "src/cli/work/buildWorkBrief.ts",
-    "src/cli/work/renderAgent.ts",
     "src/cli/work/renderText.ts",
     "tests/work.test.js"
   ],
-  "verification": [
-    "npm run build; node --test tests/*.test.js"
-  ],
-  "followUps": [],
-  "risks": [],
-  "timestamp": "2026-06-20T15:38:02.010Z"
-}
--->
-```json repo-context-center:done
-{
-  "schemaVersion": 1,
-  "command": "done",
-  "timestamp": "2026-06-20T15:38:02.010Z",
-  "summary": "Added task-size route pruning for rcc work so tiny and small briefs cap route files while preserving medium and large behavior.",
-  "files": [
-    "src/cli/work/buildWorkBrief.ts",
-    "src/cli/work/renderAgent.ts",
-    "src/cli/work/renderText.ts",
-    "tests/work.test.js"
-  ],
-  "verification": "npm run build; node --test tests/*.test.js",
+  "verification": "npm run build; node --test tests/work.test.js; node --test tests/*.test.js",
   "followUps": [],
   "risks": []
 }
