@@ -632,4 +632,38 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T07:15:53.961Z
+- Summary: Added lightweight tests for benchmark script presence, package script targets, and developer-only runtime packaging boundaries.
+- Changed files: `tests/benchmark-scripts.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added lightweight tests for benchmark script presence, package script targets, and developer-only runtime packaging boundaries.",
+  "files": [
+    "tests/benchmark-scripts.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T07:15:53.961Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T07:15:53.961Z",
+  "summary": "Added lightweight tests for benchmark script presence, package script targets, and developer-only runtime packaging boundaries.",
+  "files": [
+    "tests/benchmark-scripts.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
