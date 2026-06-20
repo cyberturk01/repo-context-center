@@ -1439,4 +1439,38 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T13:58:33.460Z
+- Summary: Add command architecture boundary tests
+- Changed files: `tests/commandArchitecture.test.js`
+- Verification: npm run build; node --test tests/*.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add command architecture boundary tests",
+  "files": [
+    "tests/commandArchitecture.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/*.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T13:58:33.460Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T13:58:33.460Z",
+  "summary": "Add command architecture boundary tests",
+  "files": [
+    "tests/commandArchitecture.test.js"
+  ],
+  "verification": "npm run build; node --test tests/*.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
