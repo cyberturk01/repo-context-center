@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Add explicit rcc learn command for on-demand repository learning output and writes
 - Deduplicate handoff Work index memory against Last completed
 - Compact handoff currentState and repositoryLearning output
 - Polished handoff repository learning hint ordering
 - Made handoff output include task-matched repository learning hints
 - Add learning-aware work hints to rcc work
 - Implemented learning-aware work routing
-- Polished repository learning markdown output
 
 ## Hot Files
 
@@ -35,7 +35,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | ----- | ----: | -------------- |
 | Handoff | 23 | Deduplicate handoff Work index memory against Last completed |
 | Work routing | 20 | Add learning-aware work hints to rcc work |
-| Repository context | 4 | Polished repository learning markdown output |
+| Repository context | 5 | Add explicit rcc learn command for on-demand repository learning output and writes |
 | Work memory | 3 | Integrated repository learning updates into archive lifecycle |
 | Agent guidance | 3 | Updated README onboarding with latest-version commands, lifecycle guidance, manual-vs-automatic behavior, and cautious token-saving expectations. |
 | General maintenance | 2 | Updated README SVG image URL to use the raw GitHub link for npm rendering. |

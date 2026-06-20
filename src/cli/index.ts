@@ -7,6 +7,7 @@ import { estimateCommand } from "./commands/estimate";
 import { findCommand } from "./commands/find";
 import { handoffCommand } from "./commands/handoff";
 import { initCommand } from "./commands/init";
+import { learnCommand } from "./commands/learn";
 import { logCommand } from "./commands/log";
 import { mapCommand } from "./commands/map";
 import { measureCommand } from "./commands/measure";
@@ -34,6 +35,7 @@ const commands: Record<string, CommandHandler> = {
   estimate: estimateCommand,
   find: findCommand,
   handoff: handoffCommand,
+  learn: learnCommand,
   log: logCommand,
   map: mapCommand,
   measure: measureCommand,
@@ -72,6 +74,8 @@ Commands:
             Usage: find "<query>" [--limit <number>]
   handoff   Print a handoff brief for continuing agent work
             Usage: handoff [task] [--json|--agent] [--debug] [--write]
+  learn     Regenerate repository learning on demand
+            Usage: learn [--json] [--write] [--debug]
   log       Add a durable entry to docs/ai-context/CHANGE_LOG.md
             Usage: log "<summary>" [--files <path,path>] [--dry-run]
   map       Generate repo-specific context maps

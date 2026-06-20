@@ -1281,4 +1281,52 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T12:19:07.968Z
+- Summary: Add explicit rcc learn command for on-demand repository learning output and writes
+- Changed files: `src/cli/commands/learn.ts`, `src/cli/index.ts`, `src/cli/learn/buildLearnResult.ts`, `src/cli/learn/learnOptions.ts`, `src/cli/learn/renderLearn.ts`, `src/cli/learn/writeLearn.ts`, `tests/cli.test.js`, `tests/learn.test.js`
+- Verification: npm test (408 passing)
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add explicit rcc learn command for on-demand repository learning output and writes",
+  "files": [
+    "src/cli/commands/learn.ts",
+    "src/cli/index.ts",
+    "src/cli/learn/buildLearnResult.ts",
+    "src/cli/learn/learnOptions.ts",
+    "src/cli/learn/renderLearn.ts",
+    "src/cli/learn/writeLearn.ts",
+    "tests/cli.test.js",
+    "tests/learn.test.js"
+  ],
+  "verification": [
+    "npm test (408 passing)"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T12:19:07.968Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T12:19:07.968Z",
+  "summary": "Add explicit rcc learn command for on-demand repository learning output and writes",
+  "files": [
+    "src/cli/commands/learn.ts",
+    "src/cli/index.ts",
+    "src/cli/learn/buildLearnResult.ts",
+    "src/cli/learn/learnOptions.ts",
+    "src/cli/learn/renderLearn.ts",
+    "src/cli/learn/writeLearn.ts",
+    "tests/cli.test.js",
+    "tests/learn.test.js"
+  ],
+  "verification": "npm test (408 passing)",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
