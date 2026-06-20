@@ -1526,4 +1526,52 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T15:32:13.636Z
+- Summary: Integrated task size classification into rcc work briefs and text, JSON, and agent renderers with lightweight guidance for tiny and small tasks.
+- Changed files: `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderAgent.ts`, `src/cli/work/renderJson.ts`, `src/cli/work/renderText.ts`, `src/cli/work/taskSize.ts`, `src/cli/work/workTypes.ts`, `tests/v07-release.test.js`, `tests/work.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Integrated task size classification into rcc work briefs and text, JSON, and agent renderers with lightweight guidance for tiny and small tasks.",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/taskSize.ts",
+    "src/cli/work/workTypes.ts",
+    "tests/v07-release.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T15:32:13.636Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T15:32:13.636Z",
+  "summary": "Integrated task size classification into rcc work briefs and text, JSON, and agent renderers with lightweight guidance for tiny and small tasks.",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/taskSize.ts",
+    "src/cli/work/workTypes.ts",
+    "tests/v07-release.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

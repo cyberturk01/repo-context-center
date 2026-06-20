@@ -101,8 +101,8 @@ test("v0.7 release: rcc work produces useful focused output", async () => {
     assert.match(result.stdout, /Agent rules:\n- AGENTS\.md/);
     assert.match(result.stdout, /Context if unclear:\n- docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(result.stdout, /Known risks:\n- high/);
-    assert.match(result.stdout, /Next:\nStart with primary files\./);
-    assert.match(result.stdout, /Do not rerun rcc work for the same task unless the task meaning changes\./);
+    assert.match(result.stdout, /Task size: small\nMode: fast fix/);
+    assert.match(result.stdout, /Next:\nSmall task: open only the primary file, apply the fix, run the narrowest relevant test, and avoid broad exploration\./);
     assert.ok(result.stdout.indexOf("Primary files:") < result.stdout.indexOf("Tests:"));
     assert.ok(result.stdout.indexOf("Tests:") < result.stdout.indexOf("Supporting files:"));
     assert.doesNotMatch(result.stdout, /Cheapest path:/);

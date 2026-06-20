@@ -18,6 +18,7 @@ import {
   buildTaskFileRecommendations,
   buildWorkFileCategorization
 } from "./taskFileRecommendations";
+import { classifyTaskSize } from "./taskSize";
 import { targetedLookupHints } from "./targetedLookup";
 import type {
   CompactWorkBrief,
@@ -100,9 +101,14 @@ export function buildWorkBrief(
   const categorized = buildTaskFileRecommendations(startup, lookupHints, readFirstGuidance, taskIntent);
   const fileCategories = buildWorkFileCategorization(categorized, startup, lookupHints, taskIntent, learnedSignals);
   const nextCheapest = nextCheapestLookupCommand(taskIntent);
+  const taskSize = classifyTaskSize(startup.task);
   const brief: WorkBrief = {
     command: "work",
     task: startup.task,
+    taskSize: taskSize.size,
+    taskMode: taskSize.mode,
+    taskSizeConfidence: taskSize.confidence,
+    taskSizeReasons: taskSize.reasons,
     contextBudget,
     mapFreshness,
     routingGuidance: startup.startupInstructions,

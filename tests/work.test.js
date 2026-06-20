@@ -592,6 +592,7 @@ test("work accepts a task string and recommends focused files", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Task:\nfix login bug/);
+    assert.match(result.stdout, /Task size: small\nMode: fast fix/);
     assert.match(result.stdout, /Freshness:\n(fresh|maybe_stale|stale|unknown) \d+\/100 — /);
     assert.match(result.stdout, /Primary files:\n- src\/auth\/login\.ts/);
     assert.match(result.stdout, /Tests:\n- tests\/auth\/login\.test\.ts/);
@@ -599,9 +600,7 @@ test("work accepts a task string and recommends focused files", async () => {
     assert.match(result.stdout, /Agent rules:\n- AGENTS\.md/);
     assert.match(result.stdout, /Context if unclear:\n- docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(result.stdout, /Known risks:\n- high/);
-    assert.match(result.stdout, /Next:\nStart with primary files\./);
-    assert.match(result.stdout, /Do not rerun rcc work for the same task unless the task meaning changes\./);
-    assert.match(result.stdout, /Use rcc find "login" only if primary\/supporting files are insufficient\./);
+    assert.match(result.stdout, /Next:\nSmall task: open only the primary file, apply the fix, run the narrowest relevant test, and avoid broad exploration\./);
     assert.ok(result.stdout.indexOf("Primary files:") < result.stdout.indexOf("Tests:"));
     assert.ok(result.stdout.indexOf("Tests:") < result.stdout.indexOf("Supporting files:"));
     assert.ok(result.stdout.indexOf("Supporting files:") < result.stdout.indexOf("Agent rules:"));
@@ -630,6 +629,8 @@ test("work --json returns compact machine-readable startup JSON", async () => {
         "schemaVersion",
         "command",
         "task",
+        "taskSize",
+        "taskMode",
         "contextBudget",
         "freshness",
         "taskFiles",
@@ -648,6 +649,8 @@ test("work --json returns compact machine-readable startup JSON", async () => {
     assert.equal(brief.schemaVersion, 1);
     assert.equal(brief.command, "work");
     assert.equal(brief.task, "fix login bug");
+    assert.equal(brief.taskSize, "small");
+    assert.equal(brief.taskMode, "fast_fix");
     assert.equal(brief.contextBudget, "balanced");
     assert.equal(typeof brief.freshness.status, "string");
     assert.equal(typeof brief.freshness.score, "number");
@@ -693,6 +696,8 @@ test("work --agent prints valid compact JSON only", async () => {
       Object.keys(route),
       [
         "task",
+        "taskSize",
+        "mode",
         "primaryFiles",
         "supportingFiles",
         "tests",
@@ -702,12 +707,13 @@ test("work --agent prints valid compact JSON only", async () => {
       ]
     );
     assert.equal(route.task, "fix login bug");
+    assert.equal(route.taskSize, "small");
+    assert.equal(route.mode, "fast_fix");
     assert.deepEqual(route.primaryFiles, ["src/auth/login.ts"]);
     assert.deepEqual(route.supportingFiles, []);
     assert.deepEqual(route.tests, ["tests/auth/login.test.ts"]);
     assert.ok(route.readFirst.includes("AGENTS.md"));
-    assert.equal(route.next, 'Start with primaryFiles. Do not rerun work for this task. Use rcc find "login" only if needed.');
-    assert.match(route.next, /\bwork for this task\b/);
+    assert.equal(route.next, "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration.");
     assert.doesNotMatch(route.next, /\bworkfor\b/);
     assert.equal(typeof route.briefTokens, "number");
     assert.doesNotMatch(result.stdout, /```|repo-context-center work brief|Primary files:/);
@@ -742,6 +748,35 @@ test("work --agent compact output omits duplicated legacy arrays", async () => {
   });
 });
 
+test("work --agent marks tiny tasks as fast fixes with lightweight guidance", async () => {
+  await withWorkRepo(async (tempDir) => {
+    const result = runCli(["work", "--agent", "fix workfor typo"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.taskSize, "tiny");
+    assert.equal(route.mode, "fast_fix");
+    assert.equal(route.next, "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration.");
+  });
+});
+
+test("work --agent keeps medium and large tasks on normal deep guidance", async () => {
+  await withWorkRepo(async (tempDir) => {
+    const medium = JSON.parse(runCli(["work", "--agent", "add JSON output for work briefs"], { cwd: tempDir }).stdout);
+    const large = JSON.parse(runCli(["work", "--agent", "refactor handoff architecture"], { cwd: tempDir }).stdout);
+
+    assert.equal(medium.taskSize, "medium");
+    assert.equal(medium.mode, "normal");
+    assert.match(medium.next, /^Start with primaryFiles\./);
+    assert.doesNotMatch(medium.next, /^Small task:/);
+
+    assert.equal(large.taskSize, "large");
+    assert.equal(large.mode, "deep");
+    assert.match(large.next, /^Start with primaryFiles\./);
+    assert.doesNotMatch(large.next, /^Small task:/);
+  });
+});
+
 test("work --agent --verbose includes route reasons without legacy arrays", async () => {
   await withWorkRepo(async (tempDir) => {
     const result = runCli(["work", "--agent", "--verbose", "fix login bug"], { cwd: tempDir });
@@ -772,6 +807,10 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
         "schemaVersion",
         "command",
         "task",
+        "taskSize",
+        "taskMode",
+        "taskSizeConfidence",
+        "taskSizeReasons",
         "contextBudget",
         "mapFreshness",
         "recommendedFiles",
@@ -806,6 +845,10 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
     );
     assert.equal(brief.schemaVersion, 1);
     assert.equal(brief.command, "work");
+    assert.equal(brief.taskSize, "small");
+    assert.equal(brief.taskMode, "fast_fix");
+    assert.equal(brief.taskSizeConfidence, "medium");
+    assert.ok(brief.taskSizeReasons.includes("single bug"));
     assert.equal(brief.contextBudget, "balanced");
     assert.equal(typeof brief.mapFreshness.status, "string");
     assert.equal(typeof brief.mapFreshness.score, "number");
@@ -1093,6 +1136,8 @@ test("work --agent stays compact when learned routing contributes files", async 
       Object.keys(route),
       [
         "task",
+        "taskSize",
+        "mode",
         "primaryFiles",
         "supportingFiles",
         "tests",

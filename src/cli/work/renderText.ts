@@ -74,6 +74,10 @@ function compactMapFreshnessLine(mapFreshness: WorkMapFreshness): string {
   return `${mapFreshness.status} ${mapFreshness.score}/100 — ${reason}; ${recommendation}`;
 }
 
+function formatTaskMode(mode: WorkBrief["taskMode"]): string {
+  return mode.replace(/_/g, " ");
+}
+
 function compactRiskLines(risks: string[]): string[] {
   if (risks.includes("critical")) {
     return ["- critical — check docs/ai-context/RISK_REGISTER.md before editing."];
@@ -126,6 +130,12 @@ function targetLookupHintForText(hint: Omit<TargetedLookupHint, "index">): Targe
 }
 
 function renderNextLines(brief: WorkBrief, hasPrimaryFiles: boolean): string[] {
+  if (brief.taskSize === "tiny" || brief.taskSize === "small") {
+    return [
+      "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and avoid broad exploration."
+    ];
+  }
+
   const lookup = `Use ${brief.nextCheapestCommand} only if primary/supporting files are insufficient.`;
   const rerun = "Do not rerun rcc work for the same task unless the task meaning changes.";
 
@@ -169,6 +179,9 @@ export function renderWorkBriefLines(brief: WorkBrief): string[] {
     "",
     "Task:",
     brief.task,
+    "",
+    `Task size: ${brief.taskSize}`,
+    `Mode: ${formatTaskMode(brief.taskMode)}`,
     "",
     "Freshness:",
     compactMapFreshnessLine(brief.mapFreshness),

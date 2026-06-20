@@ -1,4 +1,5 @@
 import type { StartupContext } from "../../core/suggester";
+import type { TaskMode, TaskSize, TaskSizeClassification } from "./taskSize";
 
 export interface WorkOptions {
   agent: boolean;
@@ -66,6 +67,10 @@ export interface WorkMapFreshness {
 export interface WorkBrief {
   command: "work";
   task: string;
+  taskSize: TaskSize;
+  taskMode: TaskMode;
+  taskSizeConfidence: TaskSizeClassification["confidence"];
+  taskSizeReasons: string[];
   contextBudget: ContextBudget;
   mapFreshness: WorkMapFreshness;
   routingGuidance: string[];
@@ -106,6 +111,10 @@ export interface PublicWorkBrief {
   schemaVersion: 1;
   command: "work";
   task: string;
+  taskSize: TaskSize;
+  taskMode: TaskMode;
+  taskSizeConfidence: TaskSizeClassification["confidence"];
+  taskSizeReasons: string[];
   contextBudget: ContextBudget;
   mapFreshness: {
     status: WorkMapFreshness["status"];
@@ -163,6 +172,8 @@ export interface CompactWorkBrief {
   schemaVersion: 1;
   command: "work";
   task: string;
+  taskSize: TaskSize;
+  taskMode: TaskMode;
   contextBudget: ContextBudget;
   freshness: {
     status: WorkMapFreshness["status"];
@@ -214,6 +225,8 @@ export type PublicAgentRouteItem = string | PublicCompactWorkFile;
 
 export interface PublicAgentRoute {
   task: string;
+  taskSize: TaskSize;
+  mode: TaskMode;
   primaryFiles: PublicAgentRouteItem[];
   supportingFiles: PublicAgentRouteItem[];
   tests: PublicAgentRouteItem[];

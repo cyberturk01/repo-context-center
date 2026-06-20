@@ -78,6 +78,10 @@ export function renderWorkBriefDebugJson(brief: WorkBrief): string {
     schemaVersion: 1,
     command: brief.command,
     task: brief.task,
+    taskSize: brief.taskSize,
+    taskMode: brief.taskMode,
+    taskSizeConfidence: brief.taskSizeConfidence,
+    taskSizeReasons: brief.taskSizeReasons,
     contextBudget: brief.contextBudget,
     mapFreshness: {
       status: brief.mapFreshness.status,
@@ -146,6 +150,8 @@ export function toCompactWorkBrief(brief: WorkBrief): CompactWorkBrief {
     schemaVersion: 1,
     command: brief.command,
     task: brief.task,
+    taskSize: brief.taskSize,
+    taskMode: brief.taskMode,
     contextBudget: brief.contextBudget,
     freshness: {
       status: brief.mapFreshness.status,

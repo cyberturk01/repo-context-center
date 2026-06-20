@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Integrated task size classification into rcc work briefs and text, JSON, and agent renderers with lightweight guidance for tiny and small t...
 - Added deterministic task size classification helper for RCC work briefs with tiny/small/medium/large modes and focused unit tests.
 - Add regression for work agent next spacing
 - Refactor work memory artifact refresh into shared helper
 - Add command architecture boundary tests
 - Avoid full WORK_LOG scans during rcc work memory lookup
 - Updated README with Repository Learning and learn command documentation
-- Add learn command architecture guard tests
 
 ## Hot Files
 
@@ -23,9 +23,9 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `src/cli/handoff/handoffTypes.ts` | 13 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/handoff/renderAgent.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/handoff/renderJson.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
+| `tests/work.test.js` | 10 touches; Integrated task size classification into rcc work briefs and text, JSON, and agent renderers with lightweight guidance for tiny and small tasks. | 2026-06-20 |
 | `src/cli/commands/done.ts` | 10 touches; Refactor work memory artifact refresh into shared helper | 2026-06-20 |
 | `tests/done.test.js` | 10 touches; Refactor work memory artifact refresh into shared helper | 2026-06-20 |
-| `tests/work.test.js` | 9 touches; Added deterministic task size classification helper for RCC work briefs with tiny/small/medium/large modes and focused unit tests. | 2026-06-20 |
 | `src/cli/handoff/handoffConstants.ts` | 8 touches; Compact handoff currentState and repositoryLearning output | 2026-06-20 |
 | `src/cli/commands/work.ts` | 8 touches; Made work command a thin wrapper by moving route helper exports and render facade calls into work modules. | 2026-06-19 |
 
@@ -34,7 +34,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
 | Handoff | 23 | Deduplicate handoff Work index memory against Last completed |
-| Work routing | 11 | Added deterministic task size classification helper for RCC work briefs with tiny/small/medium/large modes and focused unit tests. |
+| Work routing | 12 | Integrated task size classification into rcc work briefs and text, JSON, and agent renderers with lightweight guidance for tiny and small tasks. |
 | Repository context | 6 | Updated README with Repository Learning and learn command documentation |
 | Work memory | 5 | Refactor work memory artifact refresh into shared helper |
 | CLI commands | 2 | Add command architecture boundary tests |
@@ -45,7 +45,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 ## Verification Patterns
 
 - `npm run build` (29)
-- `npm test` (21)
+- `npm test` (22)
 - `node --test tests/handoff.test.js` (12)
 - `node --test tests/*.test.js` (11)
 - `node --test tests/cli.test.js` (9)

@@ -25,6 +25,7 @@ const tinyRules: RuleMatch[] = [
 
 const smallRules: RuleMatch[] = [
   { label: "single bug", pattern: /\bsingle\s+bugs?\b/ },
+  { label: "single bug", pattern: /\bfix\b.*\bbugs?\b|\bbugs?\b.*\bfix\b/ },
   { label: "small bug", pattern: /\bsmall\s+(?:cli\s+)?bugs?\b/ },
   { label: "small test update", pattern: /\bsmall\s+tests?\s+updates?\b/ },
   { label: "small CLI output fix", pattern: /\bsmall\s+cli\s+output\s+fix\b/ },
