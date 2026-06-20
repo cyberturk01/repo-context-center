@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Added deterministic task size classification helper for RCC work briefs with tiny/small/medium/large modes and focused unit tests.
+- Add regression for work agent next spacing
 - Refactor work memory artifact refresh into shared helper
 - Add command architecture boundary tests
 - Avoid full WORK_LOG scans during rcc work memory lookup
 - Updated README with Repository Learning and learn command documentation
 - Add learn command architecture guard tests
-- Add explicit rcc learn command for on-demand repository learning output and writes
-- Deduplicate handoff Work index memory against Last completed
 
 ## Hot Files
 
@@ -21,36 +21,36 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
 | `src/cli/handoff/buildHandoffBrief.ts` | 15 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
 | `src/cli/handoff/handoffTypes.ts` | 13 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
-| `src/cli/commands/work.ts` | 13 touches; Made work command a thin wrapper by moving route helper exports and render facade calls into work modules. | 2026-06-19 |
-| `tests/work.test.js` | 11 touches; Avoid full WORK_LOG scans during rcc work memory lookup | 2026-06-20 |
 | `src/cli/handoff/renderAgent.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/handoff/renderJson.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/commands/done.ts` | 10 touches; Refactor work memory artifact refresh into shared helper | 2026-06-20 |
 | `tests/done.test.js` | 10 touches; Refactor work memory artifact refresh into shared helper | 2026-06-20 |
+| `tests/work.test.js` | 9 touches; Added deterministic task size classification helper for RCC work briefs with tiny/small/medium/large modes and focused unit tests. | 2026-06-20 |
 | `src/cli/handoff/handoffConstants.ts` | 8 touches; Compact handoff currentState and repositoryLearning output | 2026-06-20 |
+| `src/cli/commands/work.ts` | 8 touches; Made work command a thin wrapper by moving route helper exports and render facade calls into work modules. | 2026-06-19 |
 
 ## Completed Work Themes
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
 | Handoff | 23 | Deduplicate handoff Work index memory against Last completed |
-| Work routing | 20 | Add learning-aware work hints to rcc work |
+| Work routing | 11 | Added deterministic task size classification helper for RCC work briefs with tiny/small/medium/large modes and focused unit tests. |
 | Repository context | 6 | Updated README with Repository Learning and learn command documentation |
 | Work memory | 5 | Refactor work memory artifact refresh into shared helper |
-| Agent guidance | 3 | Updated README onboarding with latest-version commands, lifecycle guidance, manual-vs-automatic behavior, and cautious token-saving expectations. |
 | CLI commands | 2 | Add command architecture boundary tests |
 | General maintenance | 2 | Updated README SVG image URL to use the raw GitHub link for npm rendering. |
+| Agent guidance | 1 | Updated README onboarding with latest-version commands, lifecycle guidance, manual-vs-automatic behavior, and cautious token-saving expectations. |
 | Measurement and benchmarks | 1 | Added lightweight tests for benchmark script presence, package script targets, and developer-only runtime packaging boundaries. |
 
 ## Verification Patterns
 
-- `npm run build` (37)
-- `npm test` (31)
+- `npm run build` (29)
+- `npm test` (21)
 - `node --test tests/handoff.test.js` (12)
-- `node --test tests/work.test.js` (12)
-- `node --test tests/*.test.js` (10)
+- `node --test tests/*.test.js` (11)
 - `node --test tests/cli.test.js` (9)
-- `node dist/cli/index.js measure "recalibrate AGENTS.md for current RCC architecture"` (2)
-- `node dist/cli/index.js measure "recalibrate AGENTS.md for current RCC architecture" --json` (2)
+- `node --test tests/work.test.js` (6)
+- `git diff --check` (1)
+- `git diff --check README.md` (1)
 
 <!-- repo-context-center:work-index:end -->

@@ -707,6 +707,8 @@ test("work --agent prints valid compact JSON only", async () => {
     assert.deepEqual(route.tests, ["tests/auth/login.test.ts"]);
     assert.ok(route.readFirst.includes("AGENTS.md"));
     assert.equal(route.next, 'Start with primaryFiles. Do not rerun work for this task. Use rcc find "login" only if needed.');
+    assert.match(route.next, /\bwork for this task\b/);
+    assert.doesNotMatch(route.next, /\bworkfor\b/);
     assert.equal(typeof route.briefTokens, "number");
     assert.doesNotMatch(result.stdout, /```|repo-context-center work brief|Primary files:/);
   });
