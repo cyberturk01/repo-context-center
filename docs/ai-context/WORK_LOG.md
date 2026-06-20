@@ -1329,4 +1329,38 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T12:22:47.155Z
+- Summary: Add learn command architecture guard tests
+- Changed files: `tests/learn.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add learn command architecture guard tests",
+  "files": [
+    "tests/learn.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T12:22:47.155Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T12:22:47.155Z",
+  "summary": "Add learn command architecture guard tests",
+  "files": [
+    "tests/learn.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

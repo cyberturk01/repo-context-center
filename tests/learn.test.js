@@ -128,11 +128,32 @@ test("learn --debug includes source counts and ignored entries", async () => {
   });
 });
 
-test("learn command wrapper stays thin", async () => {
+test("learn command stays thin and delegates architecture concerns", async () => {
   const source = await readFile(path.join(repoRoot, "src", "cli", "commands", "learn.ts"), "utf8");
+  const lines = source.trim().split(/\r?\n/);
+  const imports = source.match(/^import .+$/gm) ?? [];
+  const allowedImports = new Set([
+    'import type { CliIO } from "../index";',
+    'import { buildLearnResult } from "../learn/buildLearnResult";',
+    'import { formatLearnOptionsUsage, parseLearnOptions } from "../learn/learnOptions";',
+    'import { renderLearnDebug, renderLearnJson, renderLearnText } from "../learn/renderLearn";',
+    'import { writeRepositoryLearning } from "../learn/writeLearn";'
+  ]);
 
-  assert.ok(source.length < 1200, `learn command is too large: ${source.length}`);
-  assert.match(source, /buildLearnResult/);
-  assert.match(source, /writeRepositoryLearning/);
-  assert.doesNotMatch(source, /parseWorkMemoryEntries|renderRepositoryLearningBody|upsertRepositoryLearning/);
+  assert.ok(lines.length <= 35, `learn command has ${lines.length} lines`);
+  assert.deepEqual(imports.filter((line) => !allowedImports.has(line)), []);
+  assert.doesNotMatch(source, /node:fs\/promises|node:path/);
+  assert.doesNotMatch(source, /from "\.\.\/\.\.\/core\/(?:fileSystem|workMemory|repositoryLearning|renderRepositoryLearning)"/);
+  assert.doesNotMatch(source, /\breadFile\b|\bwriteFile\b|\bmkdir\b|\bpathExists\b/);
+  assert.doesNotMatch(source, /WORK_LOG\.md|work-log|markdown|```/i);
+  assert.doesNotMatch(source, /parseWorkMemoryEntries|readRepositoryLearningSources|buildRepositoryLearningModel/);
+  assert.doesNotMatch(source, /renderRepositoryLearningBody|upsertRepositoryLearning/);
+  assert.match(source, /const options = parseLearnOptions\(args\);/);
+  assert.match(source, /io\.stderr\(formatLearnOptionsUsage\(\)\)/);
+  assert.match(source, /const result = await buildLearnResult\(io\.cwd\);/);
+  assert.match(source, /const writtenPath = options\.write \? await writeRepositoryLearning\(io\.cwd, result\.model\) : null;/);
+  assert.match(source, /io\.stdout\(renderLearnJson\(result\.model\)\)/);
+  assert.match(source, /io\.stdout\(`Wrote \$\{writtenPath\}\\n`\)/);
+  assert.match(source, /renderLearnText\(result\.model\)/);
+  assert.match(source, /renderLearnDebug\(result\.debug\)/);
 });
