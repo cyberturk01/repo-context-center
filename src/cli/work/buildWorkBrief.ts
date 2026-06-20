@@ -137,6 +137,7 @@ export function buildWorkBrief(
     learnedRelatedFiles: learnedSignals.learnedRelatedFiles,
     learnedTests: learnedSignals.learnedTests,
     learnedVerification: learnedSignals.learnedVerification,
+    learnedHabits: learnedSignals.learnedHabits,
     relevantDecisions: decisions,
     recentLogs: logs,
     tokenEstimate: {

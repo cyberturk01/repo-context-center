@@ -1073,4 +1073,50 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T11:42:21.370Z
+- Summary: Add learning-aware work hints to rcc work
+- Changed files: `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderJson.ts`, `src/cli/work/renderText.ts`, `src/cli/work/taskFileRecommendations.ts`, `src/cli/work/workTypes.ts`, `src/core/repositoryLearningRouting.ts`, `tests/work.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add learning-aware work hints to rcc work",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/cli/work/workTypes.ts",
+    "src/core/repositoryLearningRouting.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T11:42:21.370Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T11:42:21.370Z",
+  "summary": "Add learning-aware work hints to rcc work",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/cli/work/workTypes.ts",
+    "src/core/repositoryLearningRouting.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

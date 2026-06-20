@@ -10,20 +10,24 @@ export interface LearnedRoutingSignals {
   learnedRelatedFiles: string[];
   learnedTests: string[];
   learnedVerification: string[];
+  learnedHabits: string[];
 }
 
 const repositoryLearningPath = "docs/ai-context/REPOSITORY_LEARNING.md";
 const minimumLearnedCount = 2;
+const maxLearnedFiles = 3;
 const maxLearnedRelatedFiles = 3;
 const maxLearnedTests = 2;
 const maxLearnedVerification = 2;
+const maxLearnedHabits = 2;
 const genericScopes = new Set(["tests", "build", "repo", "repository", "general", "general maintenance"]);
 
 function emptySignals(): LearnedRoutingSignals {
   return {
     learnedRelatedFiles: [],
     learnedTests: [],
-    learnedVerification: []
+    learnedVerification: [],
+    learnedHabits: []
   };
 }
 
@@ -74,6 +78,23 @@ function pathMatchesTask(filePath: string, terms: Set<string>): boolean {
 function uniquePush(values: string[], value: string, limit: number): void {
   if (values.length < limit && !values.includes(value)) {
     values.push(value);
+  }
+}
+
+function learnedFileCount(signals: LearnedRoutingSignals): number {
+  return signals.learnedRelatedFiles.length + signals.learnedTests.length;
+}
+
+function uniqueLearnedFilePush(signals: LearnedRoutingSignals, filePath: string): void {
+  if (learnedFileCount(signals) >= maxLearnedFiles) {
+    return;
+  }
+
+  const role = classifyRepoFile(filePath).role;
+  if (role === "test") {
+    uniquePush(signals.learnedTests, filePath, maxLearnedTests);
+  } else {
+    uniquePush(signals.learnedRelatedFiles, filePath, maxLearnedRelatedFiles);
   }
 }
 
@@ -158,6 +179,11 @@ function parseRepositoryLearningMarkdown(content: string): RepositoryLearningMod
           });
         }
       }
+    } else if (section === "Repository Habits") {
+      const habit = line.trim().match(/^-\s+(.+?)\s*$/)?.[1];
+      if (habit && habit !== "none detected yet") {
+        model.repositoryHabits.push(habit);
+      }
     }
   }
 
@@ -204,12 +230,7 @@ export async function learnedRoutingSignalsForTask(cwd: string, task: string): P
       continue;
     }
 
-    const role = classifyRepoFile(related).role;
-    if (role === "test") {
-      uniquePush(signals.learnedTests, related, maxLearnedTests);
-    } else {
-      uniquePush(signals.learnedRelatedFiles, related, maxLearnedRelatedFiles);
-    }
+    uniqueLearnedFilePush(signals, related);
   }
 
   for (const item of model.frequentlyModifiedTogether) {
@@ -221,12 +242,7 @@ export async function learnedRoutingSignalsForTask(cwd: string, task: string): P
     }
 
     for (const file of item.files.map(normalizeRepoPath).filter(isAllowedLearnedPath)) {
-      const role = classifyRepoFile(file).role;
-      if (role === "test") {
-        uniquePush(signals.learnedTests, file, maxLearnedTests);
-      } else {
-        uniquePush(signals.learnedRelatedFiles, file, maxLearnedRelatedFiles);
-      }
+      uniqueLearnedFilePush(signals, file);
     }
   }
 
@@ -239,6 +255,12 @@ export async function learnedRoutingSignalsForTask(cwd: string, task: string): P
     }
 
     uniquePush(signals.learnedVerification, pattern.command, maxLearnedVerification);
+  }
+
+  if (matchedScopes.size > 0 || signals.learnedVerification.length > 0) {
+    for (const habit of model.repositoryHabits) {
+      uniquePush(signals.learnedHabits, habit, maxLearnedHabits);
+    }
   }
 
   return signals;

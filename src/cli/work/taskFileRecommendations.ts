@@ -262,7 +262,8 @@ export function buildWorkFileCategorization(
   learnedSignals: LearnedRoutingSignals = {
     learnedRelatedFiles: [],
     learnedTests: [],
-    learnedVerification: []
+    learnedVerification: [],
+    learnedHabits: []
   }
 ): WorkFileCategorization {
   const directPrimaryPaths = lookupHints

@@ -86,6 +86,7 @@ export interface WorkBrief {
   learnedRelatedFiles: string[];
   learnedTests: string[];
   learnedVerification: string[];
+  learnedHabits: string[];
   relevantDecisions: string[];
   recentLogs: string[];
   tokenEstimate: {
@@ -133,6 +134,7 @@ export interface PublicWorkBrief {
   learnedRelatedFiles?: string[];
   learnedTests?: string[];
   learnedVerification?: string[];
+  learnedHabits?: string[];
   relevantDecisions: string[];
   recentLogs: string[];
   risks: PublicWorkRisk[];

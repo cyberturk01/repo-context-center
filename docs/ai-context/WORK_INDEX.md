@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Add learning-aware work hints to rcc work
 - Implemented learning-aware work routing
 - Polished repository learning markdown output
 - smoke test repository learning
 - Integrated repository learning updates into archive lifecycle
 - Added Repository Learning markdown renderer
 - Built repository learning model from work memory
-- Added repository learning context generation
 
 ## Hot Files
 
@@ -22,7 +22,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `src/cli/commands/work.ts` | 13 touches; Made work command a thin wrapper by moving route helper exports and render facade calls into work modules. | 2026-06-19 |
 | `src/cli/handoff/buildHandoffBrief.ts` | 11 touches; Compacted handoff memory to five prioritized continuation entries while preserving handoff schema fields. | 2026-06-20 |
 | `src/cli/handoff/handoffTypes.ts` | 11 touches; Implemented WORK_INDEX generation from completed work, archive compaction for WORK_LOG, and handoff use of compact work memory. | 2026-06-20 |
-| `tests/work.test.js` | 9 touches; Implemented learning-aware work routing | 2026-06-20 |
+| `tests/work.test.js` | 10 touches; Add learning-aware work hints to rcc work | 2026-06-20 |
 | `tests/done.test.js` | 9 touches; Polished repository learning markdown output | 2026-06-20 |
 | `src/cli/commands/done.ts` | 9 touches; Integrated repository learning updates into archive lifecycle | 2026-06-20 |
 | `src/cli/handoff/renderAgent.ts` | 9 touches; Fixed compact handoff output whitespace normalization and added exact regression tests for currentState and nextActions strings. | 2026-06-19 |
@@ -33,7 +33,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Work routing | 19 | Implemented learning-aware work routing |
+| Work routing | 20 | Add learning-aware work hints to rcc work |
 | Handoff | 19 | Compacted handoff memory to five prioritized continuation entries while preserving handoff schema fields. |
 | Repository context | 4 | Polished repository learning markdown output |
 | Work memory | 3 | Integrated repository learning updates into archive lifecycle |
@@ -45,7 +45,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 ## Verification Patterns
 
 - `npm run build` (33)
-- `npm test` (25)
+- `npm test` (26)
 - `node --test tests/work.test.js` (12)
 - `node --test tests/handoff.test.js` (11)
 - `node --test tests/cli.test.js` (9)

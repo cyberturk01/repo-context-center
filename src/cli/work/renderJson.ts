@@ -106,6 +106,7 @@ export function renderWorkBriefDebugJson(brief: WorkBrief): string {
     learnedRelatedFiles: brief.learnedRelatedFiles,
     learnedTests: brief.learnedTests,
     learnedVerification: brief.learnedVerification,
+    learnedHabits: brief.learnedHabits,
     relevantDecisions: brief.relevantDecisions,
     recentLogs: brief.recentLogs,
     risks: publicRisks(brief.risks),

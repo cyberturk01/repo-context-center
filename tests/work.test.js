@@ -532,6 +532,12 @@ async function withLearningRoutingRepo(callback) {
         "| work | `node --test tests/work.test.js` | 3 |",
         "| handoff | `node --test tests/one-off.test.js` | 1 |",
         "",
+        "## Repository Habits",
+        "",
+        "- Verification commands are recorded with completed work (5/6).",
+        "- Tests are commonly changed with related implementation work (4/6).",
+        "- Follow-ups are captured when residual tasks remain (2/6).",
+        "",
         "<!-- repo-context-center:repository-learning:end -->",
         ""
       ].join("\n")
@@ -784,6 +790,7 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
         "learnedRelatedFiles",
         "learnedTests",
         "learnedVerification",
+        "learnedHabits",
         "relevantDecisions",
         "recentLogs",
         "risks",
@@ -829,6 +836,7 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
     assert.deepEqual(brief.learnedRelatedFiles, []);
     assert.deepEqual(brief.learnedTests, []);
     assert.deepEqual(brief.learnedVerification, []);
+    assert.deepEqual(brief.learnedHabits, []);
     assert.ok(brief.targetedLookupHints.some((hint) => (
       hint.path === "src/auth/login.ts"
       && hint.reason
@@ -877,6 +885,13 @@ test("work routing uses learned handoff relationships without adding learning to
     ]);
     assert.deepEqual(brief.learnedTests, ["tests/handoff.test.js"]);
     assert.deepEqual(brief.learnedVerification, ["node --test tests/handoff.test.js"]);
+    assert.deepEqual(brief.learnedHabits, [
+      "Verification commands are recorded with completed work (5/6).",
+      "Tests are commonly changed with related implementation work (4/6)."
+    ]);
+    assert.ok(brief.learnedRelatedFiles.length + brief.learnedTests.length <= 3);
+    assert.ok(brief.learnedVerification.length <= 2);
+    assert.ok(brief.learnedHabits.length <= 2);
     assert.ok(!brief.readFirst.includes("docs/ai-context/REPOSITORY_LEARNING.md"), JSON.stringify(brief.readFirst));
     assert.equal(brief.learnedRelatedFiles.some((file) => file.includes("archive") || file.startsWith("dist/")), false);
   });
@@ -895,6 +910,10 @@ test("work routing uses learned work relationships and tests", async () => {
     assert.deepEqual(brief.learnedRelatedFiles, ["src/cli/commands/work.ts"]);
     assert.deepEqual(brief.learnedTests, ["tests/work.test.js"]);
     assert.deepEqual(brief.learnedVerification, ["node --test tests/work.test.js"]);
+    assert.deepEqual(brief.learnedHabits, [
+      "Verification commands are recorded with completed work (5/6).",
+      "Tests are commonly changed with related implementation work (4/6)."
+    ]);
   });
 });
 
@@ -907,6 +926,7 @@ test("work routing leaves unrelated tasks without learned hints", async () => {
     assert.deepEqual(brief.learnedRelatedFiles, []);
     assert.deepEqual(brief.learnedTests, []);
     assert.deepEqual(brief.learnedVerification, []);
+    assert.deepEqual(brief.learnedHabits, []);
     assert.equal(brief.supportingFiles.some((file) => file.path === "src/cli/commands/doctor.ts"), false);
   });
 });
@@ -948,7 +968,21 @@ test("work --agent stays compact when learned routing contributes files", async 
       [...route.primaryFiles, ...route.supportingFiles].join("\n")
     );
     assert.ok(route.tests.includes("tests/handoff.test.js"), route.tests.join("\n"));
-    assert.doesNotMatch(result.stdout, /Repository learning|learnedRelatedFiles|learnedVerification/);
+    assert.doesNotMatch(result.stdout, /Repository learning|learnedRelatedFiles|learnedVerification|learnedHabits/);
+  });
+});
+
+test("work default output shows compact repository learning only for useful matches", async () => {
+  await withLearningRoutingRepo(async (tempDir) => {
+    const handoff = runCli(["work", "improve handoff output"], { cwd: tempDir });
+    const unrelated = runCli(["work", "adjust billing invoices"], { cwd: tempDir });
+
+    assert.equal(handoff.status, 0);
+    assert.match(handoff.stdout, /Repository learning:\n- similar work often touches tests\/handoff\.test\.js/);
+    assert.match(handoff.stdout, /similar changes usually verify with node --test tests\/handoff\.test\.js/);
+    assert.ok(sectionBody(handoff.stdout, "Repository learning", "Next").split(/\r?\n/).filter((line) => line.startsWith("- ")).length <= 4);
+    assert.equal(unrelated.status, 0);
+    assert.doesNotMatch(unrelated.stdout, /Repository learning:/);
   });
 });
 

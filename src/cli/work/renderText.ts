@@ -146,10 +146,12 @@ function renderNextLines(brief: WorkBrief, hasPrimaryFiles: boolean): string[] {
 }
 
 function repositoryLearningLines(brief: WorkBrief): string[] {
+  const learnedFiles = [...brief.learnedTests, ...brief.learnedRelatedFiles].slice(0, 3);
   const lines = [
-    ...brief.learnedRelatedFiles.slice(0, 1).map((file) => `- learned related file: ${file}`),
-    ...brief.learnedVerification.slice(0, 1).map((command) => `- learned verification: ${command}`)
-  ];
+    ...learnedFiles.slice(0, 2).map((file) => `- similar work often touches ${file}`),
+    ...brief.learnedVerification.slice(0, 2).map((command) => `- similar changes usually verify with ${command}`),
+    ...brief.learnedHabits.slice(0, 2).map((habit) => `- ${habit}`)
+  ].slice(0, 4);
 
   return lines.length > 0 ? ["Repository learning:", ...lines, ""] : [];
 }
