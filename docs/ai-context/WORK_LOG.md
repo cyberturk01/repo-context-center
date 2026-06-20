@@ -1363,4 +1363,38 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T12:29:17.063Z
+- Summary: Updated README with Repository Learning and learn command documentation
+- Changed files: `README.md`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated README with Repository Learning and learn command documentation",
+  "files": [
+    "README.md"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T12:29:17.063Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T12:29:17.063Z",
+  "summary": "Updated README with Repository Learning and learn command documentation",
+  "files": [
+    "README.md"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

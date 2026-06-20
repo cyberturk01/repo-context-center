@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Updated README with Repository Learning and learn command documentation
 - Add learn command architecture guard tests
 - Add explicit rcc learn command for on-demand repository learning output and writes
 - Deduplicate handoff Work index memory against Last completed
 - Compact handoff currentState and repositoryLearning output
 - Polished handoff repository learning hint ordering
 - Made handoff output include task-matched repository learning hints
-- Add learning-aware work hints to rcc work
 
 ## Hot Files
 
@@ -35,7 +35,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | ----- | ----: | -------------- |
 | Handoff | 23 | Deduplicate handoff Work index memory against Last completed |
 | Work routing | 20 | Add learning-aware work hints to rcc work |
-| Repository context | 5 | Add explicit rcc learn command for on-demand repository learning output and writes |
+| Repository context | 6 | Updated README with Repository Learning and learn command documentation |
 | Work memory | 3 | Integrated repository learning updates into archive lifecycle |
 | Agent guidance | 3 | Updated README onboarding with latest-version commands, lifecycle guidance, manual-vs-automatic behavior, and cautious token-saving expectations. |
 | General maintenance | 2 | Updated README SVG image URL to use the raw GitHub link for npm rendering. |
@@ -45,7 +45,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 ## Verification Patterns
 
 - `npm run build` (34)
-- `npm test` (30)
+- `npm test` (31)
 - `node --test tests/handoff.test.js` (12)
 - `node --test tests/work.test.js` (12)
 - `node --test tests/cli.test.js` (9)
