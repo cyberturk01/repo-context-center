@@ -9,6 +9,7 @@ export const decisionsPath = "docs/ai-context/DECISIONS.md";
 export const changeLogPath = "docs/ai-context/CHANGE_LOG.md";
 export const lessonsPath = "docs/ai-context/LESSONS_LEARNED.md";
 export const handoffSourceLimit = 5;
+export const handoffMemoryLimit = 5;
 export const handoffRouteLimit = 5;
 export const generatedStart = "<!-- repo-context-center:generated:start -->";
 export const generatedEnd = "<!-- repo-context-center:generated:end -->";

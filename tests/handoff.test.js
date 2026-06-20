@@ -508,11 +508,12 @@ test("rcc handoff reads present context sources conservatively", async () => {
     assert.deepEqual(brief.relevantTests, []);
     assert.ok(brief.relevantDecisions.some((decision) => decision.includes("Keep handoff parsing conservative")));
     assert.equal(brief.nextLookup, 'rcc find "source"');
+    assert.ok(brief.memory.length <= 5);
     assert.ok(brief.memory.includes("Last completed: Added source readers"));
     assert.ok(brief.memory.includes("Completed at: 2026-06-18T12:00:00.000Z"));
-    assert.ok(brief.memory.some((entry) => entry.includes("Decision: 2026-06-18 | Keep handoff parsing conservative")));
     assert.ok(brief.memory.some((entry) => entry.includes("Change: 2026-06-18 | repo-context-center done")));
-    assert.ok(brief.memory.includes("Lesson: Handoff readers should tolerate absent files."));
+    assert.equal(brief.memory.some((entry) => entry.includes("Decision:")), false);
+    assert.equal(brief.memory.some((entry) => entry.includes("Lesson:")), false);
     assert.ok(brief.currentState.includes("Recently touched: src/cli/handoff/handoffSources.ts"));
     assert.ok(brief.avoid.includes("Do not rerun broad discovery before reading handoff files."));
     assert.ok(brief.avoid.includes("Do not rerun rcc work unless task meaning changed."));
@@ -583,13 +584,27 @@ test("rcc handoff uses WORK_INDEX as compact memory with latest work log tail", 
       "<!-- repo-context-center:work-log:end -->",
       ""
     ].join("\n"));
+    await writeFixtureFile(tempDir, "docs/ai-context/CHANGE_LOG.md", [
+      "# Change Log",
+      "",
+      "| Date | Command | Files updated | Reason |",
+      "| --- | --- | --- | --- |",
+      "| 2026-06-19 | `repo-context-center map --write` | 4 files | older change |",
+      "| 2026-06-20 | `repo-context-center done` | 1 file | latest handoff change |"
+    ].join("\n"));
 
     const result = runCli(["handoff", "--json", "--debug"], { cwd: tempDir });
     const brief = parseJsonOnlyOutput(result);
 
     assert.equal(brief.lastSummary, "Latest tail handoff summary");
+    assert.ok(brief.memory.length <= 5);
+    assert.ok(brief.memory.includes("Last completed: Latest tail handoff summary"));
+    assert.ok(brief.memory.includes("Completed at: 2026-06-20T12:00:00.000Z"));
+    assert.ok(brief.memory.includes("Verification: node --test tests/latest-tail.test.js"));
     assert.ok(brief.memory.includes("Work index: Compact handoff memory from work index"));
-    assert.ok(brief.memory.includes("Work index: Recent work favored archive and handoff compaction"));
+    assert.equal(brief.memory.filter((entry) => entry.startsWith("Work index:")).length, 1);
+    assert.equal(brief.memory.includes("Work index: Recent work favored archive and handoff compaction"), false);
+    assert.ok(brief.memory.some((entry) => entry.includes("Change: 2026-06-20 | repo-context-center done")));
     assert.ok(brief.currentState.includes("Recently touched: src/latest-tail.ts"));
     assert.doesNotMatch(brief.memory.join("\n"), /Very old full scan sentinel/);
     assert.equal(brief.debug.sources.workIndexCount, 3);
@@ -674,8 +689,8 @@ test("rcc handoff reads latest structured done entry", async () => {
     assert.ok(brief.memory.includes("Last completed: Latest handoff block summary"));
     assert.ok(brief.memory.includes("Completed at: 2026-06-19T12:00:00.000Z"));
     assert.ok(brief.memory.includes("Verification: node --test tests/handoff-block.test.js"));
-    assert.ok(brief.memory.includes("Follow-up: Continue comment block handoff"));
-    assert.ok(brief.memory.includes("Risk: Watch comment parser compatibility"));
+    assert.equal(brief.memory.some((entry) => entry.startsWith("Follow-up:")), false);
+    assert.equal(brief.memory.some((entry) => entry.startsWith("Risk:")), false);
     assert.ok(brief.currentState.includes("Recently touched: src/handoff-block.ts"));
     assert.ok(brief.currentState.includes("Recently touched: tests/handoff-block.test.js"));
     assert.doesNotMatch(brief.memory.join("\n"), /Conflicting weak text summary/);
@@ -769,8 +784,8 @@ test("rcc handoff falls back to old work log parsing without structured done ent
     assert.ok(brief.memory.includes("Last completed: Legacy completed work"));
     assert.ok(brief.memory.includes("Completed at: 2026-06-19T12:00:00.000Z"));
     assert.ok(brief.memory.includes("Verification: node --test tests/legacy.test.js"));
-    assert.ok(brief.memory.includes("Follow-up: Add structured entries later"));
-    assert.ok(brief.memory.includes("Risk: Legacy parser risk"));
+    assert.equal(brief.memory.some((entry) => entry.startsWith("Follow-up:")), false);
+    assert.equal(brief.memory.some((entry) => entry.startsWith("Risk:")), false);
     assert.ok(brief.currentState.includes("Recently touched: src/legacy.ts"));
     assert.ok(brief.currentState.includes("Recently touched: tests/legacy.test.js"));
     assert.equal(brief.debug.sources.latestDoneEntryPresent, true);

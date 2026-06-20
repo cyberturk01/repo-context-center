@@ -1,16 +1,13 @@
 import type { HandoffBrief } from "./handoffTypes";
 import { buildWorkBriefForTask } from "../work/buildWorkBrief";
 import {
+  handoffMemoryLimit,
   handoffRouteLimit,
   placeholderHandoffNextCommand,
   placeholderHandoffNextLookup
 } from "./handoffConstants";
 import { readHandoffSources } from "./handoffSources";
 import type { WorkRecommendation } from "../work/workTypes";
-
-function formatSourceItems(label: string, items: string[]): string[] {
-  return items.map((item) => `${label}: ${item}`);
-}
 
 function buildCurrentState(gitStatus: string[], recentTouchedFiles: string[]): string[] {
   const state: string[] = [];
@@ -26,26 +23,40 @@ function buildCurrentState(gitStatus: string[], recentTouchedFiles: string[]): s
   return state;
 }
 
-function latestDoneMemory(
+function compactHandoffMemory(
   entry: {
-    followUps: string[];
-    risks: string[];
     summary: string;
     timestamp: string;
     verification: string[];
-  } | null
+  } | null,
+  workIndex: string[],
+  changeLog: string[]
 ): string[] {
-  if (!entry) {
-    return [];
+  const memory: string[] = [];
+
+  if (entry) {
+    memory.push(
+      `Last completed: ${entry.summary}`,
+      `Completed at: ${entry.timestamp}`
+    );
+
+    const [verification] = entry.verification;
+    if (verification) {
+      memory.push(`Verification: ${verification}`);
+    }
   }
 
-  return [
-    `Last completed: ${entry.summary}`,
-    `Completed at: ${entry.timestamp}`,
-    ...entry.verification.map((verification) => `Verification: ${verification}`),
-    ...entry.followUps.map((followUp) => `Follow-up: ${followUp}`),
-    ...entry.risks.map((risk) => `Risk: ${risk}`)
-  ];
+  const [workIndexItem] = workIndex;
+  if (workIndexItem) {
+    memory.push(workIndexItem);
+  }
+
+  const [changeLogItem] = changeLog;
+  if (changeLogItem) {
+    memory.push(`Change: ${changeLogItem}`);
+  }
+
+  return memory.slice(0, handoffMemoryLimit);
 }
 
 function uniqueValues(values: string[]): string[] {
@@ -85,13 +96,11 @@ export async function buildHandoffBrief(cwd: string, options: { task: string | n
       maxFiles: handoffRouteLimit
     })
     : null;
-  const memory = [
-    ...latestDoneMemory(sources.latestDoneEntry),
-    ...sources.workIndex,
-    ...formatSourceItems("Decision", sources.decisions),
-    ...formatSourceItems("Change", sources.changeLog),
-    ...formatSourceItems("Lesson", sources.lessons)
-  ];
+  const memory = compactHandoffMemory(
+    sources.latestDoneEntry,
+    sources.workIndex,
+    sources.changeLog
+  );
   const currentState = buildCurrentState(sources.gitStatus, sources.recentTouchedFiles);
 
   const brief: HandoffBrief = {
