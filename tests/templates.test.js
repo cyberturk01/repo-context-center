@@ -23,6 +23,7 @@ const requiredTemplates = [
   "docs/ai-context/TOKEN_BUDGET.md",
   "docs/ai-context/DO_NOT_READ.md",
   "docs/ai-context/WORK_INDEX.md",
+  "docs/ai-context/REPOSITORY_LEARNING.md",
   "docs/ai-context/HOTSPOTS.md",
   "docs/ai-context/LESSONS_LEARNED.md",
   "docs/ai-context/CHANGE_LOG.md"
@@ -56,6 +57,7 @@ const templateTitles = {
   "docs/ai-context/TOKEN_BUDGET.md": "# Token Budget",
   "docs/ai-context/DO_NOT_READ.md": "# Do Not Read",
   "docs/ai-context/WORK_INDEX.md": "# Work Index",
+  "docs/ai-context/REPOSITORY_LEARNING.md": "# Repository Learning",
   "docs/ai-context/HOTSPOTS.md": "# Hotspots",
   "docs/ai-context/LESSONS_LEARNED.md": "# Lessons Learned",
   "docs/ai-context/CHANGE_LOG.md": "# Change Log"
@@ -84,7 +86,7 @@ test("all required generic templates exist", async () => {
 test("generic template count and names stay unchanged", async () => {
   const { genericTemplateFiles } = require("../dist/templates/generic");
 
-  assert.equal(requiredTemplates.length, 14);
+  assert.equal(requiredTemplates.length, 15);
   assert.equal(genericTemplateFiles.length, requiredTemplates.length);
   assert.deepEqual([...genericTemplateFiles].sort(), [...requiredTemplates].sort());
 });
@@ -193,6 +195,20 @@ test("generic template loader exposes the required set", async () => {
   assert.deepEqual([...genericTemplateFiles].sort(), [...requiredTemplates].sort());
   assert.equal(entries.length, requiredTemplates.length);
   assert.ok(entries.every((entry) => entry.content.trim().length > 0));
+});
+
+test("repository learning template has generated markers and compact sections", async () => {
+  const content = await readFile(path.join(templateRoot, "docs/ai-context/REPOSITORY_LEARNING.md"), "utf8");
+
+  assert.match(content, /^# Repository Learning$/m);
+  assert.match(content, /<!-- repo-context-center:generated:start -->/);
+  assert.match(content, /<!-- repo-context-center:generated:end -->/);
+  assert.match(content, /^## Recent Focus Areas$/m);
+  assert.match(content, /^## Common File Relationships$/m);
+  assert.match(content, /^## Frequently Modified Together$/m);
+  assert.match(content, /^## Verification Patterns$/m);
+  assert.match(content, /^## Repository Habits$/m);
+  assert.match(content, /none detected yet/);
 });
 
 test("build copies markdown templates without removing compiled loader", async () => {

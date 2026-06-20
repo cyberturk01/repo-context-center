@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Added repository learning context generation
 - Compacted handoff memory to five prioritized continuation entries while preserving handoff schema fields.
 - Implemented WORK_INDEX generation from completed work, archive compaction for WORK_LOG, and handoff use of compact work memory.
 - Updated README onboarding with latest-version commands, lifecycle guidance, manual-vs-automatic behavior, and cautious token-saving expecta...
 - Added lightweight tests for benchmark script presence, package script targets, and developer-only runtime packaging boundaries.
 - Updated README SVG image URL to use the raw GitHub link for npm rendering.
 - Updated README.md for RCC v0.9.3 Agent Handover capabilities and refreshed the workflow diagram.
-- Updated CHANGELOG.md for the upcoming RCC v0.9.3 release with v0.9.x handoff and routing improvements.
 
 ## Hot Files
 
@@ -37,14 +37,14 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Handoff | 19 | Compacted handoff memory to five prioritized continuation entries while preserving handoff schema fields. |
 | Agent guidance | 3 | Updated README onboarding with latest-version commands, lifecycle guidance, manual-vs-automatic behavior, and cautious token-saving expectations. |
 | General maintenance | 2 | Updated README SVG image URL to use the raw GitHub link for npm rendering. |
+| Repository context | 1 | Added repository learning context generation |
 | Measurement and benchmarks | 1 | Added lightweight tests for benchmark script presence, package script targets, and developer-only runtime packaging boundaries. |
 | Tests | 1 | Implemented task intent cleanup so generic task verbs are filtered from lookup terms when meaningful domain terms are present, with generic-only fallback cover... |
 | Work memory | 1 | Extracted RCC work memory and log readers into memorySignals module |
-| CLI commands | 1 | Added doctor command to warn when local RCC development repo is run with a mismatched external CLI |
 
 ## Verification Patterns
 
-- `npm run build` (33)
+- `npm run build` (34)
 - `npm test` (30)
 - `node --test tests/work.test.js` (14)
 - `node --test tests/handoff.test.js` (11)

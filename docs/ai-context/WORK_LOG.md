@@ -785,4 +785,54 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-20T10:54:22.568Z
+- Summary: Added repository learning context generation
+- Changed files: `src/templates/generic/index.ts`, `src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md`, `docs/ai-context/REPOSITORY_LEARNING.md`, `src/core/workMemory.ts`, `src/core/repoMapper.ts`, `src/cli/commands/done.ts`, `tests/templates.test.js`, `tests/init.test.js`, `tests/done.test.js`
+- Verification: npm run build; node --test tests/templates.test.js tests/init.test.js tests/done.test.js; node --test tests/*.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added repository learning context generation",
+  "files": [
+    "src/templates/generic/index.ts",
+    "src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md",
+    "docs/ai-context/REPOSITORY_LEARNING.md",
+    "src/core/workMemory.ts",
+    "src/core/repoMapper.ts",
+    "src/cli/commands/done.ts",
+    "tests/templates.test.js",
+    "tests/init.test.js",
+    "tests/done.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/templates.test.js tests/init.test.js tests/done.test.js; node --test tests/*.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-20T10:54:22.568Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-20T10:54:22.568Z",
+  "summary": "Added repository learning context generation",
+  "files": [
+    "src/templates/generic/index.ts",
+    "src/templates/generic/docs/ai-context/REPOSITORY_LEARNING.md",
+    "docs/ai-context/REPOSITORY_LEARNING.md",
+    "src/core/workMemory.ts",
+    "src/core/repoMapper.ts",
+    "src/cli/commands/done.ts",
+    "tests/templates.test.js",
+    "tests/init.test.js",
+    "tests/done.test.js"
+  ],
+  "verification": "npm run build; node --test tests/templates.test.js tests/init.test.js tests/done.test.js; node --test tests/*.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

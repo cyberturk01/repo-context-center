@@ -19,10 +19,13 @@ interface LegacyWorkLogEntry {
 export const workLogPath = "docs/ai-context/WORK_LOG.md";
 export const workLogArchivePath = "docs/ai-context/archive/WORK_LOG_ARCHIVE.md";
 export const workIndexPath = "docs/ai-context/WORK_INDEX.md";
+export const repositoryLearningPath = "docs/ai-context/REPOSITORY_LEARNING.md";
 export const workLogStart = "<!-- repo-context-center:work-log:start -->";
 export const workLogEnd = "<!-- repo-context-center:work-log:end -->";
 export const workIndexStart = "<!-- repo-context-center:work-index:start -->";
 export const workIndexEnd = "<!-- repo-context-center:work-index:end -->";
+export const generatedStart = "<!-- repo-context-center:generated:start -->";
+export const generatedEnd = "<!-- repo-context-center:generated:end -->";
 
 function cleanInline(value: string, maxLength = 180): string {
   const cleaned = value.replace(/\r?\n/g, " ").replace(/\s+/g, " ").trim();
@@ -350,6 +353,181 @@ function verificationPatterns(entries: WorkMemoryEntry[]): string[] {
     .map(([command, count]) => `- \`${command.replace(/`/g, "")}\` (${count})`);
 
   return lines.length > 0 ? lines : ["- No verification commands recorded yet."];
+}
+
+function noneDetected(): string[] {
+  return ["- none detected yet"];
+}
+
+function pathArea(filePath: string): string {
+  if (filePath.startsWith("docs/ai-context/")) {
+    return "agent context";
+  }
+  if (filePath.startsWith("tests/") || /(^|\/)(tests?|__tests__|e2e|cypress)(\/|$)/.test(filePath)) {
+    return "tests";
+  }
+  if (filePath.startsWith(".github/workflows/")) {
+    return "ci workflows";
+  }
+  if (filePath.startsWith("src/cli/")) {
+    return "cli";
+  }
+  if (filePath.startsWith("src/core/")) {
+    return "core";
+  }
+  if (filePath.startsWith("src/")) {
+    return "source";
+  }
+  if (/^(package.json|package-lock.json|pnpm-lock.yaml|yarn.lock|bun.lockb)$/.test(filePath)) {
+    return "package metadata";
+  }
+  if (/^(README|CHANGELOG|AGENTS)\.md$/i.test(filePath)) {
+    return "root docs";
+  }
+
+  return filePath.split("/")[0] || "repository";
+}
+
+function repositoryFocusAreas(entries: WorkMemoryEntry[]): string[] {
+  const themes = completedThemes(entries)
+    .slice(0, 5)
+    .map((row) => row.match(/^\| ([^|]+) \| ([^|]+) \|/)?.slice(1, 3))
+    .filter((match): match is string[] => Array.isArray(match))
+    .map(([theme, count]) => `- ${theme.trim()} (${count.trim()})`);
+
+  return themes.length > 0 ? themes : noneDetected();
+}
+
+function commonFileRelationships(entries: WorkMemoryEntry[]): string[] {
+  const relationships = new Map<string, number>();
+
+  for (const entry of entries) {
+    const areas = [...new Set(entry.files.map(pathArea))].sort((left, right) => left.localeCompare(right));
+    for (let index = 0; index < areas.length; index += 1) {
+      for (let next = index + 1; next < areas.length; next += 1) {
+        const key = `${areas[index]} + ${areas[next]}`;
+        relationships.set(key, (relationships.get(key) ?? 0) + 1);
+      }
+    }
+  }
+
+  const lines = [...relationships.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 6)
+    .map(([relationship, count]) => `- ${relationship} (${count})`);
+
+  return lines.length > 0 ? lines : noneDetected();
+}
+
+function modifiedTogether(entries: WorkMemoryEntry[]): string[] {
+  const pairs = new Map<string, number>();
+
+  for (const entry of entries) {
+    const files = [...new Set(entry.files)].sort((left, right) => left.localeCompare(right)).slice(0, 8);
+    for (let index = 0; index < files.length; index += 1) {
+      for (let next = index + 1; next < files.length; next += 1) {
+        const key = `\`${files[index].replace(/`/g, "")}\` + \`${files[next].replace(/`/g, "")}\``;
+        pairs.set(key, (pairs.get(key) ?? 0) + 1);
+      }
+    }
+  }
+
+  const lines = [...pairs.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 6)
+    .map(([pair, count]) => `- ${pair} (${count})`);
+
+  return lines.length > 0 ? lines : noneDetected();
+}
+
+function repositoryHabits(entries: WorkMemoryEntry[]): string[] {
+  if (entries.length === 0) {
+    return noneDetected();
+  }
+
+  const lines: string[] = [];
+  const withFiles = entries.filter((entry) => entry.files.length > 0).length;
+  const withVerification = entries.filter((entry) => entry.verification.length > 0).length;
+  const withFollowUps = entries.filter((entry) => entry.followUps.length > 0).length;
+  const contextTouches = entries.filter((entry) => entry.files.some((file) => file.startsWith("docs/ai-context/"))).length;
+
+  if (withFiles > 0) {
+    lines.push(`- Completed work usually records changed files (${withFiles}/${entries.length}).`);
+  }
+  if (withVerification > 0) {
+    lines.push(`- Verification is commonly captured with completed work (${withVerification}/${entries.length}).`);
+  }
+  if (withFollowUps > 0) {
+    lines.push(`- Follow-ups appear in completed work when residual tasks remain (${withFollowUps}/${entries.length}).`);
+  }
+  if (contextTouches > 0) {
+    lines.push(`- Agent context files are maintained as part of RCC workflow changes (${contextTouches}/${entries.length}).`);
+  }
+
+  return lines.length > 0 ? lines : noneDetected();
+}
+
+function learningVerificationPatterns(entries: WorkMemoryEntry[]): string[] {
+  const patterns = verificationPatterns(entries);
+  return patterns.some((line) => /No verification commands recorded yet/.test(line)) ? noneDetected() : patterns;
+}
+
+export function renderRepositoryLearningBody(entries: WorkMemoryEntry[]): string {
+  const sorted = sortEntries(entries);
+
+  return [
+    "## Recent Focus Areas",
+    "",
+    ...repositoryFocusAreas(sorted),
+    "",
+    "## Common File Relationships",
+    "",
+    ...commonFileRelationships(sorted),
+    "",
+    "## Frequently Modified Together",
+    "",
+    ...modifiedTogether(sorted),
+    "",
+    "## Verification Patterns",
+    "",
+    ...learningVerificationPatterns(sorted),
+    "",
+    "## Repository Habits",
+    "",
+    ...repositoryHabits(sorted)
+  ].join("\n");
+}
+
+function renderGeneratedRepositoryLearning(entries: WorkMemoryEntry[]): string {
+  return [
+    generatedStart,
+    "## Generated Repo Map",
+    "",
+    renderRepositoryLearningBody(entries),
+    "",
+    "_Generated by repo-context-center. Edit outside this section._",
+    generatedEnd
+  ].join("\n");
+}
+
+export function upsertRepositoryLearning(existing: string | undefined, entries: WorkMemoryEntry[]): string {
+  const generated = renderGeneratedRepositoryLearning(entries);
+
+  if (!existing || existing.trim().length === 0) {
+    return `# Repository Learning\n\nCompact generated patterns from completed RCC work.\n\n${generated}\n`;
+  }
+
+  const normalized = existing.replace(/\r\n/g, "\n");
+  const start = normalized.indexOf(generatedStart);
+  const end = normalized.indexOf(generatedEnd);
+
+  if (start !== -1 && end !== -1 && end > start) {
+    const before = normalized.slice(0, start).trimEnd();
+    const after = normalized.slice(end + generatedEnd.length).trimStart();
+    return `${before}\n\n${generated}${after ? `\n\n${after.trimEnd()}` : ""}\n`;
+  }
+
+  return `${normalized.trimEnd()}\n\n${generated}\n`;
 }
 
 export function renderWorkIndex(entries: WorkMemoryEntry[]): string {

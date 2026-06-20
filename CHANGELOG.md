@@ -1,5 +1,24 @@
 # ChangeLog
 
+## [0.9.1]
+
+- WORK_INDEX.md compact memory file
+- archive-driven work memory compaction
+- compact memory generation from completed work
+- handoff integration with WORK_INDEX
+
+### Improved
+
+- reduced dependence on full WORK_LOG reads
+- improved continuation memory quality
+- better archive behavior for long-running repositories
+
+### Internal
+
+- shared work memory parser/renderer
+- archive regeneration of WORK_INDEX
+- handoff compact memory fallback logic
+
 ## [0.9.0]
 
 RCC v0.9.0 summarizes the v0.9 series shift from startup context generation toward task continuation and agent handoff workflows. The release keeps `rcc work` as the task entrypoint while adding handoff-focused outputs and structured memory for continuing work across sessions.

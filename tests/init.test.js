@@ -19,6 +19,7 @@ const requiredTemplates = [
   "docs/ai-context/SYMBOL_MAP.md",
   "docs/ai-context/TOKEN_BUDGET.md",
   "docs/ai-context/DO_NOT_READ.md",
+  "docs/ai-context/REPOSITORY_LEARNING.md",
   "docs/ai-context/HOTSPOTS.md",
   "docs/ai-context/LESSONS_LEARNED.md",
   "docs/ai-context/CHANGE_LOG.md"
@@ -101,6 +102,7 @@ test("init creates missing context files and populates real map content", async 
     const result = runInit(tempDir);
     const taskRouting = await readFile(path.join(tempDir, "docs/ai-context/TASK_ROUTING.md"), "utf8");
     const moduleIndex = await readFile(path.join(tempDir, "docs/ai-context/MODULE_INDEX.md"), "utf8");
+    const repositoryLearning = await readFile(path.join(tempDir, "docs/ai-context/REPOSITORY_LEARNING.md"), "utf8");
     const agents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
 
     assert.equal(result.status, 0);
@@ -108,8 +110,41 @@ test("init creates missing context files and populates real map content", async 
     assert.match(taskRouting, /<!-- repo-context-center:generated:start -->/);
     assert.match(taskRouting, /src\/auth\/login\.ts/);
     assert.match(moduleIndex, /tests\/auth\/login\.test\.ts/);
+    assert.match(repositoryLearning, /<!-- repo-context-center:generated:start -->/);
+    assert.match(repositoryLearning, /<!-- repo-context-center:generated:end -->/);
+    assert.match(repositoryLearning, /## Recent Focus Areas/);
     assert.doesNotMatch(agents, /repo-context-center:generated:start/);
     assert.doesNotMatch(agents, /Compact generated entrypoint\./);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init preserves manual repository learning sections outside generated markers", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeFixtureFile(tempDir, "docs/ai-context/REPOSITORY_LEARNING.md", [
+      "# Repository Learning",
+      "",
+      "Manual note before generated content.",
+      "",
+      "<!-- repo-context-center:generated:start -->",
+      "stale generated content",
+      "<!-- repo-context-center:generated:end -->",
+      "",
+      "Manual note after generated content.",
+      ""
+    ].join("\n"));
+
+    const result = runInit(tempDir);
+    const content = await readFile(path.join(tempDir, "docs/ai-context/REPOSITORY_LEARNING.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /Manual note before generated content\./);
+    assert.match(content, /Manual note after generated content\./);
+    assert.match(content, /## Recent Focus Areas/);
+    assert.doesNotMatch(content, /stale generated content/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

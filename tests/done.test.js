@@ -8,6 +8,7 @@ const test = require("node:test");
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
 const workLogPath = path.join("docs", "ai-context", "WORK_LOG.md");
+const repositoryLearningPath = path.join("docs", "ai-context", "REPOSITORY_LEARNING.md");
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [cliPath, ...args], {
@@ -211,6 +212,67 @@ test("done writes structured handoff-friendly data", async () => {
     assert.equal(entry.verification, "node --test tests/handoff.test.js");
     assert.deepEqual(entry.followUps, ["Wire full handoff assembly"]);
     assert.deepEqual(entry.risks, ["Parser should tolerate legacy entries"]);
+  });
+});
+
+test("done updates repository learning with compact generated patterns", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Updated repository learning foundation",
+      "--verify",
+      "node --test tests/done.test.js",
+      "--files",
+      "src/cli/commands/done.ts,tests/done.test.js"
+    ], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, repositoryLearningPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /^# Repository Learning$/m);
+    assert.match(content, /<!-- repo-context-center:generated:start -->/);
+    assert.match(content, /<!-- repo-context-center:generated:end -->/);
+    assert.match(content, /^## Recent Focus Areas$/m);
+    assert.match(content, /^## Common File Relationships$/m);
+    assert.match(content, /^## Frequently Modified Together$/m);
+    assert.match(content, /^## Verification Patterns$/m);
+    assert.match(content, /^## Repository Habits$/m);
+    assert.match(content, /cli \+ tests \(1\)/);
+    assert.match(content, /`src\/cli\/commands\/done\.ts` \+ `tests\/done\.test\.js` \(1\)/);
+    assert.match(content, /`node --test tests\/done\.test\.js` \(1\)/);
+    assert.doesNotMatch(content, /- Summary:/);
+  });
+});
+
+test("done preserves manual repository learning content outside generated markers", async () => {
+  await withDoneRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, repositoryLearningPath, [
+      "# Repository Learning",
+      "",
+      "Manual note before generated content.",
+      "",
+      "<!-- repo-context-center:generated:start -->",
+      "stale generated content",
+      "<!-- repo-context-center:generated:end -->",
+      "",
+      "Manual note after generated content.",
+      ""
+    ].join("\n"));
+
+    const result = runCli([
+      "done",
+      "--summary",
+      "Updated done memory",
+      "--files",
+      "src/cli/commands/done.ts"
+    ], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, repositoryLearningPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /Manual note before generated content\./);
+    assert.match(content, /Manual note after generated content\./);
+    assert.match(content, /## Recent Focus Areas/);
+    assert.doesNotMatch(content, /stale generated content/);
   });
 });
 

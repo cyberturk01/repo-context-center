@@ -3,7 +3,7 @@ import { requiredContextFiles, type RequiredContextFile } from "./contextFiles";
 import { ensureDir, listDirectoryNames, readTextFile, writeTextFile, pathExists } from "./fileSystem";
 import { buildRepositoryUnderstanding, type RepositoryUnderstanding } from "./repositoryUnderstanding";
 import { extractExportedSymbols, type ScannedSymbol } from "./scanner";
-import { renderWorkIndex } from "./workMemory";
+import { renderRepositoryLearningBody, renderWorkIndex } from "./workMemory";
 
 export interface RepoMapOptions {
   cwd: string;
@@ -1882,6 +1882,10 @@ function renderExistingWorkIndex(_data: RepoMapData, existing?: string): string 
   return existing?.trim() ? existing : renderWorkIndex([]);
 }
 
+function renderRepositoryLearning(): string {
+  return renderRepositoryLearningBody([]);
+}
+
 function manualContentWithoutGeneratedSection(existing: string | undefined): string {
   if (!existing) {
     return "";
@@ -1909,6 +1913,7 @@ const renderers: Record<GeneratedContextFile, { title: string; render: (data: Re
   "docs/ai-context/TOKEN_BUDGET.md": { title: "Token Budget", render: renderTokenBudget },
   "docs/ai-context/DO_NOT_READ.md": { title: "Do Not Read", render: renderDoNotRead },
   "docs/ai-context/WORK_INDEX.md": { title: "Work Index", render: renderExistingWorkIndex },
+  "docs/ai-context/REPOSITORY_LEARNING.md": { title: "Repository Learning", render: renderRepositoryLearning },
   "docs/ai-context/HOTSPOTS.md": { title: "Hotspots", render: renderHotspots },
   "docs/ai-context/LESSONS_LEARNED.md": {
     title: "Lessons Learned",
