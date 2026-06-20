@@ -1,9 +1,10 @@
 import path from "node:path";
 import { requiredContextFiles, type RequiredContextFile } from "./contextFiles";
 import { ensureDir, listDirectoryNames, readTextFile, writeTextFile, pathExists } from "./fileSystem";
+import { buildRepositoryLearningModel, renderRepositoryLearningBody } from "./repositoryLearning";
 import { buildRepositoryUnderstanding, type RepositoryUnderstanding } from "./repositoryUnderstanding";
 import { extractExportedSymbols, type ScannedSymbol } from "./scanner";
-import { renderRepositoryLearningBody, renderWorkIndex } from "./workMemory";
+import { renderWorkIndex } from "./workMemory";
 
 export interface RepoMapOptions {
   cwd: string;
@@ -1883,7 +1884,7 @@ function renderExistingWorkIndex(_data: RepoMapData, existing?: string): string 
 }
 
 function renderRepositoryLearning(): string {
-  return renderRepositoryLearningBody([]);
+  return renderRepositoryLearningBody(buildRepositoryLearningModel({}));
 }
 
 function manualContentWithoutGeneratedSection(existing: string | undefined): string {
