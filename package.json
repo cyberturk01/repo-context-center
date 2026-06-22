@@ -52,7 +52,5 @@
   "engines": {
     "node": ">=20"
   },
-  "dependencies": {
-    "repo-context-center": "^0.9.0"
-  }
+  "dependencies": {}
 }

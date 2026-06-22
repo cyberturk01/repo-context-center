@@ -1808,4 +1808,40 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-22T15:45:52.110Z
+- Summary: Removed package self-dependency that broke npm ci
+- Changed files: `package-lock.json`, `package.json`
+- Verification: npm ci; npm run build
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Removed package self-dependency that broke npm ci",
+  "files": [
+    "package-lock.json",
+    "package.json"
+  ],
+  "verification": [
+    "npm ci; npm run build"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-22T15:45:52.110Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-22T15:45:52.110Z",
+  "summary": "Removed package self-dependency that broke npm ci",
+  "files": [
+    "package-lock.json",
+    "package.json"
+  ],
+  "verification": "npm ci; npm run build",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

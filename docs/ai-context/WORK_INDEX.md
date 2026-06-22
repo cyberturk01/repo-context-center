@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Removed package self-dependency that broke npm ci
 - Added done learning controls for tiny typo tasks
 - Compact medium work supporting files with optional boundary tier
 - Fixed Turkish workflow routing tasks to prefer RCC routing implementation
 - Fixed renderAgent guidance typo to refer to rcc work explicitly.
 - Fixed tiny task guidance spacing regressions by aligning tiny text guidance and adding agent output regression coverage for joined words.
 - Added task-size route pruning for rcc work so tiny and small briefs cap route files while preserving medium and large behavior.
-- Integrated task size classification into rcc work briefs and text, JSON, and agent renderers with lightweight guidance for tiny and small t...
 
 ## Hot Files
 
@@ -36,15 +36,15 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Handoff | 23 | Deduplicate handoff Work index memory against Last completed |
 | Work routing | 13 | Compact medium work supporting files with optional boundary tier |
 | Repository context | 6 | Updated README with Repository Learning and learn command documentation |
+| General maintenance | 4 | Removed package self-dependency that broke npm ci |
 | Work memory | 4 | Refactor work memory artifact refresh into shared helper |
-| General maintenance | 3 | Added done learning controls for tiny typo tasks |
 | Agent guidance | 2 | Fixed tiny task guidance spacing regressions by aligning tiny text guidance and adding agent output regression coverage for joined words. |
 | CLI commands | 2 | Add command architecture boundary tests |
 | Measurement and benchmarks | 1 | Added lightweight tests for benchmark script presence, package script targets, and developer-only runtime packaging boundaries. |
 
 ## Verification Patterns
 
-- `npm run build` (31)
+- `npm run build` (32)
 - `npm test` (21)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
