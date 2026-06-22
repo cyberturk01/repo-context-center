@@ -11,6 +11,7 @@ import {
   localGlobalDoctorRoutes,
   packageTaskLookupRoleOrder,
   releaseTaskRoutes,
+  routingImplementationRoutes,
   strongLookupScoreThreshold,
   targetedContentReadLimit,
   targetedLookupLimit,
@@ -545,6 +546,31 @@ export async function targetedLookupHints(cwd: string, taskIntent: TaskIntentAna
         routeTerm,
         routePath.endsWith("work.ts") ? 86 : 84,
         "routed by RCC work output assembly guidance",
+        "task-routing",
+        routeIndex
+      ));
+    }
+  }
+
+  if (taskIntent.hasRoutingImplementationIntent) {
+    const routeTerm = terms.find((term) => ["routing", "intent", "turkish", "turkce", "task", "tasks"].includes(term)) ?? terms[0] ?? "routing";
+    for (const routePath of routingImplementationRoutes) {
+      const routeIndex = repoFiles.indexOf(routePath);
+      if (routeIndex === -1) {
+        continue;
+      }
+      const score = routePath.endsWith("taskFileRecommendations.ts")
+        ? 124
+        : routePath.endsWith("taskIntent.ts")
+          ? 122
+          : routePath.endsWith("taskSize.ts")
+            ? 120
+            : 116;
+      candidates.push(makeLookupHint(
+        routePath,
+        routeTerm,
+        score,
+        "routed by RCC task routing implementation guidance",
         "task-routing",
         routeIndex
       ));

@@ -97,6 +97,13 @@ export const workOutputAssemblyRoutes = [
   "src/cli/commands/work.ts",
   "tests/work.test.js"
 ];
+export const routingImplementationRoutes = [
+  "src/cli/work/taskFileRecommendations.ts",
+  "src/core/taskIntent.ts",
+  "src/cli/work/taskSize.ts",
+  "tests/taskIntent.test.js",
+  "tests/work.test.js"
+];
 export const tokenMeasurementRoutes = [
   "src/cli/commands/measure.ts",
   "src/core/tokenEstimator.ts",

@@ -1630,4 +1630,88 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-22T14:59:30.267Z
+- Summary: Fixed renderAgent guidance typo to refer to rcc work explicitly.
+- Changed files: `src/cli/work/renderAgent.ts`
+- Verification: npm run build; node --test tests/handoff.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed renderAgent guidance typo to refer to rcc work explicitly.",
+  "files": [
+    "src/cli/work/renderAgent.ts"
+  ],
+  "verification": [
+    "npm run build; node --test tests/handoff.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-22T14:59:30.267Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-22T14:59:30.267Z",
+  "summary": "Fixed renderAgent guidance typo to refer to rcc work explicitly.",
+  "files": [
+    "src/cli/work/renderAgent.ts"
+  ],
+  "verification": "npm run build; node --test tests/handoff.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-22T15:20:46.412Z
+- Summary: Fixed Turkish workflow routing tasks to prefer RCC routing implementation
+- Changed files: `scripts/benchmark-routing.js`, `src/cli/work/renderAgent.ts`, `src/cli/work/targetedLookup.ts`, `src/cli/work/taskFileRecommendations.ts`, `src/cli/work/workConstants.ts`, `src/core/suggester.ts`, `src/core/taskIntent.ts`, `tests/taskIntent.test.js`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/taskIntent.test.js tests/work.test.js; npm run benchmark:routing; npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed Turkish workflow routing tasks to prefer RCC routing implementation",
+  "files": [
+    "scripts/benchmark-routing.js",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/targetedLookup.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/cli/work/workConstants.ts",
+    "src/core/suggester.ts",
+    "src/core/taskIntent.ts",
+    "tests/taskIntent.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/taskIntent.test.js tests/work.test.js; npm run benchmark:routing; npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-22T15:20:46.412Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-22T15:20:46.412Z",
+  "summary": "Fixed Turkish workflow routing tasks to prefer RCC routing implementation",
+  "files": [
+    "scripts/benchmark-routing.js",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/targetedLookup.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/cli/work/workConstants.ts",
+    "src/core/suggester.ts",
+    "src/core/taskIntent.ts",
+    "tests/taskIntent.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/taskIntent.test.js tests/work.test.js; npm run benchmark:routing; npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

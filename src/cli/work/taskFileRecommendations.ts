@@ -109,7 +109,7 @@ export function buildTaskFileRecommendations(
     .filter((hint) => roles.includes(classifyRepoFile(hint.path).role))
     .map((hint) => hint.path);
   const startupTaskFiles = startup.likelySourceFiles.filter((file) => classifyRepoFile(file).role === "source");
-  const workflowTaskPaths = taskIntent.hasDocumentationIntent && !taskIntent.hasReleaseIntent
+  const workflowTaskPaths = taskIntent.hasRoutingImplementationIntent || (taskIntent.hasDocumentationIntent && !taskIntent.hasReleaseIntent)
     ? []
     : promotedByRole(["config", "workflow", "package"]);
   const hasStrongWorkflowTaskCandidates = taskIntent.hasCiWorkflowIntent

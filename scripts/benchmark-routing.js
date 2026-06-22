@@ -24,10 +24,10 @@ const cases = [
   {
     task: "fix Turkish task routing for workflow tasks",
     expectedTaskFiles: [
-      ".github/workflows/ai-project-guardian.yml",
+      "src/cli/work/taskFileRecommendations.ts",
       "src/core/taskIntent.ts"
     ],
-    expectedTests: ["tests/taskIntent.test.js"]
+    expectedTests: ["tests/taskIntent.test.js", "tests/work.test.js"]
   },
   {
     task: "add token measurement mode",

@@ -46,7 +46,7 @@ function agentNext(brief: WorkBrief): string {
     return "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration.";
   }
 
-  return `Start with primaryFiles. Do not rerun work for this task. Use ${brief.nextCheapestCommand} only if needed.`;
+  return `Start with primaryFiles. Do not rerun rcc work for this task. Use ${brief.nextCheapestCommand} only if needed.`;
 }
 
 export function toAgentRoute(brief: WorkBrief, verbose: boolean): PublicAgentRoute {

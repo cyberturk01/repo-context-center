@@ -237,6 +237,9 @@ const stopWords = new Set([
 
 function normalizeTaskTokenText(text: string): string {
   return text
+    .replace(/\btasklar[iı]?\b/gi, "tasks")
+    .replace(/\bt[uü]rk[cç]e\b/gi, "turkce")
+    .replace(/\by[oö]nlendirme(?:yi|si|sini|de|den|ye|e)?\b/gi, "routing")
     .replace(/düzelt/gi, "duzelt")
     .replace(/göster/gi, "goster")
     .replace(/iyileştir/gi, "iyilestir");
@@ -339,6 +342,14 @@ function hasExplicitWorkflowIntent(tokens: string[]): boolean {
     "workflow",
     "workflows"
   ].includes(token));
+}
+
+function isRoutingImplementationTask(tokens: string[]): boolean {
+  const routingLogicTerms = new Set(["classification", "intent", "route", "routes", "routing", "tokenization"]);
+  const implementationContextTerms = new Set(["rcc", "task", "tasks", "turkish", "turkce"]);
+
+  return tokens.some((token) => routingLogicTerms.has(token))
+    && tokens.some((token) => implementationContextTerms.has(token));
 }
 
 function isPackageBuildTask(tokens: string[]): boolean {
@@ -2039,7 +2050,9 @@ export async function buildStartupContext(
   const mode = modeForTask(task, tokens);
   const commandTask = isCommandTask(tokens);
   const packageBuildTask = isPackageBuildTask(tokens);
-  const workflowTask = isWorkflowTask(tokens) && (!packageBuildTask || hasExplicitWorkflowIntent(tokens));
+  const workflowTask = isWorkflowTask(tokens)
+    && !isRoutingImplementationTask(tokens)
+    && (!packageBuildTask || hasExplicitWorkflowIntent(tokens));
   const highRiskTaskSignal = hasHighRiskTaskSignal(tokens);
   const mediumRiskTaskSignal = hasMediumRiskTaskSignal(tokens);
   const highRiskContextMatch = hasHighRiskContextSignal(riskMatches) || symbolRiskMatches > 0;

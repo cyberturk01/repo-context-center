@@ -103,6 +103,22 @@ test("workflow-domain detection includes expanded CI and release signals", () =>
   assert.equal(analyzeTaskIntent("fix login bug").hasWorkflowDomain, false);
 });
 
+test("routing implementation intent overrides workflow CI intent", () => {
+  const turkishIntent = analyzeTaskIntent("workflow tasklari icin turkce routing duzelt");
+  const englishIntent = analyzeTaskIntent("fix Turkish task routing for workflow tasks");
+
+  assert.equal(turkishIntent.hasRoutingImplementationIntent, true);
+  assert.equal(turkishIntent.hasWorkflowDomain, true);
+  assert.equal(turkishIntent.hasCiWorkflowIntent, false);
+  assert.equal(turkishIntent.lookupTerms[0], "routing");
+  assert.ok(turkishIntent.lookupTerms.indexOf("routing") < turkishIntent.lookupTerms.indexOf("workflow"));
+
+  assert.equal(englishIntent.hasRoutingImplementationIntent, true);
+  assert.equal(englishIntent.hasCiWorkflowIntent, false);
+  assert.equal(analyzeTaskIntent("fix GitHub Actions workflow").hasRoutingImplementationIntent, false);
+  assert.equal(analyzeTaskIntent("fix GitHub Actions workflow").hasCiWorkflowIntent, true);
+});
+
 test("documentation workflow intent does not imply CI workflow intent", () => {
   const intent = analyzeTaskIntent("document the new agent workflow in README");
 

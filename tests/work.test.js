@@ -489,6 +489,35 @@ async function withWorkflowRankingRepo(callback) {
   }
 }
 
+async function withWorkflowRoutingImplementationRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-routing-impl-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- RCC task routing, Turkish routing, workflow task intent, tokenization, and output sizing: read `src/cli/work/taskFileRecommendations.ts`, `src/core/taskIntent.ts`, `src/cli/work/taskSize.ts`, `tests/taskIntent.test.js`, and `tests/work.test.js`.",
+        "- GitHub Actions workflow work: read `.github/workflows/ci.yml` and `package.json`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "src/cli/work/taskFileRecommendations.ts", "export function buildTaskFileRecommendations() {}\n");
+    await writeFixtureFile(tempDir, "src/core/taskIntent.ts", "export function analyzeTaskIntent() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/taskSize.ts", "export function classifyTaskSize() {}\n");
+    await writeFixtureFile(tempDir, "tests/taskIntent.test.js", "test('intent', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/work.test.js", "test('work routing', () => {});\n");
+    await writeFixtureFile(tempDir, ".github/workflows/ci.yml", "name: ci\non: [push]\n");
+    await writeFixtureFile(tempDir, "package.json", "{\"scripts\":{\"test\":\"node --test\"}}\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function withDocumentationRoutingRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-doc-routing-"));
 
@@ -2055,7 +2084,7 @@ test("work --agent exact filename task puts AGENTS files in primaryFiles", async
     assert.ok(route.primaryFiles.includes("src/templates/generic/AGENTS.md"), route.primaryFiles.join("\n"));
     assert.ok(!route.primaryFiles.includes("src/cli/commands/doctor.ts"), route.primaryFiles.join("\n"));
     assert.ok(route.readFirst.includes("AGENTS.md"), route.readFirst.join("\n"));
-    assert.equal(route.next, 'Start with primaryFiles. Do not rerun work for this task. Use rcc find "agents.md" only if needed.');
+    assert.equal(route.next, 'Start with primaryFiles. Do not rerun rcc work for this task. Use rcc find "agents.md" only if needed.');
   });
 });
 
@@ -2278,6 +2307,53 @@ test("work --agent routes rcc measure token saving task to measure command", asy
       [...route.primaryFiles, ...route.supportingFiles].join("\n")
     );
     assert.equal(route.primaryFiles.some((file) => file.startsWith(".github/workflows/")), false, route.primaryFiles.join("\n"));
+  });
+});
+
+test("work --agent routes Turkish workflow task routing fixes to RCC implementation files", async () => {
+  await withWorkflowRoutingImplementationRepo(async (tempDir) => {
+    const result = runCli(["work", "workflow tasklari icin turkce routing duzelt", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(route.primaryFiles.slice(0, 3), [
+      "src/cli/work/taskFileRecommendations.ts",
+      "src/core/taskIntent.ts",
+      "src/cli/work/taskSize.ts"
+    ], route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.some((file) => file.startsWith(".github/workflows/")), false, route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.includes("package.json"), false, route.primaryFiles.join("\n"));
+    assert.ok(route.tests.includes("tests/taskIntent.test.js"), route.tests.join("\n"));
+    assert.ok(route.tests.includes("tests/work.test.js"), route.tests.join("\n"));
+    assert.equal(route.next, "Start with primaryFiles. Do not rerun rcc work for this task. Use rcc find \"routing\" only if needed.");
+  });
+});
+
+test("work --agent keeps real GitHub Actions workflow tasks on workflow files", async () => {
+  await withWorkflowRoutingImplementationRepo(async (tempDir) => {
+    const result = runCli(["work", "fix GitHub Actions workflow", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.primaryFiles[0], ".github/workflows/ci.yml", route.primaryFiles.join("\n"));
+    assert.ok(route.primaryFiles.includes("package.json"), route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.includes("src/core/taskIntent.ts"), false, route.primaryFiles.join("\n"));
+  });
+});
+
+test("work --agent keeps English Turkish workflow task routing fixes on current implementation route", async () => {
+  await withWorkflowRoutingImplementationRepo(async (tempDir) => {
+    const result = runCli(["work", "fix Turkish task routing for workflow tasks", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(route.primaryFiles.slice(0, 3), [
+      "src/cli/work/taskFileRecommendations.ts",
+      "src/core/taskIntent.ts",
+      "src/cli/work/taskSize.ts"
+    ], route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.some((file) => file.startsWith(".github/workflows/")), false, route.primaryFiles.join("\n"));
+    assert.ok(route.tests.includes("tests/taskIntent.test.js"), route.tests.join("\n"));
   });
 });
 
