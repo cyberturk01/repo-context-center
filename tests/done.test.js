@@ -256,6 +256,91 @@ test("done updates repository learning with compact generated patterns", async (
   });
 });
 
+test("done skips repository learning for tiny typo-only tasks by default", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Fixed renderAgent guidance typo to refer to rcc work explicitly.",
+      "--verify",
+      "npm run build; node --test tests/handoff.test.js",
+      "--files",
+      "src/cli/work/renderAgent.ts"
+    ], { cwd: tempDir });
+    const workLog = await readFile(path.join(tempDir, workLogPath), "utf8");
+    const workIndex = await readFile(path.join(tempDir, workIndexPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /RCC work index updated: docs\/ai-context\/WORK_INDEX\.md/);
+    assert.match(result.stdout, /RCC learning skipped: docs\/ai-context\/REPOSITORY_LEARNING\.md \(tiny\/noise task; use --learn to force\)/);
+    assert.match(workLog, /Fixed renderAgent guidance typo/);
+    assert.match(workIndex, /Fixed renderAgent guidance typo/);
+    await assert.rejects(() => readFile(path.join(tempDir, repositoryLearningPath), "utf8"), { code: "ENOENT" });
+  });
+});
+
+test("done --learn forces repository learning for tiny typo-only tasks", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Fixed renderAgent guidance typo to refer to rcc work explicitly.",
+      "--verify",
+      "npm run build",
+      "--files",
+      "src/cli/work/renderAgent.ts",
+      "--learn"
+    ], { cwd: tempDir });
+    const learning = await readFile(path.join(tempDir, repositoryLearningPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC learning updated: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
+    assert.match(learning, /^# Repository Learning$/m);
+    assert.match(learning, /renderAgent\.ts/);
+  });
+});
+
+test("done --no-learn skips repository learning for any task", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Implemented parser routing memory update",
+      "--verify",
+      "node --test tests/done.test.js",
+      "--files",
+      "src/cli/commands/done.ts,tests/done.test.js",
+      "--no-learn"
+    ], { cwd: tempDir });
+    const workIndex = await readFile(path.join(tempDir, workIndexPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC learning skipped: docs\/ai-context\/REPOSITORY_LEARNING\.md \(--no-learn\)/);
+    assert.match(workIndex, /Implemented parser routing memory update/);
+    await assert.rejects(() => readFile(path.join(tempDir, repositoryLearningPath), "utf8"), { code: "ENOENT" });
+  });
+});
+
+test("done keeps repository learning for medium implementation summaries by default", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Implemented parser routing memory update",
+      "--verify",
+      "node --test tests/done.test.js",
+      "--files",
+      "src/cli/commands/done.ts"
+    ], { cwd: tempDir });
+    const learning = await readFile(path.join(tempDir, repositoryLearningPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC learning updated: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
+    assert.match(learning, /src\/cli\/commands\/done\.ts/);
+  });
+});
+
 test("done refreshes work index and repository learning from the completed entry", async () => {
   await withDoneRepo(async (tempDir) => {
     const result = runCli([

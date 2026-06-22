@@ -518,6 +518,36 @@ async function withWorkflowRoutingImplementationRepo(callback) {
   }
 }
 
+async function withHandoffSupportingRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-handoff-supporting-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Handoff memory work: read `src/cli/commands/handoff.ts`, `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffSources.ts`, `src/cli/handoff/handoffTypes.ts`, `src/cli/handoff/handoffConstants.ts`, `src/cli/work/memorySignals.ts`, `src/cli/handoff/handoffOptions.ts`, `src/cli/handoff/writeHandoff.ts`, and `tests/handoff.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "src/cli/commands/handoff.ts", "export function handoffCommand() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/buildHandoffBrief.ts", "export function buildHandoffBrief() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/handoffSources.ts", "export function readHandoffSources() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/handoffTypes.ts", "export interface HandoffBrief {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/handoffConstants.ts", "export const handoffLimit = 3;\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/handoffOptions.ts", "export function parseHandoffOptions() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/writeHandoff.ts", "export function writeHandoff() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/memorySignals.ts", "export function readRecentMemory() {}\n");
+    await writeFixtureFile(tempDir, "tests/handoff.test.js", "test('handoff memory', () => {});\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function withDocumentationRoutingRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-doc-routing-"));
 
@@ -2307,6 +2337,87 @@ test("work --agent routes rcc measure token saving task to measure command", asy
       [...route.primaryFiles, ...route.supportingFiles].join("\n")
     );
     assert.equal(route.primaryFiles.some((file) => file.startsWith(".github/workflows/")), false, route.primaryFiles.join("\n"));
+  });
+});
+
+test("work --agent keeps medium handoff memory supporting files compact", async () => {
+  await withHandoffSupportingRepo(async (tempDir) => {
+    const result = runCli(["work", "improve handoff memory", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.taskSize, "medium");
+    assert.deepEqual(
+      Object.keys(route),
+      [
+        "task",
+        "taskSize",
+        "mode",
+        "primaryFiles",
+        "supportingFiles",
+        "tests",
+        "readFirst",
+        "next",
+        "briefTokens"
+      ]
+    );
+    for (const boundaryFile of [
+      "src/cli/commands/handoff.ts",
+      "src/cli/handoff/handoffOptions.ts",
+      "src/cli/handoff/writeHandoff.ts"
+    ]) {
+      assert.equal(route.supportingFiles.includes(boundaryFile), false, route.supportingFiles.join("\n"));
+    }
+    for (const usefulFile of [
+      "src/cli/handoff/buildHandoffBrief.ts",
+      "src/cli/handoff/handoffSources.ts",
+      "src/cli/handoff/handoffTypes.ts",
+      "src/cli/handoff/handoffConstants.ts",
+      "src/cli/work/memorySignals.ts"
+    ]) {
+      assert.ok(route.supportingFiles.includes(usefulFile), route.supportingFiles.join("\n"));
+    }
+    assert.ok(route.briefTokens <= 130, JSON.stringify(route));
+  });
+});
+
+test("work debug and verbose output expose optional medium supporting files", async () => {
+  await withHandoffSupportingRepo(async (tempDir) => {
+    const verbose = JSON.parse(runCli(["work", "improve handoff memory", "--agent", "--verbose"], { cwd: tempDir }).stdout);
+    const debug = JSON.parse(runCli(["work", "improve handoff memory", "--json", "--debug"], { cwd: tempDir }).stdout);
+    const verboseOptional = (verbose.optionalSupportingFiles ?? []).map((file) => file.path);
+    const debugOptional = (debug.optionalSupportingFiles ?? []).map((file) => file.path);
+
+    assert.ok(verboseOptional.includes("src/cli/handoff/handoffOptions.ts"), verboseOptional.join("\n"));
+    assert.ok(verboseOptional.includes("src/cli/handoff/writeHandoff.ts"), verboseOptional.join("\n"));
+    assert.ok(debugOptional.includes("src/cli/handoff/handoffOptions.ts"), debugOptional.join("\n"));
+    assert.ok(debugOptional.includes("src/cli/handoff/writeHandoff.ts"), debugOptional.join("\n"));
+    assert.equal(debug.supportingFiles.some((file) => file.path === "src/cli/handoff/handoffOptions.ts"), false);
+    assert.equal(debug.supportingFiles.some((file) => file.path === "src/cli/handoff/writeHandoff.ts"), false);
+  });
+});
+
+test("work --agent preserves broad supporting files for large command architecture tasks", async () => {
+  await withPruningRepo(async (tempDir) => {
+    const result = runCli(["work", "refactor work command architecture", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.taskSize, "large");
+    assert.equal(route.mode, "deep");
+    assert.ok(route.supportingFiles.length > 2, route.supportingFiles.join("\n"));
+  });
+});
+
+test("work --agent keeps tiny typo tasks to one primary and no supporting files", async () => {
+  await withDocumentationRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "fix typo in README", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.taskSize, "tiny");
+    assert.equal(route.primaryFiles.length, 1, route.primaryFiles.join("\n"));
+    assert.deepEqual(route.supportingFiles, []);
   });
 });
 

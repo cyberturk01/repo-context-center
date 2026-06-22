@@ -1714,4 +1714,98 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-22T15:27:38.421Z
+- Summary: Compact medium work supporting files with optional boundary tier
+- Changed files: `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderAgent.ts`, `src/cli/work/renderJson.ts`, `src/cli/work/taskFileRecommendations.ts`, `src/cli/work/workTypes.ts`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/work.test.js; npm run benchmark:routing
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Compact medium work supporting files with optional boundary tier",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/cli/work/workTypes.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/work.test.js; npm run benchmark:routing"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-22T15:27:38.421Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-22T15:27:38.421Z",
+  "summary": "Compact medium work supporting files with optional boundary tier",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/cli/work/workTypes.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/work.test.js; npm run benchmark:routing",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-22T15:31:14.002Z
+- Summary: Added done learning controls for tiny typo tasks
+- Changed files: `src/cli/commands/done.ts`, `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderAgent.ts`, `src/cli/work/renderJson.ts`, `src/cli/work/taskFileRecommendations.ts`, `src/cli/work/workTypes.ts`, `src/core/workMemoryRefresh.ts`, `tests/done.test.js`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/done.test.js tests/repositoryLearning.test.js tests/handoff.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added done learning controls for tiny typo tasks",
+  "files": [
+    "src/cli/commands/done.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/cli/work/workTypes.ts",
+    "src/core/workMemoryRefresh.ts",
+    "tests/done.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/done.test.js tests/repositoryLearning.test.js tests/handoff.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-22T15:31:14.002Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-22T15:31:14.002Z",
+  "summary": "Added done learning controls for tiny typo tasks",
+  "files": [
+    "src/cli/commands/done.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/cli/work/workTypes.ts",
+    "src/core/workMemoryRefresh.ts",
+    "tests/done.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/done.test.js tests/repositoryLearning.test.js tests/handoff.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -88,6 +88,65 @@ function isHighlyRelevantLearnedTest(item: WorkRecommendation): boolean {
   return item.reasons.includes("learned repository test pattern");
 }
 
+function isBoundarySupportingPath(filePath: string): boolean {
+  const basename = filePath.split("/").pop() ?? filePath;
+
+  return /^src\/cli\/commands\/[^/]+\.[^.]+$/i.test(filePath)
+    || /options?\.[^.]+$/i.test(basename)
+    || /^write[A-Z]/.test(basename);
+}
+
+function taskMentionsBoundaryWork(task: string): boolean {
+  return /\b(cli|command|commands|arg|args|option|options|flag|flags|write|writer|persist|persistence|output|stdout|stderr|json)\b/i.test(task);
+}
+
+function supportingFileRank(item: WorkRecommendation, taskIntent: TaskIntentAnalysis): number {
+  if (item.reasons.includes("learned repository relationship")) {
+    return 0;
+  }
+  if (item.reasons.some((reason) => reason.includes("task routing guidance"))) {
+    return 1;
+  }
+  if (taskIntent.lookupTerms.some((term) => term.length > 3 && item.path.toLowerCase().includes(term))) {
+    return 2;
+  }
+  return 3;
+}
+
+function compactMediumSupportingFiles(
+  task: string,
+  supportingFiles: WorkRecommendation[],
+  optionalSupportingFiles: WorkRecommendation[],
+  taskIntent: TaskIntentAnalysis
+): { supportingFiles: WorkRecommendation[]; optionalSupportingFiles: WorkRecommendation[] } {
+  const maxSupportingFiles = 5;
+  const canDemoteBoundaryFiles = !taskMentionsBoundaryWork(task);
+  const boundaryFiles = canDemoteBoundaryFiles
+    ? supportingFiles.filter((file) => isBoundarySupportingPath(file.path))
+    : [];
+  const retainedCandidates = supportingFiles.filter((file) => !boundaryFiles.some((boundary) => boundary.path === file.path));
+  const shouldDemoteBoundaryFiles = boundaryFiles.length > 0 && retainedCandidates.length >= 3;
+  const ranked = (shouldDemoteBoundaryFiles ? retainedCandidates : supportingFiles)
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => {
+      const rankDelta = supportingFileRank(left.item, taskIntent) - supportingFileRank(right.item, taskIntent);
+      return rankDelta !== 0 ? rankDelta : left.index - right.index;
+    })
+    .map((entry) => entry.item);
+  const visibleSupportingFiles = ranked.slice(0, maxSupportingFiles);
+  const visiblePaths = new Set(visibleSupportingFiles.map((file) => file.path));
+  const overflowFiles = ranked.filter((file) => !visiblePaths.has(file.path));
+
+  return {
+    supportingFiles: visibleSupportingFiles,
+    optionalSupportingFiles: [
+      ...optionalSupportingFiles,
+      ...(shouldDemoteBoundaryFiles ? boundaryFiles : []),
+      ...overflowFiles
+    ]
+  };
+}
+
 export function pruneWorkBriefForTaskSize(brief: WorkBrief): WorkBrief {
   if (brief.taskSize === "large" || brief.taskSize === "medium") {
     return brief;
@@ -108,6 +167,7 @@ export function pruneWorkBriefForTaskSize(brief: WorkBrief): WorkBrief {
     ...brief,
     primaryFiles,
     supportingFiles,
+    optionalSupportingFiles: brief.optionalSupportingFiles ?? [],
     tests,
     taskFiles: limitRecommendations(
       brief.taskFiles.filter((file) => primaryPaths.has(file.path) || routePaths.has(file.path)),
@@ -174,6 +234,17 @@ export function buildWorkBrief(
   const fileCategories = buildWorkFileCategorization(categorized, startup, lookupHints, taskIntent, learnedSignals);
   const nextCheapest = nextCheapestLookupCommand(taskIntent);
   const taskSize = classifyTaskSize(startup.task);
+  const supportingTier = taskSize.size === "medium"
+    ? compactMediumSupportingFiles(
+      startup.task,
+      fileCategories.supportingFiles,
+      fileCategories.optionalSupportingFiles,
+      taskIntent
+    )
+    : {
+      supportingFiles: fileCategories.supportingFiles,
+      optionalSupportingFiles: fileCategories.optionalSupportingFiles
+    };
   const brief: WorkBrief = {
     command: "work",
     task: startup.task,
@@ -186,7 +257,8 @@ export function buildWorkBrief(
     routingGuidance: startup.startupInstructions,
     startupContext: startup,
     primaryFiles: fileCategories.primaryFiles,
-    supportingFiles: fileCategories.supportingFiles,
+    supportingFiles: supportingTier.supportingFiles,
+    optionalSupportingFiles: supportingTier.optionalSupportingFiles,
     tests: fileCategories.tests,
     agentRules: fileCategories.agentRules,
     contextIfUnclear: fileCategories.contextIfUnclear,

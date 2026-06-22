@@ -77,6 +77,7 @@ export interface WorkBrief {
   startupContext: StartupContext;
   primaryFiles: WorkRecommendation[];
   supportingFiles: WorkRecommendation[];
+  optionalSupportingFiles: WorkRecommendation[];
   tests: WorkRecommendation[];
   agentRules: WorkRecommendation[];
   contextIfUnclear: WorkRecommendation[];
@@ -129,6 +130,7 @@ export interface PublicWorkBrief {
   relevantTests: PublicWorkFile[];
   primaryFiles: PublicWorkFile[];
   supportingFiles: PublicWorkFile[];
+  optionalSupportingFiles?: PublicWorkFile[];
   tests: PublicWorkFile[];
   agentRules: PublicWorkFile[];
   contextIfUnclear: PublicWorkFile[];
@@ -229,6 +231,7 @@ export interface PublicAgentRoute {
   mode: TaskMode;
   primaryFiles: PublicAgentRouteItem[];
   supportingFiles: PublicAgentRouteItem[];
+  optionalSupportingFiles?: PublicAgentRouteItem[];
   tests: PublicAgentRouteItem[];
   readFirst: PublicAgentRouteItem[];
   next: string;
@@ -238,6 +241,7 @@ export interface PublicAgentRoute {
 export interface WorkFileCategorization {
   primaryFiles: WorkRecommendation[];
   supportingFiles: WorkRecommendation[];
+  optionalSupportingFiles: WorkRecommendation[];
   tests: WorkRecommendation[];
   agentRules: WorkRecommendation[];
   contextIfUnclear: WorkRecommendation[];

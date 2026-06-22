@@ -12,6 +12,7 @@ import {
 export interface RefreshWorkMemoryArtifactsOptions {
   dryRun?: boolean;
   archivedWorkLogContent?: string;
+  updateRepositoryLearning?: boolean;
   workLogContent?: string;
 }
 
@@ -33,6 +34,10 @@ export async function refreshWorkMemoryArtifacts(
   const entries = contents.flatMap(parseWorkMemoryEntries);
 
   await writeTextFile(path.join(cwd, workIndexPath), renderWorkIndex(entries));
+
+  if (options.updateRepositoryLearning === false) {
+    return [workIndexPath];
+  }
 
   const learningTargetPath = path.join(cwd, repositoryLearningPath);
   const existingLearning = await readIfPresent(learningTargetPath);

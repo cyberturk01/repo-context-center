@@ -60,6 +60,9 @@ export function toAgentRoute(brief: WorkBrief, verbose: boolean): PublicAgentRou
     readFirst: agentReadFirstItems(brief, verbose),
     next: agentNext(brief)
   };
+  if (verbose && brief.optionalSupportingFiles.length > 0) {
+    withoutTokens.optionalSupportingFiles = agentRouteItems(brief.optionalSupportingFiles, verbose);
+  }
   const preliminary = { ...withoutTokens, briefTokens: 0 };
   const briefTokens = Math.ceil(JSON.stringify(preliminary).length / 4);
 

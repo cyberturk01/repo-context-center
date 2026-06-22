@@ -299,6 +299,7 @@ export function buildWorkFileCategorization(
   return {
     primaryFiles: recommendationItemsWithHints(primaryPaths, startup, lookupHints),
     supportingFiles: recommendationItemsWithLearning(supportingPaths, startup, lookupHints, learnedSignals),
+    optionalSupportingFiles: [],
     tests: recommendationItemsWithLearning(testPaths, startup, lookupHints, learnedSignals),
     agentRules: categorized.workflowDocs.filter((file) => !primarySet.has(file.path)),
     contextIfUnclear: categorized.contextDocs.filter((file) => !primarySet.has(file.path))

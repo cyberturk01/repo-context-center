@@ -96,6 +96,9 @@ export function renderWorkBriefDebugJson(brief: WorkBrief): string {
     relevantTests: brief.relevantTests.map((file) => recommendationSignal(file, lookupHints)),
     primaryFiles: brief.primaryFiles.map((file) => recommendationSignal(file, lookupHints)),
     supportingFiles: brief.supportingFiles.map((file) => recommendationSignal(file, lookupHints)),
+    ...(brief.optionalSupportingFiles.length > 0
+      ? { optionalSupportingFiles: brief.optionalSupportingFiles.map((file) => recommendationSignal(file, lookupHints)) }
+      : {}),
     tests: brief.tests.map((file) => recommendationSignal(file, lookupHints)),
     agentRules: brief.agentRules.map((file) => recommendationSignal(file, lookupHints)),
     contextIfUnclear: brief.contextIfUnclear.map((file) => recommendationSignal(file, lookupHints)),
