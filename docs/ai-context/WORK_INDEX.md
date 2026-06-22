@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Added routing evaluation matrix for route quality and compactness
 - Added release and install reliability guards
 - Added JSON and agent output contract stability tests
 - Added fixture-driven routing regression suite and benchmark checks
 - Removed package self-dependency that broke npm ci
 - Added done learning controls for tiny typo tasks
 - Compact medium work supporting files with optional boundary tier
-- Fixed Turkish workflow routing tasks to prefer RCC routing implementation
 
 ## Hot Files
 
@@ -34,7 +34,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
 | Handoff | 23 | Deduplicate handoff Work index memory against Last completed |
-| Work routing | 14 | Added fixture-driven routing regression suite and benchmark checks |
+| Work routing | 15 | Added routing evaluation matrix for route quality and compactness |
 | General maintenance | 6 | Added release and install reliability guards |
 | Repository context | 6 | Updated README with Repository Learning and learn command documentation |
 | Work memory | 4 | Refactor work memory artifact refresh into shared helper |
@@ -44,13 +44,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (35)
-- `npm test` (23)
+- `npm run build` (36)
+- `npm test` (24)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
 - `node --test tests/cli.test.js` (9)
+- `npm run benchmark:routing` (6)
 - `node --test tests/work.test.js` (5)
-- `npm run benchmark:routing` (5)
-- `npm pack --dry-run` (2)
+- `node --test tests/routingRegression.test.js` (2)
 
 <!-- repo-context-center:work-index:end -->

@@ -216,6 +216,47 @@ function taskExplicitlyTargetsContextDocs(taskIntent: TaskIntentAnalysis): boole
   ].includes(term));
 }
 
+function testStem(filePath: string): string {
+  return path.posix.basename(filePath)
+    .replace(/\.(test|spec)\.[cm]?[jt]sx?$/i, "")
+    .replace(/[-_.]test$/i, "")
+    .toLowerCase();
+}
+
+function sourcePathTerms(filePath: string): Set<string> {
+  return new Set(filePath
+    .toLowerCase()
+    .split(/[\/._-]+/)
+    .filter((part) => part.length > 1 && !["src", "test", "tests"].includes(part)));
+}
+
+function testRelevanceToPrimary(testPath: string, primaryPaths: string[]): number {
+  const stem = testStem(testPath);
+  let score = 0;
+
+  for (const primaryPath of primaryPaths) {
+    const terms = sourcePathTerms(primaryPath);
+    if (terms.has(stem)) {
+      score += 3;
+    }
+    if (terms.has("work") && /^tests\/work\.test\./.test(testPath)) {
+      score += 2;
+    }
+    if (terms.has("handoff") && /^tests\/handoff\.test\./.test(testPath)) {
+      score += 2;
+    }
+  }
+
+  return score;
+}
+
+function sortTestsByPrimaryRelevance(testPaths: string[], primaryPaths: string[]): string[] {
+  return [...testPaths].sort((left, right) => {
+    const scoreDelta = testRelevanceToPrimary(right, primaryPaths) - testRelevanceToPrimary(left, primaryPaths);
+    return scoreDelta !== 0 ? scoreDelta : 0;
+  });
+}
+
 function isDirectTaskTargetHint(hint: TargetedLookupHint | Omit<TargetedLookupHint, "index">, task: string, taskIntent: TaskIntentAnalysis): boolean {
   const role = classifyRepoFile(hint.path).role;
   const explicitPath = taskMentionsExplicitPath(task, hint.path);
@@ -275,10 +316,10 @@ export function buildWorkFileCategorization(
     ? directPrimaryPaths
     : legacyTaskPaths;
   const primarySet = new Set(primaryPaths);
-  const testPaths = uniquePaths([
+  const testPaths = sortTestsByPrimaryRelevance(uniquePaths([
     ...categorized.supportingTests.map((file) => file.path),
     ...learnedSignals.learnedTests
-  ]);
+  ]), primaryPaths);
   const testSet = new Set(testPaths);
   const supportingPaths = uniquePaths([
     ...(directPrimaryPaths.length > 0

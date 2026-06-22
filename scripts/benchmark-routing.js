@@ -3,6 +3,9 @@
 const { spawnSync } = require("node:child_process");
 const { readFileSync } = require("node:fs");
 const path = require("node:path");
+const {
+  evaluateRoutingCase
+} = require("../tests/helpers/routingEvaluation");
 
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
@@ -40,41 +43,8 @@ function runWork(task) {
   }
 }
 
-function valuesFrom(items) {
-  return Array.isArray(items) ? items : [];
-}
-
-function pathMatches(actualPath, expectedPath) {
-  return actualPath === expectedPath || actualPath.startsWith(expectedPath);
-}
-
-function missingExpected(actualPaths, expectedPaths = []) {
-  return expectedPaths.filter((expectedPath) => !actualPaths.some((actualPath) => pathMatches(actualPath, expectedPath)));
-}
-
-function unexpectedPresent(actualPaths, expectedPaths = []) {
-  return expectedPaths.filter((expectedPath) => actualPaths.some((actualPath) => pathMatches(actualPath, expectedPath)));
-}
-
 function failuresFor(brief, benchmarkCase) {
-  const expect = benchmarkCase.expect ?? {};
-  const primary = valuesFrom(brief.primaryFiles);
-  const supporting = valuesFrom(brief.supportingFiles);
-  const tests = valuesFrom(brief.tests);
-  const failures = [
-    ...missingExpected(primary, expect.primaryContains).map((file) => `missing primary ${file}`),
-    ...unexpectedPresent(primary, expect.primaryNotContains).map((file) => `unexpected primary ${file}`),
-    ...missingExpected(supporting, expect.supportingContains).map((file) => `missing supporting ${file}`),
-    ...unexpectedPresent(supporting, expect.supportingNotContains).map((file) => `unexpected supporting ${file}`),
-    ...missingExpected(tests, expect.testsContains).map((file) => `missing test ${file}`),
-    ...unexpectedPresent(tests, expect.testsNotContains).map((file) => `unexpected test ${file}`)
-  ];
-
-  if (typeof expect.maxBriefTokens === "number" && brief.briefTokens > expect.maxBriefTokens) {
-    failures.push(`brief tokens ${brief.briefTokens} > ${expect.maxBriefTokens}`);
-  }
-
-  return failures;
+  return evaluateRoutingCase(brief, benchmarkCase).failures;
 }
 
 function statusFor(brief, benchmarkCase) {
@@ -92,6 +62,7 @@ function rowFor(benchmarkCase) {
     primaryCount: brief.primaryFiles?.length ?? 0,
     supportingCount: brief.supportingFiles?.length ?? 0,
     testsCount: brief.tests?.length ?? 0,
+    readFirstCount: brief.readFirst?.length ?? 0,
     briefTokens: brief.briefTokens ?? "-",
     status: statusFor(brief, benchmarkCase),
     details: failures.length > 0 ? failures.join("; ") : "-"
@@ -103,8 +74,8 @@ function pad(value, width) {
 }
 
 function printTable(rows) {
-  const headers = ["Case", "First primary file", "Primary", "Supporting", "Tests", "Brief tokens", "Status", "Details"];
-  const fields = ["name", "firstPrimaryFile", "primaryCount", "supportingCount", "testsCount", "briefTokens", "status", "details"];
+  const headers = ["Case", "First primary file", "Primary", "Supporting", "Tests", "ReadFirst", "Brief tokens", "Status", "Details"];
+  const fields = ["name", "firstPrimaryFile", "primaryCount", "supportingCount", "testsCount", "readFirstCount", "briefTokens", "status", "details"];
   const widths = headers.map((header, index) => Math.max(
     header.length,
     ...rows.map((row) => String(row[fields[index]]).length)
