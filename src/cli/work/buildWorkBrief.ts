@@ -1,4 +1,5 @@
 import { buildStartupContext, focusStartupContextForStart, type StartupContext } from "../../core/suggester";
+import { learnedRoutingSignalsForTask, type LearnedRoutingSignals } from "../../core/repositoryLearningRouting";
 import { analyzeTaskIntent, type TaskIntentAnalysis } from "../../core/taskIntent";
 import {
   nextCommand
@@ -17,6 +18,7 @@ import {
   buildTaskFileRecommendations,
   buildWorkFileCategorization
 } from "./taskFileRecommendations";
+import { classifyTaskSize } from "./taskSize";
 import { targetedLookupHints } from "./targetedLookup";
 import type {
   CompactWorkBrief,
@@ -24,6 +26,7 @@ import type {
   PublicAgentRoute,
   ReadFirstGuidance,
   TargetedLookupHint,
+  WorkRecommendation,
   WorkBrief,
   WorkMapFreshness
 } from "./workTypes";
@@ -62,6 +65,137 @@ function fallbackTokenEstimate(brief: WorkBrief): number {
   return Math.ceil(renderWorkBriefLines(brief).join("\n").length / 4);
 }
 
+function limitRecommendations(
+  items: WorkRecommendation[],
+  maxItems: number,
+  preserve?: (item: WorkRecommendation) => boolean
+): WorkRecommendation[] {
+  if (items.length <= maxItems) {
+    return items;
+  }
+
+  const selected = items.slice(0, maxItems);
+  const preserved = preserve ? items.find((item) => preserve(item)) : undefined;
+
+  if (preserved && !selected.some((item) => item.path === preserved.path)) {
+    return [...selected.slice(0, Math.max(0, maxItems - 1)), preserved];
+  }
+
+  return selected;
+}
+
+function isHighlyRelevantLearnedTest(item: WorkRecommendation): boolean {
+  return item.reasons.includes("learned repository test pattern");
+}
+
+function isBoundarySupportingPath(filePath: string): boolean {
+  const basename = filePath.split("/").pop() ?? filePath;
+
+  return /^src\/cli\/commands\/[^/]+\.[^.]+$/i.test(filePath)
+    || /options?\.[^.]+$/i.test(basename)
+    || /^write[A-Z]/.test(basename);
+}
+
+function taskMentionsBoundaryWork(task: string): boolean {
+  return /\b(cli|command|commands|arg|args|option|options|flag|flags|write|writer|persist|persistence|output|stdout|stderr|json)\b/i.test(task);
+}
+
+function supportingFileRank(item: WorkRecommendation, taskIntent: TaskIntentAnalysis): number {
+  if (item.reasons.includes("learned repository relationship")) {
+    return 0;
+  }
+  if (item.reasons.some((reason) => reason.includes("task routing guidance"))) {
+    return 1;
+  }
+  if (taskIntent.lookupTerms.some((term) => term.length > 3 && item.path.toLowerCase().includes(term))) {
+    return 2;
+  }
+  return 3;
+}
+
+function compactMediumSupportingFiles(
+  task: string,
+  supportingFiles: WorkRecommendation[],
+  optionalSupportingFiles: WorkRecommendation[],
+  taskIntent: TaskIntentAnalysis
+): { supportingFiles: WorkRecommendation[]; optionalSupportingFiles: WorkRecommendation[] } {
+  const maxSupportingFiles = 5;
+  const canDemoteBoundaryFiles = !taskMentionsBoundaryWork(task);
+  const boundaryFiles = canDemoteBoundaryFiles
+    ? supportingFiles.filter((file) => isBoundarySupportingPath(file.path))
+    : [];
+  const retainedCandidates = supportingFiles.filter((file) => !boundaryFiles.some((boundary) => boundary.path === file.path));
+  const shouldDemoteBoundaryFiles = boundaryFiles.length > 0 && retainedCandidates.length >= 3;
+  const ranked = (shouldDemoteBoundaryFiles ? retainedCandidates : supportingFiles)
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => {
+      const rankDelta = supportingFileRank(left.item, taskIntent) - supportingFileRank(right.item, taskIntent);
+      return rankDelta !== 0 ? rankDelta : left.index - right.index;
+    })
+    .map((entry) => entry.item);
+  const visibleSupportingFiles = ranked.slice(0, maxSupportingFiles);
+  const visiblePaths = new Set(visibleSupportingFiles.map((file) => file.path));
+  const overflowFiles = ranked.filter((file) => !visiblePaths.has(file.path));
+
+  return {
+    supportingFiles: visibleSupportingFiles,
+    optionalSupportingFiles: [
+      ...optionalSupportingFiles,
+      ...(shouldDemoteBoundaryFiles ? boundaryFiles : []),
+      ...overflowFiles
+    ]
+  };
+}
+
+export function pruneWorkBriefForTaskSize(brief: WorkBrief): WorkBrief {
+  if (brief.taskSize === "large" || brief.taskSize === "medium") {
+    return brief;
+  }
+
+  const limits = brief.taskSize === "tiny"
+    ? { primaryFiles: 1, supportingFiles: 1, tests: 1, learnedMemory: 0, recentLogs: 0 }
+    : { primaryFiles: 2, supportingFiles: 2, tests: 2, learnedMemory: 1, recentLogs: 3 };
+  const primaryFiles = limitRecommendations(brief.primaryFiles, limits.primaryFiles);
+  const supportingFiles = limitRecommendations(brief.supportingFiles, limits.supportingFiles);
+  const tests = limitRecommendations(brief.tests, limits.tests, isHighlyRelevantLearnedTest);
+  const primaryPaths = new Set(primaryFiles.map((file) => file.path));
+  const supportingPaths = new Set(supportingFiles.map((file) => file.path));
+  const testPaths = new Set(tests.map((file) => file.path));
+  const routePaths = new Set([...primaryPaths, ...supportingPaths, ...testPaths]);
+
+  return {
+    ...brief,
+    primaryFiles,
+    supportingFiles,
+    optionalSupportingFiles: brief.optionalSupportingFiles ?? [],
+    tests,
+    taskFiles: limitRecommendations(
+      brief.taskFiles.filter((file) => primaryPaths.has(file.path) || routePaths.has(file.path)),
+      limits.primaryFiles
+    ),
+    supportingTests: limitRecommendations(
+      brief.supportingTests.filter((file) => testPaths.has(file.path) || routePaths.has(file.path)),
+      limits.tests,
+      isHighlyRelevantLearnedTest
+    ),
+    recommendedFiles: limitRecommendations(
+      brief.recommendedFiles.filter((file) => routePaths.has(file.path) || primaryPaths.has(file.path)),
+      limits.primaryFiles + limits.supportingFiles + limits.tests
+    ),
+    relevantTests: limitRecommendations(
+      brief.relevantTests.filter((file) => testPaths.has(file.path) || routePaths.has(file.path)),
+      limits.tests,
+      isHighlyRelevantLearnedTest
+    ),
+    learnedRelatedFiles: brief.learnedRelatedFiles.filter((file) => supportingPaths.has(file)).slice(0, limits.learnedMemory),
+    learnedTests: brief.learnedTests.filter((file) => testPaths.has(file)).slice(0, limits.tests),
+    learnedVerification: brief.learnedVerification.slice(0, limits.learnedMemory),
+    learnedHabits: brief.learnedHabits.slice(0, limits.learnedMemory),
+    recentLogs: brief.recentLogs.slice(0, limits.recentLogs),
+    relevantDecisions: brief.relevantDecisions.slice(0, limits.learnedMemory === 0 ? 1 : limits.learnedMemory)
+  };
+}
+
 export function buildBriefWithTokenEstimate(
   brief: WorkBrief,
   estimateTokens: WorkBriefTokenEstimator = fallbackTokenEstimate
@@ -93,20 +227,38 @@ export function buildWorkBrief(
   readFirstGuidance: ReadFirstGuidance,
   contextBudget: ContextBudget,
   taskIntent: TaskIntentAnalysis,
+  learnedSignals: LearnedRoutingSignals,
   estimateTokens?: WorkBriefTokenEstimator
 ): WorkBrief {
   const categorized = buildTaskFileRecommendations(startup, lookupHints, readFirstGuidance, taskIntent);
-  const fileCategories = buildWorkFileCategorization(categorized, startup, lookupHints, taskIntent);
+  const fileCategories = buildWorkFileCategorization(categorized, startup, lookupHints, taskIntent, learnedSignals);
   const nextCheapest = nextCheapestLookupCommand(taskIntent);
+  const taskSize = classifyTaskSize(startup.task);
+  const supportingTier = taskSize.size === "medium"
+    ? compactMediumSupportingFiles(
+      startup.task,
+      fileCategories.supportingFiles,
+      fileCategories.optionalSupportingFiles,
+      taskIntent
+    )
+    : {
+      supportingFiles: fileCategories.supportingFiles,
+      optionalSupportingFiles: fileCategories.optionalSupportingFiles
+    };
   const brief: WorkBrief = {
     command: "work",
     task: startup.task,
+    taskSize: taskSize.size,
+    taskMode: taskSize.mode,
+    taskSizeConfidence: taskSize.confidence,
+    taskSizeReasons: taskSize.reasons,
     contextBudget,
     mapFreshness,
     routingGuidance: startup.startupInstructions,
     startupContext: startup,
     primaryFiles: fileCategories.primaryFiles,
-    supportingFiles: fileCategories.supportingFiles,
+    supportingFiles: supportingTier.supportingFiles,
+    optionalSupportingFiles: supportingTier.optionalSupportingFiles,
     tests: fileCategories.tests,
     agentRules: fileCategories.agentRules,
     contextIfUnclear: fileCategories.contextIfUnclear,
@@ -132,6 +284,10 @@ export function buildWorkBrief(
       confidence: hint.confidence,
       score: hint.score
     })),
+    learnedRelatedFiles: learnedSignals.learnedRelatedFiles,
+    learnedTests: learnedSignals.learnedTests,
+    learnedVerification: learnedSignals.learnedVerification,
+    learnedHabits: learnedSignals.learnedHabits,
     relevantDecisions: decisions,
     recentLogs: logs,
     tokenEstimate: {
@@ -157,7 +313,7 @@ export function buildWorkBrief(
     nextCommand
   };
 
-  return buildBriefWithTokenEstimate(brief, estimateTokens);
+  return buildBriefWithTokenEstimate(pruneWorkBriefForTaskSize(brief), estimateTokens);
 }
 
 export async function buildWorkBriefForTask(
@@ -176,11 +332,12 @@ export async function buildWorkBriefForTask(
     maxSourceFiles: Math.min(maxFiles, 8),
     maxTestFiles: Math.min(maxFiles, 6)
   });
-  const [mapFreshness, decisions, logs, lookupHints] = await Promise.all([
+  const [mapFreshness, decisions, logs, lookupHints, learnedSignals] = await Promise.all([
     assessMapFreshness(cwd),
     readRelevantDecisions(cwd, focusedStartupContext, taskIntent),
     readRecentLogs(cwd),
-    targetedLookupHints(cwd, taskIntent, focusedStartupContext)
+    targetedLookupHints(cwd, taskIntent, focusedStartupContext),
+    learnedRoutingSignalsForTask(cwd, task)
   ]);
   const existingContextFiles = await existingReadFirstContextFiles(cwd);
   const readFirstGuidance = buildReadFirstGuidance(
@@ -199,6 +356,7 @@ export async function buildWorkBriefForTask(
     readFirstGuidance,
     contextBudget,
     taskIntent,
+    learnedSignals,
     options.estimateTokens
   );
 }

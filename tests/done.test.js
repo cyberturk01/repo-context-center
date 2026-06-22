@@ -8,6 +8,8 @@ const test = require("node:test");
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
 const workLogPath = path.join("docs", "ai-context", "WORK_LOG.md");
+const workIndexPath = path.join("docs", "ai-context", "WORK_INDEX.md");
+const repositoryLearningPath = path.join("docs", "ai-context", "REPOSITORY_LEARNING.md");
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [cliPath, ...args], {
@@ -20,6 +22,10 @@ async function writeFixtureFile(root, relativePath, content) {
   const fullPath = path.join(root, relativePath);
   await mkdir(path.dirname(fullPath), { recursive: true });
   await writeFile(fullPath, content, "utf8");
+}
+
+function countOccurrences(content, value) {
+  return (content.match(new RegExp(value, "g")) ?? []).length;
 }
 
 async function withDoneRepo(callback) {
@@ -214,12 +220,191 @@ test("done writes structured handoff-friendly data", async () => {
   });
 });
 
+test("done updates repository learning with compact generated patterns", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Updated repository learning foundation",
+      "--verify",
+      "node --test tests/done.test.js",
+      "--files",
+      "src/cli/commands/done.ts,tests/done.test.js"
+    ], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, repositoryLearningPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /RCC work index updated: docs\/ai-context\/WORK_INDEX\.md/);
+    assert.match(result.stdout, /RCC learning updated: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
+    assert.match(content, /^# Repository Learning$/m);
+    assert.match(content, /<!-- repo-context-center:repository-learning:start -->/);
+    assert.match(content, /<!-- repo-context-center:repository-learning:end -->/);
+    assert.match(content, /^## Recent Focus Areas$/m);
+    assert.match(content, /^## Common File Relationships$/m);
+    assert.match(content, /^## Frequently Modified Together$/m);
+    assert.match(content, /^## Verification Patterns$/m);
+    assert.match(content, /^## Repository Habits$/m);
+    assert.match(content, /\| done \| `tests\/done\.test\.js` \| Observed in completed done work \| 1 \|/);
+    assert.match(content, /\| none detected yet \| - \| - \|/);
+    assert.match(content, /\| done \| `node --test tests\/done\.test\.js` \| 1 \|/);
+    assert.doesNotMatch(content, /(^|\|)\s*--:\s*(?=\|)/);
+    assert.doesNotMatch(content, /\bwork work\b/);
+    assert.doesNotMatch(content, /- Summary:/);
+    assert.equal(countOccurrences(content, "<!-- repo-context-center:repository-learning:start -->"), 1);
+    assert.equal(countOccurrences(content, "<!-- repo-context-center:repository-learning:end -->"), 1);
+  });
+});
+
+test("done skips repository learning for tiny typo-only tasks by default", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Fixed renderAgent guidance typo to refer to rcc work explicitly.",
+      "--verify",
+      "npm run build; node --test tests/handoff.test.js",
+      "--files",
+      "src/cli/work/renderAgent.ts"
+    ], { cwd: tempDir });
+    const workLog = await readFile(path.join(tempDir, workLogPath), "utf8");
+    const workIndex = await readFile(path.join(tempDir, workIndexPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /RCC work index updated: docs\/ai-context\/WORK_INDEX\.md/);
+    assert.match(result.stdout, /RCC learning skipped: docs\/ai-context\/REPOSITORY_LEARNING\.md \(tiny\/noise task; use --learn to force\)/);
+    assert.match(workLog, /Fixed renderAgent guidance typo/);
+    assert.match(workIndex, /Fixed renderAgent guidance typo/);
+    await assert.rejects(() => readFile(path.join(tempDir, repositoryLearningPath), "utf8"), { code: "ENOENT" });
+  });
+});
+
+test("done --learn forces repository learning for tiny typo-only tasks", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Fixed renderAgent guidance typo to refer to rcc work explicitly.",
+      "--verify",
+      "npm run build",
+      "--files",
+      "src/cli/work/renderAgent.ts",
+      "--learn"
+    ], { cwd: tempDir });
+    const learning = await readFile(path.join(tempDir, repositoryLearningPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC learning updated: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
+    assert.match(learning, /^# Repository Learning$/m);
+    assert.match(learning, /renderAgent\.ts/);
+  });
+});
+
+test("done --no-learn skips repository learning for any task", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Implemented parser routing memory update",
+      "--verify",
+      "node --test tests/done.test.js",
+      "--files",
+      "src/cli/commands/done.ts,tests/done.test.js",
+      "--no-learn"
+    ], { cwd: tempDir });
+    const workIndex = await readFile(path.join(tempDir, workIndexPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC learning skipped: docs\/ai-context\/REPOSITORY_LEARNING\.md \(--no-learn\)/);
+    assert.match(workIndex, /Implemented parser routing memory update/);
+    await assert.rejects(() => readFile(path.join(tempDir, repositoryLearningPath), "utf8"), { code: "ENOENT" });
+  });
+});
+
+test("done keeps repository learning for medium implementation summaries by default", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Implemented parser routing memory update",
+      "--verify",
+      "node --test tests/done.test.js",
+      "--files",
+      "src/cli/commands/done.ts"
+    ], { cwd: tempDir });
+    const learning = await readFile(path.join(tempDir, repositoryLearningPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC learning updated: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
+    assert.match(learning, /src\/cli\/commands\/done\.ts/);
+  });
+});
+
+test("done refreshes work index and repository learning from the completed entry", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Refreshed memory artifacts",
+      "--verify",
+      "node --test tests/done.test.js",
+      "--files",
+      "src/cli/commands/done.ts,tests/done.test.js"
+    ], { cwd: tempDir });
+    const workIndex = await readFile(path.join(tempDir, workIndexPath), "utf8");
+    const learning = await readFile(path.join(tempDir, repositoryLearningPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC work index updated: docs\/ai-context\/WORK_INDEX\.md/);
+    assert.match(result.stdout, /RCC learning updated: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
+    assert.match(workIndex, /Refreshed memory artifacts/);
+    assert.match(workIndex, /src\/cli\/commands\/done\.ts/);
+    assert.match(learning, /\| done \| `tests\/done\.test\.js` \| Observed in completed done work \| 1 \|/);
+    assert.match(learning, /\| done \| `node --test tests\/done\.test\.js` \| 1 \|/);
+  });
+});
+
+test("done preserves manual repository learning content outside generated markers", async () => {
+  await withDoneRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, repositoryLearningPath, [
+      "# Repository Learning",
+      "",
+      "Manual note before generated content.",
+      "",
+      "<!-- repo-context-center:repository-learning:start -->",
+      "stale generated content",
+      "<!-- repo-context-center:repository-learning:end -->",
+      "",
+      "Manual note after generated content.",
+      ""
+    ].join("\n"));
+
+    const result = runCli([
+      "done",
+      "--summary",
+      "Updated done memory",
+      "--files",
+      "src/cli/commands/done.ts"
+    ], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, repositoryLearningPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /Manual note before generated content\./);
+    assert.match(content, /Manual note after generated content\./);
+    assert.match(content, /## Recent Focus Areas/);
+    assert.doesNotMatch(content, /stale generated content/);
+  });
+});
+
 test("done dry-run does not write work log", async () => {
   await withDoneRepo(async (tempDir) => {
     const result = runCli(["done", "Preview routing docs", "--verify", "npm test -- routing", "--dry-run"], { cwd: tempDir });
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /RCC memory would update: docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /RCC work index would update: docs\/ai-context\/WORK_INDEX\.md/);
+    assert.match(result.stdout, /RCC learning would update: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
     await assert.rejects(() => readFile(path.join(tempDir, workLogPath), "utf8"), { code: "ENOENT" });
   });
 });

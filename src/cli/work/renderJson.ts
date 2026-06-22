@@ -78,6 +78,10 @@ export function renderWorkBriefDebugJson(brief: WorkBrief): string {
     schemaVersion: 1,
     command: brief.command,
     task: brief.task,
+    taskSize: brief.taskSize,
+    taskMode: brief.taskMode,
+    taskSizeConfidence: brief.taskSizeConfidence,
+    taskSizeReasons: brief.taskSizeReasons,
     contextBudget: brief.contextBudget,
     mapFreshness: {
       status: brief.mapFreshness.status,
@@ -92,6 +96,9 @@ export function renderWorkBriefDebugJson(brief: WorkBrief): string {
     relevantTests: brief.relevantTests.map((file) => recommendationSignal(file, lookupHints)),
     primaryFiles: brief.primaryFiles.map((file) => recommendationSignal(file, lookupHints)),
     supportingFiles: brief.supportingFiles.map((file) => recommendationSignal(file, lookupHints)),
+    ...(brief.optionalSupportingFiles.length > 0
+      ? { optionalSupportingFiles: brief.optionalSupportingFiles.map((file) => recommendationSignal(file, lookupHints)) }
+      : {}),
     tests: brief.tests.map((file) => recommendationSignal(file, lookupHints)),
     agentRules: brief.agentRules.map((file) => recommendationSignal(file, lookupHints)),
     contextIfUnclear: brief.contextIfUnclear.map((file) => recommendationSignal(file, lookupHints)),
@@ -103,6 +110,10 @@ export function renderWorkBriefDebugJson(brief: WorkBrief): string {
     avoid: brief.avoid,
     nextCheapestCommand: brief.nextCheapestCommand,
     promotedFromTargetedLookup: publicLookupHints(brief.promotedFromTargetedLookup),
+    learnedRelatedFiles: brief.learnedRelatedFiles,
+    learnedTests: brief.learnedTests,
+    learnedVerification: brief.learnedVerification,
+    learnedHabits: brief.learnedHabits,
     relevantDecisions: brief.relevantDecisions,
     recentLogs: brief.recentLogs,
     risks: publicRisks(brief.risks),
@@ -142,6 +153,8 @@ export function toCompactWorkBrief(brief: WorkBrief): CompactWorkBrief {
     schemaVersion: 1,
     command: brief.command,
     task: brief.task,
+    taskSize: brief.taskSize,
+    taskMode: brief.taskMode,
     contextBudget: brief.contextBudget,
     freshness: {
       status: brief.mapFreshness.status,

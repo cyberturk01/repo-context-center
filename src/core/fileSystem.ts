@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { access, mkdir, open, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export async function pathExists(filePath: string): Promise<boolean> {
@@ -26,6 +26,21 @@ export async function writeTextFile(filePath: string, content: string): Promise<
 
 export async function readTextFile(filePath: string): Promise<string> {
   return readFile(filePath, "utf8");
+}
+
+export async function readTextFileTail(filePath: string, limitBytes: number): Promise<string> {
+  const handle = await open(filePath, "r");
+
+  try {
+    const stats = await handle.stat();
+    const length = Math.min(Math.max(0, limitBytes), stats.size);
+    const buffer = Buffer.alloc(length);
+
+    await handle.read(buffer, 0, length, Math.max(0, stats.size - length));
+    return buffer.toString("utf8");
+  } finally {
+    await handle.close();
+  }
 }
 
 export async function readJsonFile<T>(filePath: string): Promise<T> {

@@ -34,6 +34,10 @@ export function toPublicHandoffBrief(brief: HandoffBrief): PublicHandoffBrief {
     publicBrief.writtenPath = brief.writtenPath;
   }
 
+  if (brief.repositoryLearning && brief.repositoryLearning.length > 0) {
+    publicBrief.repositoryLearning = normalizeTextItems(brief.repositoryLearning);
+  }
+
   if (brief.lastSummary) {
     publicBrief.lastSummary = brief.lastSummary;
   }

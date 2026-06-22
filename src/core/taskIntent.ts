@@ -9,6 +9,7 @@ export interface TaskIntentAnalysis {
   isCodeInvestigation: boolean;
   hasWorkflowDomain: boolean;
   hasCiWorkflowIntent: boolean;
+  hasRoutingImplementationIntent: boolean;
   hasDocumentationIntent: boolean;
   hasReleaseIntent: boolean;
   isExplicitCommandTask: boolean;
@@ -158,7 +159,10 @@ const expansions = {
     ["göster", ["show"]],
     ["iyilestir", ["improve"]],
     ["iyileştir", ["improve"]],
-    ["ilgili", ["related"]]
+    ["ilgili", ["related"]],
+    ["tasklari", ["task", "tasks"]],
+    ["turkce", ["turkish"]],
+    ["yonlendirme", ["routing", "route"]]
   ]),
   domain: new Map<string, string[]>([
     ["action", ["actions", "github", "workflow", "workflows"]],
@@ -203,6 +207,19 @@ const genericLookupStopTerms = new Set([
   "support",
   "test",
   "update"
+]);
+const routingImplementationTerms = new Set([
+  "classification",
+  "intent",
+  "route",
+  "routes",
+  "routing",
+  "task",
+  "tasks",
+  "tokenization",
+  "turkce",
+  "turkish",
+  "yonlendirme"
 ]);
 const workflowDomainTerms = new Set([
   "action",
@@ -256,7 +273,9 @@ export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
   const expandedTerms = expandTaskTerms(rawTokens);
   const hasDocumentationIntent = detectsDocumentationIntent(normalizedTask, expandedTerms);
   const hasReleaseIntent = detectsReleaseIntent(normalizedTask, expandedTerms);
-  const hasCiWorkflowIntent = detectsCiWorkflowIntent(normalizedTask, expandedTerms, hasDocumentationIntent);
+  const hasRoutingImplementationIntent = detectsRoutingImplementationIntent(normalizedTask, expandedTerms);
+  const hasCiWorkflowIntent = !hasRoutingImplementationIntent
+    && detectsCiWorkflowIntent(normalizedTask, expandedTerms, hasDocumentationIntent);
   const hasRoleSignal = expandedTerms.some((term) => term === "role" || term === "roles");
   const isExplicitCommandTask = expandedTerms.some((term) => explicitCommandTaskTerms.has(term));
   const termsForLookup = hasRoleSignal
@@ -280,10 +299,10 @@ export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
   const rawLookupTokens = rawTokens.filter((token) => token.length > 2 || domainTerms.has(token));
   const shouldFallbackToGenericTerms = rawLookupTokens.length > 0
     && rawLookupTokens.every((token) => genericLookupStopTerms.has(token));
-  const lookupTerms = filterGenericLookupTerms(
+  const lookupTerms = prioritizeRoutingImplementationTerms(filterGenericLookupTerms(
     lookupCandidates,
     shouldFallbackToGenericTerms ? genericFallbackTerms : []
-  );
+  ), hasRoutingImplementationIntent);
 
   return {
     normalizedTask,
@@ -296,6 +315,7 @@ export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
     isCodeInvestigation: expandedTerms.some((term) => codeInvestigationTerms.has(term)),
     hasWorkflowDomain: expandedTerms.some((term) => workflowDomainTerms.has(term)),
     hasCiWorkflowIntent,
+    hasRoutingImplementationIntent,
     hasDocumentationIntent,
     hasReleaseIntent,
     isExplicitCommandTask,
@@ -323,6 +343,9 @@ export function weightedScore(score: number, term: string): number {
 function normalizeTaskText(value: string): string {
   return value
     .toLowerCase()
+    .replace(/\btasklar[iı]?\b/g, "tasklari")
+    .replace(/\bt[uü]rk[cç]e\b/g, "turkce")
+    .replace(/\by[oö]nlendirme(?:yi|si|sini|de|den|ye|e)?\b/g, "yonlendirme")
     .replace(/\brole\s+ler(?:le|i|in|den|de|e|a)?\b/g, "role")
     .replace(/\broller(?:le|i|in|den|de|e|a)?\b/g, "rol")
     .replace(/\broll?erle\b/g, "rol")
@@ -344,6 +367,30 @@ function detectsReleaseIntent(normalizedTask: string, terms: string[]): boolean 
     || /\bci\s+release\b/.test(normalizedTask);
 }
 
+function detectsRoutingImplementationIntent(normalizedTask: string, terms: string[]): boolean {
+  const hasRoutingLogicTerm = terms.some((term) => [
+    "classification",
+    "intent",
+    "route",
+    "routes",
+    "routing",
+    "tokenization",
+    "yonlendirme"
+  ].includes(term));
+  const hasImplementationContext = terms.some((term) => [
+    "rcc",
+    "task",
+    "tasks",
+    "turkce",
+    "turkish",
+    "yonlendirme"
+  ].includes(term))
+    || /\btask\s+routing\b/.test(normalizedTask)
+    || /\brcc\b/.test(normalizedTask);
+
+  return hasRoutingLogicTerm && hasImplementationContext;
+}
+
 function detectsCiWorkflowIntent(normalizedTask: string, terms: string[], hasDocumentationIntent: boolean): boolean {
   if (hasDocumentationIntent && /\b(?:readme|docs?|documentation|guide|usage|agent|user)\s+workflow\b/.test(normalizedTask)) {
     return false;
@@ -361,6 +408,8 @@ function detectsCiWorkflowIntent(normalizedTask: string, terms: string[], hasDoc
 function tokenize(value: string): string[] {
   return [...new Set(value
     .toLowerCase()
+    .replace(/türkçe/g, "turkce")
+    .replace(/yönlendirme/g, "yonlendirme")
     .replace(/düzelt/g, "duzelt")
     .replace(/göster/g, "goster")
     .replace(/iyileştir/g, "iyilestir")
@@ -396,4 +445,16 @@ function filterGenericLookupTerms(terms: string[], genericFallbackTerms: string[
   }
 
   return terms.length > 0 ? terms : genericFallbackTerms;
+}
+
+function prioritizeRoutingImplementationTerms(terms: string[], enabled: boolean): string[] {
+  if (!enabled) {
+    return terms;
+  }
+
+  const priority = ["routing", "intent", "route", "routes", "tokenization", "classification", "turkish", "turkce", "task", "tasks", "yonlendirme"];
+  const implementationTerms = priority.filter((term) => terms.includes(term));
+  const remainingTerms = terms.filter((term) => !routingImplementationTerms.has(term));
+
+  return [...new Set([...implementationTerms, ...remainingTerms])];
 }

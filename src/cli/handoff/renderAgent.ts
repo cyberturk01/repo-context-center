@@ -34,6 +34,10 @@ export function toAgentHandoff(brief: HandoffBrief): CompactAgentHandoff {
     agentHandoff.writtenPath = brief.writtenPath;
   }
 
+  if (brief.repositoryLearning && brief.repositoryLearning.length > 0) {
+    agentHandoff.repositoryLearning = normalizeTextItems(brief.repositoryLearning).slice(0, 2);
+  }
+
   if (brief.lastSummary) {
     agentHandoff.lastSummary = brief.lastSummary;
   }

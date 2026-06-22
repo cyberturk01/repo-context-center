@@ -1,13 +1,18 @@
 import path from "node:path";
-import { pathExists, readTextFile } from "../../core/fileSystem";
+import { pathExists, readTextFile, readTextFileTail } from "../../core/fileSystem";
 import type { StartupContext } from "../../core/suggester";
 import type { TaskIntentAnalysis } from "../../core/taskIntent";
 import {
   changeLogPath,
+  compactMemoryFiles,
   decisionsPath,
   decisionLimit,
   lessonsPath,
   logLimit,
+  repositoryLearningPath,
+  workIndexPath,
+  workLogTailLineLimit,
+  workLogTailReadLimitBytes,
   workLogPath
 } from "./workConstants";
 import type { TargetedLookupSignal } from "./workTypes";
@@ -25,10 +30,12 @@ export async function lookupMemorySignals(
   const signals = new Map<string, TargetedLookupSignal>();
   const files = [
     { path: decisionsPath, signal: "decision-memory" as const },
-    { path: workLogPath, signal: "work-log" as const },
+    { path: workIndexPath, signal: "work-log" as const },
+    { path: repositoryLearningPath, signal: "work-log" as const },
     { path: changeLogPath, signal: "work-log" as const },
     { path: lessonsPath, signal: "work-log" as const }
   ];
+  let readCompactMemory = false;
 
   for (const file of files) {
     const fullPath = path.join(cwd, file.path);
@@ -36,6 +43,7 @@ export async function lookupMemorySignals(
       continue;
     }
 
+    readCompactMemory = true;
     const content = await readTextFile(fullPath);
     const relevantLines = content
       .split(/\r?\n/)
@@ -49,6 +57,28 @@ export async function lookupMemorySignals(
         }
         if (!signals.has(repoPath) || file.signal === "decision-memory") {
           signals.set(repoPath, file.signal);
+        }
+      }
+    }
+  }
+
+  if (!readCompactMemory) {
+    const fullPath = path.join(cwd, workLogPath);
+    if (await pathExists(fullPath)) {
+      const content = await readBoundedWorkLogTail(fullPath);
+      const relevantLines = content
+        .split(/\r?\n/)
+        .filter((line) => terms.some((term) => options.termPattern(term).test(line)))
+        .slice(-10);
+
+      for (const line of relevantLines) {
+        for (const repoPath of options.extractRepoPaths(line)) {
+          if (!(await pathExists(path.join(cwd, repoPath)))) {
+            continue;
+          }
+          if (!signals.has(repoPath)) {
+            signals.set(repoPath, "work-log");
+          }
         }
       }
     }
@@ -110,6 +140,37 @@ function recentWorkSummaryLines(content: string, limit: number): string[] {
     .slice(-limit)
     .reverse()
     .map((line) => line.replace(/^- Summary: /, ""));
+}
+
+function recentWorkIndexLines(content: string, limit: number): string[] {
+  const focusLines: string[] = [];
+  let inRecentFocus = false;
+
+  for (const line of content.split(/\r?\n/)) {
+    const heading = line.match(/^##\s+(.+?)\s*$/)?.[1];
+    if (heading) {
+      inRecentFocus = heading === "Recent Focus";
+      continue;
+    }
+
+    if (!inRecentFocus) {
+      continue;
+    }
+
+    const item = line.trim().match(/^-\s+(.+?)\s*$/)?.[1];
+    if (item && item !== "No completed work has been recorded yet.") {
+      focusLines.push(item);
+    }
+  }
+
+  return focusLines.slice(0, limit);
+}
+
+async function readBoundedWorkLogTail(fullPath: string): Promise<string> {
+  return (await readTextFileTail(fullPath, workLogTailReadLimitBytes))
+    .split(/\r?\n/)
+    .slice(-workLogTailLineLimit)
+    .join("\n");
 }
 
 function normalizeEntry(entry: string): string {
@@ -405,13 +466,30 @@ export async function readRelevantDecisions(
 
 export async function readRecentLogs(cwd: string): Promise<string[]> {
   const entries: string[] = [];
-  const logFiles = [
-    { label: "Work", path: workLogPath, reader: recentWorkSummaryLines },
+  const workIndexFullPath = path.join(cwd, workIndexPath);
+  const workIndexEntries = (await pathExists(workIndexFullPath))
+    ? recentWorkIndexLines(await readTextFile(workIndexFullPath), logLimit * 2)
+    : [];
+  for (const entry of workIndexEntries) {
+    entries.push(`Work index: ${entry}`);
+  }
+
+  if (workIndexEntries.length === 0) {
+    const fullPath = path.join(cwd, workLogPath);
+    if (await pathExists(fullPath)) {
+      for (const entry of recentWorkSummaryLines(await readBoundedWorkLogTail(fullPath), logLimit * 2)) {
+        entries.push(`Work: ${entry}`);
+      }
+    }
+  }
+
+  const compactLogFiles = [
+    { label: "Repository learning", path: repositoryLearningPath, reader: recentBulletLines },
     { label: "Change", path: changeLogPath, reader: recentTableRows },
     { label: "Lesson", path: lessonsPath, reader: recentBulletLines }
   ];
 
-  for (const file of logFiles) {
+  for (const file of compactLogFiles) {
     const fullPath = path.join(cwd, file.path);
     if (!(await pathExists(fullPath))) {
       continue;

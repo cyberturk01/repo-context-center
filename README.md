@@ -24,6 +24,7 @@ Core capabilities:
 - Startup Context
 - Decision Memory
 - Work Tracking
+- Repository Learning
 - Agent Handover
 
 ![Repo Context Center workflow](https://raw.githubusercontent.com/cyberturk01/repo-context-center/main/docs/assets/repo-context-center-diagram.svg)
@@ -33,14 +34,14 @@ Core capabilities:
 Initialize RCC and generate the repository map:
 
 ```sh
-npx repo-context-center init
-npx repo-context-center map --write
+npx repo-context-center@latest init
+npx repo-context-center@latest map --write
 ```
 
 Then ask RCC for the smallest useful route for an agent task:
 
 ```sh
-rcc work "fix workflow risk detection" --agent
+npx repo-context-center@latest work "fix workflow risk detection" --agent
 ```
 
 Example output:
@@ -82,38 +83,76 @@ Overwrite existing context templates:
 npx repo-context-center init --force
 ```
 
-## Agent Workflow
+## Use the Latest Version
+
+Recommended first-run commands:
+
+```sh
+npx repo-context-center@latest init
+npx repo-context-center@latest map --write
+npx repo-context-center@latest work "fix workflow risk detection" --agent
+```
+
+`npx repo-context-center@latest` runs the latest published version. After global or local installation, use either `rcc` or `repo-context-center`.
+
+For release validation, check:
+
+```sh
+npx repo-context-center@latest --version
+```
+
+## Complete Usage Guide
 
 Recommended workflow:
 
-```sh
-rcc work "implement feature" --agent
-
-# agent performs work
-
-rcc done --summary "implemented feature" --files auto --verify "npm test"
-
-rcc handoff
+```text
+init -> map --write -> work -> edit/verify -> done -> handoff
 ```
 
-Guidance:
+| Step | Command | When to run it | What it produces | Who uses the output |
+| --- | --- | --- | --- | --- |
+| `init` | `npx repo-context-center@latest init` | Once per repository, or when installing missing RCC context files | `AGENTS.md`, `docs/ai-context/*`, and `.repo-context-center/config.json` | Humans and agents |
+| `map --write` | `npx repo-context-center@latest map --write` | After init and after meaningful repo structure changes | Refreshed generated sections in context files | Agents, reviewers, and CI |
+| `work` | `rcc work "implement feature" --agent` | Once at task start | Compact route with primary files, tests, supporting files, and read-first rules | The active coding agent |
+| `edit/verify` | Use your editor and project checks, such as `npm test` | During implementation | Source changes and verification evidence | Humans, agents, and reviewers |
+| `done` | `rcc done --summary "implemented feature" --files auto --verify "npm test"` | After meaningful completed work | Lightweight work memory in `docs/ai-context/WORK_LOG.md` and learned repository patterns in `docs/ai-context/REPOSITORY_LEARNING.md` | Future agents and humans |
+| `learn` | `rcc learn --write` | When repository learning should be regenerated on demand | Refreshed learned focus areas, file relationships, verification patterns, and repository habits | Agents, humans, and routing commands |
+| `handoff` | `rcc handoff` or `rcc handoff --agent` | When work continues in another session or agent | Continuation brief from recent work, decisions, and task-aware files | The next agent or human |
+
+Agent guidance:
 
 - Run `rcc work "<task>" --agent` once at task start.
 - Inspect `primaryFiles`, `tests`, and `supportingFiles` before broader search.
 - Do not repeatedly rerun the same task route.
 - Use `rcc find "<keyword>"` only if the route is insufficient.
 - Use `rcc done` after meaningful work.
+- Use `rcc learn --write` when learned repository patterns need to be regenerated manually.
 - Use `rcc handoff` when another session or agent needs to continue.
 
-After completed work, record lightweight work memory:
-
-```sh
-rcc done --summary "fixed workflow risk detection" --files auto --verify "npm test"
-```
-
-In this flow, `work` starts the task with a compact route, `done` records progress, and `handoff` prepares a continuation brief for the next agent.
-
 Agents should treat RCC output as navigation guidance, not proof. Source code remains the source of truth, and agents should verify source before editing.
+
+## Manual vs Automatic
+
+RCC does not run in the background, automatically edit source code, or automatically verify correctness. It gives deterministic context, routes, and memory so humans and agents can work with less discovery overhead.
+
+| Area | Manual action | Automatic RCC behavior |
+| --- | --- | --- |
+| `init` | Run the command when adopting RCC or adding the default CI workflow | Creates missing RCC templates and config; preserves existing manual content |
+| `map --write` | Run after structural changes | Refreshes generated sections in `AGENTS.md` and `docs/ai-context/*` |
+| `work` | Run once at task start and follow the route | Reads context and repo metadata to produce a compact task route |
+| `find` | Run only when the route is insufficient | Returns focused fallback file candidates with reasons |
+| `done` | Record summary, changed files, and verification after meaningful work | Appends lightweight work memory for future handoff and routing |
+| `learn` | Regenerate learned repository patterns on demand | Reads work memory, work index, and decisions to refresh `REPOSITORY_LEARNING.md` |
+| `handoff` | Run when another session or agent needs to continue | Builds a continuation brief from recent work, decisions, and task route signals |
+| `decision add` | Record durable project decisions intentionally | Stores decision memory in `docs/ai-context/DECISIONS.md` |
+| `map --check` | Run locally or in CI to detect stale context | Exits non-zero when generated context needs refresh |
+| CI workflow | Install with `init --github-action` and commit it | Runs RCC freshness checks during pull requests |
+| Generated context files | Commit refreshed generated sections when useful | Rebuilds generated sections between RCC markers |
+| Manual notes / decisions | Keep project knowledge in manual sections or decision memory | Preserves manual sections while generated sections can be refreshed |
+
+## What RCC Does Not Do
+
+RCC is not an AI coding agent, code generator, security scanner, replacement for tests or review, or background service.
 
 ## Agent Handover
 
@@ -154,6 +193,12 @@ Use `rcc handoff` for:
 - switching between AI agents
 - resuming work the next day
 
+## Token Saving Expectations
+
+RCC is designed to reduce initial repository discovery context. In measured examples, RCC can reduce startup discovery context by roughly 70-99%, depending on repository size and task specificity. Full-task savings are usually lower because the agent still needs to read source files, make changes, and verify behavior.
+
+Measured examples can show large reductions, sometimes from hundreds of thousands of estimated naive-scan tokens to compact routes under a few hundred tokens. Actual savings depend on repository size, task wording, and whether the agent follows the route.
+
 ## Measurement
 
 Measure the difference between a naive repository scan and the RCC route for a task:
@@ -189,7 +234,7 @@ Estimated saving:
 195,536 tokens (99.9%)
 ```
 
-The naive scan estimate is an approximation. Savings are estimates, not guarantees. The goal is to show the scale of repository reduction achieved by RCC routing.
+The naive scan estimate is an approximation. Savings are estimates, not guarantees.
 
 JSON output is available for integrations:
 
@@ -212,32 +257,12 @@ and avoids broad repository exploration until necessary.
 
 That saves context, time, and attention while still leaving the agent in control of source verification.
 
-## Real Example
-
-Repository-specific estimate from this repository:
-
-```text
-Task:
-fix workflow risk detection
-
-Naive scan estimate:
-195,623 tokens
-
-RCC route:
-87 tokens
-
-Estimated saving:
-195,536 tokens (99.9%)
-```
-
-This is a repository-specific estimate, not a guaranteed benchmark. Actual tokenizer costs vary by model, and the exact route depends on the repository map and task wording.
-
 ## Supporting Commands
 
 The primary workflow is:
 
 ```text
-work -> edit -> verify -> done -> handoff
+init -> map --write -> work -> edit/verify -> done -> handoff
 ```
 
 The commands below support that workflow.
@@ -317,6 +342,21 @@ Use `done` after meaningful agent work:
 npx repo-context-center done --summary "fixed auth routing" --files auto --verify "npm test"
 ```
 
+`done` also refreshes repository learning so future `work` and `handoff` output can include learned file relationships, likely tests, verification patterns, and repository habits.
+
+### Regenerate Repository Learning
+
+Use `learn` when you want to inspect or refresh learned repository patterns without recording new completed work:
+
+```sh
+npx repo-context-center learn
+npx repo-context-center learn --write
+npx repo-context-center learn --json
+npx repo-context-center learn --debug
+```
+
+`learn --write` updates `docs/ai-context/REPOSITORY_LEARNING.md`. `learn --json` returns the same learned model for integrations, and `learn --debug` shows source counts and ignored entries.
+
 ### Prepare Agent Handover
 
 Use `handoff` when work needs to continue in another session or with another agent:
@@ -380,6 +420,8 @@ Archive older long-running notes:
 npx repo-context-center archive --keep 50
 ```
 
+Archiving keeps work memory compact and refreshes repository learning from the remaining indexed history.
+
 Preserve durable project decisions:
 
 ```sh
@@ -407,6 +449,7 @@ repo-context-center init [--dry-run] [--force] [--github-action]
 repo-context-center work "<task>" [--agent] [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
 repo-context-center measure "<task>" [--json]
 repo-context-center done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]
+repo-context-center learn [--json] [--write] [--debug]
 repo-context-center handoff [task] [--json|--agent] [--debug] [--write]
 repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <number>]
 repo-context-center validate [--strict]
@@ -430,6 +473,7 @@ repo-context-center log "<summary>" [--files <path,path>] [--dry-run]
 | `find` | locate focused candidate files | only if the route is insufficient |
 | `measure` | estimate route savings for a task | when evaluating routing efficiency |
 | `done` | save completed-work memory | after meaningful agent work |
+| `learn` | regenerate repository learning | after memory edits, archive maintenance, or before release checks |
 | `handoff` | prepare a continuation brief | when work continues in another session or agent |
 | `validate` | check required context files | setup and CI |
 | `map --check` | detect stale generated maps | CI / PRs |
@@ -509,6 +553,7 @@ npx repo-context-center init --github-action
 - `docs/ai-context/DO_NOT_READ.md`
 - `docs/ai-context/HOTSPOTS.md`
 - `docs/ai-context/LESSONS_LEARNED.md`
+- `docs/ai-context/REPOSITORY_LEARNING.md`
 - `docs/ai-context/CHANGE_LOG.md`
 - `docs/ai-context/archive/`
 
@@ -528,6 +573,12 @@ It also creates `.repo-context-center/config.json`.
 - `docs/ai-context/DO_NOT_READ.md`
 - `docs/ai-context/CHANGE_LOG.md`
 
+`repo-context-center done`, `repo-context-center archive`, and `repo-context-center learn --write` may update:
+
+- `docs/ai-context/WORK_LOG.md`
+- `docs/ai-context/WORK_INDEX.md`
+- `docs/ai-context/REPOSITORY_LEARNING.md`
+
 With `--github-action`, init also creates:
 
 - `.github/workflows/repo-context-check.yml`
@@ -544,6 +595,7 @@ With `--github-action`, init also creates:
 | Startup context | Available |
 | Decision memory | Available |
 | Work tracking | Available |
+| Repository learning | Available |
 | Agent handover | Available |
 | Explainable recommendation reasons | Available |
 | Targeted fallback search | Available |

@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdir, mkdtemp, rm, utimes, writeFile } = require("node:fs/promises");
+const { mkdir, mkdtemp, readFile, rm, utimes, writeFile } = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
@@ -130,6 +130,74 @@ async function withWorkRepo(callback) {
     );
     await writeFixtureFile(tempDir, "src/auth/login.ts", "export function login() {}\n");
     await writeFixtureFile(tempDir, "tests/auth/login.test.ts", "test('login', () => {});\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+async function withPruningRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-pruning-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Work changes: read `src/cli/commands/work.ts`, `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderText.ts`, `src/cli/work/renderJson.ts`, `src/cli/work/renderAgent.ts`, `tests/work.test.js`, and `tests/cli.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "docs/ai-context/MODULE_INDEX.md", "# Module Index\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/work.ts", "export function workCommand() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/buildWorkBrief.ts", "export function buildWorkBrief() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/renderText.ts", "export function renderWorkText() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/renderJson.ts", "export function renderWorkJson() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/renderAgent.ts", "export function renderWorkAgent() {}\n");
+    await writeFixtureFile(tempDir, "tests/work.test.js", "test('work', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/cli.test.js", "test('cli', () => {});\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/REPOSITORY_LEARNING.md",
+      [
+        "# Repository Learning",
+        "",
+        "<!-- repo-context-center:repository-learning:start -->",
+        "## Generated Repo Map",
+        "",
+        "## Common File Relationships",
+        "",
+        "| Source | Related | Reason | Count |",
+        "| --- | --- | --- | ---: |",
+        "| work | `src/cli/work/renderText.ts` | Observed in completed work tasks | 4 |",
+        "| work | `src/cli/work/renderJson.ts` | Observed in completed work tasks | 3 |",
+        "| work | `src/cli/work/renderAgent.ts` | Observed in completed work tasks | 2 |",
+        "| work | `tests/work.test.js` | Observed in completed work tasks | 4 |",
+        "| work | `tests/cli.test.js` | Observed in completed work tasks | 3 |",
+        "",
+        "## Frequently Modified Together",
+        "",
+        "| Files | Count | Recent summary |",
+        "| --- | ---: | --- |",
+        "| `src/cli/commands/work.ts`, `tests/work.test.js` | 4 | Updated work command |",
+        "",
+        "## Verification Patterns",
+        "",
+        "| Scope | Command | Count |",
+        "| --- | --- | ---: |",
+        "| work | `node --test tests/work.test.js` | 4 |",
+        "",
+        "## Repository Habits",
+        "",
+        "- Tests are commonly changed with related implementation work (4/5).",
+        "",
+        "<!-- repo-context-center:repository-learning:end -->",
+        ""
+      ].join("\n")
+    );
 
     return await callback(tempDir);
   } finally {
@@ -421,6 +489,65 @@ async function withWorkflowRankingRepo(callback) {
   }
 }
 
+async function withWorkflowRoutingImplementationRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-routing-impl-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- RCC task routing, Turkish routing, workflow task intent, tokenization, and output sizing: read `src/cli/work/taskFileRecommendations.ts`, `src/core/taskIntent.ts`, `src/cli/work/taskSize.ts`, `tests/taskIntent.test.js`, and `tests/work.test.js`.",
+        "- GitHub Actions workflow work: read `.github/workflows/ci.yml` and `package.json`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "src/cli/work/taskFileRecommendations.ts", "export function buildTaskFileRecommendations() {}\n");
+    await writeFixtureFile(tempDir, "src/core/taskIntent.ts", "export function analyzeTaskIntent() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/taskSize.ts", "export function classifyTaskSize() {}\n");
+    await writeFixtureFile(tempDir, "tests/taskIntent.test.js", "test('intent', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/work.test.js", "test('work routing', () => {});\n");
+    await writeFixtureFile(tempDir, ".github/workflows/ci.yml", "name: ci\non: [push]\n");
+    await writeFixtureFile(tempDir, "package.json", "{\"scripts\":{\"test\":\"node --test\"}}\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+async function withHandoffSupportingRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-handoff-supporting-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Handoff memory work: read `src/cli/commands/handoff.ts`, `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffSources.ts`, `src/cli/handoff/handoffTypes.ts`, `src/cli/handoff/handoffConstants.ts`, `src/cli/work/memorySignals.ts`, `src/cli/handoff/handoffOptions.ts`, `src/cli/handoff/writeHandoff.ts`, and `tests/handoff.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "src/cli/commands/handoff.ts", "export function handoffCommand() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/buildHandoffBrief.ts", "export function buildHandoffBrief() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/handoffSources.ts", "export function readHandoffSources() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/handoffTypes.ts", "export interface HandoffBrief {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/handoffConstants.ts", "export const handoffLimit = 3;\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/handoffOptions.ts", "export function parseHandoffOptions() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/writeHandoff.ts", "export function writeHandoff() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/memorySignals.ts", "export function readRecentMemory() {}\n");
+    await writeFixtureFile(tempDir, "tests/handoff.test.js", "test('handoff memory', () => {});\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function withDocumentationRoutingRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-doc-routing-"));
 
@@ -479,6 +606,76 @@ async function withGuidanceRepo(callback) {
   }
 }
 
+async function withLearningRoutingRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-learning-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/work.ts", "export function workCommand() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/commands/doctor.ts", "export function doctorCommand() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/work/renderAgent.ts", "export function renderWorkAgent() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/buildHandoffBrief.ts", "export function buildHandoffBrief() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/renderAgent.ts", "export function renderHandoffAgent() {}\n");
+    await writeFixtureFile(tempDir, "src/cli/handoff/renderJson.ts", "export function renderHandoffJson() {}\n");
+    await writeFixtureFile(tempDir, "tests/work.test.js", "test('work', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/handoff.test.js", "test('handoff', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/doctor.test.js", "test('doctor', () => {});\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/REPOSITORY_LEARNING.md",
+      [
+        "# Repository Learning",
+        "",
+        "<!-- repo-context-center:repository-learning:start -->",
+        "## Generated Repo Map",
+        "",
+        "## Common File Relationships",
+        "",
+        "| Source | Related | Reason | Count |",
+        "| --- | --- | --- | ---: |",
+        "| handoff | `tests/handoff.test.js` | Observed in completed handoff work | 4 |",
+        "| handoff | `src/cli/handoff/buildHandoffBrief.ts` | Observed in completed handoff work | 3 |",
+        "| handoff | `src/cli/handoff/renderAgent.ts` | Observed in completed handoff work | 2 |",
+        "| work | `src/cli/commands/work.ts` | Observed in completed work tasks | 4 |",
+        "| work | `tests/work.test.js` | Observed in completed work tasks | 3 |",
+        "| repo | `src/cli/commands/doctor.ts` | generic should not route alone | 9 |",
+        "| handoff | `docs/ai-context/archive/WORK_LOG_ARCHIVE.md` | archive noise | 9 |",
+        "| handoff | `dist/cli/index.js` | generated noise | 9 |",
+        "| handoff | `src/one-off.ts` | one-off noise | 1 |",
+        "",
+        "## Frequently Modified Together",
+        "",
+        "| Files | Count | Recent summary |",
+        "| --- | ---: | --- |",
+        "| `src/cli/handoff/buildHandoffBrief.ts`, `tests/handoff.test.js` | 3 | Updated handoff brief |",
+        "| `src/cli/commands/work.ts`, `tests/work.test.js` | 3 | Updated work route |",
+        "",
+        "## Verification Patterns",
+        "",
+        "| Scope | Command | Count |",
+        "| --- | --- | ---: |",
+        "| build | `npm run build` | 8 |",
+        "| handoff | `node --test tests/handoff.test.js` | 4 |",
+        "| work | `node --test tests/work.test.js` | 3 |",
+        "| handoff | `node --test tests/one-off.test.js` | 1 |",
+        "",
+        "## Repository Habits",
+        "",
+        "- Verification commands are recorded with completed work (5/6).",
+        "- Tests are commonly changed with related implementation work (4/6).",
+        "- Follow-ups are captured when residual tasks remain (2/6).",
+        "",
+        "<!-- repo-context-center:repository-learning:end -->",
+        ""
+      ].join("\n")
+    );
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 test("work runs without arguments", async () => {
   await withWorkRepo(async (tempDir) => {
     const result = assertInvalidWorkArgs(["work"], tempDir);
@@ -522,6 +719,7 @@ test("work accepts a task string and recommends focused files", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Task:\nfix login bug/);
+    assert.match(result.stdout, /Task size: small\nMode: fast fix/);
     assert.match(result.stdout, /Freshness:\n(fresh|maybe_stale|stale|unknown) \d+\/100 — /);
     assert.match(result.stdout, /Primary files:\n- src\/auth\/login\.ts/);
     assert.match(result.stdout, /Tests:\n- tests\/auth\/login\.test\.ts/);
@@ -529,9 +727,7 @@ test("work accepts a task string and recommends focused files", async () => {
     assert.match(result.stdout, /Agent rules:\n- AGENTS\.md/);
     assert.match(result.stdout, /Context if unclear:\n- docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(result.stdout, /Known risks:\n- high/);
-    assert.match(result.stdout, /Next:\nStart with primary files\./);
-    assert.match(result.stdout, /Do not rerun rcc work for the same task unless the task meaning changes\./);
-    assert.match(result.stdout, /Use rcc find "login" only if primary\/supporting files are insufficient\./);
+    assert.match(result.stdout, /Next:\nSmall task: open only the primary file, apply the fix, run the narrowest relevant test, and avoid broad exploration\./);
     assert.ok(result.stdout.indexOf("Primary files:") < result.stdout.indexOf("Tests:"));
     assert.ok(result.stdout.indexOf("Tests:") < result.stdout.indexOf("Supporting files:"));
     assert.ok(result.stdout.indexOf("Supporting files:") < result.stdout.indexOf("Agent rules:"));
@@ -560,6 +756,8 @@ test("work --json returns compact machine-readable startup JSON", async () => {
         "schemaVersion",
         "command",
         "task",
+        "taskSize",
+        "taskMode",
         "contextBudget",
         "freshness",
         "taskFiles",
@@ -578,6 +776,8 @@ test("work --json returns compact machine-readable startup JSON", async () => {
     assert.equal(brief.schemaVersion, 1);
     assert.equal(brief.command, "work");
     assert.equal(brief.task, "fix login bug");
+    assert.equal(brief.taskSize, "small");
+    assert.equal(brief.taskMode, "fast_fix");
     assert.equal(brief.contextBudget, "balanced");
     assert.equal(typeof brief.freshness.status, "string");
     assert.equal(typeof brief.freshness.score, "number");
@@ -623,6 +823,8 @@ test("work --agent prints valid compact JSON only", async () => {
       Object.keys(route),
       [
         "task",
+        "taskSize",
+        "mode",
         "primaryFiles",
         "supportingFiles",
         "tests",
@@ -632,11 +834,14 @@ test("work --agent prints valid compact JSON only", async () => {
       ]
     );
     assert.equal(route.task, "fix login bug");
+    assert.equal(route.taskSize, "small");
+    assert.equal(route.mode, "fast_fix");
     assert.deepEqual(route.primaryFiles, ["src/auth/login.ts"]);
     assert.deepEqual(route.supportingFiles, []);
     assert.deepEqual(route.tests, ["tests/auth/login.test.ts"]);
     assert.ok(route.readFirst.includes("AGENTS.md"));
-    assert.equal(route.next, 'Start with primaryFiles. Do not rerun work for this task. Use rcc find "login" only if needed.');
+    assert.equal(route.next, "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration.");
+    assert.doesNotMatch(route.next, /\bworkfor\b/);
     assert.equal(typeof route.briefTokens, "number");
     assert.doesNotMatch(result.stdout, /```|repo-context-center work brief|Primary files:/);
   });
@@ -670,6 +875,165 @@ test("work --agent compact output omits duplicated legacy arrays", async () => {
   });
 });
 
+test("work --agent marks tiny tasks as fast fixes with lightweight guidance", async () => {
+  await withWorkRepo(async (tempDir) => {
+    const result = runCli(["work", "--agent", "fix workfor typo"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.taskSize, "tiny");
+    assert.equal(route.mode, "fast_fix");
+    assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong.");
+  });
+});
+
+test("work --agent tiny guidance keeps word spacing stable", async () => {
+  await withWorkRepo(async (tempDir) => {
+    for (const task of [
+      "fix typo in renderAgent output",
+      "fix spacing in work renderer"
+    ]) {
+      const result = runCli(["work", task, "--agent"], { cwd: tempDir });
+      const route = JSON.parse(result.stdout);
+
+      assert.equal(result.status, 0, task);
+      assert.equal(route.taskSize, "tiny", task);
+      assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong.");
+      assert.doesNotMatch(route.next, /relevanttest/, task);
+      assert.doesNotMatch(route.next, /runthe/, task);
+    }
+  });
+});
+
+test("work --agent keeps medium and large tasks on normal deep guidance", async () => {
+  await withWorkRepo(async (tempDir) => {
+    const medium = JSON.parse(runCli(["work", "--agent", "add JSON output for work briefs"], { cwd: tempDir }).stdout);
+    const large = JSON.parse(runCli(["work", "--agent", "refactor handoff architecture"], { cwd: tempDir }).stdout);
+
+    assert.equal(medium.taskSize, "medium");
+    assert.equal(medium.mode, "normal");
+    assert.match(medium.next, /^Start with primaryFiles\./);
+    assert.doesNotMatch(medium.next, /^Small task:/);
+
+    assert.equal(large.taskSize, "large");
+    assert.equal(large.mode, "deep");
+    assert.match(large.next, /^Start with primaryFiles\./);
+    assert.doesNotMatch(large.next, /^Small task:/);
+  });
+});
+
+test("work prunes tiny typo tasks to one primary file where possible", async () => {
+  await withPruningRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "fix work typo"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.taskSize, "tiny");
+    assert.ok(brief.primaryFiles.length <= 1, JSON.stringify(brief.primaryFiles));
+    assert.ok(brief.supportingFiles.length <= 1, JSON.stringify(brief.supportingFiles));
+    assert.ok(brief.tests.length <= 1, JSON.stringify(brief.tests));
+    assert.ok(brief.readFirst.includes("AGENTS.md"), JSON.stringify(brief.readFirst));
+  });
+});
+
+test("work prunes small tasks and limits supporting files", async () => {
+  await withPruningRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "fix work bug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.taskSize, "small");
+    assert.ok(brief.primaryFiles.length <= 2, JSON.stringify(brief.primaryFiles));
+    assert.ok(brief.supportingFiles.length <= 2, JSON.stringify(brief.supportingFiles));
+    assert.ok(brief.tests.length <= 2, JSON.stringify(brief.tests));
+  });
+});
+
+test("work pruning preserves highly relevant learned tests for small tasks", () => {
+  const { pruneWorkBriefForTaskSize } = require("../dist/cli/work/buildWorkBrief.js");
+  const brief = {
+    taskSize: "small",
+    primaryFiles: [
+      { path: "src/one.ts", reasons: [] },
+      { path: "src/two.ts", reasons: [] },
+      { path: "src/three.ts", reasons: [] }
+    ],
+    supportingFiles: [],
+    tests: [
+      { path: "tests/one.test.ts", reasons: [] },
+      { path: "tests/two.test.ts", reasons: [] },
+      { path: "tests/learned.test.ts", reasons: ["learned repository test pattern"] }
+    ],
+    taskFiles: [
+      { path: "src/one.ts", reasons: [] },
+      { path: "src/two.ts", reasons: [] },
+      { path: "src/three.ts", reasons: [] }
+    ],
+    supportingTests: [
+      { path: "tests/one.test.ts", reasons: [] },
+      { path: "tests/two.test.ts", reasons: [] },
+      { path: "tests/learned.test.ts", reasons: ["learned repository test pattern"] }
+    ],
+    recommendedFiles: [],
+    relevantTests: [
+      { path: "tests/one.test.ts", reasons: [] },
+      { path: "tests/two.test.ts", reasons: [] },
+      { path: "tests/learned.test.ts", reasons: ["learned repository test pattern"] }
+    ],
+    learnedRelatedFiles: [],
+    learnedTests: ["tests/learned.test.ts"],
+    learnedVerification: ["node --test tests/learned.test.ts"],
+    learnedHabits: ["Tests are commonly changed with related implementation work."],
+    recentLogs: [],
+    relevantDecisions: []
+  };
+  const pruned = pruneWorkBriefForTaskSize(brief);
+  const testPaths = pruned.tests.map((file) => file.path);
+
+  assert.equal(pruned.tests.length, 2);
+  assert.ok(testPaths.includes("tests/learned.test.ts"), testPaths.join("\n"));
+  assert.deepEqual(pruned.learnedTests, ["tests/learned.test.ts"]);
+});
+
+test("work does not aggressively prune medium tasks", async () => {
+  await withPruningRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "add JSON output for work command"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(brief.taskSize, "medium");
+    assert.ok(brief.supportingFiles.length > 2 || brief.tests.length > 2, JSON.stringify({
+      supportingFiles: brief.supportingFiles,
+      tests: brief.tests
+    }));
+  });
+});
+
+test("work keeps broader guidance for large architecture tasks", async () => {
+  await withPruningRepo(async (tempDir) => {
+    const result = runCli(["work", "--agent", "refactor work architecture"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.taskSize, "large");
+    assert.equal(route.mode, "deep");
+    assert.match(route.next, /^Start with primaryFiles\./);
+    assert.doesNotMatch(route.next, /^Tiny task:|^Small task:/);
+    assert.ok(route.supportingFiles.length > 1 || route.tests.length > 1, JSON.stringify(route));
+  });
+});
+
+test("work --agent tiny task says to skip broad exploration unless primary is wrong", async () => {
+  await withPruningRepo(async (tempDir) => {
+    const result = runCli(["work", "--agent", "fix work typo"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.taskSize, "tiny");
+    assert.match(route.next, /skip broad exploration unless the primary file is wrong/);
+  });
+});
+
 test("work --agent --verbose includes route reasons without legacy arrays", async () => {
   await withWorkRepo(async (tempDir) => {
     const result = runCli(["work", "--agent", "--verbose", "fix login bug"], { cwd: tempDir });
@@ -700,6 +1064,10 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
         "schemaVersion",
         "command",
         "task",
+        "taskSize",
+        "taskMode",
+        "taskSizeConfidence",
+        "taskSizeReasons",
         "contextBudget",
         "mapFreshness",
         "recommendedFiles",
@@ -717,6 +1085,10 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
         "avoid",
         "nextCheapestCommand",
         "promotedFromTargetedLookup",
+        "learnedRelatedFiles",
+        "learnedTests",
+        "learnedVerification",
+        "learnedHabits",
         "relevantDecisions",
         "recentLogs",
         "risks",
@@ -730,6 +1102,10 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
     );
     assert.equal(brief.schemaVersion, 1);
     assert.equal(brief.command, "work");
+    assert.equal(brief.taskSize, "small");
+    assert.equal(brief.taskMode, "fast_fix");
+    assert.equal(brief.taskSizeConfidence, "medium");
+    assert.ok(brief.taskSizeReasons.includes("single bug"));
     assert.equal(brief.contextBudget, "balanced");
     assert.equal(typeof brief.mapFreshness.status, "string");
     assert.equal(typeof brief.mapFreshness.score, "number");
@@ -759,6 +1135,10 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
     assert.ok(brief.avoid.some((item) => item.includes("full repository scans")));
     assert.equal(brief.nextCheapestCommand, 'rcc find "login"');
     assert.ok(brief.promotedFromTargetedLookup.some((hint) => hint.path === "src/auth/login.ts"));
+    assert.deepEqual(brief.learnedRelatedFiles, []);
+    assert.deepEqual(brief.learnedTests, []);
+    assert.deepEqual(brief.learnedVerification, []);
+    assert.deepEqual(brief.learnedHabits, []);
     assert.ok(brief.targetedLookupHints.some((hint) => (
       hint.path === "src/auth/login.ts"
       && hint.reason
@@ -784,6 +1164,265 @@ test("work --json --debug returns the detailed machine-readable brief", async ()
     assert.equal(result.stdout.trim().startsWith("{"), true);
     assert.equal(result.stdout.trim().endsWith("}"), true);
     assert.doesNotMatch(result.stdout, /repo-context-center work brief/);
+  });
+});
+
+test("work routing uses learned handoff relationships without adding learning to readFirst", async () => {
+  await withLearningRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "improve handoff output"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const routedFiles = [
+      ...brief.primaryFiles.map((file) => file.path),
+      ...brief.supportingFiles.map((file) => file.path)
+    ];
+    const tests = brief.tests.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.ok(routedFiles.includes("src/cli/handoff/buildHandoffBrief.ts"), routedFiles.join("\n"));
+    assert.ok(routedFiles.includes("src/cli/handoff/renderAgent.ts"), routedFiles.join("\n"));
+    assert.ok(tests.includes("tests/handoff.test.js"), tests.join("\n"));
+    assert.deepEqual(brief.learnedRelatedFiles, [
+      "src/cli/handoff/buildHandoffBrief.ts",
+      "src/cli/handoff/renderAgent.ts"
+    ]);
+    assert.deepEqual(brief.learnedTests, ["tests/handoff.test.js"]);
+    assert.deepEqual(brief.learnedVerification, ["node --test tests/handoff.test.js"]);
+    assert.deepEqual(brief.learnedHabits, [
+      "Verification commands are recorded with completed work (5/6).",
+      "Tests are commonly changed with related implementation work (4/6)."
+    ]);
+    assert.ok(brief.learnedRelatedFiles.length + brief.learnedTests.length <= 3);
+    assert.ok(brief.learnedVerification.length <= 2);
+    assert.ok(brief.learnedHabits.length <= 2);
+    assert.ok(!brief.readFirst.includes("docs/ai-context/REPOSITORY_LEARNING.md"), JSON.stringify(brief.readFirst));
+    assert.equal(brief.learnedRelatedFiles.some((file) => file.includes("archive") || file.startsWith("dist/")), false);
+  });
+});
+
+test("work routing uses learned work relationships and tests", async () => {
+  await withLearningRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "update work routing"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const primary = brief.primaryFiles.map((file) => file.path);
+    const tests = brief.tests.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.ok(primary.includes("src/cli/commands/work.ts"), primary.join("\n"));
+    assert.ok(tests.includes("tests/work.test.js"), tests.join("\n"));
+    assert.deepEqual(brief.learnedRelatedFiles, ["src/cli/commands/work.ts"]);
+    assert.deepEqual(brief.learnedTests, ["tests/work.test.js"]);
+    assert.deepEqual(brief.learnedVerification, ["node --test tests/work.test.js"]);
+    assert.deepEqual(brief.learnedHabits, [
+      "Verification commands are recorded with completed work (5/6).",
+      "Tests are commonly changed with related implementation work (4/6)."
+    ]);
+  });
+});
+
+test("work memory lookup uses WORK_INDEX signals", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-index-signals-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "src/compact/worker.ts", "export const worker = true;\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/WORK_INDEX.md",
+      [
+        "# Work Index",
+        "",
+        "## Recent Focus",
+        "",
+        "- Quasar routing touched `src/compact/worker.ts`.",
+        ""
+      ].join("\n")
+    );
+
+    const result = runCli(["work", "--json", "--debug", "fix quasar routing"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.targetedLookupHints.some((hint) => (
+      hint.path === "src/compact/worker.ts"
+      && hint.signal === "work-log"
+    )), JSON.stringify(brief.targetedLookupHints, null, 2));
+    assert.ok(brief.recentLogs.some((entry) => entry.includes("Quasar routing touched")));
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work memory lookup uses REPOSITORY_LEARNING signals", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-learning-signals-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "src/compact/learning.ts", "export const learning = true;\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/REPOSITORY_LEARNING.md",
+      [
+        "# Repository Learning",
+        "",
+        "<!-- repo-context-center:repository-learning:start -->",
+        "## Common File Relationships",
+        "",
+        "| Source | Related | Reason | Count |",
+        "| --- | --- | --- | ---: |",
+        "| nebula | `src/compact/learning.ts` | Observed in completed nebula work | 3 |",
+        "",
+        "<!-- repo-context-center:repository-learning:end -->",
+        ""
+      ].join("\n")
+    );
+
+    const result = runCli(["work", "--json", "--debug", "fix nebula behavior"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.targetedLookupHints.some((hint) => (
+      hint.path === "src/compact/learning.ts"
+      && hint.signal === "work-log"
+    )), JSON.stringify(brief.targetedLookupHints, null, 2));
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work memory lookup uses bounded WORK_LOG fallback when compact memory is missing", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-log-tail-"));
+
+  try {
+    const filler = "x".repeat(70 * 1024);
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "src/old.ts", "export const oldSignal = true;\n");
+    await writeFixtureFile(tempDir, "src/recent.ts", "export const recentSignal = true;\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/WORK_LOG.md",
+      [
+        "# Work Log",
+        "",
+        "## 2026-06-18T10:00:00.000Z",
+        "- Summary: Fix aurora routing in `src/old.ts`",
+        filler,
+        "## 2026-06-20T10:00:00.000Z",
+        "- Summary: Fix aurora routing in `src/recent.ts`",
+        ""
+      ].join("\n")
+    );
+
+    const result = runCli(["work", "--json", "--debug", "fix aurora routing"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(brief.targetedLookupHints.some((hint) => (
+      hint.path === "src/recent.ts"
+      && hint.signal === "work-log"
+    )), JSON.stringify(brief.targetedLookupHints, null, 2));
+    assert.equal(brief.targetedLookupHints.some((hint) => hint.path === "src/old.ts"), false);
+    assert.ok(brief.recentLogs.some((entry) => entry.includes("src/recent.ts")));
+    assert.equal(brief.recentLogs.some((entry) => entry.includes("src/old.ts")), false);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work does not include WORK_LOG in readFirst or default full memory reads", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-log-readfirst-"));
+  const [memorySignals, learningRouting] = await Promise.all([
+    readFile(path.join(repoRoot, "src", "cli", "work", "memorySignals.ts"), "utf8"),
+    readFile(path.join(repoRoot, "src", "core", "repositoryLearningRouting.ts"), "utf8")
+  ]);
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "src/index.ts", "export const ok = true;\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", "- Summary: should not be read first\n");
+
+    const result = runCli(["work", "--agent", "fix index"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(!route.readFirst.includes("docs/ai-context/WORK_LOG.md"), JSON.stringify(route.readFirst));
+    assert.doesNotMatch(memorySignals, /path:\s*workLogPath,\s*signal/);
+    assert.doesNotMatch(memorySignals, /readTextFile\(fullPath\)[\s\S]{0,160}workLogPath/);
+    assert.doesNotMatch(learningRouting, /buildRepositoryLearningModelForRepo/);
+    assert.match(memorySignals, /readTextFileTail\(fullPath,\s*workLogTailReadLimitBytes\)/);
+    assert.match(learningRouting, /readTextFileTail\(fullPath,\s*workLogTailReadLimitBytes\)/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work routing leaves unrelated tasks without learned hints", async () => {
+  await withLearningRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "adjust billing invoices"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(brief.learnedRelatedFiles, []);
+    assert.deepEqual(brief.learnedTests, []);
+    assert.deepEqual(brief.learnedVerification, []);
+    assert.deepEqual(brief.learnedHabits, []);
+    assert.equal(brief.supportingFiles.some((file) => file.path === "src/cli/commands/doctor.ts"), false);
+  });
+});
+
+test("work exact filename routing stays primary ahead of learned hints", async () => {
+  await withLearningRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "fix doctor.ts work routing"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const primary = brief.primaryFiles.map((file) => file.path);
+    const supporting = brief.supportingFiles.map((file) => file.path);
+
+    assert.equal(result.status, 0);
+    assert.equal(primary[0], "src/cli/commands/doctor.ts");
+    assert.ok(primary.includes("src/cli/commands/work.ts") || supporting.includes("src/cli/commands/work.ts"));
+    assert.equal(brief.targetedLookupHints[0].signal, "exact-filename-match");
+  });
+});
+
+test("work --agent stays compact when learned routing contributes files", async () => {
+  await withLearningRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "--agent", "improve handoff output"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(
+      Object.keys(route),
+      [
+        "task",
+        "taskSize",
+        "mode",
+        "primaryFiles",
+        "supportingFiles",
+        "tests",
+        "readFirst",
+        "next",
+        "briefTokens"
+      ]
+    );
+    assert.ok(
+      [...route.primaryFiles, ...route.supportingFiles].includes("src/cli/handoff/buildHandoffBrief.ts"),
+      [...route.primaryFiles, ...route.supportingFiles].join("\n")
+    );
+    assert.ok(route.tests.includes("tests/handoff.test.js"), route.tests.join("\n"));
+    assert.doesNotMatch(result.stdout, /Repository learning|learnedRelatedFiles|learnedVerification|learnedHabits/);
+  });
+});
+
+test("work default output shows compact repository learning only for useful matches", async () => {
+  await withLearningRoutingRepo(async (tempDir) => {
+    const handoff = runCli(["work", "improve handoff output"], { cwd: tempDir });
+    const unrelated = runCli(["work", "adjust billing invoices"], { cwd: tempDir });
+
+    assert.equal(handoff.status, 0);
+    assert.match(handoff.stdout, /Repository learning:\n- similar work often touches tests\/handoff\.test\.js/);
+    assert.match(handoff.stdout, /similar changes usually verify with node --test tests\/handoff\.test\.js/);
+    assert.ok(sectionBody(handoff.stdout, "Repository learning", "Next").split(/\r?\n/).filter((line) => line.startsWith("- ")).length <= 4);
+    assert.equal(unrelated.status, 0);
+    assert.doesNotMatch(unrelated.stdout, /Repository learning:/);
   });
 });
 
@@ -1475,7 +2114,7 @@ test("work --agent exact filename task puts AGENTS files in primaryFiles", async
     assert.ok(route.primaryFiles.includes("src/templates/generic/AGENTS.md"), route.primaryFiles.join("\n"));
     assert.ok(!route.primaryFiles.includes("src/cli/commands/doctor.ts"), route.primaryFiles.join("\n"));
     assert.ok(route.readFirst.includes("AGENTS.md"), route.readFirst.join("\n"));
-    assert.equal(route.next, 'Start with primaryFiles. Do not rerun work for this task. Use rcc find "agents.md" only if needed.');
+    assert.equal(route.next, 'Start with primaryFiles. Do not rerun rcc work for this task. Use rcc find "agents.md" only if needed.');
   });
 });
 
@@ -1698,6 +2337,134 @@ test("work --agent routes rcc measure token saving task to measure command", asy
       [...route.primaryFiles, ...route.supportingFiles].join("\n")
     );
     assert.equal(route.primaryFiles.some((file) => file.startsWith(".github/workflows/")), false, route.primaryFiles.join("\n"));
+  });
+});
+
+test("work --agent keeps medium handoff memory supporting files compact", async () => {
+  await withHandoffSupportingRepo(async (tempDir) => {
+    const result = runCli(["work", "improve handoff memory", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.taskSize, "medium");
+    assert.deepEqual(
+      Object.keys(route),
+      [
+        "task",
+        "taskSize",
+        "mode",
+        "primaryFiles",
+        "supportingFiles",
+        "tests",
+        "readFirst",
+        "next",
+        "briefTokens"
+      ]
+    );
+    for (const boundaryFile of [
+      "src/cli/commands/handoff.ts",
+      "src/cli/handoff/handoffOptions.ts",
+      "src/cli/handoff/writeHandoff.ts"
+    ]) {
+      assert.equal(route.supportingFiles.includes(boundaryFile), false, route.supportingFiles.join("\n"));
+    }
+    for (const usefulFile of [
+      "src/cli/handoff/buildHandoffBrief.ts",
+      "src/cli/handoff/handoffSources.ts",
+      "src/cli/handoff/handoffTypes.ts",
+      "src/cli/handoff/handoffConstants.ts",
+      "src/cli/work/memorySignals.ts"
+    ]) {
+      assert.ok(route.supportingFiles.includes(usefulFile), route.supportingFiles.join("\n"));
+    }
+    assert.ok(route.briefTokens <= 130, JSON.stringify(route));
+  });
+});
+
+test("work debug and verbose output expose optional medium supporting files", async () => {
+  await withHandoffSupportingRepo(async (tempDir) => {
+    const verbose = JSON.parse(runCli(["work", "improve handoff memory", "--agent", "--verbose"], { cwd: tempDir }).stdout);
+    const debug = JSON.parse(runCli(["work", "improve handoff memory", "--json", "--debug"], { cwd: tempDir }).stdout);
+    const verboseOptional = (verbose.optionalSupportingFiles ?? []).map((file) => file.path);
+    const debugOptional = (debug.optionalSupportingFiles ?? []).map((file) => file.path);
+
+    assert.ok(verboseOptional.includes("src/cli/handoff/handoffOptions.ts"), verboseOptional.join("\n"));
+    assert.ok(verboseOptional.includes("src/cli/handoff/writeHandoff.ts"), verboseOptional.join("\n"));
+    assert.ok(debugOptional.includes("src/cli/handoff/handoffOptions.ts"), debugOptional.join("\n"));
+    assert.ok(debugOptional.includes("src/cli/handoff/writeHandoff.ts"), debugOptional.join("\n"));
+    assert.equal(debug.supportingFiles.some((file) => file.path === "src/cli/handoff/handoffOptions.ts"), false);
+    assert.equal(debug.supportingFiles.some((file) => file.path === "src/cli/handoff/writeHandoff.ts"), false);
+  });
+});
+
+test("work --agent preserves broad supporting files for large command architecture tasks", async () => {
+  await withPruningRepo(async (tempDir) => {
+    const result = runCli(["work", "refactor work command architecture", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.taskSize, "large");
+    assert.equal(route.mode, "deep");
+    assert.ok(route.supportingFiles.length > 2, route.supportingFiles.join("\n"));
+  });
+});
+
+test("work --agent keeps tiny typo tasks to one primary and no supporting files", async () => {
+  await withDocumentationRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "fix typo in README", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.taskSize, "tiny");
+    assert.equal(route.primaryFiles.length, 1, route.primaryFiles.join("\n"));
+    assert.deepEqual(route.supportingFiles, []);
+  });
+});
+
+test("work --agent routes Turkish workflow task routing fixes to RCC implementation files", async () => {
+  await withWorkflowRoutingImplementationRepo(async (tempDir) => {
+    const result = runCli(["work", "workflow tasklari icin turkce routing duzelt", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(route.primaryFiles.slice(0, 3), [
+      "src/cli/work/taskFileRecommendations.ts",
+      "src/core/taskIntent.ts",
+      "src/cli/work/taskSize.ts"
+    ], route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.some((file) => file.startsWith(".github/workflows/")), false, route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.includes("package.json"), false, route.primaryFiles.join("\n"));
+    assert.ok(route.tests.includes("tests/taskIntent.test.js"), route.tests.join("\n"));
+    assert.ok(route.tests.includes("tests/work.test.js"), route.tests.join("\n"));
+    assert.equal(route.next, "Start with primaryFiles. Do not rerun rcc work for this task. Use rcc find \"routing\" only if needed.");
+  });
+});
+
+test("work --agent keeps real GitHub Actions workflow tasks on workflow files", async () => {
+  await withWorkflowRoutingImplementationRepo(async (tempDir) => {
+    const result = runCli(["work", "fix GitHub Actions workflow", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.primaryFiles[0], ".github/workflows/ci.yml", route.primaryFiles.join("\n"));
+    assert.ok(route.primaryFiles.includes("package.json"), route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.includes("src/core/taskIntent.ts"), false, route.primaryFiles.join("\n"));
+  });
+});
+
+test("work --agent keeps English Turkish workflow task routing fixes on current implementation route", async () => {
+  await withWorkflowRoutingImplementationRepo(async (tempDir) => {
+    const result = runCli(["work", "fix Turkish task routing for workflow tasks", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(route.primaryFiles.slice(0, 3), [
+      "src/cli/work/taskFileRecommendations.ts",
+      "src/core/taskIntent.ts",
+      "src/cli/work/taskSize.ts"
+    ], route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.some((file) => file.startsWith(".github/workflows/")), false, route.primaryFiles.join("\n"));
+    assert.ok(route.tests.includes("tests/taskIntent.test.js"), route.tests.join("\n"));
   });
 });
 

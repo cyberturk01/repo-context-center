@@ -74,6 +74,10 @@ function compactMapFreshnessLine(mapFreshness: WorkMapFreshness): string {
   return `${mapFreshness.status} ${mapFreshness.score}/100 — ${reason}; ${recommendation}`;
 }
 
+function formatTaskMode(mode: WorkBrief["taskMode"]): string {
+  return mode.replace(/_/g, " ");
+}
+
 function compactRiskLines(risks: string[]): string[] {
   if (risks.includes("critical")) {
     return ["- critical — check docs/ai-context/RISK_REGISTER.md before editing."];
@@ -126,6 +130,18 @@ function targetLookupHintForText(hint: Omit<TargetedLookupHint, "index">): Targe
 }
 
 function renderNextLines(brief: WorkBrief, hasPrimaryFiles: boolean): string[] {
+  if (brief.taskSize === "tiny") {
+    return [
+      "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong."
+    ];
+  }
+
+  if (brief.taskSize === "small") {
+    return [
+      "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and avoid broad exploration."
+    ];
+  }
+
   const lookup = `Use ${brief.nextCheapestCommand} only if primary/supporting files are insufficient.`;
   const rerun = "Do not rerun rcc work for the same task unless the task meaning changes.";
 
@@ -145,6 +161,17 @@ function renderNextLines(brief: WorkBrief, hasPrimaryFiles: boolean): string[] {
   ];
 }
 
+function repositoryLearningLines(brief: WorkBrief): string[] {
+  const learnedFiles = [...brief.learnedTests, ...brief.learnedRelatedFiles].slice(0, 3);
+  const lines = [
+    ...learnedFiles.slice(0, 2).map((file) => `- similar work often touches ${file}`),
+    ...brief.learnedVerification.slice(0, 2).map((command) => `- similar changes usually verify with ${command}`),
+    ...brief.learnedHabits.slice(0, 2).map((habit) => `- ${habit}`)
+  ].slice(0, 4);
+
+  return lines.length > 0 ? ["Repository learning:", ...lines, ""] : [];
+}
+
 export function renderWorkBriefLines(brief: WorkBrief): string[] {
   const taskFileFallback = analyzeTaskIntent(brief.task).isCodeInvestigation
     ? "No focused task files were identified. Use Next before broad search."
@@ -158,6 +185,9 @@ export function renderWorkBriefLines(brief: WorkBrief): string[] {
     "",
     "Task:",
     brief.task,
+    "",
+    `Task size: ${brief.taskSize}`,
+    `Mode: ${formatTaskMode(brief.taskMode)}`,
     "",
     "Freshness:",
     compactMapFreshnessLine(brief.mapFreshness),
@@ -177,6 +207,7 @@ export function renderWorkBriefLines(brief: WorkBrief): string[] {
     "Context if unclear:",
     ...formatRecommendationSection(brief.contextIfUnclear, "Use only if primary/supporting files are insufficient.", false).slice(0, 6),
     "",
+    ...repositoryLearningLines(brief),
     "Next:",
     ...renderNextLines(brief, hasPrimaryFiles)
   ];

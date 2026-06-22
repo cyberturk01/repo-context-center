@@ -1,4 +1,5 @@
 import type { StartupContext } from "../../core/suggester";
+import type { TaskMode, TaskSize, TaskSizeClassification } from "./taskSize";
 
 export interface WorkOptions {
   agent: boolean;
@@ -66,12 +67,17 @@ export interface WorkMapFreshness {
 export interface WorkBrief {
   command: "work";
   task: string;
+  taskSize: TaskSize;
+  taskMode: TaskMode;
+  taskSizeConfidence: TaskSizeClassification["confidence"];
+  taskSizeReasons: string[];
   contextBudget: ContextBudget;
   mapFreshness: WorkMapFreshness;
   routingGuidance: string[];
   startupContext: StartupContext;
   primaryFiles: WorkRecommendation[];
   supportingFiles: WorkRecommendation[];
+  optionalSupportingFiles: WorkRecommendation[];
   tests: WorkRecommendation[];
   agentRules: WorkRecommendation[];
   contextIfUnclear: WorkRecommendation[];
@@ -83,6 +89,10 @@ export interface WorkBrief {
   relevantTests: WorkRecommendation[];
   targetedLookupHints: Array<Omit<TargetedLookupHint, "index">>;
   promotedFromTargetedLookup: Array<Omit<TargetedLookupHint, "index">>;
+  learnedRelatedFiles: string[];
+  learnedTests: string[];
+  learnedVerification: string[];
+  learnedHabits: string[];
   relevantDecisions: string[];
   recentLogs: string[];
   tokenEstimate: {
@@ -102,6 +112,10 @@ export interface PublicWorkBrief {
   schemaVersion: 1;
   command: "work";
   task: string;
+  taskSize: TaskSize;
+  taskMode: TaskMode;
+  taskSizeConfidence: TaskSizeClassification["confidence"];
+  taskSizeReasons: string[];
   contextBudget: ContextBudget;
   mapFreshness: {
     status: WorkMapFreshness["status"];
@@ -116,6 +130,7 @@ export interface PublicWorkBrief {
   relevantTests: PublicWorkFile[];
   primaryFiles: PublicWorkFile[];
   supportingFiles: PublicWorkFile[];
+  optionalSupportingFiles?: PublicWorkFile[];
   tests: PublicWorkFile[];
   agentRules: PublicWorkFile[];
   contextIfUnclear: PublicWorkFile[];
@@ -127,6 +142,10 @@ export interface PublicWorkBrief {
   avoid: string[];
   nextCheapestCommand: string;
   promotedFromTargetedLookup: PublicTargetedLookupHint[];
+  learnedRelatedFiles?: string[];
+  learnedTests?: string[];
+  learnedVerification?: string[];
+  learnedHabits?: string[];
   relevantDecisions: string[];
   recentLogs: string[];
   risks: PublicWorkRisk[];
@@ -155,6 +174,8 @@ export interface CompactWorkBrief {
   schemaVersion: 1;
   command: "work";
   task: string;
+  taskSize: TaskSize;
+  taskMode: TaskMode;
   contextBudget: ContextBudget;
   freshness: {
     status: WorkMapFreshness["status"];
@@ -206,8 +227,11 @@ export type PublicAgentRouteItem = string | PublicCompactWorkFile;
 
 export interface PublicAgentRoute {
   task: string;
+  taskSize: TaskSize;
+  mode: TaskMode;
   primaryFiles: PublicAgentRouteItem[];
   supportingFiles: PublicAgentRouteItem[];
+  optionalSupportingFiles?: PublicAgentRouteItem[];
   tests: PublicAgentRouteItem[];
   readFirst: PublicAgentRouteItem[];
   next: string;
@@ -217,6 +241,7 @@ export interface PublicAgentRoute {
 export interface WorkFileCategorization {
   primaryFiles: WorkRecommendation[];
   supportingFiles: WorkRecommendation[];
+  optionalSupportingFiles: WorkRecommendation[];
   tests: WorkRecommendation[];
   agentRules: WorkRecommendation[];
   contextIfUnclear: WorkRecommendation[];

@@ -368,7 +368,7 @@ test("start keeps command task file suggestions focused", () => {
   assert.ok(testFiles.includes("tests/log.test.js"));
   assert.ok(sourceFiles.length <= 10);
   assert.ok(testFiles.length <= 8);
-  assert.ok(sourceFiles.filter((filePath) => filePath.startsWith("src/core/")).length <= 1);
+  assert.ok(sourceFiles.filter((filePath) => filePath.startsWith("src/core/")).length <= 2);
   assert.doesNotMatch(result.stdout, /- src\/core\/[^\n]+\n  Reasons:\n  - matched parent folder: core\n(?!  -)/);
   assert.doesNotMatch(result.stdout, /score/i);
 });

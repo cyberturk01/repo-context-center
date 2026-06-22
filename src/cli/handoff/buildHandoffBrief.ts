@@ -1,51 +1,82 @@
 import type { HandoffBrief } from "./handoffTypes";
 import { buildWorkBriefForTask } from "../work/buildWorkBrief";
 import {
+  handoffCurrentStateFileLimit,
+  handoffMemoryLimit,
   handoffRouteLimit,
   placeholderHandoffNextCommand,
   placeholderHandoffNextLookup
 } from "./handoffConstants";
 import { readHandoffSources } from "./handoffSources";
-import type { WorkRecommendation } from "../work/workTypes";
+import type { WorkBrief, WorkRecommendation } from "../work/workTypes";
 
-function formatSourceItems(label: string, items: string[]): string[] {
-  return items.map((item) => `${label}: ${item}`);
+function pluralizeFile(count: number): string {
+  return count === 1 ? "file" : "files";
 }
 
 function buildCurrentState(gitStatus: string[], recentTouchedFiles: string[]): string[] {
-  const state: string[] = [];
+  const statusLine = gitStatus.length > 0
+    ? `Working tree changed: ${gitStatus.length} ${pluralizeFile(gitStatus.length)}.`
+    : "Working tree has no detected changes.";
+  const changedLines = gitStatus.map((file) => `Changed: ${file}`);
+  const recentlyTouchedLines = recentTouchedFiles
+    .filter((file) => !gitStatus.includes(file))
+    .map((file) => `Recently touched: ${file}`);
+  const fileLines = [...changedLines, ...recentlyTouchedLines];
+  const visibleFileLines = fileLines.slice(0, handoffCurrentStateFileLimit);
+  const overflowCount = fileLines.length - visibleFileLines.length;
+  const state = [statusLine, ...visibleFileLines];
 
-  if (gitStatus.length > 0) {
-    state.push(...gitStatus.map((file) => `Working tree changed: ${file}`));
-  } else {
-    state.push("Working tree has no detected changes.");
+  if (overflowCount > 0) {
+    state.push(`...and ${overflowCount} more recently touched files`);
   }
-
-  state.push(...recentTouchedFiles.map((file) => `Recently touched: ${file}`));
 
   return state;
 }
 
-function latestDoneMemory(
+function compactHandoffMemory(
   entry: {
-    followUps: string[];
-    risks: string[];
     summary: string;
     timestamp: string;
     verification: string[];
-  } | null
+  } | null,
+  workIndex: string[],
+  changeLog: string[]
 ): string[] {
-  if (!entry) {
-    return [];
+  const memory: string[] = [];
+  const lastCompletedText = entry ? normalizeMemoryText(entry.summary) : null;
+
+  if (entry) {
+    memory.push(
+      `Last completed: ${entry.summary}`,
+      `Completed at: ${entry.timestamp}`
+    );
+
+    const [verification] = entry.verification;
+    if (verification) {
+      memory.push(`Verification: ${verification}`);
+    }
   }
 
-  return [
-    `Last completed: ${entry.summary}`,
-    `Completed at: ${entry.timestamp}`,
-    ...entry.verification.map((verification) => `Verification: ${verification}`),
-    ...entry.followUps.map((followUp) => `Follow-up: ${followUp}`),
-    ...entry.risks.map((risk) => `Risk: ${risk}`)
-  ];
+  const workIndexItem = workIndex.find((item) => normalizeMemoryText(item) !== lastCompletedText);
+  if (workIndexItem) {
+    memory.push(workIndexItem);
+  }
+
+  const [changeLogItem] = changeLog;
+  if (changeLogItem) {
+    memory.push(`Change: ${changeLogItem}`);
+  }
+
+  return memory.slice(0, handoffMemoryLimit);
+}
+
+function normalizeMemoryText(value: string): string {
+  return value
+    .replace(/^(?:Last completed|Work index):\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function uniqueValues(values: string[]): string[] {
@@ -77,6 +108,42 @@ function taskNextActions(task: string | null, hasRoute: boolean): string[] {
   ];
 }
 
+function taskLearningTerms(task: string): string[] {
+  return (task.toLowerCase().match(/[a-z0-9][a-z0-9._-]*/g) ?? [])
+    .flatMap((term) => term.split(/[._-]+/))
+    .filter((term) => term.length > 1 && !["continue", "finish", "fix", "add", "update", "work", "task"].includes(term));
+}
+
+function taskLearningScope(task: string, learnedFiles: string[]): string {
+  const terms = taskLearningTerms(task);
+  const [matchedPathTerm] = terms.filter((term) => (
+    learnedFiles.some((file) => file.toLowerCase().split(/[\/._-]+/).includes(term))
+  ));
+  const [fallbackTerm] = terms;
+
+  return matchedPathTerm ?? fallbackTerm ?? "similar";
+}
+
+function repositoryLearningHints(task: string | null, workBrief: WorkBrief | null): string[] {
+  if (!task || !workBrief) {
+    return [];
+  }
+
+  const learnedFiles = [...workBrief.learnedTests, ...workBrief.learnedRelatedFiles];
+  const scope = taskLearningScope(task, learnedFiles);
+  const strongerHints = uniqueValues([
+    ...workBrief.learnedTests.slice(0, 1).map((file) => `${scope} changes often touch ${file}`),
+    ...workBrief.learnedVerification.slice(0, 1).map((command) => `${scope} work often verifies with ${command}`),
+    ...workBrief.learnedRelatedFiles.slice(0, 1).map((file) => `${scope} changes often touch ${file}`)
+  ]);
+
+  if (strongerHints.length > 0) {
+    return strongerHints.slice(0, 3);
+  }
+
+  return uniqueValues(workBrief.learnedHabits).slice(0, 3);
+}
+
 export async function buildHandoffBrief(cwd: string, options: { task: string | null; debug?: boolean }): Promise<HandoffBrief> {
   const sources = await readHandoffSources(cwd);
   const workBrief = options.task
@@ -85,13 +152,13 @@ export async function buildHandoffBrief(cwd: string, options: { task: string | n
       maxFiles: handoffRouteLimit
     })
     : null;
-  const memory = [
-    ...latestDoneMemory(sources.latestDoneEntry),
-    ...formatSourceItems("Decision", sources.decisions),
-    ...formatSourceItems("Change", sources.changeLog),
-    ...formatSourceItems("Lesson", sources.lessons)
-  ];
+  const memory = compactHandoffMemory(
+    sources.latestDoneEntry,
+    sources.workIndex,
+    sources.changeLog
+  );
   const currentState = buildCurrentState(sources.gitStatus, sources.recentTouchedFiles);
+  const repositoryLearning = repositoryLearningHints(options.task, workBrief);
 
   const brief: HandoffBrief = {
     schemaVersion: 1,
@@ -107,6 +174,7 @@ export async function buildHandoffBrief(cwd: string, options: { task: string | n
     nextRecommendedFiles: workBrief ? routeItems(workBrief.primaryFiles) : [],
     relevantTests: workBrief ? routeItems(workBrief.relevantTests) : [],
     relevantDecisions: workBrief ? workBrief.relevantDecisions.slice(0, handoffRouteLimit) : [],
+    ...(repositoryLearning.length > 0 ? { repositoryLearning } : {}),
     ...(sources.latestDoneEntry ? {
       lastSummary: sources.latestDoneEntry.summary,
       filesTouched: sources.latestDoneEntry.files,
@@ -137,6 +205,7 @@ export async function buildHandoffBrief(cwd: string, options: { task: string | n
           lessonsCount: sources.lessons.length,
           latestDoneEntryPresent: Boolean(sources.latestDoneEntry),
           recentTouchedFilesCount: sources.recentTouchedFiles.length,
+          workIndexCount: sources.workIndex.length,
           workLogCount: sources.workLog.length
         }
       }

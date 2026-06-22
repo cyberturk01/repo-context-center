@@ -1,12 +1,15 @@
+import { open, stat } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathExists, readTextFile } from "../../core/fileSystem";
+import { parseWorkMemoryEntries, type WorkMemoryEntry } from "../../core/workMemory";
 import {
   agentsPath,
   changeLogPath,
   decisionsPath,
   handoffSourceLimit,
   lessonsPath,
+  workIndexPath,
   workLogPath
 } from "./handoffConstants";
 
@@ -15,28 +18,11 @@ export interface HandoffSources {
   changeLog: string[];
   decisions: string[];
   gitStatus: string[];
-  latestDoneEntry: StructuredDoneEntry | null;
+  latestDoneEntry: WorkMemoryEntry | null;
   lessons: string[];
   recentTouchedFiles: string[];
+  workIndex: string[];
   workLog: string[];
-}
-
-interface WorkLogEntry {
-  changedFiles: string[];
-  followUps: string[];
-  risks: string[];
-  summary: string | null;
-  timestamp: string | null;
-  verification: string | null;
-}
-
-export interface StructuredDoneEntry {
-  files: string[];
-  followUps: string[];
-  risks: string[];
-  summary: string;
-  timestamp: string;
-  verification: string[];
 }
 
 async function readOptionalText(cwd: string, relativePath: string): Promise<string | null> {
@@ -49,6 +35,28 @@ async function readOptionalText(cwd: string, relativePath: string): Promise<stri
     return await readTextFile(fullPath);
   } catch {
     return null;
+  }
+}
+
+async function readOptionalTail(cwd: string, relativePath: string, maxBytes = 24000): Promise<string | null> {
+  const fullPath = path.join(cwd, relativePath);
+  if (!(await pathExists(fullPath))) {
+    return null;
+  }
+
+  let handle: Awaited<ReturnType<typeof open>> | null = null;
+  try {
+    const fileStat = await stat(fullPath);
+    const start = Math.max(0, fileStat.size - maxBytes);
+    const length = fileStat.size - start;
+    const buffer = Buffer.alloc(length);
+    handle = await open(fullPath, "r");
+    await handle.read(buffer, 0, length, start);
+    return buffer.toString("utf8");
+  } catch {
+    return null;
+  } finally {
+    await handle?.close();
   }
 }
 
@@ -102,192 +110,18 @@ function recentBulletLines(content: string, limit = handoffSourceLimit): string[
     .filter(Boolean);
 }
 
-function parseChangedFilesLine(line: string): string[] {
-  const value = line.replace(/^- Changed files:\s*/, "").trim();
-  if (!value || value === "_none_" || value === "_not detected_" || value === "`auto`" || value === "auto") {
-    return [];
-  }
-
-  const backtickPaths = [...value.matchAll(/`([^`]+)`/g)]
-    .map((match) => match[1].trim())
-    .filter(Boolean);
-
-  if (backtickPaths.length > 0) {
-    return backtickPaths;
-  }
-
-  return value
-    .split(",")
-    .map((item) => item.trim().replace(/^`|`$/g, ""))
-    .filter(Boolean);
-}
-
-function stringArray(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.map((item) => typeof item === "string" ? item.trim() : "").filter(Boolean)
-    : [];
-}
-
-function verificationArray(value: unknown): string[] {
-  if (typeof value === "string" && value.trim()) {
-    return [value.trim()];
-  }
-
-  return stringArray(value);
-}
-
-function parseStructuredDoneEntry(value: unknown): StructuredDoneEntry | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const entry = value as Record<string, unknown>;
-  if (
-    entry.schemaVersion !== 1
-    || (entry.command !== undefined && entry.command !== "done" && entry.command !== "handoff")
-  ) {
-    return null;
-  }
-
-  const summary = typeof entry.summary === "string" ? entry.summary.trim() : "";
-  const timestamp = typeof entry.timestamp === "string" ? entry.timestamp.trim() : "";
-  if (!summary || !timestamp) {
-    return null;
-  }
-
-  return {
-    files: stringArray(entry.files),
-    followUps: stringArray(entry.followUps),
-    risks: stringArray(entry.risks),
-    summary,
-    timestamp,
-    verification: verificationArray(entry.verification)
-  };
-}
-
-function structuredHandoffEntries(content: string, limit = handoffSourceLimit): StructuredDoneEntry[] {
-  const entries: StructuredDoneEntry[] = [];
-  const pattern = /<!--\s*rcc:handoff\s*(?<json>[\s\S]*?)-->/g;
-
-  for (const match of content.matchAll(pattern)) {
-    const rawJson = match.groups?.json;
-    if (!rawJson) {
-      continue;
-    }
-
-    try {
-      const entry = parseStructuredDoneEntry(JSON.parse(rawJson));
-      if (entry) {
-        entries.push(entry);
-      }
-    } catch {
-      // Ignore malformed handoff blocks and fall back to older parsing.
-    }
-  }
-
-  return entries.slice(-limit).reverse();
-}
-
-function structuredDoneEntries(content: string, limit = handoffSourceLimit): StructuredDoneEntry[] {
-  const entries: StructuredDoneEntry[] = [];
-  const pattern = /```json repo-context-center:done\s*\n(?<json>[\s\S]*?)\n```/g;
-
-  for (const match of content.matchAll(pattern)) {
-    const rawJson = match.groups?.json;
-    if (!rawJson) {
-      continue;
-    }
-
-    try {
-      const entry = parseStructuredDoneEntry(JSON.parse(rawJson));
-      if (entry) {
-        entries.push(entry);
-      }
-    } catch {
-      // Ignore malformed structured blocks and fall back to legacy parsing.
-    }
-  }
-
-  return entries.slice(-limit).reverse();
-}
-
-function recentWorkLogEntries(content: string, limit = handoffSourceLimit): WorkLogEntry[] {
-  const entries: WorkLogEntry[] = [];
-  let current: WorkLogEntry | null = null;
-
-  for (const line of content.split(/\r?\n/)) {
-    const trimmed = line.trim();
-
-    if (trimmed.startsWith("## ")) {
-      if (current) {
-        entries.push(current);
-      }
-      current = {
-        changedFiles: [],
-        followUps: [],
-        risks: [],
-        summary: null,
-        timestamp: trimmed.replace(/^##\s*/, "").trim() || null,
-        verification: null
-      };
-      continue;
-    }
-
-    if (!current) {
-      continue;
-    }
-
-    if (trimmed.startsWith("- Summary: ")) {
-      current.summary = trimmed.replace(/^- Summary:\s*/, "").trim() || null;
-      continue;
-    }
-
-    if (trimmed.startsWith("- Changed files: ")) {
-      current.changedFiles = parseChangedFilesLine(trimmed);
-      continue;
-    }
-
-    if (trimmed.startsWith("- Verification: ")) {
-      current.verification = trimmed.replace(/^- Verification:\s*/, "").trim() || null;
-      continue;
-    }
-
-    if (trimmed.startsWith("- Risk: ")) {
-      const risk = trimmed.replace(/^- Risk:\s*/, "").trim();
-      current.risks = risk ? [risk] : [];
-      continue;
-    }
-
-    if (trimmed.startsWith("- Follow-ups: ")) {
-      const followUp = trimmed.replace(/^- Follow-ups:\s*/, "").trim();
-      current.followUps = followUp ? [followUp] : [];
-    }
-  }
-
-  if (current) {
-    entries.push(current);
-  }
-
-  return entries.slice(-limit).reverse();
-}
-
-function doneEntryFromWorkLogEntry(entry: WorkLogEntry): StructuredDoneEntry | null {
-  if (!entry.summary || !entry.timestamp) {
-    return null;
-  }
-
-  return {
-    files: entry.changedFiles,
-    followUps: entry.followUps,
-    risks: entry.risks,
-    summary: entry.summary,
-    timestamp: entry.timestamp,
-    verification: entry.verification ? [entry.verification] : []
-  };
-}
-
 function uniqueSorted(values: string[]): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
+
+function workIndexLines(content: string, limit = handoffSourceLimit): string[] {
+  return content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("- ") && !line.includes("repo-context-center:"))
+    .slice(0, limit)
+    .map((line) => line.replace(/^- /, "Work index: ").trim())
+    .filter(Boolean);
 }
 
 function parseGitStatusFiles(output: string): string[] {
@@ -323,23 +157,20 @@ function readGitStatus(cwd: string): string[] {
 }
 
 export async function readHandoffSources(cwd: string): Promise<HandoffSources> {
-  const [agents, workLog, decisions, changeLog, lessons] = await Promise.all([
+  const [agents, workIndex, decisions, changeLog, lessons] = await Promise.all([
     readOptionalText(cwd, agentsPath),
-    readOptionalText(cwd, workLogPath),
+    readOptionalText(cwd, workIndexPath),
     readOptionalText(cwd, decisionsPath),
     readOptionalText(cwd, changeLogPath),
     readOptionalText(cwd, lessonsPath)
   ]);
-  const structuredHandoffBlocks = workLog ? structuredHandoffEntries(workLog) : [];
-  const structuredEntries = workLog ? structuredDoneEntries(workLog) : [];
-  const legacyWorkLogEntries = workLog ? recentWorkLogEntries(workLog) : [];
-  const doneEntries = structuredHandoffBlocks.length > 0
-    ? structuredHandoffBlocks
-    : structuredEntries.length > 0
-      ? structuredEntries
-      : legacyWorkLogEntries
-        .map(doneEntryFromWorkLogEntry)
-        .filter((entry): entry is StructuredDoneEntry => Boolean(entry));
+  const workLogTail = await readOptionalTail(cwd, workLogPath);
+  let doneEntries = workLogTail ? parseWorkMemoryEntries(workLogTail).slice(0, handoffSourceLimit) : [];
+
+  if (doneEntries.length === 0) {
+    const workLog = await readOptionalText(cwd, workLogPath);
+    doneEntries = workLog ? parseWorkMemoryEntries(workLog).slice(0, handoffSourceLimit) : [];
+  }
 
   return {
     agents: agents?.trim() || null,
@@ -349,6 +180,7 @@ export async function readHandoffSources(cwd: string): Promise<HandoffSources> {
     latestDoneEntry: doneEntries[0] ?? null,
     lessons: lessons ? recentBulletLines(lessons) : [],
     recentTouchedFiles: uniqueSorted(doneEntries.flatMap((entry) => entry.files)),
+    workIndex: workIndex ? workIndexLines(workIndex) : [],
     workLog: doneEntries.map((entry) => entry.summary)
   };
 }

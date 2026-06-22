@@ -1,6 +1,11 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathExists, readTextFile, writeTextFile } from "../../core/fileSystem";
+import { refreshWorkMemoryArtifacts } from "../../core/workMemoryRefresh";
+import {
+  repositoryLearningPath,
+  workIndexPath
+} from "../../core/workMemory";
 import type { CliIO } from "../index";
 
 interface DoneOptions {
@@ -8,6 +13,7 @@ interface DoneOptions {
   fileMode: "auto" | "manual" | "none";
   files: string[];
   followUps: string;
+  learningMode: "auto" | "force" | "skip";
   risk: string;
   summary: string;
   verify: string;
@@ -16,20 +22,25 @@ interface DoneOptions {
 const workLogPath = "docs/ai-context/WORK_LOG.md";
 const memoryStart = "<!-- repo-context-center:work-log:start -->";
 const memoryEnd = "<!-- repo-context-center:work-log:end -->";
-const usage = 'Usage: rcc done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]';
+const usage = 'Usage: rcc done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--learn|--no-learn] [--dry-run]';
 const helpText = [
   usage,
   "",
   "File modes:",
   "  --files auto  Detect changed files from git status (default)",
   "  --files none  Record no changed files",
-  '  --files "<path,path>"  Record explicit comma-separated files'
+  '  --files "<path,path>"  Record explicit comma-separated files',
+  "",
+  "Learning:",
+  "  --learn     Force repository learning refresh",
+  "  --no-learn  Skip repository learning refresh"
 ].join("\n");
 
 function parseDoneOptions(args: string[]): DoneOptions | undefined {
   let dryRun = false;
   let fileMode: DoneOptions["fileMode"] = "auto";
   let followUps = "";
+  let learningMode: DoneOptions["learningMode"] = "auto";
   let risk = "";
   let summary = "";
   let verify = "";
@@ -41,6 +52,16 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
 
     if (arg === "--dry-run") {
       dryRun = true;
+      continue;
+    }
+
+    if (arg === "--learn") {
+      learningMode = "force";
+      continue;
+    }
+
+    if (arg === "--no-learn") {
+      learningMode = "skip";
       continue;
     }
 
@@ -117,7 +138,7 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
     return undefined;
   }
 
-  return { dryRun, fileMode, files, followUps, risk, summary, verify };
+  return { dryRun, fileMode, files, followUps, learningMode, risk, summary, verify };
 }
 
 function cleanInline(value: string, maxLength = 300): string {
@@ -237,6 +258,38 @@ function formatEntry(options: DoneOptions, files: string[], timestamp = new Date
   return lines.join("\n");
 }
 
+function shouldSkipRepositoryLearning(options: DoneOptions, files: string[]): boolean {
+  if (options.learningMode === "force") {
+    return false;
+  }
+  if (options.learningMode === "skip") {
+    return true;
+  }
+  if (files.length > 1) {
+    return false;
+  }
+
+  const summary = options.summary.toLowerCase();
+  const hasTinyTextSignal = /\b(?:typo|wording|spelling|text)\b/.test(summary)
+    || /\bguidance\s+typo\b/.test(summary);
+  const hasBehaviorSignal = /\b(?:refactor|implement|implemented|add|added|remove|removed|api|routing|memory|parser)\b/.test(summary);
+
+  return hasTinyTextSignal && !hasBehaviorSignal;
+}
+
+function learningStatusLine(options: DoneOptions, skippedLearning: boolean): string {
+  const verb = options.dryRun
+    ? skippedLearning ? "would skip" : "would update"
+    : skippedLearning ? "skipped" : "updated";
+  const suffix = skippedLearning && options.learningMode === "auto"
+    ? " (tiny/noise task; use --learn to force)"
+    : skippedLearning && options.learningMode === "skip"
+      ? " (--no-learn)"
+      : "";
+
+  return `RCC learning ${verb}: ${repositoryLearningPath}${suffix}`;
+}
+
 function appendEntry(content: string, entry: string): string {
   const normalized = content.replace(/\r\n/g, "\n").replace(/\n*$/u, "\n");
   const startIndex = normalized.indexOf(memoryStart);
@@ -251,11 +304,13 @@ function appendEntry(content: string, entry: string): string {
   return `${normalized.trimEnd()}\n\n${memoryStart}\n${entry}\n${memoryEnd}\n`;
 }
 
-function formatSavedMessage(options: DoneOptions, files: string[]): string {
+function formatSavedMessage(options: DoneOptions, files: string[], skippedLearning: boolean): string {
   const lines = [
     `Summary: ${cleanInline(options.summary)}`,
     `Changed files: ${files.length > 0 ? files.slice(0, 10).join(", ") : options.fileMode === "none" ? "none" : "not detected"}`,
-    `RCC memory ${options.dryRun ? "would update" : "updated"}: ${workLogPath}`
+    `RCC memory ${options.dryRun ? "would update" : "updated"}: ${workLogPath}`,
+    `RCC work index ${options.dryRun ? "would update" : "updated"}: ${workIndexPath}`,
+    learningStatusLine(options, skippedLearning)
   ];
 
   if (options.verify) {
@@ -291,11 +346,16 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
   const targetPath = path.join(io.cwd, workLogPath);
   const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : defaultContent();
   const nextContent = appendEntry(existing, formatEntry(options, files));
+  const skippedLearning = shouldSkipRepositoryLearning(options, files);
 
   if (!options.dryRun) {
     await writeTextFile(targetPath, nextContent);
+    await refreshWorkMemoryArtifacts(io.cwd, {
+      workLogContent: nextContent,
+      updateRepositoryLearning: !skippedLearning
+    });
   }
 
-  io.stdout(formatSavedMessage(options, files));
+  io.stdout(formatSavedMessage(options, files, skippedLearning));
   return 0;
 }

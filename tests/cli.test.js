@@ -38,6 +38,8 @@ test("CLI help prints usage", () => {
   assert.match(result.stdout, /doctor\s+Check local development CLI\/version alignment/);
   assert.match(result.stdout, /find\s+Find focused file candidates for a concept or query/);
   assert.match(result.stdout, /Usage: find "<query>" \[--limit <number>\]/);
+  assert.match(result.stdout, /learn\s+Regenerate repository learning on demand/);
+  assert.match(result.stdout, /Usage: learn \[--json\] \[--write\] \[--debug\]/);
   assert.match(result.stdout, /log\s+Add a durable entry to docs\/ai-context\/CHANGE_LOG\.md/);
   assert.match(result.stdout, /Usage: log "<summary>" \[--files <path,path>\] \[--dry-run\]/);
   assert.match(result.stdout, /Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>/);

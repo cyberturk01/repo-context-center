@@ -37,15 +37,32 @@ function agentReadFirstItems(brief: WorkBrief, verbose: boolean): PublicAgentRou
   });
 }
 
+function agentNext(brief: WorkBrief): string {
+  if (brief.taskSize === "tiny") {
+    return "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong.";
+  }
+
+  if (brief.taskSize === "small") {
+    return "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration.";
+  }
+
+  return `Start with primaryFiles. Do not rerun rcc work for this task. Use ${brief.nextCheapestCommand} only if needed.`;
+}
+
 export function toAgentRoute(brief: WorkBrief, verbose: boolean): PublicAgentRoute {
   const withoutTokens: Omit<PublicAgentRoute, "briefTokens"> = {
     task: brief.task,
+    taskSize: brief.taskSize,
+    mode: brief.taskMode,
     primaryFiles: agentRouteItems(brief.primaryFiles, verbose),
     supportingFiles: agentRouteItems(brief.supportingFiles, verbose),
     tests: agentRouteItems(brief.tests, verbose),
     readFirst: agentReadFirstItems(brief, verbose),
-    next: `Start with primaryFiles. Do not rerun work for this task. Use ${brief.nextCheapestCommand} only if needed.`
+    next: agentNext(brief)
   };
+  if (verbose && brief.optionalSupportingFiles.length > 0) {
+    withoutTokens.optionalSupportingFiles = agentRouteItems(brief.optionalSupportingFiles, verbose);
+  }
   const preliminary = { ...withoutTokens, briefTokens: 0 };
   const briefTokens = Math.ceil(JSON.stringify(preliminary).length / 4);
 
