@@ -39,11 +39,11 @@ function agentReadFirstItems(brief: WorkBrief, verbose: boolean): PublicAgentRou
 
 function agentNext(brief: WorkBrief): string {
   if (brief.taskSize === "tiny") {
-    return "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong.";
+    return "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong. Do not rerun rcc work for this task.";
   }
 
   if (brief.taskSize === "small") {
-    return "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration.";
+    return "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration. Do not rerun rcc work for this task.";
   }
 
   return `Start with primaryFiles. Do not rerun rcc work for this task. Use ${brief.nextCheapestCommand} only if needed.`;

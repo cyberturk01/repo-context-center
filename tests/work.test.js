@@ -840,7 +840,7 @@ test("work --agent prints valid compact JSON only", async () => {
     assert.deepEqual(route.supportingFiles, []);
     assert.deepEqual(route.tests, ["tests/auth/login.test.ts"]);
     assert.ok(route.readFirst.includes("AGENTS.md"));
-    assert.equal(route.next, "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration.");
+    assert.equal(route.next, "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration. Do not rerun rcc work for this task.");
     assert.doesNotMatch(route.next, /\bworkfor\b/);
     assert.equal(typeof route.briefTokens, "number");
     assert.doesNotMatch(result.stdout, /```|repo-context-center work brief|Primary files:/);
@@ -883,7 +883,7 @@ test("work --agent marks tiny tasks as fast fixes with lightweight guidance", as
     assert.equal(result.status, 0);
     assert.equal(route.taskSize, "tiny");
     assert.equal(route.mode, "fast_fix");
-    assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong.");
+    assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong. Do not rerun rcc work for this task.");
   });
 });
 
@@ -898,7 +898,7 @@ test("work --agent tiny guidance keeps word spacing stable", async () => {
 
       assert.equal(result.status, 0, task);
       assert.equal(route.taskSize, "tiny", task);
-      assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong.");
+      assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong. Do not rerun rcc work for this task.");
       assert.doesNotMatch(route.next, /relevanttest/, task);
       assert.doesNotMatch(route.next, /runthe/, task);
     }

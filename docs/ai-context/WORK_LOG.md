@@ -1884,4 +1884,42 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-22T21:47:21.093Z
+- Summary: Added JSON and agent output contract stability tests
+- Changed files: `src/cli/work/renderAgent.ts`, `tests/outputContract.test.js`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/outputContract.test.js; npm test; npm run benchmark:routing; npm pack --dry-run
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added JSON and agent output contract stability tests",
+  "files": [
+    "src/cli/work/renderAgent.ts",
+    "tests/outputContract.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/outputContract.test.js; npm test; npm run benchmark:routing; npm pack --dry-run"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-22T21:47:21.093Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-22T21:47:21.093Z",
+  "summary": "Added JSON and agent output contract stability tests",
+  "files": [
+    "src/cli/work/renderAgent.ts",
+    "tests/outputContract.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/outputContract.test.js; npm test; npm run benchmark:routing; npm pack --dry-run",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
