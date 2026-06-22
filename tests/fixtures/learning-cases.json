@@ -1,0 +1,102 @@
+[
+  {
+    "name": "tiny typo task",
+    "summary": "fix typo in renderAgent output",
+    "files": ["src/cli/work/renderAgent.ts"],
+    "verification": ["node --test tests/work.test.js"],
+    "expect": {
+      "signal": "low",
+      "shouldLearn": false
+    }
+  },
+  {
+    "name": "formatting task",
+    "summary": "fix spacing in work renderer",
+    "files": ["src/cli/work/renderText.ts"],
+    "verification": ["node --test tests/work.test.js"],
+    "expect": {
+      "signal": "low",
+      "shouldLearn": false
+    }
+  },
+  {
+    "name": "readme wording task",
+    "summary": "updated README wording for install notes",
+    "files": ["README.md"],
+    "verification": [],
+    "expect": {
+      "signal": "low",
+      "shouldLearn": false
+    }
+  },
+  {
+    "name": "architecture task",
+    "summary": "decouple work command modules",
+    "files": ["src/cli/commands/work.ts", "src/cli/work/buildWorkBrief.ts", "tests/work.test.js"],
+    "verification": ["node --test tests/work.test.js"],
+    "expect": {
+      "signal": "high",
+      "shouldLearn": true
+    }
+  },
+  {
+    "name": "routing improvement",
+    "summary": "improve Turkish task routing",
+    "files": ["src/core/taskIntent.ts", "src/cli/work/taskFileRecommendations.ts", "tests/taskIntent.test.js"],
+    "verification": ["node --test tests/taskIntent.test.js"],
+    "expect": {
+      "signal": "high",
+      "shouldLearn": true
+    }
+  },
+  {
+    "name": "workflow convention",
+    "summary": "improve release verification process",
+    "files": [".github/workflows/ci.yml", "scripts/release-check.js", "package.json"],
+    "verification": ["npm run release:check"],
+    "expect": {
+      "signal": "high",
+      "shouldLearn": true
+    }
+  },
+  {
+    "name": "release safety guard",
+    "summary": "added release safety guard",
+    "files": ["scripts/release-check.js", "package.json", "tests/benchmark-scripts.test.js"],
+    "verification": ["npm run release:check"],
+    "expect": {
+      "signal": "high",
+      "shouldLearn": true
+    }
+  },
+  {
+    "name": "handoff memory implementation",
+    "summary": "implemented handoff memory",
+    "files": ["src/cli/handoff/buildHandoffBrief.ts", "tests/handoff.test.js"],
+    "verification": ["node --test tests/handoff.test.js"],
+    "expect": {
+      "signal": "high",
+      "shouldLearn": true
+    }
+  },
+  {
+    "name": "variable rename",
+    "summary": "renamed variable in done command",
+    "files": ["src/cli/commands/done.ts"],
+    "verification": ["node --test tests/done.test.js"],
+    "expect": {
+      "signal": "low",
+      "shouldLearn": false
+    }
+  },
+  {
+    "name": "parser behavior",
+    "summary": "implemented parser routing memory update",
+    "files": ["src/cli/commands/done.ts", "tests/done.test.js"],
+    "verification": ["node --test tests/done.test.js"],
+    "expect": {
+      "signal": "high",
+      "shouldLearn": true
+    }
+  }
+]

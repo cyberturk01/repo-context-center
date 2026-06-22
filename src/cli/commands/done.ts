@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathExists, readTextFile, writeTextFile } from "../../core/fileSystem";
+import { evaluateLearningQuality } from "../../core/learningQuality";
 import { refreshWorkMemoryArtifacts } from "../../core/workMemoryRefresh";
 import {
   repositoryLearningPath,
@@ -265,16 +266,12 @@ function shouldSkipRepositoryLearning(options: DoneOptions, files: string[]): bo
   if (options.learningMode === "skip") {
     return true;
   }
-  if (files.length > 1) {
-    return false;
-  }
 
-  const summary = options.summary.toLowerCase();
-  const hasTinyTextSignal = /\b(?:typo|wording|spelling|text)\b/.test(summary)
-    || /\bguidance\s+typo\b/.test(summary);
-  const hasBehaviorSignal = /\b(?:refactor|implement|implemented|add|added|remove|removed|api|routing|memory|parser)\b/.test(summary);
-
-  return hasTinyTextSignal && !hasBehaviorSignal;
+  return !evaluateLearningQuality({
+    files,
+    summary: options.summary,
+    verification: compactList(options.verify)
+  }).shouldLearn;
 }
 
 function learningStatusLine(options: DoneOptions, skippedLearning: boolean): string {
@@ -351,6 +348,7 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
   if (!options.dryRun) {
     await writeTextFile(targetPath, nextContent);
     await refreshWorkMemoryArtifacts(io.cwd, {
+      includeLowSignalLearning: options.learningMode === "force",
       workLogContent: nextContent,
       updateRepositoryLearning: !skippedLearning
     });

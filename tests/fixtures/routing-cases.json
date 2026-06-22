@@ -202,7 +202,8 @@
         "src/cli/commands/done.ts"
       ],
       "supportingContains": [
-        "src/core/repositoryLearning.ts"
+        "src/core/repositoryLearning.ts",
+        "src/core/learningQuality.ts"
       ],
       "testsContains": [
         "tests/done.test.js",
@@ -212,7 +213,7 @@
       "requiredTaskSize": "medium",
       "requiredMode": "normal",
       "maxPrimaryFiles": 1,
-      "maxSupportingFiles": 4,
+      "maxSupportingFiles": 5,
       "maxTests": 6,
       "maxReadFirst": 1,
       "forbiddenPrimaryPrefixes": [
