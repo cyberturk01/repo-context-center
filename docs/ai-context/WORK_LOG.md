@@ -1844,4 +1844,44 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-22T21:39:15.733Z
+- Summary: Added fixture-driven routing regression suite and benchmark checks
+- Changed files: `scripts/benchmark-routing.js`, `tests/benchmark-scripts.test.js`, `tests/fixtures/routing-cases.json`, `tests/routingRegression.test.js`
+- Verification: npm run build; node --test tests/routingRegression.test.js; node --test tests/benchmark-scripts.test.js; npm run benchmark:routing; node --test tests/work.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added fixture-driven routing regression suite and benchmark checks",
+  "files": [
+    "scripts/benchmark-routing.js",
+    "tests/benchmark-scripts.test.js",
+    "tests/fixtures/routing-cases.json",
+    "tests/routingRegression.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/routingRegression.test.js; node --test tests/benchmark-scripts.test.js; npm run benchmark:routing; node --test tests/work.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-22T21:39:15.733Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-22T21:39:15.733Z",
+  "summary": "Added fixture-driven routing regression suite and benchmark checks",
+  "files": [
+    "scripts/benchmark-routing.js",
+    "tests/benchmark-scripts.test.js",
+    "tests/fixtures/routing-cases.json",
+    "tests/routingRegression.test.js"
+  ],
+  "verification": "npm run build; node --test tests/routingRegression.test.js; node --test tests/benchmark-scripts.test.js; npm run benchmark:routing; node --test tests/work.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

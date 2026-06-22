@@ -1,58 +1,21 @@
 #!/usr/bin/env node
 
 const { spawnSync } = require("node:child_process");
+const { readFileSync } = require("node:fs");
 const path = require("node:path");
 
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
+const fixturePath = path.join(repoRoot, "tests", "fixtures", "routing-cases.json");
 
-const cases = [
-  {
-    task: "fix workflow risk detection",
-    expectedTaskFiles: [
-      ".github/workflows/ai-project-guardian.yml",
-      ".github/workflows/ci.yml",
-      "package.json"
-    ],
-    expectedTests: ["tests/decision.test.js"]
-  },
-  {
-    task: "improve rcc work output assembly",
-    expectedTaskFiles: ["src/cli/commands/work.ts"],
-    expectedTests: ["tests/work.test.js"]
-  },
-  {
-    task: "fix Turkish task routing for workflow tasks",
-    expectedTaskFiles: [
-      "src/cli/work/taskFileRecommendations.ts",
-      "src/core/taskIntent.ts"
-    ],
-    expectedTests: ["tests/taskIntent.test.js", "tests/work.test.js"]
-  },
-  {
-    task: "add token measurement mode",
-    expectedTaskFiles: [
-      "src/cli/commands/measure.ts",
-      "src/core/tokenEstimator.ts",
-    ],
-    expectedTests: ["tests/estimate.test.js"]
-  },
-  {
-    task: "improve local vs global rcc warning",
-    expectedTaskFiles: [
-      "src/cli/commands/doctor.ts",
-      "src/cli/index.ts"
-    ],
-    expectedTests: ["tests/cli.test.js"]
-  }
-];
+const cases = JSON.parse(readFileSync(fixturePath, "utf8"));
 
 function runWork(task) {
   const result = spawnSync(process.execPath, [
     cliPath,
     "work",
     task,
-    "--json"
+    "--agent"
   ], {
     cwd: repoRoot,
     encoding: "utf8"
@@ -77,33 +40,61 @@ function runWork(task) {
   }
 }
 
-function pathsFrom(items) {
-  return new Set((items ?? []).map((item) => item.path).filter(Boolean));
+function valuesFrom(items) {
+  return Array.isArray(items) ? items : [];
+}
+
+function pathMatches(actualPath, expectedPath) {
+  return actualPath === expectedPath || actualPath.startsWith(expectedPath);
+}
+
+function missingExpected(actualPaths, expectedPaths = []) {
+  return expectedPaths.filter((expectedPath) => !actualPaths.some((actualPath) => pathMatches(actualPath, expectedPath)));
+}
+
+function unexpectedPresent(actualPaths, expectedPaths = []) {
+  return expectedPaths.filter((expectedPath) => actualPaths.some((actualPath) => pathMatches(actualPath, expectedPath)));
+}
+
+function failuresFor(brief, benchmarkCase) {
+  const expect = benchmarkCase.expect ?? {};
+  const primary = valuesFrom(brief.primaryFiles);
+  const supporting = valuesFrom(brief.supportingFiles);
+  const tests = valuesFrom(brief.tests);
+  const failures = [
+    ...missingExpected(primary, expect.primaryContains).map((file) => `missing primary ${file}`),
+    ...unexpectedPresent(primary, expect.primaryNotContains).map((file) => `unexpected primary ${file}`),
+    ...missingExpected(supporting, expect.supportingContains).map((file) => `missing supporting ${file}`),
+    ...unexpectedPresent(supporting, expect.supportingNotContains).map((file) => `unexpected supporting ${file}`),
+    ...missingExpected(tests, expect.testsContains).map((file) => `missing test ${file}`),
+    ...unexpectedPresent(tests, expect.testsNotContains).map((file) => `unexpected test ${file}`)
+  ];
+
+  if (typeof expect.maxBriefTokens === "number" && brief.briefTokens > expect.maxBriefTokens) {
+    failures.push(`brief tokens ${brief.briefTokens} > ${expect.maxBriefTokens}`);
+  }
+
+  return failures;
 }
 
 function statusFor(brief, benchmarkCase) {
-  const taskFiles = pathsFrom(brief.taskFiles);
-  const tests = pathsFrom(brief.tests);
-  const hasExpectedSources = benchmarkCase.expectedTaskFiles.every((file) => taskFiles.has(file));
-  const hasExpectedTests = benchmarkCase.expectedTests.every((file) => tests.has(file));
-
-  if (!hasExpectedSources) {
-    return "fail";
-  }
-
-  return hasExpectedTests ? "pass" : "warn";
+  return failuresFor(brief, benchmarkCase).length === 0 ? "pass" : "fail";
 }
 
 function rowFor(benchmarkCase) {
   const brief = runWork(benchmarkCase.task);
+  const failures = failuresFor(brief, benchmarkCase);
 
   return {
+    name: benchmarkCase.name,
     task: benchmarkCase.task,
-    firstTaskFile: brief.taskFiles?.[0]?.path ?? "-",
-    taskFilesCount: brief.taskFiles?.length ?? 0,
+    firstPrimaryFile: brief.primaryFiles?.[0] ?? "-",
+    primaryCount: brief.primaryFiles?.length ?? 0,
+    supportingCount: brief.supportingFiles?.length ?? 0,
     testsCount: brief.tests?.length ?? 0,
-    briefTokens: brief.tokens?.jsonEstimate ?? "-",
-    status: statusFor(brief, benchmarkCase)
+    briefTokens: brief.briefTokens ?? "-",
+    status: statusFor(brief, benchmarkCase),
+    details: failures.length > 0 ? failures.join("; ") : "-"
   };
 }
 
@@ -112,8 +103,8 @@ function pad(value, width) {
 }
 
 function printTable(rows) {
-  const headers = ["Task", "First task file", "Task files count", "Tests count", "Brief tokens", "Status"];
-  const fields = ["task", "firstTaskFile", "taskFilesCount", "testsCount", "briefTokens", "status"];
+  const headers = ["Case", "First primary file", "Primary", "Supporting", "Tests", "Brief tokens", "Status", "Details"];
+  const fields = ["name", "firstPrimaryFile", "primaryCount", "supportingCount", "testsCount", "briefTokens", "status", "details"];
   const widths = headers.map((header, index) => Math.max(
     header.length,
     ...rows.map((row) => String(row[fields[index]]).length)
@@ -129,3 +120,7 @@ function printTable(rows) {
 
 const rows = cases.map(rowFor);
 printTable(rows);
+
+if (rows.some((row) => row.status === "fail")) {
+  process.exitCode = 1;
+}

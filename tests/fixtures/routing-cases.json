@@ -1,0 +1,101 @@
+[
+  {
+    "name": "workflow risk detection",
+    "task": "fix workflow risk detection",
+    "expect": {
+      "primaryContains": [
+        ".github/workflows/ai-project-guardian.yml",
+        ".github/workflows/ci.yml",
+        "package.json"
+      ],
+      "testsContains": [
+        "tests/decision.test.js"
+      ],
+      "maxBriefTokens": 200
+    }
+  },
+  {
+    "name": "work output assembly",
+    "task": "improve rcc work output assembly",
+    "expect": {
+      "primaryContains": [
+        "src/cli/commands/work.ts"
+      ],
+      "supportingContains": [
+        "src/cli/work/buildWorkBrief.ts",
+        "src/cli/work/taskFileRecommendations.ts"
+      ],
+      "testsContains": [
+        "tests/work.test.js"
+      ],
+      "maxBriefTokens": 200
+    }
+  },
+  {
+    "name": "turkish routing implementation task",
+    "task": "workflow tasklari icin turkce routing duzelt",
+    "expect": {
+      "primaryContains": [
+        "src/cli/work/taskFileRecommendations.ts",
+        "src/core/taskIntent.ts",
+        "src/cli/work/taskSize.ts"
+      ],
+      "primaryNotContains": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "testsContains": [
+        "tests/taskIntent.test.js",
+        "tests/work.test.js"
+      ],
+      "maxBriefTokens": 200
+    }
+  },
+  {
+    "name": "english turkish routing implementation task",
+    "task": "fix Turkish task routing for workflow tasks",
+    "expect": {
+      "primaryContains": [
+        "src/cli/work/taskFileRecommendations.ts",
+        "src/core/taskIntent.ts"
+      ],
+      "primaryNotContains": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "testsContains": [
+        "tests/taskIntent.test.js",
+        "tests/work.test.js"
+      ],
+      "maxBriefTokens": 200
+    }
+  },
+  {
+    "name": "token measurement mode",
+    "task": "add token measurement mode",
+    "expect": {
+      "primaryContains": [
+        "src/cli/commands/measure.ts",
+        "src/core/tokenEstimator.ts"
+      ],
+      "testsContains": [
+        "tests/estimate.test.js"
+      ],
+      "maxBriefTokens": 200
+    }
+  },
+  {
+    "name": "local global doctor warning",
+    "task": "improve local vs global rcc warning",
+    "expect": {
+      "primaryContains": [
+        "src/cli/commands/doctor.ts",
+        "src/cli/index.ts"
+      ],
+      "testsContains": [
+        "tests/cli.test.js"
+      ],
+      "maxBriefTokens": 200
+    }
+  }
+]
