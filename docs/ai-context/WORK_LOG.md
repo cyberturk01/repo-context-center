@@ -1922,4 +1922,50 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-22T21:55:35.912Z
+- Summary: Added release and install reliability guards
+- Changed files: `.github/workflows/ci.yml`, `package.json`, `README.md`, `scripts/release-check.js`, `scripts/smoke-pack-install.js`, `tests/fixtures/routing-cases.json`, `tests/packageMetadata.test.js`
+- Verification: npm run build; node --test tests/packageMetadata.test.js; npm test; npm run benchmark:routing; npm pack --dry-run; npm run release:check; npm run smoke:pack-install
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added release and install reliability guards",
+  "files": [
+    ".github/workflows/ci.yml",
+    "package.json",
+    "README.md",
+    "scripts/release-check.js",
+    "scripts/smoke-pack-install.js",
+    "tests/fixtures/routing-cases.json",
+    "tests/packageMetadata.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/packageMetadata.test.js; npm test; npm run benchmark:routing; npm pack --dry-run; npm run release:check; npm run smoke:pack-install"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-22T21:55:35.912Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-22T21:55:35.912Z",
+  "summary": "Added release and install reliability guards",
+  "files": [
+    ".github/workflows/ci.yml",
+    "package.json",
+    "README.md",
+    "scripts/release-check.js",
+    "scripts/smoke-pack-install.js",
+    "tests/fixtures/routing-cases.json",
+    "tests/packageMetadata.test.js"
+  ],
+  "verification": "npm run build; node --test tests/packageMetadata.test.js; npm test; npm run benchmark:routing; npm pack --dry-run; npm run release:check; npm run smoke:pack-install",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

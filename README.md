@@ -98,7 +98,7 @@ npx repo-context-center@latest work "fix workflow risk detection" --agent
 For release validation, check:
 
 ```sh
-npx repo-context-center@latest --version
+npm run release:check
 ```
 
 ## Complete Usage Guide
@@ -623,9 +623,8 @@ npm test
 This package is prepared for manual npm publishing.
 
 ```sh
-npm run build
-npm test
-npm pack
+npm run release:check
+npm publish
 ```
 
 The package publishes the compiled `dist/` output, including the generic context templates copied during build. `prepublishOnly` runs build and tests before a manual `npm publish`.

@@ -22,7 +22,6 @@
         "src/cli/commands/work.ts"
       ],
       "supportingContains": [
-        "src/cli/work/buildWorkBrief.ts",
         "src/cli/work/taskFileRecommendations.ts"
       ],
       "testsContains": [
