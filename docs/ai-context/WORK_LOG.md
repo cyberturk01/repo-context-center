@@ -2284,4 +2284,42 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-24T14:50:19.969Z
+- Summary: Documented init update latest usage and cleaned AGENTS upgrade leftovers
+- Changed files: `README.md`, `src/core/templateInstaller.ts`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/init.test.js; npm test; npm run release:check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Documented init update latest usage and cleaned AGENTS upgrade leftovers",
+  "files": [
+    "README.md",
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/init.test.js; npm test; npm run release:check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T14:50:19.969Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T14:50:19.969Z",
+  "summary": "Documented init update latest usage and cleaned AGENTS upgrade leftovers",
+  "files": [
+    "README.md",
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": "npm run build; node --test tests/init.test.js; npm test; npm run release:check",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -239,6 +239,52 @@ test("init --update preserves manual AGENTS sections and refreshes outdated RCC 
   }
 });
 
+test("init --update removes orphaned legacy RCC helper lines around refreshed AGENTS workflow", async () => {
+  const tempDir = await createTempRepo();
+  const agentsPath = path.join(tempDir, "AGENTS.md");
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", [
+      "# AGENTS.md",
+      "",
+      "Read this first.",
+      "",
+      "After meaningful changes, run tests and record:",
+      "  `rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`",
+      "",
+      "## Local RCC Development",
+      "",
+      "- Use `doctor` for local/global RCC confusion.",
+      "- Use `measure` for token-saving estimates.",
+      "",
+      "<!-- repo-context-center:workflow:start -->",
+      "old workflow",
+      "<!-- repo-context-center:workflow:end -->",
+      "",
+      "- Read `docs/ai-context/HANDOFF.md` if present.",
+      "",
+      "Keep this project-specific guidance.",
+      ""
+    ].join("\n"));
+
+    const result = runInit(tempDir, ["--update"]);
+    const content = await readFile(agentsPath, "utf8");
+
+    assert.equal(result.status, 0);
+    assert.equal(workflowSection(content), expectedWorkflowSection);
+    assert.match(content, /Keep this project-specific guidance\./);
+    assert.equal(countOccurrences(content, "rcc done --summary \"<summary>\" --files auto --verify \"<checks>\""), 1);
+    assert.equal(countOccurrences(content, "Read `docs/ai-context/HANDOFF.md` if present."), 1);
+    assert.doesNotMatch(content, /^After meaningful changes, run tests and record:$/m);
+    assert.doesNotMatch(content, /^- Use `doctor` for local\/global RCC confusion\.$/m);
+    assert.doesNotMatch(content, /^- Use `measure` for token-saving estimates\.$/m);
+    assert.match(content, /Use `rcc doctor` for local\/global RCC confusion\./);
+    assert.match(content, /Use `rcc measure "<task>"` for token-saving estimates\./);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("init creates AGENTS.md if missing", async () => {
   const tempDir = await createTempRepo();
 
