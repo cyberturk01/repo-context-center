@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Added negative coverage for done handoff file path injection and verbose agent JSON boundaries
 - Added Guardian coverage tests for scripts and security-sensitive agent/done output
 - Implemented learning quality guards for repository memory
 - Added routing evaluation matrix for route quality and compactness
 - Added release and install reliability guards
 - Added JSON and agent output contract stability tests
 - Added fixture-driven routing regression suite and benchmark checks
-- Removed package self-dependency that broke npm ci
 
 ## Hot Files
 
@@ -20,10 +20,10 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | ---- | ------ | ------------ |
 | `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
 | `src/cli/handoff/buildHandoffBrief.ts` | 15 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
-| `src/cli/commands/done.ts` | 13 touches; Added Guardian coverage tests for scripts and security-sensitive agent/done output | 2026-06-24 |
+| `src/cli/commands/done.ts` | 14 touches; Added negative coverage for done handoff file path injection and verbose agent JSON boundaries | 2026-06-24 |
+| `tests/done.test.js` | 13 touches; Added negative coverage for done handoff file path injection and verbose agent JSON boundaries | 2026-06-24 |
 | `tests/work.test.js` | 13 touches; Added JSON and agent output contract stability tests | 2026-06-22 |
 | `src/cli/handoff/handoffTypes.ts` | 13 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
-| `tests/done.test.js` | 12 touches; Added Guardian coverage tests for scripts and security-sensitive agent/done output | 2026-06-24 |
 | `src/cli/handoff/renderAgent.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/handoff/renderJson.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/work/renderAgent.ts` | 9 touches; Added JSON and agent output contract stability tests | 2026-06-22 |
@@ -33,7 +33,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Handoff | 23 | Deduplicate handoff Work index memory against Last completed |
+| Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Work routing | 15 | Added routing evaluation matrix for route quality and compactness |
 | General maintenance | 6 | Added release and install reliability guards |
 | Repository context | 6 | Updated README with Repository Learning and learn command documentation |
@@ -44,7 +44,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (37)
+- `npm run build` (38)
 - `npm test` (26)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)

@@ -157,6 +157,12 @@ function compactList(value: string): string[] {
   return cleaned ? [cleaned] : [];
 }
 
+function cleanFileList(files: string[]): string[] {
+  return files
+    .map((file) => cleanInline(file, 500))
+    .filter(Boolean);
+}
+
 function handoffBlockJson(options: DoneOptions, files: string[], timestamp: string): string {
   return JSON.stringify({
     schemaVersion: 1,
@@ -340,11 +346,12 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
     return 1;
   }
 
-  const files = options.fileMode === "none"
+  const detectedFiles = options.fileMode === "none"
     ? []
     : options.fileMode === "manual"
       ? options.files
       : detectChangedFiles(io.cwd);
+  const files = cleanFileList(detectedFiles);
   const targetPath = path.join(io.cwd, workLogPath);
   const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : defaultContent();
   const nextContent = appendEntry(existing, formatEntry(options, files));

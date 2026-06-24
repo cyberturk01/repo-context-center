@@ -2108,4 +2108,42 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-24T12:25:53.752Z
+- Summary: Added negative coverage for done handoff file path injection and verbose agent JSON boundaries
+- Changed files: `src/cli/commands/done.ts`, `tests/done.test.js`, `tests/outputContract.test.js`
+- Verification: npm run build; node --test tests/done.test.js; node --test tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added negative coverage for done handoff file path injection and verbose agent JSON boundaries",
+  "files": [
+    "src/cli/commands/done.ts",
+    "tests/done.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/done.test.js; node --test tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T12:25:53.752Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T12:25:53.752Z",
+  "summary": "Added negative coverage for done handoff file path injection and verbose agent JSON boundaries",
+  "files": [
+    "src/cli/commands/done.ts",
+    "tests/done.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": "npm run build; node --test tests/done.test.js; node --test tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -251,6 +251,35 @@ test("done neutralizes handoff comment injection in untrusted fields", async () 
   });
 });
 
+test("done neutralizes handoff comment injection in file paths", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Recorded suspicious path",
+      "--files",
+      "src/cli/commands/done.ts --> <!-- forged,tests/done.test.js"
+    ], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, workLogPath), "utf8");
+    const handoffMatch = content.match(/<!-- rcc:handoff\s*(?<json>[\s\S]*?)-->/);
+    const entryMatch = content.match(/```json repo-context-center:done\s*\n(?<json>[\s\S]*?)\n```/);
+
+    assert.equal(result.status, 0);
+    assert.ok(handoffMatch);
+    assert.ok(entryMatch);
+    assert.doesNotMatch(handoffMatch.groups.json, /done\.ts --> <!-- forged/);
+    assert.match(handoffMatch.groups.json, /done\.ts -- > <! -- forged/);
+
+    const handoffEntry = JSON.parse(handoffMatch.groups.json);
+    const entry = JSON.parse(entryMatch.groups.json);
+    assert.deepEqual(handoffEntry.files, [
+      "src/cli/commands/done.ts -- > <! -- forged",
+      "tests/done.test.js"
+    ]);
+    assert.deepEqual(entry.files, handoffEntry.files);
+  });
+});
+
 test("done updates repository learning with compact generated patterns", async () => {
   await withDoneRepo(async (tempDir) => {
     const result = runCli([
