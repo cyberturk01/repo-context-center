@@ -1,6 +1,6 @@
 {
   "name": "repo-context-center",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "description": "A ContextOps toolkit for AI coding agents.",
   "keywords": [
     "ai",
@@ -42,7 +42,9 @@
     "build": "tsc -p tsconfig.json && node scripts/copy-templates.js",
     "lint": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "npm run build && npm test",
-    "test": "npm run build && node --test tests/*.test.js",
+    "release:check": "node scripts/release-check.js",
+    "smoke:pack-install": "node scripts/smoke-pack-install.js",
+    "test": "npm run build && node --test tests/*.test.js tests/scripts/*.test.js",
     "test:cli": "npm run build && node --test tests/cli.test.js tests/work.test.js tests/done.test.js tests/v07-release.test.js"
   },
   "devDependencies": {

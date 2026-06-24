@@ -63,16 +63,29 @@ const termRegistry: Record<TermGroup, readonly string[]> = {
     "auth",
     "ci",
     "config",
+    "contract",
+    "contracts",
+    "decision",
+    "decisions",
     "deploy",
     "deployment",
+    "evidence",
     "github",
     "hotspot",
+    "json",
+    "markdown",
+    "output",
     "package",
+    "qa",
     "release",
+    "report",
+    "reports",
+    "sarif",
     "risk",
     "risks",
     "role",
     "security",
+    "severity",
     "test",
     "workflow",
     "workflows"
@@ -88,6 +101,7 @@ const termRegistry: Record<TermGroup, readonly string[]> = {
     "defect",
     "find",
     "fix",
+    "for",
     "improve",
     "inspect",
     "investigate",
@@ -103,6 +117,12 @@ const termRegistry: Record<TermGroup, readonly string[]> = {
     "task",
     "update",
     "instructions",
+    "guardian",
+    "hardening",
+    "phase",
+    "prepare",
+    "project",
+    "release",
     "bul",
     "ilgili",
     "ihtimal",
@@ -172,9 +192,14 @@ const expansions = {
     ["deployment", ["deploy"]],
     ["github", ["actions", "workflow", "workflows"]],
     ["hotspot", ["risk", "risks"]],
-    ["release", ["workflow", "workflows"]],
+    ["markdown", ["report", "reports", "output"]],
+    ["qa", ["evidence", "test", "analyzer"]],
+    ["report", ["reports", "output"]],
+    ["reports", ["report", "output"]],
     ["risk", ["risks", "hotspot"]],
     ["risks", ["risk", "hotspot"]],
+    ["sarif", ["report", "reports", "output"]],
+    ["severity", ["decision", "decisions"]],
     ["workflow", ["workflows"]],
     ["workflows", ["workflow"]]
   ])
@@ -231,6 +256,21 @@ const workflowDomainTerms = new Set([
   "release",
   "workflow",
   "workflows"
+]);
+const outputContractTerms = new Set([
+  "analyzer",
+  "contract",
+  "contracts",
+  "decision",
+  "decisions",
+  "evidence",
+  "json",
+  "markdown",
+  "qa",
+  "report",
+  "reports",
+  "sarif",
+  "severity"
 ]);
 const documentationTerms = new Set([
   "copy",
@@ -299,10 +339,16 @@ export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
   const rawLookupTokens = rawTokens.filter((token) => token.length > 2 || domainTerms.has(token));
   const shouldFallbackToGenericTerms = rawLookupTokens.length > 0
     && rawLookupTokens.every((token) => genericLookupStopTerms.has(token));
-  const lookupTerms = prioritizeRoutingImplementationTerms(filterGenericLookupTerms(
+  const routingPrioritizedTerms = prioritizeRoutingImplementationTerms(filterGenericLookupTerms(
     lookupCandidates,
     shouldFallbackToGenericTerms ? genericFallbackTerms : []
   ), hasRoutingImplementationIntent);
+  const commandPrioritizedTerms = isExplicitCommandTask
+    ? prioritizeExplicitCommandContextTerms(routingPrioritizedTerms)
+    : routingPrioritizedTerms;
+  const lookupTerms = shouldPrioritizeOutputContractTerms(commandPrioritizedTerms)
+    ? prioritizeOutputContractTerms(commandPrioritizedTerms)
+    : commandPrioritizedTerms;
 
   return {
     normalizedTask,
@@ -329,6 +375,9 @@ export function termWeight(term: string): number {
   }
   if (actionTerms.has(term)) {
     return 0.25;
+  }
+  if (outputContractTerms.has(term)) {
+    return 1.55;
   }
   if (domainTerms.has(term)) {
     return 1.35;
@@ -457,4 +506,48 @@ function prioritizeRoutingImplementationTerms(terms: string[], enabled: boolean)
   const remainingTerms = terms.filter((term) => !routingImplementationTerms.has(term));
 
   return [...new Set([...implementationTerms, ...remainingTerms])];
+}
+
+function prioritizeOutputContractTerms(terms: string[]): string[] {
+  const priority = [
+    "qa",
+    "evidence",
+    "json",
+    "markdown",
+    "sarif",
+    "report",
+    "reports",
+    "analyzer",
+    "severity",
+    "decision",
+    "decisions",
+    "contract",
+    "contracts"
+  ];
+  const outputTerms = priority.filter((term) => terms.includes(term));
+  const remainingTerms = terms.filter((term) => !outputContractTerms.has(term));
+
+  return [...new Set([...outputTerms, ...remainingTerms])];
+}
+
+function shouldPrioritizeOutputContractTerms(terms: string[]): boolean {
+  return terms.some((term) => [
+    "contract",
+    "contracts",
+    "evidence",
+    "markdown",
+    "qa",
+    "report",
+    "reports",
+    "sarif",
+    "severity"
+  ].includes(term));
+}
+
+function prioritizeExplicitCommandContextTerms(terms: string[]): string[] {
+  const outputTerms = new Set(["json", "output"]);
+  const commandContextTerms = terms.filter((term) => !outputTerms.has(term));
+  const remainingTerms = terms.filter((term) => outputTerms.has(term));
+
+  return [...new Set([...commandContextTerms, ...remainingTerms])];
 }

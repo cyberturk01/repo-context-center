@@ -58,7 +58,7 @@ Agent workflow:
 
 Commands:
   init      Install generic context templates and config
-            Options: --dry-run, --force, --github-action
+            Options: --update, --dry-run, --force, --github-action
   validate  Validate required context files and warnings
             Options: --strict
   archive   Archive older CHANGE_LOG and LESSONS_LEARNED entries
@@ -91,6 +91,7 @@ Commands:
             Usage: suggest "<task>" [--json] [--symbols] [--max-files <number>]
 
 Options:
+  --version  Show version
   -h, --help  Show this help
 `;
 
@@ -102,6 +103,15 @@ function defaultIO(): CliIO {
   };
 }
 
+function packageVersion(): string {
+  try {
+    const packageJson = require("../../package.json") as { version?: string };
+    return packageJson.version ?? "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
 export function getHelpText(): string {
   return helpText;
 }
@@ -111,6 +121,11 @@ export async function run(argv = process.argv.slice(2), io = defaultIO()): Promi
 
   if (!command || command === "--help" || command === "-h") {
     io.stdout(helpText);
+    return 0;
+  }
+
+  if (command === "--version" || command === "-v") {
+    io.stdout(`${packageVersion()}\n`);
     return 0;
   }
 

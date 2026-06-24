@@ -10,6 +10,9 @@ const expectedBenchmarkFiles = [
   "scripts/benchmark-routing.js",
   "scripts/benchmark-work-repeat.js"
 ];
+const expectedBenchmarkFixtures = [
+  "tests/fixtures/routing-cases.json"
+];
 
 async function readPackageJson() {
   return JSON.parse(await readFile(packageJsonPath, "utf8"));
@@ -21,7 +24,7 @@ function scriptTarget(scriptCommand) {
 }
 
 test("benchmark helper scripts exist", async () => {
-  for (const file of expectedBenchmarkFiles) {
+  for (const file of [...expectedBenchmarkFiles, ...expectedBenchmarkFixtures]) {
     const fileStat = await stat(path.join(repoRoot, file));
     assert.equal(fileStat.isFile(), true, file);
   }

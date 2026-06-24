@@ -1,5 +1,6 @@
 import path from "node:path";
 import { pathExists, readTextFile } from "./fileSystem";
+import { evaluateLearningQuality } from "./learningQuality";
 import { classifyRepoFile } from "./repoFileClassifier";
 import { parseWorkMemoryEntries, type WorkMemoryEntry } from "./workMemory";
 
@@ -34,6 +35,10 @@ export interface RepositoryLearningSources {
   decisions?: string;
   workIndex?: string;
   workLog?: string;
+}
+
+export interface RepositoryLearningBuildOptions {
+  includeLowSignal?: boolean;
 }
 
 export const repositoryLearningLimits = {
@@ -375,11 +380,22 @@ function repositoryHabits(entries: WorkMemoryEntry[], decisions: string[][]): st
 
 export function buildRepositoryLearningModelFromEntries(
   entries: WorkMemoryEntry[],
-  options: { decisions?: string } = {}
+  options: { decisions?: string; includeLowSignal?: boolean } = {}
 ): RepositoryLearningModel {
   const sorted = [...entries]
     .map((entry) => ({ ...entry, files: filteredFiles(entry.files) }))
-    .filter((entry) => entry.summary.trim() && entry.timestamp.trim())
+    .filter((entry) => {
+      if (!entry.summary.trim() || !entry.timestamp.trim()) {
+        return false;
+      }
+
+      const quality = evaluateLearningQuality(entry);
+      if (quality.shouldLearn || options.includeLowSignal) {
+        return true;
+      }
+
+      return false;
+    })
     .sort((left, right) => right.timestamp.localeCompare(left.timestamp));
   const decisions = decisionRows(options.decisions);
 
@@ -392,11 +408,14 @@ export function buildRepositoryLearningModelFromEntries(
   };
 }
 
-export function buildRepositoryLearningModel(sources: RepositoryLearningSources): RepositoryLearningModel {
+export function buildRepositoryLearningModel(
+  sources: RepositoryLearningSources,
+  options: RepositoryLearningBuildOptions = {}
+): RepositoryLearningModel {
   const entries = workLogEntries(sources.workLog);
   return buildRepositoryLearningModelFromEntries(
     entries.length > 0 ? entries : workIndexFallbackEntries(sources.workIndex),
-    { decisions: sources.decisions }
+    { decisions: sources.decisions, includeLowSignal: options.includeLowSignal }
   );
 }
 

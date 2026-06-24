@@ -103,6 +103,18 @@ test("workflow-domain detection includes expanded CI and release signals", () =>
   assert.equal(analyzeTaskIntent("fix login bug").hasWorkflowDomain, false);
 });
 
+test("release hardening output tasks prioritize report contract terms over broad product words", () => {
+  const intent = analyzeTaskIntent("Prepare AI Project Guardian v0.1.5 release hardening for Phase 7C QA evidence JSON Markdown SARIF output");
+
+  assert.equal(intent.hasReleaseIntent, true);
+  assert.equal(intent.hasCiWorkflowIntent, false);
+  assert.deepEqual(intent.lookupTerms.slice(0, 6), ["qa", "evidence", "json", "markdown", "sarif", "report"]);
+  assert.ok(!intent.lookupTerms.includes("guardian"));
+  assert.ok(!intent.lookupTerms.includes("project"));
+  assert.ok(!intent.lookupTerms.includes("release"));
+  assert.equal(intent.nextLookupKeyword, "qa");
+});
+
 test("routing implementation intent overrides workflow CI intent", () => {
   const turkishIntent = analyzeTaskIntent("workflow tasklari icin turkce routing duzelt");
   const englishIntent = analyzeTaskIntent("fix Turkish task routing for workflow tasks");

@@ -12,6 +12,7 @@ import {
 export interface RefreshWorkMemoryArtifactsOptions {
   dryRun?: boolean;
   archivedWorkLogContent?: string;
+  includeLowSignalLearning?: boolean;
   updateRepositoryLearning?: boolean;
   workLogContent?: string;
 }
@@ -45,6 +46,8 @@ export async function refreshWorkMemoryArtifacts(
     existingLearning,
     buildRepositoryLearningModel({
       workLog: contents.join("\n\n")
+    }, {
+      includeLowSignal: options.includeLowSignalLearning
     })
   ));
 

@@ -1,60 +1,39 @@
 #!/usr/bin/env node
 
 const { spawnSync } = require("node:child_process");
+const { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
+const {
+  evaluateRoutingCase
+} = require("../tests/helpers/routingEvaluation");
 
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
+const fixturePath = path.join(repoRoot, "tests", "fixtures", "routing-cases.json");
 
-const cases = [
-  {
-    task: "fix workflow risk detection",
-    expectedTaskFiles: [
-      ".github/workflows/ai-project-guardian.yml",
-      ".github/workflows/ci.yml",
-      "package.json"
-    ],
-    expectedTests: ["tests/decision.test.js"]
-  },
-  {
-    task: "improve rcc work output assembly",
-    expectedTaskFiles: ["src/cli/commands/work.ts"],
-    expectedTests: ["tests/work.test.js"]
-  },
-  {
-    task: "fix Turkish task routing for workflow tasks",
-    expectedTaskFiles: [
-      "src/cli/work/taskFileRecommendations.ts",
-      "src/core/taskIntent.ts"
-    ],
-    expectedTests: ["tests/taskIntent.test.js", "tests/work.test.js"]
-  },
-  {
-    task: "add token measurement mode",
-    expectedTaskFiles: [
-      "src/cli/commands/measure.ts",
-      "src/core/tokenEstimator.ts",
-    ],
-    expectedTests: ["tests/estimate.test.js"]
-  },
-  {
-    task: "improve local vs global rcc warning",
-    expectedTaskFiles: [
-      "src/cli/commands/doctor.ts",
-      "src/cli/index.ts"
-    ],
-    expectedTests: ["tests/cli.test.js"]
+const cases = JSON.parse(readFileSync(fixturePath, "utf8"));
+
+function writeCaseRepo(files) {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "repo-context-center-routing-case-"));
+
+  for (const [filePath, content] of Object.entries(files ?? {})) {
+    const fullPath = path.join(tempDir, filePath);
+    mkdirSync(path.dirname(fullPath), { recursive: true });
+    writeFileSync(fullPath, content, "utf8");
   }
-];
 
-function runWork(task) {
+  return tempDir;
+}
+
+function runWork(task, cwd = repoRoot) {
   const result = spawnSync(process.execPath, [
     cliPath,
     "work",
     task,
-    "--json"
+    "--agent"
   ], {
-    cwd: repoRoot,
+    cwd,
     encoding: "utf8"
   });
 
@@ -77,34 +56,38 @@ function runWork(task) {
   }
 }
 
-function pathsFrom(items) {
-  return new Set((items ?? []).map((item) => item.path).filter(Boolean));
+function failuresFor(brief, benchmarkCase) {
+  return evaluateRoutingCase(brief, benchmarkCase).failures;
 }
 
 function statusFor(brief, benchmarkCase) {
-  const taskFiles = pathsFrom(brief.taskFiles);
-  const tests = pathsFrom(brief.tests);
-  const hasExpectedSources = benchmarkCase.expectedTaskFiles.every((file) => taskFiles.has(file));
-  const hasExpectedTests = benchmarkCase.expectedTests.every((file) => tests.has(file));
-
-  if (!hasExpectedSources) {
-    return "fail";
-  }
-
-  return hasExpectedTests ? "pass" : "warn";
+  return failuresFor(brief, benchmarkCase).length === 0 ? "pass" : "fail";
 }
 
 function rowFor(benchmarkCase) {
-  const brief = runWork(benchmarkCase.task);
+  const tempDir = benchmarkCase.files ? writeCaseRepo(benchmarkCase.files) : null;
 
-  return {
-    task: benchmarkCase.task,
-    firstTaskFile: brief.taskFiles?.[0]?.path ?? "-",
-    taskFilesCount: brief.taskFiles?.length ?? 0,
-    testsCount: brief.tests?.length ?? 0,
-    briefTokens: brief.tokens?.jsonEstimate ?? "-",
-    status: statusFor(brief, benchmarkCase)
-  };
+  try {
+    const brief = runWork(benchmarkCase.task, tempDir ?? repoRoot);
+    const failures = failuresFor(brief, benchmarkCase);
+
+    return {
+      name: benchmarkCase.name,
+      task: benchmarkCase.task,
+      firstPrimaryFile: brief.primaryFiles?.[0] ?? "-",
+      primaryCount: brief.primaryFiles?.length ?? 0,
+      supportingCount: brief.supportingFiles?.length ?? 0,
+      testsCount: brief.tests?.length ?? 0,
+      readFirstCount: brief.readFirst?.length ?? 0,
+      briefTokens: brief.briefTokens ?? "-",
+      status: statusFor(brief, benchmarkCase),
+      details: failures.length > 0 ? failures.join("; ") : "-"
+    };
+  } finally {
+    if (tempDir) {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  }
 }
 
 function pad(value, width) {
@@ -112,8 +95,8 @@ function pad(value, width) {
 }
 
 function printTable(rows) {
-  const headers = ["Task", "First task file", "Task files count", "Tests count", "Brief tokens", "Status"];
-  const fields = ["task", "firstTaskFile", "taskFilesCount", "testsCount", "briefTokens", "status"];
+  const headers = ["Case", "First primary file", "Primary", "Supporting", "Tests", "ReadFirst", "Brief tokens", "Status", "Details"];
+  const fields = ["name", "firstPrimaryFile", "primaryCount", "supportingCount", "testsCount", "readFirstCount", "briefTokens", "status", "details"];
   const widths = headers.map((header, index) => Math.max(
     header.length,
     ...rows.map((row) => String(row[fields[index]]).length)
@@ -127,5 +110,21 @@ function printTable(rows) {
   }
 }
 
-const rows = cases.map(rowFor);
-printTable(rows);
+function main() {
+  const rows = cases.map(rowFor);
+  printTable(rows);
+
+  if (rows.some((row) => row.status === "fail")) {
+    process.exitCode = 1;
+  }
+}
+
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  failuresFor,
+  pad,
+  statusFor
+};

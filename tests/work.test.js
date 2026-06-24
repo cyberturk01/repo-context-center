@@ -518,6 +518,67 @@ async function withWorkflowRoutingImplementationRepo(callback) {
   }
 }
 
+async function withGuardianStyleReleaseHardeningRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-guardian-release-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- QA evidence, report output, JSON, Markdown, SARIF, severity, and decision support: read `src/analyzers/qaAnalyzer.ts`, `src/reporters/markdownReport.ts`, `src/reporters/sarifReport.ts`, `src/reporters/jsonReport.ts`, and `src/core/reportDecisionSupport.ts`.",
+        "- GitHub Actions workflow work: read `.github/workflows/release.yml` and `package.json`."
+      ].join("\n")
+    );
+    await writeFixtureFile(
+      tempDir,
+      "package.json",
+      "{\"name\":\"ai-project-guardian\",\"description\":\"Guardian project release hardening workflow config package metadata\",\"scripts\":{\"release\":\"node scripts/release.js\"}}\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      ".github/workflows/release.yml",
+      "name: Guardian release workflow\non: [push]\njobs:\n  release:\n    steps:\n      - run: npm test\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "src/analyzers/qaAnalyzer.ts",
+      "export function analyzeQaEvidence() { return ['qa evidence', 'test adequacy', 'severity downgrade']; }\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "src/reporters/markdownReport.ts",
+      "export function renderMarkdownReport() { return 'markdown report output with QA evidence fields'; }\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "src/reporters/sarifReport.ts",
+      "export function renderSarifReport() { return { sarif: true, severity: 'warning' }; }\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "src/reporters/jsonReport.ts",
+      "export function renderJsonReport() { return { evidence: [], output: 'json' }; }\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "src/core/reportDecisionSupport.ts",
+      "export function decideReportSeverity() { return 'severity downgrade decision support'; }\n"
+    );
+    await writeFixtureFile(tempDir, "src/config/releaseConfig.ts", "export const releaseWorkflowConfig = true;\n");
+    await writeFixtureFile(tempDir, "tests/analyzers/qaAnalyzer.test.ts", "test('qa evidence severity downgrade', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/reporters/reportOutput.test.ts", "test('json markdown sarif report output contract', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/regression/oldWording.test.ts", "test('old wording regression', () => {});\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function withHandoffSupportingRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-handoff-supporting-"));
 
@@ -840,7 +901,7 @@ test("work --agent prints valid compact JSON only", async () => {
     assert.deepEqual(route.supportingFiles, []);
     assert.deepEqual(route.tests, ["tests/auth/login.test.ts"]);
     assert.ok(route.readFirst.includes("AGENTS.md"));
-    assert.equal(route.next, "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration.");
+    assert.equal(route.next, "Small task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration. Do not rerun rcc work for this task.");
     assert.doesNotMatch(route.next, /\bworkfor\b/);
     assert.equal(typeof route.briefTokens, "number");
     assert.doesNotMatch(result.stdout, /```|repo-context-center work brief|Primary files:/);
@@ -883,7 +944,7 @@ test("work --agent marks tiny tasks as fast fixes with lightweight guidance", as
     assert.equal(result.status, 0);
     assert.equal(route.taskSize, "tiny");
     assert.equal(route.mode, "fast_fix");
-    assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong.");
+    assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong. Do not rerun rcc work for this task.");
   });
 });
 
@@ -898,7 +959,7 @@ test("work --agent tiny guidance keeps word spacing stable", async () => {
 
       assert.equal(result.status, 0, task);
       assert.equal(route.taskSize, "tiny", task);
-      assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong.");
+      assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong. Do not rerun rcc work for this task.");
       assert.doesNotMatch(route.next, /relevanttest/, task);
       assert.doesNotMatch(route.next, /runthe/, task);
     }
@@ -2487,6 +2548,27 @@ test("work --agent promotes package files for explicit npm release task", async 
     assert.equal(result.status, 0);
     assert.ok(route.primaryFiles.includes("package.json"), route.primaryFiles.join("\n"));
     assert.ok(route.primaryFiles.includes("CHANGELOG.md") || route.supportingFiles.includes("CHANGELOG.md"), [...route.primaryFiles, ...route.supportingFiles].join("\n"));
+  });
+});
+
+test("work --agent routes Guardian-style release hardening to report and QA output contracts", async () => {
+  await withGuardianStyleReleaseHardeningRepo(async (tempDir) => {
+    const result = runCli(["work", "Prepare AI Project Guardian v0.1.5 release hardening for Phase 7C QA evidence JSON Markdown SARIF output", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+    const inspectablePaths = [...route.primaryFiles, ...route.supportingFiles];
+
+    assert.equal(result.status, 0);
+    assert.equal(route.primaryFiles[0].startsWith(".github/workflows/"), false, route.primaryFiles.join("\n"));
+    assert.ok(inspectablePaths.includes("src/analyzers/qaAnalyzer.ts"), inspectablePaths.join("\n"));
+    assert.ok(inspectablePaths.includes("src/reporters/markdownReport.ts"), inspectablePaths.join("\n"));
+    assert.ok(inspectablePaths.includes("src/reporters/sarifReport.ts"), inspectablePaths.join("\n"));
+    assert.ok(inspectablePaths.includes("src/reporters/jsonReport.ts"), inspectablePaths.join("\n"));
+    assert.ok(inspectablePaths.includes("src/core/reportDecisionSupport.ts"), inspectablePaths.join("\n"));
+    assert.equal(route.primaryFiles.includes(".github/workflows/release.yml"), false, route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.includes("package.json"), false, route.primaryFiles.join("\n"));
+    assert.ok(route.tests.includes("tests/analyzers/qaAnalyzer.test.ts"), route.tests.join("\n"));
+    assert.ok(route.tests.includes("tests/reporters/reportOutput.test.ts"), route.tests.join("\n"));
+    assert.ok(route.briefTokens <= 190, String(route.briefTokens));
   });
 });
 

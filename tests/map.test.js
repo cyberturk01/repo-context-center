@@ -499,6 +499,44 @@ test("map --write preserves markerless AGENTS.md without adding generated startu
   });
 });
 
+test("map --write warns when existing AGENTS.md has outdated RCC guidance", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const targetPath = path.join(tempDir, "AGENTS.md");
+    const before = [
+      "# Agents",
+      "",
+      "Manual owner guidance.",
+      "",
+      "## RCC Workflow",
+      "",
+      "For coding tasks, first run once:",
+      "",
+      "`rcc work \"<task>\"`",
+      "",
+      "- Follow the brief before reading files or searching broadly.",
+      "- Use `rcc find \"<keyword>\"` for follow-up lookup.",
+      ""
+    ].join("\n");
+    await writeFile(targetPath, before, "utf8");
+
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = await readFile(targetPath, "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /AGENTS\.md appears outdated\. Run `rcc init --update` to refresh RCC agent instructions\./);
+    assert.equal(content, before);
+  });
+});
+
+test("map --write does not warn when AGENTS.md has modern RCC guidance", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--write"]);
+
+    assert.equal(result.status, 0);
+    assert.doesNotMatch(result.stdout, /AGENTS\.md appears outdated/);
+  });
+});
+
 test("TASK_ROUTING.md includes real repo files only", async () => {
   await withMappedRepo(async (tempDir) => {
     const result = runCli(tempDir, ["map", "--write"]);

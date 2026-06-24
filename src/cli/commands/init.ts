@@ -7,13 +7,15 @@ interface InitOptions {
   force: boolean;
   dryRun: boolean;
   githubAction: boolean;
+  update: boolean;
 }
 
 function parseInitOptions(args: string[]): InitOptions {
   return {
     force: args.includes("--force"),
     dryRun: args.includes("--dry-run"),
-    githubAction: args.includes("--github-action")
+    githubAction: args.includes("--github-action"),
+    update: args.includes("--update")
   };
 }
 
@@ -44,7 +46,7 @@ function formatInstallMessage(
 
 export async function initCommand(io: CliIO, args: string[] = []): Promise<number> {
   const options = parseInitOptions(args);
-  const knownFlags = new Set(["--force", "--dry-run", "--github-action"]);
+  const knownFlags = new Set(["--force", "--dry-run", "--github-action", "--update"]);
   const unknownFlag = args.find((arg) => arg.startsWith("--") && !knownFlags.has(arg));
 
   if (unknownFlag) {
@@ -61,6 +63,15 @@ export async function initCommand(io: CliIO, args: string[] = []): Promise<numbe
 
   for (const result of results) {
     io.stdout(formatInstallMessage(result, options.dryRun));
+  }
+
+  if (options.update) {
+    const agentsResult = results.find((result) => result.path === "AGENTS.md");
+    if (agentsResult?.action === "update") {
+      io.stdout("Updated RCC agent instructions in AGENTS.md while preserving manual content.\n");
+    } else if (agentsResult?.action === "skip") {
+      io.stdout("AGENTS.md already has current RCC agent instructions.\n");
+    }
   }
 
   if (options.dryRun) {

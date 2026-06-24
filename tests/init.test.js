@@ -190,6 +190,101 @@ test("init updates existing AGENTS.md without overwriting content", async () => 
   }
 });
 
+test("init --update preserves manual AGENTS sections and refreshes outdated RCC guidance", async () => {
+  const tempDir = await createTempRepo();
+  const agentsPath = path.join(tempDir, "AGENTS.md");
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", [
+      "# Project Agents",
+      "",
+      "Manual intro: keep this.",
+      "",
+      "## RCC Workflow",
+      "",
+      "For coding tasks, first run once:",
+      "",
+      "`rcc work \"<task>\"`",
+      "",
+      "- Follow the brief before reading files or searching broadly.",
+      "- Use `rcc find \"<keyword>\"` for follow-up lookup.",
+      "",
+      "## Project Rules",
+      "",
+      "Manual rule: keep this too.",
+      ""
+    ].join("\n"));
+
+    const result = runInit(tempDir, ["--update"]);
+    const content = await readFile(agentsPath, "utf8");
+    const fallbackLine = content.split("\n").find((line) => line.includes("RCC commands are unavailable")) ?? "";
+
+    assert.equal(result.status, 0);
+    assert.match(content, /Manual intro: keep this\./);
+    assert.match(content, /## Project Rules/);
+    assert.match(content, /Manual rule: keep this too\./);
+    assert.equal(workflowSection(content), expectedWorkflowSection);
+    assert.match(content, /Read `docs\/ai-context\/HANDOFF\.md` if present\./);
+    assert.match(content, /Use `rcc doctor` for local\/global RCC confusion\./);
+    assert.match(content, /Use `rcc measure "<task>"` for token-saving estimates\./);
+    assert.match(fallbackLine, /docs\/ai-context\/TASK_ROUTING\.md/);
+    assert.match(fallbackLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
+    assert.match(fallbackLine, /docs\/ai-context\/DO_NOT_READ\.md/);
+    assert.doesNotMatch(content, /`rcc work "<task>"`\n/);
+    assert.doesNotMatch(content, /Follow the brief before reading files/);
+    assert.match(result.stdout, /Updated file: AGENTS\.md/);
+    assert.match(result.stdout, /Updated RCC agent instructions in AGENTS\.md while preserving manual content\./);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init --update removes orphaned legacy RCC helper lines around refreshed AGENTS workflow", async () => {
+  const tempDir = await createTempRepo();
+  const agentsPath = path.join(tempDir, "AGENTS.md");
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", [
+      "# AGENTS.md",
+      "",
+      "Read this first.",
+      "",
+      "After meaningful changes, run tests and record:",
+      "  `rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`",
+      "",
+      "## Local RCC Development",
+      "",
+      "- Use `doctor` for local/global RCC confusion.",
+      "- Use `measure` for token-saving estimates.",
+      "",
+      "<!-- repo-context-center:workflow:start -->",
+      "old workflow",
+      "<!-- repo-context-center:workflow:end -->",
+      "",
+      "- Read `docs/ai-context/HANDOFF.md` if present.",
+      "",
+      "Keep this project-specific guidance.",
+      ""
+    ].join("\n"));
+
+    const result = runInit(tempDir, ["--update"]);
+    const content = await readFile(agentsPath, "utf8");
+
+    assert.equal(result.status, 0);
+    assert.equal(workflowSection(content), expectedWorkflowSection);
+    assert.match(content, /Keep this project-specific guidance\./);
+    assert.equal(countOccurrences(content, "rcc done --summary \"<summary>\" --files auto --verify \"<checks>\""), 1);
+    assert.equal(countOccurrences(content, "Read `docs/ai-context/HANDOFF.md` if present."), 1);
+    assert.doesNotMatch(content, /^After meaningful changes, run tests and record:$/m);
+    assert.doesNotMatch(content, /^- Use `doctor` for local\/global RCC confusion\.$/m);
+    assert.doesNotMatch(content, /^- Use `measure` for token-saving estimates\.$/m);
+    assert.match(content, /Use `rcc doctor` for local\/global RCC confusion\./);
+    assert.match(content, /Use `rcc measure "<task>"` for token-saving estimates\./);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("init creates AGENTS.md if missing", async () => {
   const tempDir = await createTempRepo();
 

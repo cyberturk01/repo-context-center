@@ -1844,4 +1844,482 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-22T21:39:15.733Z
+- Summary: Added fixture-driven routing regression suite and benchmark checks
+- Changed files: `scripts/benchmark-routing.js`, `tests/benchmark-scripts.test.js`, `tests/fixtures/routing-cases.json`, `tests/routingRegression.test.js`
+- Verification: npm run build; node --test tests/routingRegression.test.js; node --test tests/benchmark-scripts.test.js; npm run benchmark:routing; node --test tests/work.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added fixture-driven routing regression suite and benchmark checks",
+  "files": [
+    "scripts/benchmark-routing.js",
+    "tests/benchmark-scripts.test.js",
+    "tests/fixtures/routing-cases.json",
+    "tests/routingRegression.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/routingRegression.test.js; node --test tests/benchmark-scripts.test.js; npm run benchmark:routing; node --test tests/work.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-22T21:39:15.733Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-22T21:39:15.733Z",
+  "summary": "Added fixture-driven routing regression suite and benchmark checks",
+  "files": [
+    "scripts/benchmark-routing.js",
+    "tests/benchmark-scripts.test.js",
+    "tests/fixtures/routing-cases.json",
+    "tests/routingRegression.test.js"
+  ],
+  "verification": "npm run build; node --test tests/routingRegression.test.js; node --test tests/benchmark-scripts.test.js; npm run benchmark:routing; node --test tests/work.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-22T21:47:21.093Z
+- Summary: Added JSON and agent output contract stability tests
+- Changed files: `src/cli/work/renderAgent.ts`, `tests/outputContract.test.js`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/outputContract.test.js; npm test; npm run benchmark:routing; npm pack --dry-run
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added JSON and agent output contract stability tests",
+  "files": [
+    "src/cli/work/renderAgent.ts",
+    "tests/outputContract.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/outputContract.test.js; npm test; npm run benchmark:routing; npm pack --dry-run"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-22T21:47:21.093Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-22T21:47:21.093Z",
+  "summary": "Added JSON and agent output contract stability tests",
+  "files": [
+    "src/cli/work/renderAgent.ts",
+    "tests/outputContract.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/outputContract.test.js; npm test; npm run benchmark:routing; npm pack --dry-run",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-22T21:55:35.912Z
+- Summary: Added release and install reliability guards
+- Changed files: `.github/workflows/ci.yml`, `package.json`, `README.md`, `scripts/release-check.js`, `scripts/smoke-pack-install.js`, `tests/fixtures/routing-cases.json`, `tests/packageMetadata.test.js`
+- Verification: npm run build; node --test tests/packageMetadata.test.js; npm test; npm run benchmark:routing; npm pack --dry-run; npm run release:check; npm run smoke:pack-install
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added release and install reliability guards",
+  "files": [
+    ".github/workflows/ci.yml",
+    "package.json",
+    "README.md",
+    "scripts/release-check.js",
+    "scripts/smoke-pack-install.js",
+    "tests/fixtures/routing-cases.json",
+    "tests/packageMetadata.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/packageMetadata.test.js; npm test; npm run benchmark:routing; npm pack --dry-run; npm run release:check; npm run smoke:pack-install"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-22T21:55:35.912Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-22T21:55:35.912Z",
+  "summary": "Added release and install reliability guards",
+  "files": [
+    ".github/workflows/ci.yml",
+    "package.json",
+    "README.md",
+    "scripts/release-check.js",
+    "scripts/smoke-pack-install.js",
+    "tests/fixtures/routing-cases.json",
+    "tests/packageMetadata.test.js"
+  ],
+  "verification": "npm run build; node --test tests/packageMetadata.test.js; npm test; npm run benchmark:routing; npm pack --dry-run; npm run release:check; npm run smoke:pack-install",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-22T22:02:35.040Z
+- Summary: Added routing evaluation matrix for route quality and compactness
+- Changed files: `scripts/benchmark-routing.js`, `src/cli/work/taskFileRecommendations.ts`, `tests/fixtures/routing-cases.json`, `tests/helpers/routingEvaluation.js`, `tests/routingRegression.test.js`
+- Verification: npm run build; node --test tests/routingRegression.test.js; npm run benchmark:routing; npm test; npm run release:check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added routing evaluation matrix for route quality and compactness",
+  "files": [
+    "scripts/benchmark-routing.js",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/fixtures/routing-cases.json",
+    "tests/helpers/routingEvaluation.js",
+    "tests/routingRegression.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/routingRegression.test.js; npm run benchmark:routing; npm test; npm run release:check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-22T22:02:35.040Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-22T22:02:35.040Z",
+  "summary": "Added routing evaluation matrix for route quality and compactness",
+  "files": [
+    "scripts/benchmark-routing.js",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/fixtures/routing-cases.json",
+    "tests/helpers/routingEvaluation.js",
+    "tests/routingRegression.test.js"
+  ],
+  "verification": "npm run build; node --test tests/routingRegression.test.js; npm run benchmark:routing; npm test; npm run release:check",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-22T22:13:03.676Z
+- Summary: Implemented learning quality guards for repository memory
+- Changed files: `src/cli/commands/done.ts`, `src/core/learningQuality.ts`, `src/core/repositoryLearning.ts`, `src/core/workMemoryRefresh.ts`, `tests/fixtures/learning-cases.json`, `tests/fixtures/routing-cases.json`, `tests/learningQuality.test.js`
+- Verification: npm run build; node --test tests/learningQuality.test.js; npm test; npm run benchmark:routing; npm run release:check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented learning quality guards for repository memory",
+  "files": [
+    "src/cli/commands/done.ts",
+    "src/core/learningQuality.ts",
+    "src/core/repositoryLearning.ts",
+    "src/core/workMemoryRefresh.ts",
+    "tests/fixtures/learning-cases.json",
+    "tests/fixtures/routing-cases.json",
+    "tests/learningQuality.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/learningQuality.test.js; npm test; npm run benchmark:routing; npm run release:check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-22T22:13:03.676Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-22T22:13:03.676Z",
+  "summary": "Implemented learning quality guards for repository memory",
+  "files": [
+    "src/cli/commands/done.ts",
+    "src/core/learningQuality.ts",
+    "src/core/repositoryLearning.ts",
+    "src/core/workMemoryRefresh.ts",
+    "tests/fixtures/learning-cases.json",
+    "tests/fixtures/routing-cases.json",
+    "tests/learningQuality.test.js"
+  ],
+  "verification": "npm run build; node --test tests/learningQuality.test.js; npm test; npm run benchmark:routing; npm run release:check",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T12:14:43.976Z
+- Summary: Added Guardian coverage tests for scripts and security-sensitive agent/done output
+- Changed files: `package.json`, `scripts/benchmark-routing.js`, `scripts/release-check.js`, `scripts/smoke-pack-install.js`, `src/cli/commands/done.ts`, `tests/done.test.js`, `tests/outputContract.test.js`, `tests/scripts/benchmark-routing.test.js`, `tests/scripts/release-check.test.js`, `tests/scripts/smoke-pack-install.test.js`
+- Verification: npm test; npm run benchmark:routing
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added Guardian coverage tests for scripts and security-sensitive agent/done output",
+  "files": [
+    "package.json",
+    "scripts/benchmark-routing.js",
+    "scripts/release-check.js",
+    "scripts/smoke-pack-install.js",
+    "src/cli/commands/done.ts",
+    "tests/done.test.js",
+    "tests/outputContract.test.js",
+    "tests/scripts/benchmark-routing.test.js",
+    "tests/scripts/release-check.test.js",
+    "tests/scripts/smoke-pack-install.test.js"
+  ],
+  "verification": [
+    "npm test; npm run benchmark:routing"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T12:14:43.976Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T12:14:43.976Z",
+  "summary": "Added Guardian coverage tests for scripts and security-sensitive agent/done output",
+  "files": [
+    "package.json",
+    "scripts/benchmark-routing.js",
+    "scripts/release-check.js",
+    "scripts/smoke-pack-install.js",
+    "src/cli/commands/done.ts",
+    "tests/done.test.js",
+    "tests/outputContract.test.js",
+    "tests/scripts/benchmark-routing.test.js",
+    "tests/scripts/release-check.test.js",
+    "tests/scripts/smoke-pack-install.test.js"
+  ],
+  "verification": "npm test; npm run benchmark:routing",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T12:25:53.752Z
+- Summary: Added negative coverage for done handoff file path injection and verbose agent JSON boundaries
+- Changed files: `src/cli/commands/done.ts`, `tests/done.test.js`, `tests/outputContract.test.js`
+- Verification: npm run build; node --test tests/done.test.js; node --test tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added negative coverage for done handoff file path injection and verbose agent JSON boundaries",
+  "files": [
+    "src/cli/commands/done.ts",
+    "tests/done.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/done.test.js; node --test tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T12:25:53.752Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T12:25:53.752Z",
+  "summary": "Added negative coverage for done handoff file path injection and verbose agent JSON boundaries",
+  "files": [
+    "src/cli/commands/done.ts",
+    "tests/done.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": "npm run build; node --test tests/done.test.js; node --test tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T13:33:28.870Z
+- Summary: Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings
+- Changed files: `src/cli/commands/init.ts`, `src/cli/commands/map.ts`, `src/cli/index.ts`, `src/core/templateInstaller.ts`, `tests/cli.test.js`, `tests/init.test.js`, `tests/map.test.js`
+- Verification: npm run build; npm test; npm run benchmark:routing; npm run release:check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/map.ts",
+    "src/cli/index.ts",
+    "src/core/templateInstaller.ts",
+    "tests/cli.test.js",
+    "tests/init.test.js",
+    "tests/map.test.js"
+  ],
+  "verification": [
+    "npm run build; npm test; npm run benchmark:routing; npm run release:check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T13:33:28.870Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T13:33:28.870Z",
+  "summary": "Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/map.ts",
+    "src/cli/index.ts",
+    "src/core/templateInstaller.ts",
+    "tests/cli.test.js",
+    "tests/init.test.js",
+    "tests/map.test.js"
+  ],
+  "verification": "npm run build; npm test; npm run benchmark:routing; npm run release:check",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T13:38:51.114Z
+- Summary: Implemented RCC binary version alignment diagnostics in doctor with local/dependency mismatch checks and --version
+- Changed files: `scripts/smoke-pack-install.js`, `src/cli/commands/doctor.ts`, `src/cli/index.ts`, `tests/cli.test.js`
+- Verification: npm run build; npm test; npm run benchmark:routing; npm run release:check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented RCC binary version alignment diagnostics in doctor with local/dependency mismatch checks and --version",
+  "files": [
+    "scripts/smoke-pack-install.js",
+    "src/cli/commands/doctor.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js"
+  ],
+  "verification": [
+    "npm run build; npm test; npm run benchmark:routing; npm run release:check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T13:38:51.114Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T13:38:51.114Z",
+  "summary": "Implemented RCC binary version alignment diagnostics in doctor with local/dependency mismatch checks and --version",
+  "files": [
+    "scripts/smoke-pack-install.js",
+    "src/cli/commands/doctor.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js"
+  ],
+  "verification": "npm run build; npm test; npm run benchmark:routing; npm run release:check",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T13:55:00.981Z
+- Summary: Calibrated cross-repo routing for Guardian-style release hardening output-contract tasks
+- Changed files: `scripts/benchmark-routing.js`, `src/cli/work/targetedLookup.ts`, `src/cli/work/taskFileRecommendations.ts`, `src/cli/work/workConstants.ts`, `src/core/taskIntent.ts`, `tests/fixtures/routing-cases.json`, `tests/helpers/routingEvaluation.js`, `tests/routingRegression.test.js`, `tests/taskIntent.test.js`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/routingRegression.test.js; npm run benchmark:routing; npm test; npm run release:check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Calibrated cross-repo routing for Guardian-style release hardening output-contract tasks",
+  "files": [
+    "scripts/benchmark-routing.js",
+    "src/cli/work/targetedLookup.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/cli/work/workConstants.ts",
+    "src/core/taskIntent.ts",
+    "tests/fixtures/routing-cases.json",
+    "tests/helpers/routingEvaluation.js",
+    "tests/routingRegression.test.js",
+    "tests/taskIntent.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/routingRegression.test.js; npm run benchmark:routing; npm test; npm run release:check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T13:55:00.981Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T13:55:00.981Z",
+  "summary": "Calibrated cross-repo routing for Guardian-style release hardening output-contract tasks",
+  "files": [
+    "scripts/benchmark-routing.js",
+    "src/cli/work/targetedLookup.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/cli/work/workConstants.ts",
+    "src/core/taskIntent.ts",
+    "tests/fixtures/routing-cases.json",
+    "tests/helpers/routingEvaluation.js",
+    "tests/routingRegression.test.js",
+    "tests/taskIntent.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/routingRegression.test.js; npm run benchmark:routing; npm test; npm run release:check",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T14:50:19.969Z
+- Summary: Documented init update latest usage and cleaned AGENTS upgrade leftovers
+- Changed files: `README.md`, `src/core/templateInstaller.ts`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/init.test.js; npm test; npm run release:check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Documented init update latest usage and cleaned AGENTS upgrade leftovers",
+  "files": [
+    "README.md",
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/init.test.js; npm test; npm run release:check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T14:50:19.969Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T14:50:19.969Z",
+  "summary": "Documented init update latest usage and cleaned AGENTS upgrade leftovers",
+  "files": [
+    "README.md",
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": "npm run build; node --test tests/init.test.js; npm test; npm run release:check",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

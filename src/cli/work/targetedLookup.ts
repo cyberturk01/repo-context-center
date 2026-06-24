@@ -30,7 +30,11 @@ function basenameWithoutExtensions(filePath: string): string {
 }
 
 function pathParts(filePath: string): string[] {
-  return filePath.toLowerCase().split(/[/.\\_-]+/).filter(Boolean);
+  return filePath
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .toLowerCase()
+    .split(/[/.\\_\-\s]+/)
+    .filter(Boolean);
 }
 
 export function escapeRegExp(value: string): string {
@@ -114,6 +118,20 @@ function isLocalGlobalDoctorTask(taskIntent: TaskIntentAnalysis): boolean {
     /\bdoctor\b/.test(taskIntent.normalizedTask)
     && /\b(rcc|local|global|version|warning|warn|cli)\b/.test(taskIntent.normalizedTask)
   );
+}
+
+function isOutputContractLookupTask(taskIntent: TaskIntentAnalysis): boolean {
+  return taskIntent.lookupTerms.some((term) => [
+    "contract",
+    "contracts",
+    "evidence",
+    "markdown",
+    "qa",
+    "report",
+    "reports",
+    "sarif",
+    "severity"
+  ].includes(term));
 }
 
 export function shouldSuppressWeakSemanticTaskFiles(taskIntent: TaskIntentAnalysis): boolean {
@@ -706,7 +724,9 @@ export async function targetedLookupHints(cwd: string, taskIntent: TaskIntentAna
       }
 
       if (right.score !== left.score) {
-        return right.score - left.score;
+        if (!isOutputContractLookupTask(taskIntent)) {
+          return right.score - left.score;
+        }
       }
 
       const leftRole = classifyRepoFile(left.path).role;
@@ -714,6 +734,10 @@ export async function targetedLookupHints(cwd: string, taskIntent: TaskIntentAna
       const roleDelta = lookupRoleRank(leftRole, taskIntent) - lookupRoleRank(rightRole, taskIntent);
       if (roleDelta !== 0) {
         return roleDelta;
+      }
+
+      if (right.score !== left.score) {
+        return right.score - left.score;
       }
 
       return left.path.localeCompare(right.path);

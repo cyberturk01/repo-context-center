@@ -83,6 +83,12 @@ Overwrite existing context templates:
 npx repo-context-center init --force
 ```
 
+Refresh older RCC agent instructions while preserving manual AGENTS.md sections:
+
+```sh
+npx repo-context-center@latest init --update
+```
+
 ## Use the Latest Version
 
 Recommended first-run commands:
@@ -95,10 +101,12 @@ npx repo-context-center@latest work "fix workflow risk detection" --agent
 
 `npx repo-context-center@latest` runs the latest published version. After global or local installation, use either `rcc` or `repo-context-center`.
 
+If an existing repository has an older local RCC install, `npx repo-context-center ...` may run that local binary instead of the latest published package. Use `npx repo-context-center@latest init --update` or upgrade the local dependency before refreshing `AGENTS.md`.
+
 For release validation, check:
 
 ```sh
-npx repo-context-center@latest --version
+npm run release:check
 ```
 
 ## Complete Usage Guide
@@ -112,6 +120,7 @@ init -> map --write -> work -> edit/verify -> done -> handoff
 | Step | Command | When to run it | What it produces | Who uses the output |
 | --- | --- | --- | --- | --- |
 | `init` | `npx repo-context-center@latest init` | Once per repository, or when installing missing RCC context files | `AGENTS.md`, `docs/ai-context/*`, and `.repo-context-center/config.json` | Humans and agents |
+| `init --update` | `npx repo-context-center@latest init --update` | When an existing repo has older RCC-generated `AGENTS.md` guidance | Refreshed RCC agent workflow while preserving manual AGENTS.md content | Humans and agents |
 | `map --write` | `npx repo-context-center@latest map --write` | After init and after meaningful repo structure changes | Refreshed generated sections in context files | Agents, reviewers, and CI |
 | `work` | `rcc work "implement feature" --agent` | Once at task start | Compact route with primary files, tests, supporting files, and read-first rules | The active coding agent |
 | `edit/verify` | Use your editor and project checks, such as `npm test` | During implementation | Source changes and verification evidence | Humans, agents, and reviewers |
@@ -138,7 +147,7 @@ RCC does not run in the background, automatically edit source code, or automatic
 | Area | Manual action | Automatic RCC behavior |
 | --- | --- | --- |
 | `init` | Run the command when adopting RCC or adding the default CI workflow | Creates missing RCC templates and config; preserves existing manual content |
-| `map --write` | Run after structural changes | Refreshes generated sections in `AGENTS.md` and `docs/ai-context/*` |
+| `map --write` | Run after structural changes | Refreshes generated sections in `docs/ai-context/*` and warns if `AGENTS.md` needs `init --update` |
 | `work` | Run once at task start and follow the route | Reads context and repo metadata to produce a compact task route |
 | `find` | Run only when the route is insufficient | Returns focused fallback file candidates with reasons |
 | `done` | Record summary, changed files, and verification after meaningful work | Appends lightweight work memory for future handoff and routing |
@@ -269,7 +278,7 @@ The commands below support that workflow.
 
 ### Refresh Repository Maps
 
-`map --write` analyzes real files with deterministic heuristics and updates generated sections in `AGENTS.md` and `docs/ai-context/*`.
+`map --write` analyzes real files with deterministic heuristics and updates generated sections in `docs/ai-context/*`. If `AGENTS.md` appears to contain older RCC guidance, it prints a warning instead of rewriting it automatically; run `npx repo-context-center@latest init --update` to refresh agent instructions safely.
 
 ```sh
 npx repo-context-center map --write --max-files 300
@@ -284,7 +293,6 @@ Files scanned: 500
 Mode: write
 
 Updated files:
-- AGENTS.md (updated)
 - docs/ai-context/TASK_ROUTING.md (updated)
 - docs/ai-context/PROJECT_MAP.md (updated)
 - docs/ai-context/HOTSPOTS.md (updated)
@@ -529,7 +537,15 @@ If CI fails, refresh generated sections locally:
 npx repo-context-center map --write --max-files 300
 ```
 
-Then commit the updated `AGENTS.md` and `docs/ai-context/*` files.
+Then commit the updated `docs/ai-context/*` files.
+
+If the output says `AGENTS.md appears outdated`, refresh it separately:
+
+```sh
+npx repo-context-center@latest init --update
+```
+
+Commit `AGENTS.md` too when `init --update` changes it.
 
 Install the default PR validation workflow:
 
@@ -561,7 +577,6 @@ It also creates `.repo-context-center/config.json`.
 
 `repo-context-center map --write` may update generated sections in:
 
-- `AGENTS.md`
 - `docs/ai-context/TASK_ROUTING.md`
 - `docs/ai-context/MODULE_INDEX.md`
 - `docs/ai-context/PROJECT_MAP.md`
@@ -572,6 +587,8 @@ It also creates `.repo-context-center/config.json`.
 - `docs/ai-context/TOKEN_BUDGET.md`
 - `docs/ai-context/DO_NOT_READ.md`
 - `docs/ai-context/CHANGE_LOG.md`
+
+Use `repo-context-center init --update` to refresh RCC-managed agent workflow guidance in `AGENTS.md` while preserving manual sections.
 
 `repo-context-center done`, `repo-context-center archive`, and `repo-context-center learn --write` may update:
 
@@ -623,9 +640,8 @@ npm test
 This package is prepared for manual npm publishing.
 
 ```sh
-npm run build
-npm test
-npm pack
+npm run release:check
+npm publish
 ```
 
 The package publishes the compiled `dist/` output, including the generic context templates copied during build. `prepublishOnly` runs build and tests before a manual `npm publish`.

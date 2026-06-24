@@ -1,0 +1,303 @@
+[
+  {
+    "name": "tiny renderAgent wording task",
+    "task": "fix typo in renderAgent output",
+    "expect": {
+      "primaryContains": [
+        "src/cli/work/renderAgent.ts"
+      ],
+      "testsContains": [
+        "tests/handoff.test.js"
+      ],
+      "firstPrimaryFile": "src/cli/work/renderAgent.ts",
+      "requiredTaskSize": "tiny",
+      "requiredMode": "fast_fix",
+      "maxPrimaryFiles": 1,
+      "maxSupportingFiles": 0,
+      "maxTests": 1,
+      "maxReadFirst": 1,
+      "forbiddenPrimaryPrefixes": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "forbiddenSupportingPrefixes": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "maxBriefTokens": 140
+    }
+  },
+  {
+    "name": "workflow risk detection",
+    "task": "fix workflow risk detection",
+    "expect": {
+      "primaryContains": [
+        ".github/workflows/ai-project-guardian.yml",
+        ".github/workflows/ci.yml",
+        "package.json"
+      ],
+      "testsContains": [
+        "tests/decision.test.js"
+      ],
+      "firstPrimaryFile": ".github/workflows/ai-project-guardian.yml",
+      "requiredTaskSize": "medium",
+      "requiredMode": "normal",
+      "primaryNotContains": [
+        "src/cli/work/"
+      ],
+      "maxPrimaryFiles": 3,
+      "maxSupportingFiles": 0,
+      "maxTests": 2,
+      "maxReadFirst": 1,
+      "maxBriefTokens": 130
+    }
+  },
+  {
+    "name": "work output assembly",
+    "task": "improve rcc work output assembly",
+    "expect": {
+      "primaryContains": [
+        "src/cli/commands/work.ts"
+      ],
+      "supportingContains": [
+        "src/cli/work/taskFileRecommendations.ts"
+      ],
+      "testsContains": [
+        "tests/work.test.js"
+      ],
+      "firstPrimaryFile": "src/cli/commands/work.ts",
+      "requiredTaskSize": "medium",
+      "requiredMode": "normal",
+      "maxPrimaryFiles": 1,
+      "maxSupportingFiles": 5,
+      "maxTests": 3,
+      "maxReadFirst": 1,
+      "forbiddenPrimaryPrefixes": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "forbiddenSupportingPrefixes": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "maxBriefTokens": 160
+    }
+  },
+  {
+    "name": "turkish routing implementation task",
+    "task": "workflow tasklari icin turkce routing duzelt",
+    "expect": {
+      "primaryContains": [
+        "src/cli/work/taskFileRecommendations.ts",
+        "src/core/taskIntent.ts",
+        "src/cli/work/taskSize.ts"
+      ],
+      "primaryNotContains": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "testsContains": [
+        "tests/taskIntent.test.js",
+        "tests/work.test.js"
+      ],
+      "firstPrimaryFile": "src/cli/work/taskFileRecommendations.ts",
+      "requiredTaskSize": "medium",
+      "requiredMode": "normal",
+      "maxPrimaryFiles": 4,
+      "maxSupportingFiles": 0,
+      "maxTests": 7,
+      "maxReadFirst": 1,
+      "forbiddenPrimaryPrefixes": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "forbiddenSupportingPrefixes": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "maxBriefTokens": 200
+    }
+  },
+  {
+    "name": "english turkish routing implementation task",
+    "task": "fix Turkish task routing for workflow tasks",
+    "expect": {
+      "primaryContains": [
+        "src/cli/work/taskFileRecommendations.ts",
+        "src/core/taskIntent.ts"
+      ],
+      "primaryNotContains": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "testsContains": [
+        "tests/taskIntent.test.js",
+        "tests/work.test.js"
+      ],
+      "firstPrimaryFile": "src/cli/work/taskFileRecommendations.ts",
+      "requiredTaskSize": "medium",
+      "requiredMode": "normal",
+      "maxPrimaryFiles": 4,
+      "maxSupportingFiles": 0,
+      "maxTests": 7,
+      "maxReadFirst": 1,
+      "forbiddenPrimaryPrefixes": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "forbiddenSupportingPrefixes": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "maxBriefTokens": 200
+    }
+  },
+  {
+    "name": "token measurement mode",
+    "task": "add token measurement mode",
+    "expect": {
+      "primaryContains": [
+        "src/cli/commands/measure.ts",
+        "src/core/tokenEstimator.ts"
+      ],
+      "testsContains": [
+        "tests/estimate.test.js"
+      ],
+      "firstPrimaryFile": "src/cli/commands/measure.ts",
+      "requiredTaskSize": "medium",
+      "requiredMode": "normal",
+      "maxPrimaryFiles": 2,
+      "maxSupportingFiles": 0,
+      "maxTests": 1,
+      "maxReadFirst": 1,
+      "maxBriefTokens": 120
+    }
+  },
+  {
+    "name": "local global doctor warning",
+    "task": "improve local vs global rcc warning",
+    "expect": {
+      "primaryContains": [
+        "src/cli/commands/doctor.ts",
+        "src/cli/index.ts"
+      ],
+      "testsContains": [
+        "tests/cli.test.js"
+      ],
+      "firstPrimaryFile": "src/cli/commands/doctor.ts",
+      "requiredTaskSize": "medium",
+      "requiredMode": "normal",
+      "maxPrimaryFiles": 2,
+      "maxSupportingFiles": 0,
+      "maxTests": 1,
+      "maxReadFirst": 1,
+      "maxBriefTokens": 120
+    }
+  },
+  {
+    "name": "done learning update",
+    "task": "improve done repository learning update",
+    "expect": {
+      "primaryContains": [
+        "src/cli/commands/done.ts"
+      ],
+      "supportingContains": [
+        "src/core/repositoryLearning.ts",
+        "src/core/learningQuality.ts"
+      ],
+      "testsContains": [
+        "tests/done.test.js",
+        "tests/repositoryLearning.test.js"
+      ],
+      "firstPrimaryFile": "src/cli/commands/done.ts",
+      "requiredTaskSize": "medium",
+      "requiredMode": "normal",
+      "maxPrimaryFiles": 1,
+      "maxSupportingFiles": 5,
+      "maxTests": 6,
+      "maxReadFirst": 1,
+      "forbiddenPrimaryPrefixes": [
+        ".github/workflows/",
+        "docs/",
+        "README.md"
+      ],
+      "forbiddenSupportingPrefixes": [
+        ".github/workflows/",
+        "docs/",
+        "README.md"
+      ],
+      "maxBriefTokens": 190
+    }
+  },
+  {
+    "name": "readme docs typo",
+    "task": "fix typo in README",
+    "expect": {
+      "primaryContains": [
+        "README.md"
+      ],
+      "firstPrimaryFile": "README.md",
+      "requiredTaskSize": "tiny",
+      "requiredMode": "fast_fix",
+      "maxPrimaryFiles": 1,
+      "maxSupportingFiles": 0,
+      "maxTests": 1,
+      "maxReadFirst": 1,
+      "forbiddenPrimaryPrefixes": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "forbiddenSupportingPrefixes": [
+        ".github/workflows/",
+        "package.json"
+      ],
+      "maxBriefTokens": 130
+    }
+  },
+  {
+    "name": "guardian style release hardening output contracts",
+    "task": "Prepare AI Project Guardian v0.1.5 release hardening for Phase 7C QA evidence JSON Markdown SARIF output",
+    "files": {
+      "AGENTS.md": "Repo guidance\n",
+      "docs/ai-context/TASK_ROUTING.md": "# Task Routing\n\n- QA evidence, report output, JSON, Markdown, SARIF, severity, and decision support: read `src/analyzers/qaAnalyzer.ts`, `src/reporters/markdownReport.ts`, `src/reporters/sarifReport.ts`, `src/reporters/jsonReport.ts`, and `src/core/reportDecisionSupport.ts`.\n- GitHub Actions workflow work: read `.github/workflows/release.yml` and `package.json`.\n",
+      "package.json": "{\"name\":\"ai-project-guardian\",\"description\":\"Guardian project release hardening workflow config package metadata\",\"scripts\":{\"release\":\"node scripts/release.js\"}}\n",
+      ".github/workflows/release.yml": "name: Guardian release workflow\non: [push]\njobs:\n  release:\n    steps:\n      - run: npm test\n",
+      "src/analyzers/qaAnalyzer.ts": "export function analyzeQaEvidence() { return ['qa evidence', 'test adequacy', 'severity downgrade']; }\n",
+      "src/reporters/markdownReport.ts": "export function renderMarkdownReport() { return 'markdown report output with QA evidence fields'; }\n",
+      "src/reporters/sarifReport.ts": "export function renderSarifReport() { return { sarif: true, severity: 'warning' }; }\n",
+      "src/reporters/jsonReport.ts": "export function renderJsonReport() { return { evidence: [], output: 'json' }; }\n",
+      "src/core/reportDecisionSupport.ts": "export function decideReportSeverity() { return 'severity downgrade decision support'; }\n",
+      "src/config/releaseConfig.ts": "export const releaseWorkflowConfig = true;\n",
+      "tests/analyzers/qaAnalyzer.test.ts": "test('qa evidence severity downgrade', () => {});\n",
+      "tests/reporters/reportOutput.test.ts": "test('json markdown sarif report output contract', () => {});\n",
+      "tests/regression/oldWording.test.ts": "test('old wording regression', () => {});\n"
+    },
+    "expect": {
+      "primaryOrSupportingContains": [
+        "src/analyzers/qaAnalyzer.ts",
+        "src/reporters/markdownReport.ts",
+        "src/reporters/sarifReport.ts",
+        "src/reporters/jsonReport.ts",
+        "src/core/reportDecisionSupport.ts"
+      ],
+      "primaryNotContains": [
+        ".github/workflows/release.yml",
+        "package.json"
+      ],
+      "testsContains": [
+        "tests/analyzers/qaAnalyzer.test.ts",
+        "tests/reporters/reportOutput.test.ts"
+      ],
+      "requiredTaskSize": "medium",
+      "requiredMode": "normal",
+      "forbiddenPrimaryPrefixes": [
+        ".github/workflows/"
+      ],
+      "maxPrimaryFiles": 6,
+      "maxSupportingFiles": 5,
+      "maxTests": 3,
+      "maxReadFirst": 1,
+      "maxBriefTokens": 190
+    }
+  }
+]
