@@ -42,6 +42,21 @@ async function changedRepoPaths(cwd: string): Promise<string[]> {
   }
 }
 
+async function analyzedRepoRoot(cwd: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync("git", ["rev-parse", "--show-toplevel"], {
+      cwd,
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024
+    });
+    const root = stdout.trim();
+
+    return root.length > 0 ? root : cwd;
+  } catch {
+    return cwd;
+  }
+}
+
 async function pathExists(cwd: string, repoPath: string): Promise<boolean> {
   try {
     await access(path.join(cwd, repoPath));
@@ -320,11 +335,12 @@ export async function buildImpactAnalysis(
   options: { maxFiles?: number } = {}
 ): Promise<ImpactAnalysis> {
   const maxFiles = options.maxFiles ?? 50;
+  const repoRoot = await analyzedRepoRoot(cwd);
   const [brief, changedFiles] = await Promise.all([
-    buildWorkBriefForTask(cwd, task, { maxFiles }),
-    changedRepoPaths(cwd)
+    buildWorkBriefForTask(repoRoot, task, { maxFiles }),
+    changedRepoPaths(repoRoot)
   ]);
-  const pairedTests = (await Promise.all(changedSourceFiles(changedFiles).map((file) => pairedTestsForSource(cwd, file)))).flat();
+  const pairedTests = (await Promise.all(changedSourceFiles(changedFiles).map((file) => pairedTestsForSource(repoRoot, file)))).flat();
   const changedFilesWithReasons = changedImpactFiles(changedFiles);
   const routeFiles = routeImpactFiles(brief);
   const routeTests = routeImpactTests(brief);

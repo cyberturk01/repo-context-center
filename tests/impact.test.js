@@ -140,6 +140,36 @@ test("impact includes git working-tree changes and paired tests", async () => {
   });
 });
 
+test("impact paths are relative to analyzed repo root from nested cwd", async () => {
+  await withImpactRepo(async (cwd) => {
+    runGit(["init"], cwd);
+    runGit(["config", "user.email", "test@example.com"], cwd);
+    runGit(["config", "user.name", "Test User"], cwd);
+    runGit(["add", "."], cwd);
+    runGit(["commit", "-m", "initial"], cwd);
+
+    await writeFixtureFile(cwd, "src/auth/login.ts", "export function login() { return false; }\n");
+    await mkdir(path.join(cwd, "packages", "app"), { recursive: true });
+
+    const result = runCli(["impact", "fix login regression", "--json"], { cwd: path.join(cwd, "packages", "app") });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const analysis = JSON.parse(result.stdout);
+    const outputPaths = [
+      ...analysis.changedFiles.map((file) => file.path),
+      ...analysis.affectedFiles.map((file) => file.path),
+      ...analysis.affectedTests.map((file) => file.path)
+    ];
+
+    assert.ok(outputPaths.includes("src/auth/login.ts"));
+    assert.ok(outputPaths.includes("tests/auth/login.test.js"));
+    assert.equal(outputPaths.some((file) => file.startsWith("packages/app/")), false);
+    assert.equal(outputPaths.some((file) => path.isAbsolute(file)), false);
+    assert.ok(analysis.suggestedCommands.some((item) => item.command === "node --test tests/auth/login.test.js"));
+  });
+});
+
 test("impact filters weak semantic source matches from affected files", () => {
   const result = runCli(["impact", "change report output contract", "--json"]);
 

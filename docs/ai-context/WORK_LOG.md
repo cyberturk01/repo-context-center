@@ -2652,4 +2652,40 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-24T21:22:53.153Z
+- Summary: Fixed impact paths to resolve against analyzed Git repo root
+- Changed files: `src/cli/impact/buildImpact.ts`, `tests/impact.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed impact paths to resolve against analyzed Git repo root",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T21:22:53.153Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T21:22:53.153Z",
+  "summary": "Fixed impact paths to resolve against analyzed Git repo root",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
