@@ -13,6 +13,9 @@ export interface ImpactFile {
 
 export interface ImpactCommand {
   command: string;
+  type: "test" | "build" | "verification";
+  scope: "focused" | "project";
+  confidence: "high" | "medium" | "low";
   reason: string;
 }
 

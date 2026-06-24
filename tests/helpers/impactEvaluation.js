@@ -36,6 +36,20 @@ function entriesWithoutReason(items) {
     .map((item) => item.path ?? item.command ?? JSON.stringify(item));
 }
 
+function commandsWithInvalidMetadata(commands) {
+  const validTypes = new Set(["test", "build", "verification"]);
+  const validScopes = new Set(["focused", "project"]);
+  const validConfidence = new Set(["high", "medium", "low"]);
+
+  return valuesFrom(commands)
+    .filter((item) => (
+      !validTypes.has(item.type)
+      || !validScopes.has(item.scope)
+      || !validConfidence.has(item.confidence)
+    ))
+    .map((item) => item.command ?? JSON.stringify(item));
+}
+
 function impactSnapshot(analysis) {
   return {
     basis: analysis.basis,
@@ -92,6 +106,10 @@ function evaluateImpactCase(analysis, impactCase) {
     for (const item of entriesWithoutReason(items)) {
       failures.push(`${label} item has no reason: ${item}`);
     }
+  }
+
+  for (const command of commandsWithInvalidMetadata(analysis.suggestedCommands)) {
+    failures.push(`suggested command has invalid metadata: ${command}`);
   }
 
   return {

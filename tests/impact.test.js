@@ -71,7 +71,11 @@ test("impact --json returns task-based affected files and commands", async () =>
     assert.deepEqual(analysis.changedFiles, []);
     assert.ok(analysis.affectedFiles.some((file) => file.path === "src/auth/login.ts"));
     assert.ok(analysis.affectedTests.some((file) => file.path === "tests/auth/login.test.js"));
-    assert.ok(analysis.suggestedCommands.some((item) => item.command.includes("tests/auth/login.test.js")));
+    const testCommand = analysis.suggestedCommands.find((item) => item.command.includes("tests/auth/login.test.js"));
+    assert.ok(testCommand);
+    assert.equal(testCommand.type, "test");
+    assert.equal(testCommand.scope, "focused");
+    assert.equal(testCommand.confidence, "high");
   });
 });
 
@@ -95,7 +99,12 @@ test("impact includes git working-tree changes and paired tests", async () => {
     assert.ok(analysis.changedFiles.some((file) => file.path === "src/auth/login.ts"));
     assert.ok(analysis.affectedFiles.some((file) => file.path === "src/auth/login.ts"));
     assert.ok(analysis.affectedTests.some((file) => file.path === "tests/auth/login.test.js"));
-    assert.ok(analysis.suggestedCommands.some((item) => item.command === "node --test tests/auth/login.test.js"));
+    assert.ok(analysis.suggestedCommands.some((item) => (
+      item.command === "node --test tests/auth/login.test.js"
+      && item.type === "test"
+      && item.scope === "focused"
+      && item.confidence === "high"
+    )));
   });
 });
 

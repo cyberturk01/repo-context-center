@@ -158,6 +158,9 @@ function commandForTests(tests: ImpactFile[]): ImpactCommand[] {
 
   return [{
     command: `node --test ${runnable.join(" ")}`,
+    type: "test",
+    scope: "focused",
+    confidence: "high",
     reason: "run affected JavaScript tests directly"
   }];
 }
@@ -188,6 +191,9 @@ function suggestedCommands(brief: WorkBrief, changedFiles: string[], tests: Impa
   if (hasBuildRelevantChange(brief, changedFiles)) {
     commands.push({
       command: "npm run build",
+      type: "build",
+      scope: "project",
+      confidence: "medium",
       reason: "verify TypeScript and generated CLI output"
     });
   }
@@ -195,6 +201,9 @@ function suggestedCommands(brief: WorkBrief, changedFiles: string[], tests: Impa
   if (commands.length === 0 || hasPackageScript(brief, changedFiles)) {
     commands.push({
       command: "npm test",
+      type: "test",
+      scope: "project",
+      confidence: "medium",
       reason: "fallback full verification for broad or package-level impact"
     });
   }
