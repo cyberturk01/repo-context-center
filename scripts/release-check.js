@@ -25,18 +25,37 @@ function run(label, command, args, options = {}) {
   }
 }
 
-const cacheDir = mkdtempSync(path.join(os.tmpdir(), "repo-context-center-release-npm-cache-"));
-const env = {
-  ...process.env,
-  npm_config_cache: cacheDir
-};
-
-try {
-  run("npm run build", npmCommand(), ["run", "build"], { env });
-  run("npm test", npmCommand(), ["test"], { env });
-  run("npm run benchmark:routing", npmCommand(), ["run", "benchmark:routing"], { env });
-  run("npm pack --dry-run", npmCommand(), ["pack", "--dry-run"], { env });
-  run("npm run smoke:pack-install", npmCommand(), ["run", "smoke:pack-install"], { env });
-} finally {
-  rmSync(cacheDir, { recursive: true, force: true });
+function releaseSteps(npmExecutable = npmCommand()) {
+  return [
+    ["npm run build", npmExecutable, ["run", "build"]],
+    ["npm test", npmExecutable, ["test"]],
+    ["npm run benchmark:routing", npmExecutable, ["run", "benchmark:routing"]],
+    ["npm pack --dry-run", npmExecutable, ["pack", "--dry-run"]],
+    ["npm run smoke:pack-install", npmExecutable, ["run", "smoke:pack-install"]]
+  ];
 }
+
+function main() {
+  const cacheDir = mkdtempSync(path.join(os.tmpdir(), "repo-context-center-release-npm-cache-"));
+  const env = {
+    ...process.env,
+    npm_config_cache: cacheDir
+  };
+
+  try {
+    for (const [label, command, args] of releaseSteps()) {
+      run(label, command, args, { env });
+    }
+  } finally {
+    rmSync(cacheDir, { recursive: true, force: true });
+  }
+}
+
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  npmCommand,
+  releaseSteps
+};

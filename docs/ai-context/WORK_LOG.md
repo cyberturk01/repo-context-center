@@ -2056,4 +2056,56 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-24T12:14:43.976Z
+- Summary: Added Guardian coverage tests for scripts and security-sensitive agent/done output
+- Changed files: `package.json`, `scripts/benchmark-routing.js`, `scripts/release-check.js`, `scripts/smoke-pack-install.js`, `src/cli/commands/done.ts`, `tests/done.test.js`, `tests/outputContract.test.js`, `tests/scripts/benchmark-routing.test.js`, `tests/scripts/release-check.test.js`, `tests/scripts/smoke-pack-install.test.js`
+- Verification: npm test; npm run benchmark:routing
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added Guardian coverage tests for scripts and security-sensitive agent/done output",
+  "files": [
+    "package.json",
+    "scripts/benchmark-routing.js",
+    "scripts/release-check.js",
+    "scripts/smoke-pack-install.js",
+    "src/cli/commands/done.ts",
+    "tests/done.test.js",
+    "tests/outputContract.test.js",
+    "tests/scripts/benchmark-routing.test.js",
+    "tests/scripts/release-check.test.js",
+    "tests/scripts/smoke-pack-install.test.js"
+  ],
+  "verification": [
+    "npm test; npm run benchmark:routing"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T12:14:43.976Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T12:14:43.976Z",
+  "summary": "Added Guardian coverage tests for scripts and security-sensitive agent/done output",
+  "files": [
+    "package.json",
+    "scripts/benchmark-routing.js",
+    "scripts/release-check.js",
+    "scripts/smoke-pack-install.js",
+    "src/cli/commands/done.ts",
+    "tests/done.test.js",
+    "tests/outputContract.test.js",
+    "tests/scripts/benchmark-routing.test.js",
+    "tests/scripts/release-check.test.js",
+    "tests/scripts/smoke-pack-install.test.js"
+  ],
+  "verification": "npm test; npm run benchmark:routing",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -37,41 +37,55 @@ function parsePackOutput(stdout) {
   return parsed[0];
 }
 
-const tempRoot = mkdtempSync(path.join(os.tmpdir(), "repo-context-center-pack-install-"));
-const cacheDir = path.join(tempRoot, "npm-cache");
-const installDir = path.join(tempRoot, "install");
-const env = {
-  ...process.env,
-  npm_config_cache: cacheDir
-};
-
-try {
-  mkdirSync(installDir, { recursive: true });
-
-  const packed = parsePackOutput(run(npmCommand(), ["pack", "--json", "--pack-destination", tempRoot], { env }).stdout);
-  const tarballPath = path.join(tempRoot, packed.filename);
-
-  run(npmCommand(), ["install", tarballPath, "--no-audit", "--no-fund", "--ignore-scripts"], {
-    cwd: tempRoot,
-    env
-  });
-
-  const cliPath = path.join(tempRoot, "node_modules", "repo-context-center", "dist", "cli", "index.js");
-  const help = run(process.execPath, [cliPath, "--help"], { cwd: installDir, env });
-  if (!/^repo-context-center/m.test(help.stdout)) {
-    throw new Error("installed CLI help did not identify repo-context-center");
-  }
-
-  const routeResult = run(process.execPath, [cliPath, "work", "fix typo in renderAgent output", "--agent"], {
-    cwd: installDir,
-    env
-  });
-  const route = JSON.parse(routeResult.stdout);
+function validateInstalledWorkRoute(route) {
   if (!Array.isArray(route.primaryFiles) || typeof route.briefTokens !== "number") {
     throw new Error("installed CLI work --agent output did not match compact JSON shape");
   }
-
-  console.log(`Pack install smoke passed for ${packed.name}@${packed.version}`);
-} finally {
-  rmSync(tempRoot, { recursive: true, force: true });
 }
+
+function main() {
+  const tempRoot = mkdtempSync(path.join(os.tmpdir(), "repo-context-center-pack-install-"));
+  const cacheDir = path.join(tempRoot, "npm-cache");
+  const installDir = path.join(tempRoot, "install");
+  const env = {
+    ...process.env,
+    npm_config_cache: cacheDir
+  };
+
+  try {
+    mkdirSync(installDir, { recursive: true });
+
+    const packed = parsePackOutput(run(npmCommand(), ["pack", "--json", "--pack-destination", tempRoot], { env }).stdout);
+    const tarballPath = path.join(tempRoot, packed.filename);
+
+    run(npmCommand(), ["install", tarballPath, "--no-audit", "--no-fund", "--ignore-scripts"], {
+      cwd: tempRoot,
+      env
+    });
+
+    const cliPath = path.join(tempRoot, "node_modules", "repo-context-center", "dist", "cli", "index.js");
+    const help = run(process.execPath, [cliPath, "--help"], { cwd: installDir, env });
+    if (!/^repo-context-center/m.test(help.stdout)) {
+      throw new Error("installed CLI help did not identify repo-context-center");
+    }
+
+    const routeResult = run(process.execPath, [cliPath, "work", "fix typo in renderAgent output", "--agent"], {
+      cwd: installDir,
+      env
+    });
+    validateInstalledWorkRoute(JSON.parse(routeResult.stdout));
+
+    console.log(`Pack install smoke passed for ${packed.name}@${packed.version}`);
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  parsePackOutput,
+  validateInstalledWorkRoute
+};

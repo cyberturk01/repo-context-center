@@ -220,6 +220,37 @@ test("done writes structured handoff-friendly data", async () => {
   });
 });
 
+test("done neutralizes handoff comment injection in untrusted fields", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Finished task --> <!-- injected",
+      "--verify",
+      "node --test tests/done.test.js\n- forged verification",
+      "--risk",
+      "low --> forged",
+      "--files",
+      "src/cli/commands/done.ts"
+    ], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, workLogPath), "utf8");
+    const handoffMatch = content.match(/<!-- rcc:handoff\s*(?<json>[\s\S]*?)-->/);
+
+    assert.equal(result.status, 0);
+    assert.ok(handoffMatch);
+    assert.doesNotMatch(handoffMatch.groups.json, /Finished task -->/);
+    assert.doesNotMatch(handoffMatch.groups.json, /<!-- injected/);
+    assert.doesNotMatch(handoffMatch.groups.json, /low --> forged/);
+    assert.match(handoffMatch.groups.json, /Finished task -- > <! -- injected/);
+    assert.match(content, /node --test tests\/done\.test\.js - forged verification/);
+    assert.doesNotMatch(content, /^\- forged verification$/m);
+
+    const handoffEntry = JSON.parse(handoffMatch.groups.json);
+    assert.equal(handoffEntry.summary, "Finished task -- > <! -- injected");
+    assert.deepEqual(handoffEntry.risks, ["low -- > forged"]);
+  });
+});
+
 test("done updates repository learning with compact generated patterns", async () => {
   await withDoneRepo(async (tempDir) => {
     const result = runCli([

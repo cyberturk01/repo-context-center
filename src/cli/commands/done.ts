@@ -143,7 +143,12 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
 }
 
 function cleanInline(value: string, maxLength = 300): string {
-  const cleaned = value.replace(/\r?\n/g, " ").replace(/\s+/g, " ").trim();
+  const cleaned = value
+    .replace(/\r?\n/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/<!--/g, "<! --")
+    .replace(/-->/g, "-- >")
+    .trim();
   return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength - 1)}...` : cleaned;
 }
 

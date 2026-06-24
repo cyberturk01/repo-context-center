@@ -89,9 +89,21 @@ function printTable(rows) {
   }
 }
 
-const rows = cases.map(rowFor);
-printTable(rows);
+function main() {
+  const rows = cases.map(rowFor);
+  printTable(rows);
 
-if (rows.some((row) => row.status === "fail")) {
-  process.exitCode = 1;
+  if (rows.some((row) => row.status === "fail")) {
+    process.exitCode = 1;
+  }
 }
+
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  failuresFor,
+  pad,
+  statusFor
+};

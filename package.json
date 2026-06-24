@@ -44,7 +44,7 @@
     "prepublishOnly": "npm run build && npm test",
     "release:check": "node scripts/release-check.js",
     "smoke:pack-install": "node scripts/smoke-pack-install.js",
-    "test": "npm run build && node --test tests/*.test.js",
+    "test": "npm run build && node --test tests/*.test.js tests/scripts/*.test.js",
     "test:cli": "npm run build && node --test tests/cli.test.js tests/work.test.js tests/done.test.js tests/v07-release.test.js"
   },
   "devDependencies": {
