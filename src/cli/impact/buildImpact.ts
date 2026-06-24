@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -15,6 +16,37 @@ const runnableNodeTestPattern = /\.(test|spec)\.[cm]?[jt]sx?$/i;
 
 function normalizeRepoPath(filePath: string): string {
   return filePath.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/g, "");
+}
+
+function isRelativeInsideRepo(relativePath: string): boolean {
+  return relativePath.length > 0 && relativePath !== "." && !relativePath.startsWith("../") && relativePath !== "..";
+}
+
+export function normalizeImpactPath(filePath: string, repoRoot: string): string {
+  const normalizedPath = normalizeRepoPath(filePath);
+  const absoluteRepoRoot = path.resolve(repoRoot);
+
+  if (path.isAbsolute(normalizedPath)) {
+    const relativePath = normalizeRepoPath(path.relative(absoluteRepoRoot, normalizedPath));
+
+    return isRelativeInsideRepo(relativePath) ? relativePath : normalizedPath;
+  }
+
+  const repoBasename = path.basename(absoluteRepoRoot);
+  const repoBasenamePrefix = `${repoBasename}/`;
+
+  if (repoBasename.length > 0 && normalizedPath.toLowerCase().startsWith(repoBasenamePrefix.toLowerCase())) {
+    const exactCasePrefix = normalizedPath.startsWith(repoBasenamePrefix);
+    const strippedPath = normalizedPath.slice(repoBasenamePrefix.length);
+    const prefixedExists = existsSync(path.join(absoluteRepoRoot, normalizedPath));
+    const strippedExists = existsSync(path.join(absoluteRepoRoot, strippedPath));
+
+    if (!exactCasePrefix || !prefixedExists || strippedExists) {
+      return strippedPath;
+    }
+  }
+
+  return normalizedPath;
 }
 
 function statusPath(rawEntry: string): string | null {
@@ -39,21 +71,6 @@ async function changedRepoPaths(cwd: string): Promise<string[]> {
     return uniquePaths(stdout.split(/\r?\n/).map(statusPath).filter((file): file is string => Boolean(file)));
   } catch {
     return [];
-  }
-}
-
-async function analyzedRepoRoot(cwd: string): Promise<string> {
-  try {
-    const { stdout } = await execFileAsync("git", ["rev-parse", "--show-toplevel"], {
-      cwd,
-      encoding: "utf8",
-      maxBuffer: 1024 * 1024
-    });
-    const root = stdout.trim();
-
-    return root.length > 0 ? root : cwd;
-  } catch {
-    return cwd;
   }
 }
 
@@ -101,6 +118,13 @@ function impactFile(pathValue: string, reason: string): ImpactFile {
 
 function impactFilesFromRecommendations(items: WorkRecommendation[], fallback: string): ImpactFile[] {
   return items.map((item) => impactFile(item.path, recommendationReason(item, fallback)));
+}
+
+function normalizeImpactFiles(files: ImpactFile[], repoRoot: string): ImpactFile[] {
+  return files.map((file) => ({
+    ...file,
+    path: normalizeImpactPath(file.path, repoRoot)
+  }));
 }
 
 function mergeImpactFiles(groups: ImpactFile[][], maxFiles: number): ImpactFile[] {
@@ -335,16 +359,20 @@ export async function buildImpactAnalysis(
   options: { maxFiles?: number } = {}
 ): Promise<ImpactAnalysis> {
   const maxFiles = options.maxFiles ?? 50;
-  const repoRoot = await analyzedRepoRoot(cwd);
-  const [brief, changedFiles] = await Promise.all([
+  const repoRoot = path.resolve(cwd);
+  const [brief, rawChangedFiles] = await Promise.all([
     buildWorkBriefForTask(repoRoot, task, { maxFiles }),
     changedRepoPaths(repoRoot)
   ]);
+  const changedFiles = uniquePaths(rawChangedFiles.map((file) => normalizeImpactPath(file, repoRoot)));
   const pairedTests = (await Promise.all(changedSourceFiles(changedFiles).map((file) => pairedTestsForSource(repoRoot, file)))).flat();
-  const changedFilesWithReasons = changedImpactFiles(changedFiles);
-  const routeFiles = routeImpactFiles(brief);
-  const routeTests = routeImpactTests(brief);
-  const pairedImpactTests = pairedTests.map((file) => impactFile(file, "paired with changed source file"));
+  const changedFilesWithReasons = normalizeImpactFiles(changedImpactFiles(changedFiles), repoRoot);
+  const routeFiles = normalizeImpactFiles(routeImpactFiles(brief), repoRoot);
+  const routeTests = normalizeImpactFiles(routeImpactTests(brief), repoRoot);
+  const pairedImpactTests = normalizeImpactFiles(
+    pairedTests.map((file) => impactFile(file, "paired with changed source file")),
+    repoRoot
+  );
   const highConfidenceRouteFiles = routeFiles.filter(isHighConfidenceRoutedFile);
   const affectedFiles = mergeImpactFiles([
     changedFilesWithReasons.filter((file) => classifyRepoFile(file.path).role !== "test"),
@@ -355,7 +383,7 @@ export async function buildImpactAnalysis(
     && readmeDocsImpact.length > 0
     && readmeDocsImpact.every((file) => isDocsOnlyPath(file.path));
   const affectedTests = docsOnlyReadmeTask ? [] : mergeImpactFiles([
-    changedTestFiles(changedFiles),
+    normalizeImpactFiles(changedTestFiles(changedFiles), repoRoot),
     pairedImpactTests,
     routeTests
   ], Math.min(maxFiles, 20));

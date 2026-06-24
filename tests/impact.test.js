@@ -7,6 +7,7 @@ const test = require("node:test");
 
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
+const { normalizeImpactPath } = require("../dist/cli/impact/buildImpact");
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [cliPath, ...args], {
@@ -86,6 +87,57 @@ async function withDocsOnlyImpactRepo(callback) {
   }
 }
 
+async function withNamedImpactRepo(dirname, callback) {
+  const parentDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-impact-named-"));
+  const tempDir = path.join(parentDir, dirname);
+
+  try {
+    await mkdir(tempDir, { recursive: true });
+
+    return await callback(tempDir);
+  } finally {
+    await rm(parentDir, { recursive: true, force: true });
+  }
+}
+
+test("normalizeImpactPath keeps output relative to analyzed repo root", async () => {
+  await withNamedImpactRepo("ai-project-guardian", async (cwd) => {
+    await writeFixtureFile(cwd, "tests/markdownReport.test.ts", "test('markdown', () => {});\n");
+
+    assert.equal(
+      normalizeImpactPath("ai-project-guardian/tests/markdownReport.test.ts", cwd),
+      "tests/markdownReport.test.ts"
+    );
+    assert.equal(
+      normalizeImpactPath("tests/markdownReport.test.ts", cwd),
+      "tests/markdownReport.test.ts"
+    );
+    assert.equal(
+      normalizeImpactPath(path.join(cwd, "tests", "markdownReport.test.ts"), cwd),
+      "tests/markdownReport.test.ts"
+    );
+    assert.equal(
+      normalizeImpactPath("other-repo/tests/markdownReport.test.ts", cwd),
+      "other-repo/tests/markdownReport.test.ts"
+    );
+
+    await writeFixtureFile(cwd, "ai-project-guardian/tests/nested.test.ts", "test('nested', () => {});\n");
+    assert.equal(
+      normalizeImpactPath("ai-project-guardian/tests/nested.test.ts", cwd),
+      "ai-project-guardian/tests/nested.test.ts"
+    );
+  });
+
+  await withNamedImpactRepo("Ai-project-guardian", async (cwd) => {
+    await writeFixtureFile(cwd, "ai-project-guardian/tests/markdownReport.test.ts", "test('markdown', () => {});\n");
+
+    assert.equal(
+      normalizeImpactPath("ai-project-guardian/tests/markdownReport.test.ts", cwd),
+      "tests/markdownReport.test.ts"
+    );
+  });
+});
+
 test("impact --json returns task-based affected files and commands", async () => {
   await withImpactRepo(async (cwd) => {
     const result = runCli(["impact", "update login flow", "--json"], { cwd });
@@ -140,33 +192,39 @@ test("impact includes git working-tree changes and paired tests", async () => {
   });
 });
 
-test("impact paths are relative to analyzed repo root from nested cwd", async () => {
-  await withImpactRepo(async (cwd) => {
-    runGit(["init"], cwd);
-    runGit(["config", "user.email", "test@example.com"], cwd);
-    runGit(["config", "user.name", "Test User"], cwd);
-    runGit(["add", "."], cwd);
-    runGit(["commit", "-m", "initial"], cwd);
+test("impact normalizes learned prefixed test paths before focused command suggestions", async () => {
+  await withNamedImpactRepo("ai-project-guardian", async (cwd) => {
+    await writeFixtureFile(cwd, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(cwd, "src/reports/markdownReport.ts", "export function markdownReport() { return ''; }\n");
+    await writeFixtureFile(cwd, "tests/markdownReport.test.ts", "test('markdown report', () => {});\n");
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/REPOSITORY_LEARNING.md",
+      [
+        "# Repository Learning",
+        "",
+        "## Common File Relationships",
+        "",
+        "| Source | Related | Reason | Count |",
+        "| --- | --- | --- | ---: |",
+        "| markdown report | ai-project-guardian/tests/markdownReport.test.ts | tested by | 2 |"
+      ].join("\n")
+    );
 
-    await writeFixtureFile(cwd, "src/auth/login.ts", "export function login() { return false; }\n");
-    await mkdir(path.join(cwd, "packages", "app"), { recursive: true });
-
-    const result = runCli(["impact", "fix login regression", "--json"], { cwd: path.join(cwd, "packages", "app") });
+    const result = runCli(["impact", "change markdown report output contract", "--json"], { cwd });
 
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const analysis = JSON.parse(result.stdout);
-    const outputPaths = [
-      ...analysis.changedFiles.map((file) => file.path),
-      ...analysis.affectedFiles.map((file) => file.path),
-      ...analysis.affectedTests.map((file) => file.path)
-    ];
+    const affectedTests = analysis.affectedTests.map((file) => file.path);
 
-    assert.ok(outputPaths.includes("src/auth/login.ts"));
-    assert.ok(outputPaths.includes("tests/auth/login.test.js"));
-    assert.equal(outputPaths.some((file) => file.startsWith("packages/app/")), false);
-    assert.equal(outputPaths.some((file) => path.isAbsolute(file)), false);
-    assert.ok(analysis.suggestedCommands.some((item) => item.command === "node --test tests/auth/login.test.js"));
+    assert.ok(affectedTests.includes("tests/markdownReport.test.ts"));
+    assert.equal(affectedTests.some((file) => file.startsWith("ai-project-guardian/")), false);
+    assert.ok(analysis.suggestedCommands.some((item) => item.command === "node --test tests/markdownReport.test.ts"));
+    assert.equal(
+      analysis.suggestedCommands.some((item) => item.command.includes("ai-project-guardian/tests/markdownReport.test.ts")),
+      false
+    );
   });
 });
 

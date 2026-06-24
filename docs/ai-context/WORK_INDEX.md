@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Fixed impact path normalization for cross-repo local dist execution
 - Fixed impact paths to resolve against analyzed Git repo root
 - Hardened impact focused test suggestions and README docs-only dominance
 - Updated README and CHANGE_LOG for the latest six RCC changes, including impact analysis, quality matrix, command metadata, test hardening, ...
 - Hardened impact suggestions for docs-only changes by suppressing npm test fallback and adding docs-only guidance note.
 - Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage.
 - Prepared impact suggestedCommands for v0.12 verification intelligence with structured type, scope, and confidence metadata plus regression ...
-- Added fixture-based impact quality matrix covering focused source, docs-only, package, and changed-test cases; filtered RCC scaffolding fro...
 
 ## Hot Files
 
@@ -27,7 +27,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `src/cli/handoff/renderAgent.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/handoff/renderJson.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/work/renderAgent.ts` | 9 touches; Added JSON and agent output contract stability tests | 2026-06-22 |
-| `README.md` | 8 touches; Updated README and CHANGE_LOG for the latest six RCC changes, including impact analysis, quality matrix, command metadata, test hardening, docs-only... | 2026-06-24 |
+| `src/cli/impact/buildImpact.ts` | 8 touches; Fixed impact path normalization for cross-repo local dist execution | 2026-06-24 |
 
 ## Completed Work Themes
 
@@ -35,7 +35,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | ----- | ----: | -------------- |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Work routing | 17 | Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage. |
-| General maintenance | 9 | Fixed impact paths to resolve against analyzed Git repo root |
+| General maintenance | 10 | Fixed impact path normalization for cross-repo local dist execution |
 | Repository context | 7 | Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings |
 | CLI commands | 5 | Clarified RCC local/global CLI alignment and doctor local install path |
 | Work memory | 5 | Implemented learning quality guards for repository memory |
@@ -44,13 +44,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (45)
-- `npm test` (38)
+- `npm run build` (46)
+- `npm test` (39)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
 - `npm run benchmark:routing` (11)
 - `node --test tests/cli.test.js` (10)
-- `npm run release:check` (9)
+- `npm run release:check` (10)
 - `node --test tests/work.test.js` (5)
 
 <!-- repo-context-center:work-index:end -->
