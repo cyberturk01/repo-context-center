@@ -38,6 +38,7 @@ function evaluateRoutingCase(route, routingCase) {
   const expect = routingCase.expect ?? {};
   const primary = valuesFrom(route.primaryFiles);
   const supporting = valuesFrom(route.supportingFiles);
+  const primaryOrSupporting = [...primary, ...supporting];
   const tests = valuesFrom(route.tests);
   const readFirst = valuesFrom(route.readFirst);
   const failures = [
@@ -47,6 +48,7 @@ function evaluateRoutingCase(route, routingCase) {
     ...missingExpected(supporting, expect.supportingContains).map((file) => `missing supporting ${file}`),
     ...unexpectedPresent(supporting, expect.supportingNotContains).map((file) => `unexpected supporting ${file}`),
     ...pathsWithPrefix(supporting, expect.forbiddenSupportingPrefixes).map((file) => `forbidden supporting prefix matched ${file}`),
+    ...missingExpected(primaryOrSupporting, expect.primaryOrSupportingContains).map((file) => `missing primary/supporting ${file}`),
     ...missingExpected(tests, expect.testsContains).map((file) => `missing test ${file}`),
     ...unexpectedPresent(tests, expect.testsNotContains).map((file) => `unexpected test ${file}`),
     ...pathsWithPrefix(tests, expect.forbiddenTestPrefixes).map((file) => `forbidden test prefix matched ${file}`)

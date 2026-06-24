@@ -3,6 +3,7 @@ import type { LearnedRoutingSignals } from "../../core/repositoryLearningRouting
 import { classifyRepoFile } from "../../core/repoFileClassifier";
 import type { StartupContext } from "../../core/suggester";
 import type { TaskIntentAnalysis } from "../../core/taskIntent";
+import { workOutputAssemblyRoutes } from "./workConstants";
 import {
   escapeRegExp,
   extractRepoPaths,
@@ -97,6 +98,24 @@ function contextDocPaths(startup: StartupContext, guidance: ReadFirstGuidance): 
   ]).filter((file) => file.startsWith("docs/ai-context/"));
 }
 
+function isOutputContractTask(taskIntent: TaskIntentAnalysis): boolean {
+  return taskIntent.lookupTerms.some((term) => [
+    "contract",
+    "contracts",
+    "evidence",
+    "markdown",
+    "qa",
+    "report",
+    "reports",
+    "sarif",
+    "severity"
+  ].includes(term));
+}
+
+function isOutputContractPath(filePath: string): boolean {
+  return /(^|[\/._-])(qa|evidence|json|markdown|sarif|report|reports|severity|decision|decisions|contract|contracts|analyzer|analyzers)([A-Z\/._-]|$)/.test(filePath);
+}
+
 export function buildTaskFileRecommendations(
   startup: StartupContext,
   lookupHints: TargetedLookupHint[],
@@ -105,10 +124,16 @@ export function buildTaskFileRecommendations(
 ): TaskFileRecommendations {
   const promoted = promotedLookupHints(lookupHints, taskIntent);
   const codeInvestigationTask = taskIntent.isCodeInvestigation;
+  const outputAssemblyTask = isWorkOutputAssemblyTask(taskIntent);
+  const outputContractTask = isOutputContractTask(taskIntent);
   const promotedByRole = (roles: string[]): string[] => promoted
     .filter((hint) => roles.includes(classifyRepoFile(hint.path).role))
     .map((hint) => hint.path);
-  const startupTaskFiles = startup.likelySourceFiles.filter((file) => classifyRepoFile(file).role === "source");
+  const promotedSourcePaths = promotedByRole(["source"]);
+  const startupTaskFiles = startup.likelySourceFiles
+    .filter((file) => classifyRepoFile(file).role === "source")
+    .filter((file) => !outputAssemblyTask || workOutputAssemblyRoutes.includes(file))
+    .filter((file) => !outputContractTask || promotedSourcePaths.length === 0 || promotedSourcePaths.includes(file) || isOutputContractPath(file));
   const workflowTaskPaths = taskIntent.hasRoutingImplementationIntent || (taskIntent.hasDocumentationIntent && !taskIntent.hasReleaseIntent)
     ? []
     : promotedByRole(["config", "workflow", "package"]);
@@ -117,14 +142,19 @@ export function buildTaskFileRecommendations(
   const suppressWeakSemanticTaskFiles = shouldSuppressWeakSemanticTaskFiles(taskIntent);
   const docsTaskPaths = taskIntent.hasDocumentationIntent ? promotedByRole(["docs"]) : [];
   const releaseDocPaths = taskIntent.hasReleaseIntent ? promotedByRole(["docs"]) : [];
-  const promotedTaskPaths = taskIntent.hasCiWorkflowIntent
+  const promotedTaskPaths = outputAssemblyTask
+    ? promoted
+      .filter((hint) => workOutputAssemblyRoutes.includes(hint.path))
+      .filter((hint) => classifyRepoFile(hint.path).role === "source")
+      .map((hint) => hint.path)
+    : taskIntent.hasCiWorkflowIntent
     ? promoted
       .filter((hint) => ["source", "config", "workflow", "package"].includes(classifyRepoFile(hint.path).role))
       .filter((hint) => !hasStrongWorkflowTaskCandidates || !isWeakSemanticSourceHint(hint))
       .map((hint) => hint.path)
     : [
       ...docsTaskPaths,
-      ...promotedByRole(["source"]).filter((filePath) => {
+      ...promotedSourcePaths.filter((filePath) => {
         if (!suppressWeakSemanticTaskFiles) {
           return true;
         }
@@ -167,7 +197,7 @@ export function buildTaskFileRecommendations(
     ...supportingTestPaths,
     ...workflowTaskPaths
   ]);
-  const taskFilesAndTestsAreCheapestPath = codeInvestigationTask || isWorkOutputAssemblyTask(taskIntent);
+  const taskFilesAndTestsAreCheapestPath = codeInvestigationTask || outputAssemblyTask;
   const recommendedPaths = taskFilesAndTestsAreCheapestPath && taskCandidatePaths.length > 0
     ? taskCandidatePaths
     : uniquePaths([
@@ -263,6 +293,10 @@ function isDirectTaskTargetHint(hint: TargetedLookupHint | Omit<TargetedLookupHi
   const exactFilename = taskMentionsExactFilename(task, hint.path);
 
   if (explicitPath) {
+    return true;
+  }
+
+  if (isWorkOutputAssemblyTask(taskIntent) && hint.path === "src/cli/commands/work.ts") {
     return true;
   }
 

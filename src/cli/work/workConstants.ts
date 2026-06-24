@@ -18,7 +18,7 @@ export const logLimit = 3;
 export const workLogTailReadLimitBytes = 64 * 1024;
 export const workLogTailLineLimit = 240;
 export const decisionLimit = 3;
-export const targetedLookupLimit = 5;
+export const targetedLookupLimit = 6;
 export const targetedContentReadLimit = 64 * 1024;
 export const strongLookupScoreThreshold = 70;
 export const usage = 'Usage: rcc work "<task>" [--json|--agent] [--verbose] [--debug] [--context-budget minimal|balanced|deep] [--max-files <number>]';
@@ -84,9 +84,11 @@ export const workOutputAssemblyPatterns = [
   /\blookup\s+hints?\b/i,
   /\btargeted\s+lookup(?:\s+hints?)?\b/i,
   /\bpromoted\s+lookup\b/i,
+  /\bwork\b.*\bjson\s+output\b|\bjson\s+output\b.*\bwork\b/i,
   /\bweak\s+semantic\s+match(?:es)?\b/i,
   /\bsemantic\s+source\s+match(?:es)?\b/i,
   /\bwork\s+brief\b/i,
+  /\boutput\s+assembly\b/i,
   /\bhuman\s+output\b/i,
   /\boutput\s+categorization\b/i,
   /\bagent\s+rules?\b/i,
@@ -95,6 +97,11 @@ export const workOutputAssemblyPatterns = [
 ];
 export const workOutputAssemblyRoutes = [
   "src/cli/commands/work.ts",
+  "src/cli/work/taskFileRecommendations.ts",
+  "src/cli/work/buildWorkBrief.ts",
+  "src/cli/work/renderJson.ts",
+  "src/cli/work/renderAgent.ts",
+  "src/cli/work/renderText.ts",
   "tests/work.test.js"
 ];
 export const routingImplementationRoutes = [

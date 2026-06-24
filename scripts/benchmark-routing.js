@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 const { spawnSync } = require("node:child_process");
-const { readFileSync } = require("node:fs");
+const { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const {
   evaluateRoutingCase
@@ -13,14 +14,26 @@ const fixturePath = path.join(repoRoot, "tests", "fixtures", "routing-cases.json
 
 const cases = JSON.parse(readFileSync(fixturePath, "utf8"));
 
-function runWork(task) {
+function writeCaseRepo(files) {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "repo-context-center-routing-case-"));
+
+  for (const [filePath, content] of Object.entries(files ?? {})) {
+    const fullPath = path.join(tempDir, filePath);
+    mkdirSync(path.dirname(fullPath), { recursive: true });
+    writeFileSync(fullPath, content, "utf8");
+  }
+
+  return tempDir;
+}
+
+function runWork(task, cwd = repoRoot) {
   const result = spawnSync(process.execPath, [
     cliPath,
     "work",
     task,
     "--agent"
   ], {
-    cwd: repoRoot,
+    cwd,
     encoding: "utf8"
   });
 
@@ -52,21 +65,29 @@ function statusFor(brief, benchmarkCase) {
 }
 
 function rowFor(benchmarkCase) {
-  const brief = runWork(benchmarkCase.task);
-  const failures = failuresFor(brief, benchmarkCase);
+  const tempDir = benchmarkCase.files ? writeCaseRepo(benchmarkCase.files) : null;
 
-  return {
-    name: benchmarkCase.name,
-    task: benchmarkCase.task,
-    firstPrimaryFile: brief.primaryFiles?.[0] ?? "-",
-    primaryCount: brief.primaryFiles?.length ?? 0,
-    supportingCount: brief.supportingFiles?.length ?? 0,
-    testsCount: brief.tests?.length ?? 0,
-    readFirstCount: brief.readFirst?.length ?? 0,
-    briefTokens: brief.briefTokens ?? "-",
-    status: statusFor(brief, benchmarkCase),
-    details: failures.length > 0 ? failures.join("; ") : "-"
-  };
+  try {
+    const brief = runWork(benchmarkCase.task, tempDir ?? repoRoot);
+    const failures = failuresFor(brief, benchmarkCase);
+
+    return {
+      name: benchmarkCase.name,
+      task: benchmarkCase.task,
+      firstPrimaryFile: brief.primaryFiles?.[0] ?? "-",
+      primaryCount: brief.primaryFiles?.length ?? 0,
+      supportingCount: brief.supportingFiles?.length ?? 0,
+      testsCount: brief.tests?.length ?? 0,
+      readFirstCount: brief.readFirst?.length ?? 0,
+      briefTokens: brief.briefTokens ?? "-",
+      status: statusFor(brief, benchmarkCase),
+      details: failures.length > 0 ? failures.join("; ") : "-"
+    };
+  } finally {
+    if (tempDir) {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  }
 }
 
 function pad(value, width) {

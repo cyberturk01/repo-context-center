@@ -253,5 +253,51 @@
       ],
       "maxBriefTokens": 130
     }
+  },
+  {
+    "name": "guardian style release hardening output contracts",
+    "task": "Prepare AI Project Guardian v0.1.5 release hardening for Phase 7C QA evidence JSON Markdown SARIF output",
+    "files": {
+      "AGENTS.md": "Repo guidance\n",
+      "docs/ai-context/TASK_ROUTING.md": "# Task Routing\n\n- QA evidence, report output, JSON, Markdown, SARIF, severity, and decision support: read `src/analyzers/qaAnalyzer.ts`, `src/reporters/markdownReport.ts`, `src/reporters/sarifReport.ts`, `src/reporters/jsonReport.ts`, and `src/core/reportDecisionSupport.ts`.\n- GitHub Actions workflow work: read `.github/workflows/release.yml` and `package.json`.\n",
+      "package.json": "{\"name\":\"ai-project-guardian\",\"description\":\"Guardian project release hardening workflow config package metadata\",\"scripts\":{\"release\":\"node scripts/release.js\"}}\n",
+      ".github/workflows/release.yml": "name: Guardian release workflow\non: [push]\njobs:\n  release:\n    steps:\n      - run: npm test\n",
+      "src/analyzers/qaAnalyzer.ts": "export function analyzeQaEvidence() { return ['qa evidence', 'test adequacy', 'severity downgrade']; }\n",
+      "src/reporters/markdownReport.ts": "export function renderMarkdownReport() { return 'markdown report output with QA evidence fields'; }\n",
+      "src/reporters/sarifReport.ts": "export function renderSarifReport() { return { sarif: true, severity: 'warning' }; }\n",
+      "src/reporters/jsonReport.ts": "export function renderJsonReport() { return { evidence: [], output: 'json' }; }\n",
+      "src/core/reportDecisionSupport.ts": "export function decideReportSeverity() { return 'severity downgrade decision support'; }\n",
+      "src/config/releaseConfig.ts": "export const releaseWorkflowConfig = true;\n",
+      "tests/analyzers/qaAnalyzer.test.ts": "test('qa evidence severity downgrade', () => {});\n",
+      "tests/reporters/reportOutput.test.ts": "test('json markdown sarif report output contract', () => {});\n",
+      "tests/regression/oldWording.test.ts": "test('old wording regression', () => {});\n"
+    },
+    "expect": {
+      "primaryOrSupportingContains": [
+        "src/analyzers/qaAnalyzer.ts",
+        "src/reporters/markdownReport.ts",
+        "src/reporters/sarifReport.ts",
+        "src/reporters/jsonReport.ts",
+        "src/core/reportDecisionSupport.ts"
+      ],
+      "primaryNotContains": [
+        ".github/workflows/release.yml",
+        "package.json"
+      ],
+      "testsContains": [
+        "tests/analyzers/qaAnalyzer.test.ts",
+        "tests/reporters/reportOutput.test.ts"
+      ],
+      "requiredTaskSize": "medium",
+      "requiredMode": "normal",
+      "forbiddenPrimaryPrefixes": [
+        ".github/workflows/"
+      ],
+      "maxPrimaryFiles": 6,
+      "maxSupportingFiles": 5,
+      "maxTests": 3,
+      "maxReadFirst": 1,
+      "maxBriefTokens": 190
+    }
   }
 ]
