@@ -2362,4 +2362,106 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-24T20:23:22.729Z
+- Summary: Implemented RCC v0.11 impact analysis MVP with task/change heuristics, JSON output, suggested commands, and tests.
+- Changed files: `src/cli/commands/impact.ts`, `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactOptions.ts`, `src/cli/impact/impactTypes.ts`, `src/cli/impact/renderImpact.ts`, `src/cli/index.ts`, `tests/cli.test.js`, `tests/impact.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented RCC v0.11 impact analysis MVP with task/change heuristics, JSON output, suggested commands, and tests.",
+  "files": [
+    "src/cli/commands/impact.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactOptions.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T20:23:22.729Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T20:23:22.729Z",
+  "summary": "Implemented RCC v0.11 impact analysis MVP with task/change heuristics, JSON output, suggested commands, and tests.",
+  "files": [
+    "src/cli/commands/impact.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactOptions.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T20:28:39.914Z
+- Summary: Added fixture-based impact quality matrix covering focused source, docs-only, package, and changed-test cases; filtered RCC scaffolding from inferred affected files.
+- Changed files: `src/cli/commands/impact.ts`, `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactOptions.ts`, `src/cli/impact/impactTypes.ts`, `src/cli/impact/renderImpact.ts`, `src/cli/index.ts`, `tests/cli.test.js`, `tests/fixtures/impact-cases.json`, `tests/helpers/impactEvaluation.js`, `tests/impact.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added fixture-based impact quality matrix covering focused source, docs-only, package, and changed-test cases; filtered RCC scaffolding from inferred affected files.",
+  "files": [
+    "src/cli/commands/impact.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactOptions.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js",
+    "tests/fixtures/impact-cases.json",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js",
+    "tests/impactQuality.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T20:28:39.914Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T20:28:39.914Z",
+  "summary": "Added fixture-based impact quality matrix covering focused source, docs-only, package, and changed-test cases; filtered RCC scaffolding from inferred affected files.",
+  "files": [
+    "src/cli/commands/impact.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactOptions.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js",
+    "tests/fixtures/impact-cases.json",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js",
+    "tests/impactQuality.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

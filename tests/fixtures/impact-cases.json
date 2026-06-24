@@ -1,0 +1,141 @@
+[
+  {
+    "name": "changed source pairs to focused test",
+    "task": "fix login regression",
+    "files": {
+      "AGENTS.md": "Repo guidance\n",
+      "docs/ai-context/TASK_ROUTING.md": "# Task Routing\n\n- Auth or login work: read `src/auth/login.ts`, `tests/auth/login.test.js`, and `package.json`.\n",
+      "package.json": "{\n  \"scripts\": {\n    \"test\": \"node --test tests/*.test.js\"\n  }\n}\n",
+      "src/auth/login.ts": "export function login() { return true; }\n",
+      "src/auth/session.ts": "export function session() { return true; }\n",
+      "tests/auth/login.test.js": "test('login', () => {});\n",
+      "tests/auth/session.test.js": "test('session', () => {});\n"
+    },
+    "changes": {
+      "src/auth/login.ts": "export function login() { return false; }\n"
+    },
+    "expect": {
+      "basis": "changed-files-and-task",
+      "confidence": "high",
+      "changedContains": [
+        "src/auth/login.ts"
+      ],
+      "affectedContains": [
+        "src/auth/login.ts"
+      ],
+      "testsContains": [
+        "tests/auth/login.test.js"
+      ],
+      "testsNotContains": [
+        "tests/auth/session.test.js"
+      ],
+      "commandsContain": [
+        "node --test tests/auth/login.test.js"
+      ],
+      "maxAffectedFiles": 3,
+      "maxAffectedTests": 2,
+      "maxSuggestedCommands": 2
+    }
+  },
+  {
+    "name": "docs-only change stays out of source and tests",
+    "task": "fix README typo",
+    "files": {
+      "AGENTS.md": "Repo guidance\n",
+      "docs/ai-context/TASK_ROUTING.md": "# Task Routing\n\n- README work: read `README.md`.\n",
+      "README.md": "# Project\n\nOld wording.\n",
+      "src/auth/login.ts": "export function login() { return true; }\n",
+      "tests/auth/login.test.js": "test('login', () => {});\n"
+    },
+    "changes": {
+      "README.md": "# Project\n\nBetter wording.\n"
+    },
+    "expect": {
+      "basis": "changed-files-and-task",
+      "confidence": "medium",
+      "changedContains": [
+        "README.md"
+      ],
+      "affectedContains": [
+        "README.md"
+      ],
+      "affectedNotContains": [
+        "src/auth/login.ts"
+      ],
+      "testsNotContains": [
+        "tests/auth/login.test.js"
+      ],
+      "maxAffectedFiles": 2,
+      "maxAffectedTests": 0,
+      "maxSuggestedCommands": 1
+    }
+  },
+  {
+    "name": "package change recommends broad verification",
+    "task": "update npm test script",
+    "files": {
+      "AGENTS.md": "Repo guidance\n",
+      "docs/ai-context/TASK_ROUTING.md": "# Task Routing\n\n- Package or npm work: read `package.json`, `src/index.ts`, and `tests/index.test.js`.\n",
+      "package.json": "{\n  \"scripts\": {\n    \"test\": \"node --test tests/*.test.js\"\n  }\n}\n",
+      "src/index.ts": "export const ok = true;\n",
+      "tests/index.test.js": "test('ok', () => {});\n"
+    },
+    "changes": {
+      "package.json": "{\n  \"scripts\": {\n    \"build\": \"tsc -p tsconfig.json\",\n    \"test\": \"node --test tests/*.test.js\"\n  }\n}\n"
+    },
+    "expect": {
+      "basis": "changed-files-and-task",
+      "confidence": "medium",
+      "changedContains": [
+        "package.json"
+      ],
+      "affectedContains": [
+        "package.json"
+      ],
+      "affectedNotContains": [
+        "AGENTS.md",
+        "docs/ai-context/TASK_ROUTING.md"
+      ],
+      "commandsContain": [
+        "npm run build",
+        "npm test"
+      ],
+      "maxAffectedFiles": 1,
+      "maxAffectedTests": 0,
+      "maxSuggestedCommands": 3
+    }
+  },
+  {
+    "name": "changed test file remains test-focused",
+    "task": "fix login unit test expectation",
+    "files": {
+      "AGENTS.md": "Repo guidance\n",
+      "docs/ai-context/TASK_ROUTING.md": "# Task Routing\n\n- Auth or login work: read `src/auth/login.ts` and `tests/auth/login.test.js`.\n",
+      "src/auth/login.ts": "export function login() { return true; }\n",
+      "tests/auth/login.test.js": "test('login', () => {});\n",
+      "tests/auth/session.test.js": "test('session', () => {});\n"
+    },
+    "changes": {
+      "tests/auth/login.test.js": "test('login changed', () => {});\n"
+    },
+    "expect": {
+      "basis": "changed-files-and-task",
+      "confidence": "high",
+      "changedContains": [
+        "tests/auth/login.test.js"
+      ],
+      "testsContains": [
+        "tests/auth/login.test.js"
+      ],
+      "testsNotContains": [
+        "tests/auth/session.test.js"
+      ],
+      "commandsContain": [
+        "node --test tests/auth/login.test.js"
+      ],
+      "maxAffectedFiles": 2,
+      "maxAffectedTests": 1,
+      "maxSuggestedCommands": 2
+    }
+  }
+]

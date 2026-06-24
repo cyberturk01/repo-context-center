@@ -6,6 +6,7 @@ import { doneCommand } from "./commands/done";
 import { estimateCommand } from "./commands/estimate";
 import { findCommand } from "./commands/find";
 import { handoffCommand } from "./commands/handoff";
+import { impactCommand } from "./commands/impact";
 import { initCommand } from "./commands/init";
 import { learnCommand } from "./commands/learn";
 import { logCommand } from "./commands/log";
@@ -35,6 +36,7 @@ const commands: Record<string, CommandHandler> = {
   estimate: estimateCommand,
   find: findCommand,
   handoff: handoffCommand,
+  impact: impactCommand,
   learn: learnCommand,
   log: logCommand,
   map: mapCommand,
@@ -74,6 +76,8 @@ Commands:
             Usage: find "<query>" [--limit <number>]
   handoff   Print a handoff brief for continuing agent work
             Usage: handoff [task] [--json|--agent] [--debug] [--write]
+  impact    Estimate affected files, tests, and commands
+            Usage: impact "<task>" [--json] [--max-files <number>]
   learn     Regenerate repository learning on demand
             Usage: learn [--json] [--write] [--debug]
   log       Add a durable entry to docs/ai-context/CHANGE_LOG.md
