@@ -26,7 +26,7 @@ test("CLI help prints usage", () => {
   assert.match(result.stdout, /done\s+Save lightweight memory after completed agent work/);
   assert.match(result.stdout, /Usage: done --summary "<summary>" \[--files auto\|none\|"<path,path>"\] \[--verify "<command\/result>"\] \[--dry-run\]/);
   assert.match(result.stdout, /init\s+Install generic context templates and config/);
-  assert.match(result.stdout, /Options: --dry-run, --force/);
+  assert.match(result.stdout, /Options: --update, --dry-run, --force/);
   assert.match(result.stdout, /validate\s+Validate required context files and warnings/);
   assert.match(result.stdout, /Options: --strict/);
   assert.match(result.stdout, /archive\s+Archive older CHANGE_LOG and LESSONS_LEARNED entries/);

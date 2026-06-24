@@ -1,5 +1,7 @@
 import path from "node:path";
 import { checkRepositoryMap, mapRepository, type RepoMapCheckResult, type RepoMapResult } from "../../core/repoMapper";
+import { pathExists, readTextFile } from "../../core/fileSystem";
+import { isOutdatedRccAgentsContent } from "../../core/templateInstaller";
 import type { CliIO } from "../index";
 
 interface MapOptions {
@@ -78,6 +80,15 @@ function formatResult(result: RepoMapResult, willWrite: boolean): string {
   return `${lines.join("\n")}\n`;
 }
 
+async function hasOutdatedAgents(cwd: string): Promise<boolean> {
+  const agentsPath = path.join(cwd, "AGENTS.md");
+  if (!(await pathExists(agentsPath))) {
+    return false;
+  }
+
+  return isOutdatedRccAgentsContent(await readTextFile(agentsPath));
+}
+
 function formatCheckResult(result: RepoMapCheckResult, maxFiles: number): string {
   const lines = [
     "repo-context-center map --check",
@@ -136,5 +147,8 @@ export async function mapCommand(io: CliIO, args: string[] = []): Promise<number
   }
 
   io.stdout(formatResult(result, options.write && !options.dryRun));
+  if (options.write && !options.dryRun && await hasOutdatedAgents(cwd)) {
+    io.stdout("AGENTS.md appears outdated. Run `rcc init --update` to refresh RCC agent instructions.\n");
+  }
   return 0;
 }

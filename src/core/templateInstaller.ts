@@ -25,6 +25,33 @@ const workflowStart = "<!-- repo-context-center:workflow:start -->";
 const workflowEnd = "<!-- repo-context-center:workflow:end -->";
 const generatedStart = "<!-- repo-context-center:generated:start -->";
 const generatedEnd = "<!-- repo-context-center:generated:end -->";
+const modernAgentsSignals = [
+  "For coding tasks, first run once at task start:",
+  "`rcc work \"<task>\" --agent`",
+  "Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly.",
+  "Do not repeatedly run `rcc work` for the same task.",
+  "Use `rcc find \"<keyword>\"` only if the route is insufficient.",
+  "Do not ask the human to run RCC commands.",
+  "`rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`",
+  "Read `docs/ai-context/HANDOFF.md` if present.",
+  "Read `docs/ai-context/WORK_INDEX.md` if task/history context is unclear; do not read full `WORK_LOG.md` by default.",
+  "Use `rcc doctor` for local/global RCC confusion.",
+  "Use `rcc measure \"<task>\"` for token-saving estimates.",
+  "If RCC commands are unavailable, read only `docs/ai-context/TASK_ROUTING.md` and `docs/ai-context/TOKEN_BUDGET.md`; check `docs/ai-context/DO_NOT_READ.md` before manual broad scans."
+];
+const legacyAgentsSignals = [
+  "repo-context-center:workflow:start",
+  "repo-context-center:generated:start",
+  "## RCC Workflow",
+  "rcc work \"<task>\"",
+  "rcc find \"<keyword>\"",
+  "rcc done --summary \"<summary>\"",
+  "repo-context-center map --write",
+  "Generated Repo Map",
+  "Compact generated entrypoint.",
+  "COMMUNICATION_MODE.md",
+  "MODULE_INDEX.md"
+];
 const legacyWorkflowDuplicateLines = new Set([
   "## RCC Workflow",
   "For coding tasks, first run once:",
@@ -51,6 +78,18 @@ const legacyWorkflowDuplicateLines = new Set([
   "- Do not replace `rcc work` with manually reading `docs/ai-context` files.",
   "- For targeted lookup, prefer `rcc find \"<keyword>\"` before broad repo search.",
   "- Save completed-work memory with `rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`."
+]);
+const legacyAgentsSupportLines = new Set([
+  "- Read `docs/ai-context/HANDOFF.md` if present.",
+  "- Read `docs/ai-context/WORK_INDEX.md` if task/history context is unclear; do not read full `WORK_LOG.md` by default.",
+  "- Use `rcc doctor` for local/global RCC confusion.",
+  "- Use `rcc measure \"<task>\"` for token-saving estimates.",
+  "- If RCC commands are unavailable, read only `docs/ai-context/TASK_ROUTING.md` and `docs/ai-context/TOKEN_BUDGET.md`; check `docs/ai-context/DO_NOT_READ.md` before manual broad scans.",
+  "Keep changes focused. Avoid unnecessary repository scanning.",
+  "- Read `docs/ai-context/COMMUNICATION_MODE.md` for response style.",
+  "- Read `docs/ai-context/MODULE_INDEX.md` before changing modules.",
+  "- Generated repo maps live in `docs/ai-context/*`.",
+  "- Keep manual guidance outside generated markers."
 ]);
 
 function getGitHubWorkflowTemplatePath(): string {
@@ -81,9 +120,20 @@ function extractWorkflowSection(content: string): string {
   return content.slice(start, end + workflowEnd.length).trim();
 }
 
+function extractAgentsManagedSupport(content: string): string {
+  const normalized = content.replace(/\r\n/g, "\n");
+  const end = normalized.indexOf(workflowEnd);
+  return (end === -1
+    ? normalized
+    : normalized.slice(end + workflowEnd.length)).trim();
+}
+
 function stripLegacyWorkflowDuplicateLines(content: string): string {
   const lines = content.split("\n");
-  const keptLines = lines.filter((line) => !legacyWorkflowDuplicateLines.has(line.trim()));
+  const keptLines = lines.filter((line) => {
+    const trimmed = line.trim();
+    return !legacyWorkflowDuplicateLines.has(trimmed) && !legacyAgentsSupportLines.has(trimmed);
+  });
 
   return keptLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
@@ -111,23 +161,36 @@ function stripLegacyAgentsGeneratedSection(content: string): string {
 
 export function upsertAgentsWorkflowSection(existing: string, templateContent: string): string {
   const workflowSection = extractWorkflowSection(templateContent);
+  const managedSupport = extractAgentsManagedSupport(templateContent);
   const normalizedExisting = stripLegacyAgentsGeneratedSection(existing.replace(/\r\n/g, "\n")).replace(/\n*$/u, "\n");
 
   if (!workflowSection) {
     return normalizedExisting;
   }
 
+  const managedSection = [workflowSection, managedSupport].filter(Boolean).join("\n\n");
   const start = normalizedExisting.indexOf(workflowStart);
   const end = normalizedExisting.indexOf(workflowEnd);
 
   if (start !== -1 && end !== -1 && end > start) {
     const beforeWorkflow = stripLegacyWorkflowDuplicateLines(normalizedExisting.slice(0, start));
     const afterWorkflow = stripLegacyWorkflowDuplicateLines(normalizedExisting.slice(end + workflowEnd.length));
-    return [beforeWorkflow, workflowSection, afterWorkflow].filter(Boolean).join("\n\n").trimEnd() + "\n";
+    return [beforeWorkflow, managedSection, afterWorkflow].filter(Boolean).join("\n\n").trimEnd() + "\n";
   }
 
   const cleanedExisting = stripLegacyWorkflowDuplicateLines(normalizedExisting);
-  return [cleanedExisting, workflowSection].filter(Boolean).join("\n\n").trimEnd() + "\n";
+  return [cleanedExisting, managedSection].filter(Boolean).join("\n\n").trimEnd() + "\n";
+}
+
+export function isModernAgentsContent(content: string): boolean {
+  const normalized = content.replace(/\r\n/g, "\n");
+  return modernAgentsSignals.every((signal) => normalized.includes(signal));
+}
+
+export function isOutdatedRccAgentsContent(content: string): boolean {
+  const normalized = content.replace(/\r\n/g, "\n");
+  const hasRccSignals = legacyAgentsSignals.some((signal) => normalized.includes(signal));
+  return hasRccSignals && !isModernAgentsContent(normalized);
 }
 
 async function installAgentsTemplate(

@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings
 - Added negative coverage for done handoff file path injection and verbose agent JSON boundaries
 - Added Guardian coverage tests for scripts and security-sensitive agent/done output
 - Implemented learning quality guards for repository memory
 - Added routing evaluation matrix for route quality and compactness
 - Added release and install reliability guards
 - Added JSON and agent output contract stability tests
-- Added fixture-driven routing regression suite and benchmark checks
 
 ## Hot Files
 
@@ -35,8 +35,8 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | ----- | ----: | -------------- |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Work routing | 15 | Added routing evaluation matrix for route quality and compactness |
+| Repository context | 7 | Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings |
 | General maintenance | 6 | Added release and install reliability guards |
-| Repository context | 6 | Updated README with Repository Learning and learn command documentation |
 | Work memory | 5 | Implemented learning quality guards for repository memory |
 | Tests | 2 | Added Guardian coverage tests for scripts and security-sensitive agent/done output |
 | Agent guidance | 2 | Fixed tiny task guidance spacing regressions by aligning tiny text guidance and adding agent output regression coverage for joined words. |
@@ -44,13 +44,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (38)
-- `npm test` (26)
+- `npm run build` (39)
+- `npm test` (27)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
 - `node --test tests/cli.test.js` (9)
-- `npm run benchmark:routing` (8)
+- `npm run benchmark:routing` (9)
 - `node --test tests/work.test.js` (5)
-- `npm run release:check` (3)
+- `npm run release:check` (4)
 
 <!-- repo-context-center:work-index:end -->

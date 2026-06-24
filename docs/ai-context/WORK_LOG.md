@@ -2146,4 +2146,50 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-24T13:33:28.870Z
+- Summary: Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings
+- Changed files: `src/cli/commands/init.ts`, `src/cli/commands/map.ts`, `src/cli/index.ts`, `src/core/templateInstaller.ts`, `tests/cli.test.js`, `tests/init.test.js`, `tests/map.test.js`
+- Verification: npm run build; npm test; npm run benchmark:routing; npm run release:check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/map.ts",
+    "src/cli/index.ts",
+    "src/core/templateInstaller.ts",
+    "tests/cli.test.js",
+    "tests/init.test.js",
+    "tests/map.test.js"
+  ],
+  "verification": [
+    "npm run build; npm test; npm run benchmark:routing; npm run release:check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T13:33:28.870Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T13:33:28.870Z",
+  "summary": "Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/map.ts",
+    "src/cli/index.ts",
+    "src/core/templateInstaller.ts",
+    "tests/cli.test.js",
+    "tests/init.test.js",
+    "tests/map.test.js"
+  ],
+  "verification": "npm run build; npm test; npm run benchmark:routing; npm run release:check",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
