@@ -2192,4 +2192,44 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-24T13:38:51.114Z
+- Summary: Implemented RCC binary version alignment diagnostics in doctor with local/dependency mismatch checks and --version
+- Changed files: `scripts/smoke-pack-install.js`, `src/cli/commands/doctor.ts`, `src/cli/index.ts`, `tests/cli.test.js`
+- Verification: npm run build; npm test; npm run benchmark:routing; npm run release:check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented RCC binary version alignment diagnostics in doctor with local/dependency mismatch checks and --version",
+  "files": [
+    "scripts/smoke-pack-install.js",
+    "src/cli/commands/doctor.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js"
+  ],
+  "verification": [
+    "npm run build; npm test; npm run benchmark:routing; npm run release:check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T13:38:51.114Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T13:38:51.114Z",
+  "summary": "Implemented RCC binary version alignment diagnostics in doctor with local/dependency mismatch checks and --version",
+  "files": [
+    "scripts/smoke-pack-install.js",
+    "src/cli/commands/doctor.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js"
+  ],
+  "verification": "npm run build; npm test; npm run benchmark:routing; npm run release:check",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdtemp, readFile, rm, writeFile } = require("node:fs/promises");
+const { mkdir, mkdtemp, readFile, rm, writeFile } = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
@@ -12,6 +12,18 @@ function runCli(args, options = {}) {
   return spawnSync(process.execPath, [cliPath, ...args], {
     cwd: options.cwd ?? repoRoot,
     encoding: "utf8"
+  });
+}
+
+async function writeJson(filePath, value) {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, JSON.stringify(value, null, 2), "utf8");
+}
+
+async function writeLocalRccPackage(root, version) {
+  await writeJson(path.join(root, "node_modules", "repo-context-center", "package.json"), {
+    name: "repo-context-center",
+    version
   });
 }
 
@@ -48,6 +60,16 @@ test("CLI help prints usage", () => {
   assert.match(result.stdout, /rcc measure "<task>" --json/);
   assert.match(result.stdout, /start\s+Print a startup prompt for an AI coding agent/);
   assert.match(result.stdout, /Usage: start "<task>" \[--max-files <number>\] \[--copy\]/);
+  assert.match(result.stdout, /--version\s+Show version/);
+});
+
+test("CLI --version prints running package version", () => {
+  const result = runCli(["--version"]);
+  const packageJson = require(path.join(repoRoot, "package.json"));
+
+  assert.equal(result.status, 0);
+  assert.equal(result.stderr, "");
+  assert.equal(result.stdout, `${packageJson.version}\n`);
 });
 
 test("doctor reports matching local development version without warning", () => {
@@ -59,9 +81,40 @@ test("doctor reports matching local development version without warning", () => 
   assert.match(result.stdout, /repo-context-center doctor/);
   assert.match(result.stdout, new RegExp(`Running CLI version: ${packageJson.version}`));
   assert.match(result.stdout, new RegExp(`Repo package version: ${packageJson.version}`));
+  assert.match(result.stdout, /Package dependency version: not declared/);
+  assert.match(result.stdout, /Nearest local install version: (?:unknown|\d+\.\d+\.\d+)/);
+  assert.match(result.stdout, /Supports work --agent: yes/);
   assert.match(result.stdout, /Execution path: /);
-  assert.match(result.stdout, /Warnings: none/);
+  assert.match(result.stdout, /Local package and active CLI are aligned\./);
   assert.doesNotMatch(result.stdout, /Warning: running global RCC version/);
+});
+
+test("doctor reports aligned local package and active CLI", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-doctor-aligned-"));
+  const packageJson = require(path.join(repoRoot, "package.json"));
+
+  try {
+    await writeJson(path.join(tempDir, "package.json"), {
+      name: "app",
+      version: "1.0.0",
+      dependencies: {
+        "repo-context-center": packageJson.version
+      }
+    });
+    await writeLocalRccPackage(tempDir, packageJson.version);
+
+    const result = runCli(["doctor"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.match(result.stdout, new RegExp(`Running CLI version: ${packageJson.version}`));
+    assert.match(result.stdout, new RegExp(`Package dependency version: ${packageJson.version}`));
+    assert.match(result.stdout, new RegExp(`Nearest local install version: ${packageJson.version}`));
+    assert.match(result.stdout, /Supports work --agent: yes/);
+    assert.match(result.stdout, /Local package and active CLI are aligned\./);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("doctor warns when a repo-context-center repo version differs from the running CLI outside that repo", async () => {
@@ -88,6 +141,89 @@ test("doctor warns when a repo-context-center repo version differs from the runn
   }
 });
 
+test("doctor warns when package dependency is newer than active CLI", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-doctor-dep-newer-"));
+
+  try {
+    await writeJson(path.join(tempDir, "package.json"), {
+      name: "app",
+      version: "1.0.0",
+      dependencies: {
+        "repo-context-center": "^99.0.0"
+      }
+    });
+
+    const result = runCli(["doctor"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.match(result.stdout, /Package dependency version: \^99\.0\.0/);
+    assert.match(result.stdout, /Nearest local install version: unknown/);
+    assert.match(result.stdout, /Detected package dependency repo-context-center@\^99\.0\.0 but active rcc command appears older\./);
+    assert.match(result.stdout, /Try: npx repo-context-center@99\.0\.0 work "<task>" --agent/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("doctor warns when local install is newer than active CLI", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-doctor-local-newer-"));
+
+  try {
+    await writeJson(path.join(tempDir, "package.json"), {
+      name: "app",
+      version: "1.0.0"
+    });
+    await writeLocalRccPackage(tempDir, "99.0.0");
+
+    const result = runCli(["doctor"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.match(result.stdout, /Nearest local install version: 99\.0\.0/);
+    assert.match(result.stdout, /Detected local repo-context-center@99\.0\.0 but active rcc command appears older\./);
+    assert.match(result.stdout, /Try: npx repo-context-center@99\.0\.0 work "<task>" --agent/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("doctor reports missing local dependency install", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-doctor-missing-local-"));
+  const packageJson = require(path.join(repoRoot, "package.json"));
+
+  try {
+    await writeJson(path.join(tempDir, "package.json"), {
+      name: "app",
+      version: "1.0.0",
+      devDependencies: {
+        "repo-context-center": packageJson.version
+      }
+    });
+
+    const result = runCli(["doctor"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.match(result.stdout, new RegExp(`Package dependency version: ${packageJson.version}`));
+    assert.match(result.stdout, /Nearest local install version: unknown/);
+    assert.match(result.stdout, new RegExp(`Package declares repo-context-center@${packageJson.version}, but no local node_modules install was found\\.`));
+    assert.match(result.stdout, /Run your package manager install command, or use npx with the declared version\./);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("doctor output stays compact and human-readable", () => {
+  const result = runCli(["doctor"]);
+  const lines = result.stdout.trim().split("\n");
+
+  assert.equal(result.status, 0);
+  assert.ok(lines.length <= 12, `doctor output has ${lines.length} lines`);
+  assert.doesNotMatch(result.stdout, /^[{\[]/);
+  assert.doesNotMatch(result.stdout, /undefined|null/);
+});
+
 test("doctor does not warn noisily outside a repo-context-center repo", async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-doctor-other-"));
 
@@ -103,7 +239,7 @@ test("doctor does not warn noisily outside a repo-context-center repo", async ()
     assert.equal(result.status, 0);
     assert.equal(result.stderr, "");
     assert.match(result.stdout, /Repo package version: not repo-context-center/);
-    assert.match(result.stdout, /Warnings: none/);
+    assert.match(result.stdout, /Local package and active CLI are aligned\./);
     assert.doesNotMatch(result.stdout, /Warning: running global RCC version/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });

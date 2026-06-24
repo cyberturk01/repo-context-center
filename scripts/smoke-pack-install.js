@@ -69,6 +69,11 @@ function main() {
       throw new Error("installed CLI help did not identify repo-context-center");
     }
 
+    const version = run(process.execPath, [cliPath, "--version"], { cwd: installDir, env });
+    if (version.stdout.trim() !== packed.version) {
+      throw new Error(`installed CLI version ${version.stdout.trim()} did not match packed version ${packed.version}`);
+    }
+
     const routeResult = run(process.execPath, [cliPath, "work", "fix typo in renderAgent output", "--agent"], {
       cwd: installDir,
       env
