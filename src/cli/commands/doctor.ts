@@ -108,6 +108,14 @@ function display(value: string | undefined | null): string {
   return value || "unknown";
 }
 
+function displayInstall(location: PackageLocation | null): string {
+  if (!location) {
+    return "unknown";
+  }
+
+  return `${display(location.packageJson.version)} (${location.path})`;
+}
+
 function dependencyVersion(packageJson: PackageInfo | undefined): string | undefined {
   return packageJson?.dependencies?.[packageName]
     ?? packageJson?.devDependencies?.[packageName]
@@ -173,7 +181,7 @@ export async function doctorCommand(io: CliIO, args: string[] = []): Promise<num
     `Running CLI version: ${display(runningVersion)}`,
     `Repo package version: ${repoName === packageName ? display(repoVersion) : "not repo-context-center"}`,
     `Package dependency version: ${declaredDependency ?? "not declared"}`,
-    `Nearest local install version: ${display(localVersion)}`,
+    `Nearest local install: ${displayInstall(localInstall)}`,
     `Supports work --agent: ${modernWorkAgentSupported ? "yes" : "no"}`,
     `Execution path: ${display(executable)}`,
     ""

@@ -2322,4 +2322,44 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-24T19:29:51.032Z
+- Summary: Clarified RCC local/global CLI alignment and doctor local install path
+- Changed files: `AGENTS.md`, `README.md`, `src/cli/commands/doctor.ts`, `tests/cli.test.js`
+- Verification: npm run build; node --test tests/cli.test.js; node dist/cli/index.js doctor; git diff --check; npm link failed with EACCES on /usr/local/lib/node_modules/repo-context-center
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Clarified RCC local/global CLI alignment and doctor local install path",
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "src/cli/commands/doctor.ts",
+    "tests/cli.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/cli.test.js; node dist/cli/index.js doctor; git diff --check; npm link failed with EACCES on /usr/local/lib/node_modules/repo-context-center"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T19:29:51.032Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T19:29:51.032Z",
+  "summary": "Clarified RCC local/global CLI alignment and doctor local install path",
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "src/cli/commands/doctor.ts",
+    "tests/cli.test.js"
+  ],
+  "verification": "npm run build; node --test tests/cli.test.js; node dist/cli/index.js doctor; git diff --check; npm link failed with EACCES on /usr/local/lib/node_modules/repo-context-center",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

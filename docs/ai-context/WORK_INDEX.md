@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Clarified RCC local/global CLI alignment and doctor local install path
 - Documented init update latest usage and cleaned AGENTS upgrade leftovers
 - Calibrated cross-repo routing for Guardian-style release hardening output-contract tasks
 - Implemented RCC binary version alignment diagnostics in doctor with local/dependency mismatch checks and --version
 - Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings
 - Added negative coverage for done handoff file path injection and verbose agent JSON boundaries
 - Added Guardian coverage tests for scripts and security-sensitive agent/done output
-- Implemented learning quality guards for repository memory
 
 ## Hot Files
 
@@ -37,19 +37,19 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Work routing | 16 | Calibrated cross-repo routing for Guardian-style release hardening output-contract tasks |
 | Repository context | 7 | Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings |
 | General maintenance | 6 | Added release and install reliability guards |
+| CLI commands | 5 | Clarified RCC local/global CLI alignment and doctor local install path |
 | Work memory | 5 | Implemented learning quality guards for repository memory |
-| CLI commands | 4 | Documented init update latest usage and cleaned AGENTS upgrade leftovers |
 | Tests | 2 | Added Guardian coverage tests for scripts and security-sensitive agent/done output |
 | Agent guidance | 2 | Fixed tiny task guidance spacing regressions by aligning tiny text guidance and adding agent output regression coverage for joined words. |
 
 ## Verification Patterns
 
-- `npm run build` (42)
+- `npm run build` (43)
 - `npm test` (30)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
 - `npm run benchmark:routing` (11)
-- `node --test tests/cli.test.js` (9)
+- `node --test tests/cli.test.js` (10)
 - `npm run release:check` (7)
 - `node --test tests/work.test.js` (5)
 

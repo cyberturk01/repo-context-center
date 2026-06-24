@@ -7,7 +7,7 @@ Reference stable repository ownership and responsibilities.
 
 ## CLI
 - Purpose: Command parsing and user-facing output.
-- Primary files: `src/cli/commands/archive.ts`, `src/cli/commands/decision.ts`, `src/cli/commands/done.ts`, `src/cli/commands/estimate.ts`.
+- Primary files: `src/cli/commands/archive.ts`, `src/cli/commands/decision.ts`, `src/cli/commands/doctor.ts`, `src/cli/commands/done.ts`.
 - Common tasks: add flags, adjust help text, change stdout/stderr, set exit codes.
 - Related tests: `tests/archive.test.js`, `tests/cli.test.js`, `tests/decision.test.js`, `tests/done.test.js`.
 - Dependency hints: src/cli/commands/archive.ts, src/core/archiver.ts, src/core/config.ts.
@@ -61,11 +61,19 @@ Reference stable repository ownership and responsibilities.
 - Dependency hints: docs/ai-context/*, src/core/templateInstaller.ts, src/templates/*, templates/*.
 - Risks: stale generated defaults, template/context mismatch.
 
+## Tests / Fixtures
+- Purpose: Test data, temp repos, and fixtures.
+- Primary files: `tests/fixtures/learning-cases.json`, `tests/fixtures/routing-cases.json`.
+- Common tasks: update temp repo setup, change fixtures, refresh expected docs.
+- Related tests: none detected.
+- Dependency hints: tests/*.
+- Risks: fixture/snapshot drift.
+
 ## Staff/POS/public flows
 - Purpose: Public, staff, owner, POS, and QR flows.
-- Primary files: `src/core/repositoryUnderstanding.ts`.
+- Primary files: `src/core/renderRepositoryLearning.ts`, `src/core/repositoryLearning.ts`, `src/core/repositoryLearningRouting.ts`, `src/core/repositoryUnderstanding.ts`.
 - Common tasks: public UI, staff workflow, POS.
-- Related tests: `tests/repositoryUnderstanding.test.js`.
+- Related tests: `tests/renderRepositoryLearning.test.js`, `tests/repositoryLearning.test.js`, `tests/repositoryUnderstanding.test.js`.
 - Dependency hints: none.
 - Risks: review real callers before editing.
 
@@ -79,9 +87,9 @@ Reference stable repository ownership and responsibilities.
 
 ## Release workflow
 - Purpose: CI, deployment, and release configuration.
-- Primary files: `.github/workflows/ai-project-guardian.yml`, `.github/workflows/ci.yml`.
+- Primary files: `.github/workflows/ai-project-guardian.yml`, `.github/workflows/ci.yml`, `scripts/release-check.js`.
 - Common tasks: CI, deployment, release.
-- Related tests: `tests/v07-release.test.js`.
+- Related tests: `tests/scripts/release-check.test.js`, `tests/v07-release.test.js`.
 - Dependency hints: .github/workflows/*, package.json.
 - Risks: CI blocked, release validation skipped.
 

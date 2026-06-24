@@ -137,6 +137,7 @@ Agent guidance:
 - Use `rcc done` after meaningful work.
 - Use `rcc learn --write` when learned repository patterns need to be regenerated manually.
 - Use `rcc handoff` when another session or agent needs to continue.
+- When developing RCC itself, run `node dist/cli/index.js <command>` after `npm run build` so an older global `rcc` does not shadow the repo build. If `rcc doctor` or `rcc work "<task>" --agent` is unknown, update or relink the global install.
 
 Agents should treat RCC output as navigation guidance, not proof. Source code remains the source of truth, and agents should verify source before editing.
 
@@ -453,6 +454,8 @@ Prefer `rcc work`, `rcc done`, and `rcc handoff` for new agent workflows.
 
 ```sh
 repo-context-center --help
+repo-context-center --version
+repo-context-center doctor
 repo-context-center init [--dry-run] [--force] [--github-action]
 repo-context-center work "<task>" [--agent] [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
 repo-context-center measure "<task>" [--json]

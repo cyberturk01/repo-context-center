@@ -82,7 +82,7 @@ test("doctor reports matching local development version without warning", () => 
   assert.match(result.stdout, new RegExp(`Running CLI version: ${packageJson.version}`));
   assert.match(result.stdout, new RegExp(`Repo package version: ${packageJson.version}`));
   assert.match(result.stdout, /Package dependency version: not declared/);
-  assert.match(result.stdout, /Nearest local install version: (?:unknown|\d+\.\d+\.\d+)/);
+  assert.match(result.stdout, /Nearest local install: (?:unknown|\d+\.\d+\.\d+ \(.+repo-context-center\))/);
   assert.match(result.stdout, /Supports work --agent: yes/);
   assert.match(result.stdout, /Execution path: /);
   assert.match(result.stdout, /Local package and active CLI are aligned\./);
@@ -109,7 +109,7 @@ test("doctor reports aligned local package and active CLI", async () => {
     assert.equal(result.stderr, "");
     assert.match(result.stdout, new RegExp(`Running CLI version: ${packageJson.version}`));
     assert.match(result.stdout, new RegExp(`Package dependency version: ${packageJson.version}`));
-    assert.match(result.stdout, new RegExp(`Nearest local install version: ${packageJson.version}`));
+    assert.match(result.stdout, new RegExp(`Nearest local install: ${packageJson.version} \\(.+node_modules.+repo-context-center\\)`));
     assert.match(result.stdout, /Supports work --agent: yes/);
     assert.match(result.stdout, /Local package and active CLI are aligned\./);
   } finally {
@@ -158,7 +158,7 @@ test("doctor warns when package dependency is newer than active CLI", async () =
     assert.equal(result.status, 0);
     assert.equal(result.stderr, "");
     assert.match(result.stdout, /Package dependency version: \^99\.0\.0/);
-    assert.match(result.stdout, /Nearest local install version: unknown/);
+    assert.match(result.stdout, /Nearest local install: unknown/);
     assert.match(result.stdout, /Detected package dependency repo-context-center@\^99\.0\.0 but active rcc command appears older\./);
     assert.match(result.stdout, /Try: npx repo-context-center@99\.0\.0 work "<task>" --agent/);
   } finally {
@@ -180,7 +180,7 @@ test("doctor warns when local install is newer than active CLI", async () => {
 
     assert.equal(result.status, 0);
     assert.equal(result.stderr, "");
-    assert.match(result.stdout, /Nearest local install version: 99\.0\.0/);
+    assert.match(result.stdout, /Nearest local install: 99\.0\.0 \(.+node_modules.+repo-context-center\)/);
     assert.match(result.stdout, /Detected local repo-context-center@99\.0\.0 but active rcc command appears older\./);
     assert.match(result.stdout, /Try: npx repo-context-center@99\.0\.0 work "<task>" --agent/);
   } finally {
@@ -206,7 +206,7 @@ test("doctor reports missing local dependency install", async () => {
     assert.equal(result.status, 0);
     assert.equal(result.stderr, "");
     assert.match(result.stdout, new RegExp(`Package dependency version: ${packageJson.version}`));
-    assert.match(result.stdout, /Nearest local install version: unknown/);
+    assert.match(result.stdout, /Nearest local install: unknown/);
     assert.match(result.stdout, new RegExp(`Package declares repo-context-center@${packageJson.version}, but no local node_modules install was found\\.`));
     assert.match(result.stdout, /Run your package manager install command, or use npx with the declared version\./);
   } finally {
