@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Updated README and CHANGE_LOG for the latest six RCC changes, including impact analysis, quality matrix, command metadata, test hardening, ...
 - Hardened impact suggestions for docs-only changes by suppressing npm test fallback and adding docs-only guidance note.
 - Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage.
 - Prepared impact suggestedCommands for v0.12 verification intelligence with structured type, scope, and confidence metadata plus regression ...
 - Added fixture-based impact quality matrix covering focused source, docs-only, package, and changed-test cases; filtered RCC scaffolding fro...
 - Implemented RCC v0.11 impact analysis MVP with task/change heuristics, JSON output, suggested commands, and tests.
 - Clarified RCC local/global CLI alignment and doctor local install path
-- Documented init update latest usage and cleaned AGENTS upgrade leftovers
 
 ## Hot Files
 
@@ -27,7 +27,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `src/cli/handoff/renderAgent.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/handoff/renderJson.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/work/renderAgent.ts` | 9 touches; Added JSON and agent output contract stability tests | 2026-06-22 |
-| `src/cli/work/taskFileRecommendations.ts` | 8 touches; Calibrated cross-repo routing for Guardian-style release hardening output-contract tasks | 2026-06-24 |
+| `README.md` | 8 touches; Updated README and CHANGE_LOG for the latest six RCC changes, including impact analysis, quality matrix, command metadata, test hardening, docs-only... | 2026-06-24 |
 
 ## Completed Work Themes
 
@@ -39,13 +39,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Repository context | 7 | Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings |
 | CLI commands | 5 | Clarified RCC local/global CLI alignment and doctor local install path |
 | Work memory | 5 | Implemented learning quality guards for repository memory |
-| Agent guidance | 3 | Hardened impact suggestions for docs-only changes by suppressing npm test fallback and adding docs-only guidance note. |
+| Agent guidance | 4 | Updated README and CHANGE_LOG for the latest six RCC changes, including impact analysis, quality matrix, command metadata, test hardening, docs-only behavior, ... |
 | Tests | 3 | Added fixture-based impact quality matrix covering focused source, docs-only, package, and changed-test cases; filtered RCC scaffolding from inferred affected ... |
 
 ## Verification Patterns
 
 - `npm run build` (45)
-- `npm test` (35)
+- `npm test` (36)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
 - `npm run benchmark:routing` (11)

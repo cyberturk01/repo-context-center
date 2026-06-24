@@ -26,6 +26,7 @@ Core capabilities:
 - Work Tracking
 - Repository Learning
 - Agent Handover
+- Impact Analysis
 
 ![Repo Context Center workflow](https://raw.githubusercontent.com/cyberturk01/repo-context-center/main/docs/assets/repo-context-center-diagram.svg)
 
@@ -123,6 +124,7 @@ init -> map --write -> work -> edit/verify -> done -> handoff
 | `init --update` | `npx repo-context-center@latest init --update` | When an existing repo has older RCC-generated `AGENTS.md` guidance | Refreshed RCC agent workflow while preserving manual AGENTS.md content | Humans and agents |
 | `map --write` | `npx repo-context-center@latest map --write` | After init and after meaningful repo structure changes | Refreshed generated sections in context files | Agents, reviewers, and CI |
 | `work` | `rcc work "implement feature" --agent` | Once at task start | Compact route with primary files, tests, supporting files, and read-first rules | The active coding agent |
+| `impact` | `rcc impact "update README wording" --json` | Before or after a change when estimating affected files and checks | Affected files, affected tests, suggested commands, confidence, and notes | Humans, agents, and reviewers |
 | `edit/verify` | Use your editor and project checks, such as `npm test` | During implementation | Source changes and verification evidence | Humans, agents, and reviewers |
 | `done` | `rcc done --summary "implemented feature" --files auto --verify "npm test"` | After meaningful completed work | Lightweight work memory in `docs/ai-context/WORK_LOG.md` and learned repository patterns in `docs/ai-context/REPOSITORY_LEARNING.md` | Future agents and humans |
 | `learn` | `rcc learn --write` | When repository learning should be regenerated on demand | Refreshed learned focus areas, file relationships, verification patterns, and repository habits | Agents, humans, and routing commands |
@@ -134,6 +136,7 @@ Agent guidance:
 - Inspect `primaryFiles`, `tests`, and `supportingFiles` before broader search.
 - Do not repeatedly rerun the same task route.
 - Use `rcc find "<keyword>"` only if the route is insufficient.
+- Use `rcc impact "<task>" --json` when you need a compact estimate of affected files, tests, and verification commands.
 - Use `rcc done` after meaningful work.
 - Use `rcc learn --write` when learned repository patterns need to be regenerated manually.
 - Use `rcc handoff` when another session or agent needs to continue.
@@ -150,6 +153,7 @@ RCC does not run in the background, automatically edit source code, or automatic
 | `init` | Run the command when adopting RCC or adding the default CI workflow | Creates missing RCC templates and config; preserves existing manual content |
 | `map --write` | Run after structural changes | Refreshes generated sections in `docs/ai-context/*` and warns if `AGENTS.md` needs `init --update` |
 | `work` | Run once at task start and follow the route | Reads context and repo metadata to produce a compact task route |
+| `impact` | Run when estimating change impact | Combines working-tree changes, task routing, learned test signals, and simple source/test pairing |
 | `find` | Run only when the route is insufficient | Returns focused fallback file candidates with reasons |
 | `done` | Record summary, changed files, and verification after meaningful work | Appends lightweight work memory for future handoff and routing |
 | `learn` | Regenerate learned repository patterns on demand | Reads work memory, work index, and decisions to refresh `REPOSITORY_LEARNING.md` |
@@ -334,6 +338,38 @@ npx repo-context-center find "decision command"
 
 `find "<query>"` returns focused file candidates with short deterministic reasons. It prefers task-routing, filename, path, paired-test, and lightweight content signals while filtering noisy generated, fixture, snapshot, archive, and internal context paths.
 
+### Analyze Change Impact
+
+Use `impact` to estimate affected files, likely affected tests, and suggested verification commands from the current working tree plus a task description:
+
+```sh
+npx repo-context-center impact "update README wording" --json
+```
+
+Example output:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "impact",
+  "task": "update README wording",
+  "affectedFiles": [
+    {
+      "path": "README.md",
+      "reason": "changed in working tree"
+    }
+  ],
+  "affectedTests": [],
+  "suggestedCommands": [],
+  "confidence": "medium",
+  "notes": [
+    "Docs-only impact detected; no focused test command suggested."
+  ]
+}
+```
+
+Impact analysis is intentionally heuristic, not a static dependency engine. It uses git working-tree changes, RCC task routing, learned test signals, and simple source/test pairing. For docs-only changes such as `README.md`, `docs/**`, and Markdown wording updates, RCC keeps the impact focused and avoids broad `npm test` fallback unless source, package, workflow, or known tests are also affected.
+
 ### Validate Installation
 
 Validate installed context files:
@@ -402,6 +438,12 @@ npx repo-context-center work "improve package scripts" --json
 npx repo-context-center work "improve package scripts" --json --context-budget minimal
 ```
 
+Use `impact --json` when a tool needs affected files, tests, suggested commands, command metadata, confidence, and compact notes:
+
+```sh
+npx repo-context-center impact "fix login regression" --json
+```
+
 Use `handoff --json` or `handoff --agent` when a tool needs continuation context:
 
 ```sh
@@ -458,6 +500,7 @@ repo-context-center --version
 repo-context-center doctor
 repo-context-center init [--dry-run] [--force] [--github-action]
 repo-context-center work "<task>" [--agent] [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
+repo-context-center impact "<task>" [--json] [--max-files <number>]
 repo-context-center measure "<task>" [--json]
 repo-context-center done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]
 repo-context-center learn [--json] [--write] [--debug]
@@ -481,6 +524,7 @@ repo-context-center log "<summary>" [--files <path,path>] [--dry-run]
 | `init` | install RCC repository instructions and context templates | once per repo |
 | `map --write` | refresh generated repo maps | after structure changes |
 | `work --agent` | print the compact agent route | once at task start |
+| `impact` | estimate affected files, tests, and verification commands | before or after a change |
 | `find` | locate focused candidate files | only if the route is insufficient |
 | `measure` | estimate route savings for a task | when evaluating routing efficiency |
 | `done` | save completed-work memory | after meaningful agent work |
@@ -617,6 +661,7 @@ With `--github-action`, init also creates:
 | Work tracking | Available |
 | Repository learning | Available |
 | Agent handover | Available |
+| Impact analysis | Available |
 | Explainable recommendation reasons | Available |
 | Targeted fallback search | Available |
 | Token estimation | Available |
