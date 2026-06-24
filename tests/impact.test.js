@@ -108,6 +108,39 @@ test("impact includes git working-tree changes and paired tests", async () => {
   });
 });
 
+test("impact filters weak semantic source matches from affected files", () => {
+  const result = runCli(["impact", "change report output contract", "--json"]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(result.stderr, "");
+
+  const analysis = JSON.parse(result.stdout);
+  const affectedFiles = analysis.affectedFiles.map((file) => file.path);
+  const weakAffectedFiles = analysis.affectedFiles.filter((file) => /weak semantic match/i.test(file.reason));
+
+  assert.ok(analysis.affectedTests.some((file) => file.path === "tests/outputContract.test.js"));
+  assert.deepEqual(weakAffectedFiles, []);
+  assert.ok(analysis.notes.includes("Filtered weak semantic source candidates from affectedFiles."));
+  if (analysis.affectedFiles.length === 0) {
+    assert.ok(analysis.notes.includes("No high-confidence affected source files found."));
+  }
+  for (const filePath of [
+    "src/cli/commands/estimate.ts",
+    "src/cli/commands/measure.ts",
+    "src/cli/commands/scan.ts",
+    "src/cli/commands/validate.ts",
+    "src/core/taskIntent.ts",
+    "src/core/tokenEstimator.ts"
+  ]) {
+    assert.equal(affectedFiles.includes(filePath), false, `${filePath} should not be reported as affected`);
+  }
+  assert.ok(analysis.suggestedCommands.some((item) => (
+    item.command.includes("tests/outputContract.test.js")
+    && item.type === "test"
+    && item.scope === "focused"
+  )));
+});
+
 test("impact rejects invalid args", () => {
   const result = runCli(["impact", "--unknown"]);
 

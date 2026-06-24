@@ -2504,4 +2504,42 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-24T20:39:30.678Z
+- Summary: Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage.
+- Changed files: `src/cli/impact/buildImpact.ts`, `tests/helpers/impactEvaluation.js`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T20:39:30.678Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T20:39:30.678Z",
+  "summary": "Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

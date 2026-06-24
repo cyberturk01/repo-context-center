@@ -146,6 +146,18 @@ function isContextScaffoldingPath(filePath: string): boolean {
   return filePath === "AGENTS.md" || filePath.startsWith("docs/ai-context/");
 }
 
+function isWeakSemanticImpact(file: ImpactFile): boolean {
+  return /\bweak semantic match\b/i.test(file.reason);
+}
+
+function isHighConfidenceRoutedFile(file: ImpactFile): boolean {
+  if (isContextScaffoldingPath(file.path)) {
+    return false;
+  }
+
+  return !isWeakSemanticImpact(file);
+}
+
 function commandForTests(tests: ImpactFile[]): ImpactCommand[] {
   const runnable = tests
     .map((test) => test.path)
@@ -170,11 +182,10 @@ function hasPackageScript(brief: WorkBrief, changedFiles: string[]): boolean {
     || brief.primaryFiles.some((file) => classifyRepoFile(file.path).role === "package");
 }
 
-function hasBuildRelevantChange(brief: WorkBrief, changedFiles: string[]): boolean {
+function hasBuildRelevantChange(affectedFiles: ImpactFile[], changedFiles: string[]): boolean {
   const files = uniquePaths([
     ...changedFiles,
-    ...brief.primaryFiles.map((file) => file.path),
-    ...brief.supportingFiles.map((file) => file.path)
+    ...affectedFiles.map((file) => file.path)
   ]);
 
   return files.some((file) => {
@@ -183,12 +194,17 @@ function hasBuildRelevantChange(brief: WorkBrief, changedFiles: string[]): boole
   });
 }
 
-function suggestedCommands(brief: WorkBrief, changedFiles: string[], tests: ImpactFile[]): ImpactCommand[] {
+function suggestedCommands(
+  brief: WorkBrief,
+  changedFiles: string[],
+  affectedFiles: ImpactFile[],
+  tests: ImpactFile[]
+): ImpactCommand[] {
   const commands: ImpactCommand[] = [
     ...commandForTests(tests)
   ];
 
-  if (hasBuildRelevantChange(brief, changedFiles)) {
+  if (hasBuildRelevantChange(affectedFiles, changedFiles)) {
     commands.push({
       command: "npm run build",
       type: "build",
@@ -257,15 +273,17 @@ export async function buildImpactAnalysis(
   const routeFiles = routeImpactFiles(brief);
   const routeTests = routeImpactTests(brief);
   const pairedImpactTests = pairedTests.map((file) => impactFile(file, "paired with changed source file"));
+  const highConfidenceRouteFiles = routeFiles.filter(isHighConfidenceRoutedFile);
   const affectedFiles = mergeImpactFiles([
     changedFilesWithReasons.filter((file) => classifyRepoFile(file.path).role !== "test"),
-    routeFiles.filter((file) => !isContextScaffoldingPath(file.path))
+    highConfidenceRouteFiles
   ], maxFiles);
   const affectedTests = mergeImpactFiles([
     changedTestFiles(changedFiles),
     pairedImpactTests,
     routeTests
   ], Math.min(maxFiles, 20));
+  const filteredWeakCount = routeFiles.filter((file) => isWeakSemanticImpact(file) && !affectedFiles.some((affected) => affected.path === file.path)).length;
 
   return {
     schemaVersion: 1,
@@ -275,11 +293,13 @@ export async function buildImpactAnalysis(
     changedFiles: changedFilesWithReasons.slice(0, maxFiles),
     affectedFiles,
     affectedTests,
-    suggestedCommands: suggestedCommands(brief, changedFiles, affectedTests),
+    suggestedCommands: suggestedCommands(brief, changedFiles, affectedFiles, affectedTests),
     confidence: confidence(changedFiles, affectedFiles, affectedTests),
     notes: [
       "Heuristic MVP: combines git working-tree changes, RCC task routing, learned test signals, and simple source/test pairing.",
-      "This is not a full static dependency analysis."
+      "This is not a full static dependency analysis.",
+      ...(filteredWeakCount > 0 ? ["Filtered weak semantic source candidates from affectedFiles."] : []),
+      ...(affectedFiles.length === 0 && affectedTests.length > 0 ? ["No high-confidence affected source files found."] : [])
     ]
   };
 }

@@ -108,6 +108,12 @@ function evaluateImpactCase(analysis, impactCase) {
     }
   }
 
+  for (const item of valuesFrom(analysis.affectedFiles)) {
+    if (/weak semantic match/i.test(item.reason ?? "")) {
+      failures.push(`affectedFiles contains weak semantic candidate ${item.path}`);
+    }
+  }
+
   for (const command of commandsWithInvalidMetadata(analysis.suggestedCommands)) {
     failures.push(`suggested command has invalid metadata: ${command}`);
   }

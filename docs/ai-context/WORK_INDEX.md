@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage.
 - Prepared impact suggestedCommands for v0.12 verification intelligence with structured type, scope, and confidence metadata plus regression ...
 - Added fixture-based impact quality matrix covering focused source, docs-only, package, and changed-test cases; filtered RCC scaffolding fro...
 - Implemented RCC v0.11 impact analysis MVP with task/change heuristics, JSON output, suggested commands, and tests.
 - Clarified RCC local/global CLI alignment and doctor local install path
 - Documented init update latest usage and cleaned AGENTS upgrade leftovers
 - Calibrated cross-repo routing for Guardian-style release hardening output-contract tasks
-- Implemented RCC binary version alignment diagnostics in doctor with local/dependency mismatch checks and --version
 
 ## Hot Files
 
@@ -34,7 +34,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
-| Work routing | 16 | Calibrated cross-repo routing for Guardian-style release hardening output-contract tasks |
+| Work routing | 17 | Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage. |
 | General maintenance | 8 | Prepared impact suggestedCommands for v0.12 verification intelligence with structured type, scope, and confidence metadata plus regression guards. |
 | Repository context | 7 | Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings |
 | CLI commands | 5 | Clarified RCC local/global CLI alignment and doctor local install path |
@@ -44,13 +44,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (43)
-- `npm test` (33)
+- `npm run build` (44)
+- `npm test` (34)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
 - `npm run benchmark:routing` (11)
 - `node --test tests/cli.test.js` (10)
-- `npm run release:check` (7)
+- `npm run release:check` (8)
 - `node --test tests/work.test.js` (5)
 
 <!-- repo-context-center:work-index:end -->
