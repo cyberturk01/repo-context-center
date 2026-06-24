@@ -194,6 +194,29 @@ function hasBuildRelevantChange(affectedFiles: ImpactFile[], changedFiles: strin
   });
 }
 
+function isDocsOnlyPath(filePath: string): boolean {
+  const normalizedPath = normalizeRepoPath(filePath);
+  const basename = path.posix.basename(normalizedPath).toLowerCase();
+
+  return basename === "readme.md"
+    || normalizedPath.startsWith("docs/")
+    || basename.endsWith(".md");
+}
+
+function hasChangedNonDocsImpact(changedFiles: string[]): boolean {
+  return changedFiles.some((file) => {
+    const role = classifyRepoFile(file).role;
+    return ["source", "config", "workflow", "package"].includes(role);
+  });
+}
+
+function isDocsOnlyImpact(affectedFiles: ImpactFile[], tests: ImpactFile[], changedFiles: string[]): boolean {
+  return affectedFiles.length > 0
+    && tests.length === 0
+    && affectedFiles.every((file) => isDocsOnlyPath(file.path))
+    && !hasChangedNonDocsImpact(changedFiles);
+}
+
 function suggestedCommands(
   brief: WorkBrief,
   changedFiles: string[],
@@ -203,6 +226,7 @@ function suggestedCommands(
   const commands: ImpactCommand[] = [
     ...commandForTests(tests)
   ];
+  const docsOnlyImpact = isDocsOnlyImpact(affectedFiles, tests, changedFiles);
 
   if (hasBuildRelevantChange(affectedFiles, changedFiles)) {
     commands.push({
@@ -214,7 +238,7 @@ function suggestedCommands(
     });
   }
 
-  if (commands.length === 0 || hasPackageScript(brief, changedFiles)) {
+  if ((commands.length === 0 && !docsOnlyImpact) || hasPackageScript(brief, changedFiles)) {
     commands.push({
       command: "npm test",
       type: "test",
@@ -298,6 +322,7 @@ export async function buildImpactAnalysis(
     notes: [
       "Heuristic MVP: combines git working-tree changes, RCC task routing, learned test signals, and simple source/test pairing.",
       "This is not a full static dependency analysis.",
+      ...(isDocsOnlyImpact(affectedFiles, affectedTests, changedFiles) ? ["Docs-only impact detected; no focused test command suggested."] : []),
       ...(filteredWeakCount > 0 ? ["Filtered weak semantic source candidates from affectedFiles."] : []),
       ...(affectedFiles.length === 0 && affectedTests.length > 0 ? ["No high-confidence affected source files found."] : [])
     ]

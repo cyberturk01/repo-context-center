@@ -26,6 +26,14 @@ function missingCommand(actualCommands, expectedCommands = []) {
   return expectedCommands.filter((expectedCommand) => !actualCommands.some((command) => command.includes(expectedCommand)));
 }
 
+function unexpectedCommand(actualCommands, expectedCommands = []) {
+  return expectedCommands.filter((expectedCommand) => actualCommands.some((command) => command.includes(expectedCommand)));
+}
+
+function missingNote(actualNotes, expectedNotes = []) {
+  return expectedNotes.filter((expectedNote) => !valuesFrom(actualNotes).some((note) => note.includes(expectedNote)));
+}
+
 function countFailure(label, actual, max) {
   return actual > max ? `${label} count ${actual} > ${max}` : null;
 }
@@ -73,7 +81,9 @@ function evaluateImpactCase(analysis, impactCase) {
     ...unexpectedPresent(affectedFiles, expect.affectedNotContains).map((file) => `unexpected affected file ${file}`),
     ...missingExpected(affectedTests, expect.testsContains).map((file) => `missing affected test ${file}`),
     ...unexpectedPresent(affectedTests, expect.testsNotContains).map((file) => `unexpected affected test ${file}`),
-    ...missingCommand(suggestedCommands, expect.commandsContain).map((command) => `missing command containing ${command}`)
+    ...missingCommand(suggestedCommands, expect.commandsContain).map((command) => `missing command containing ${command}`),
+    ...unexpectedCommand(suggestedCommands, expect.commandsNotContain).map((command) => `unexpected command containing ${command}`),
+    ...missingNote(analysis.notes, expect.notesContain).map((note) => `missing note containing ${note}`)
   ];
 
   for (const [label, actual, max] of [

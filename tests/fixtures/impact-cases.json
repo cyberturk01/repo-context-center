@@ -65,9 +65,15 @@
       "testsNotContains": [
         "tests/auth/login.test.js"
       ],
+      "commandsNotContain": [
+        "npm test"
+      ],
+      "notesContain": [
+        "Docs-only impact detected; no focused test command suggested."
+      ],
       "maxAffectedFiles": 2,
       "maxAffectedTests": 0,
-      "maxSuggestedCommands": 1
+      "maxSuggestedCommands": 0
     }
   },
   {

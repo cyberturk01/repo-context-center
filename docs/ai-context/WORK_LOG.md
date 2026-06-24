@@ -2542,4 +2542,44 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-24T20:45:08.403Z
+- Summary: Hardened impact suggestions for docs-only changes by suppressing npm test fallback and adding docs-only guidance note.
+- Changed files: `src/cli/impact/buildImpact.ts`, `tests/fixtures/impact-cases.json`, `tests/helpers/impactEvaluation.js`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Hardened impact suggestions for docs-only changes by suppressing npm test fallback and adding docs-only guidance note.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/fixtures/impact-cases.json",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T20:45:08.403Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T20:45:08.403Z",
+  "summary": "Hardened impact suggestions for docs-only changes by suppressing npm test fallback and adding docs-only guidance note.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/fixtures/impact-cases.json",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -54,6 +54,38 @@ async function withImpactRepo(callback) {
   }
 }
 
+async function withDocsOnlyImpactRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-impact-docs-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- README work: read `README.md`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "README.md", "# Project\n\nOld wording.\n");
+    await writeFixtureFile(tempDir, "src/index.ts", "export const ok = true;\n");
+    await writeFixtureFile(tempDir, "tests/index.test.js", "test('ok', () => {});\n");
+
+    runGit(["init"], tempDir);
+    runGit(["config", "user.email", "test@example.com"], tempDir);
+    runGit(["config", "user.name", "Test User"], tempDir);
+    runGit(["add", "."], tempDir);
+    runGit(["commit", "-m", "initial"], tempDir);
+
+    await writeFixtureFile(tempDir, "README.md", "# Project\n\nBetter wording.\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 test("impact --json returns task-based affected files and commands", async () => {
   await withImpactRepo(async (cwd) => {
     const result = runCli(["impact", "update login flow", "--json"], { cwd });
@@ -139,6 +171,22 @@ test("impact filters weak semantic source matches from affected files", () => {
     && item.type === "test"
     && item.scope === "focused"
   )));
+});
+
+test("impact suppresses npm test fallback for docs-only README changes", async () => {
+  await withDocsOnlyImpactRepo(async (cwd) => {
+    const result = runCli(["impact", "update README wording", "--json"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(result.stderr, "");
+
+    const analysis = JSON.parse(result.stdout);
+
+    assert.ok(analysis.affectedFiles.some((file) => file.path === "README.md"));
+    assert.deepEqual(analysis.affectedTests, []);
+    assert.equal(analysis.suggestedCommands.some((item) => item.command === "npm test"), false);
+    assert.ok(analysis.notes.includes("Docs-only impact detected; no focused test command suggested."));
+  });
 });
 
 test("impact rejects invalid args", () => {
