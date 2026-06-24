@@ -11,6 +11,7 @@ import { recommendationReason } from "./impactTypes";
 
 const execFileAsync = promisify(execFile);
 const directTestPattern = /\.(test|spec)\.[cm]?[jt]sx?$/i;
+const runnableNodeTestPattern = /\.(test|spec)\.[cm]?[jt]sx?$/i;
 
 function normalizeRepoPath(filePath: string): string {
   return filePath.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/g, "");
@@ -161,7 +162,7 @@ function isHighConfidenceRoutedFile(file: ImpactFile): boolean {
 function commandForTests(tests: ImpactFile[]): ImpactCommand[] {
   const runnable = tests
     .map((test) => test.path)
-    .filter((file) => /\.test\.js$/i.test(file) || /\.spec\.js$/i.test(file))
+    .filter((file) => runnableNodeTestPattern.test(file))
     .slice(0, 8);
 
   if (runnable.length === 0) {
@@ -173,8 +174,18 @@ function commandForTests(tests: ImpactFile[]): ImpactCommand[] {
     type: "test",
     scope: "focused",
     confidence: "high",
-    reason: "run affected JavaScript tests directly"
+    reason: "run affected tests directly"
   }];
+}
+
+function isExplicitReadmeDocsTask(task: string): boolean {
+  return /\breadme(?:\.md)?\b/i.test(task)
+    && !/\bpackage\.json\b/i.test(task)
+    && !/\brelease\s+analy[sz]er\b/i.test(task)
+    && !/\breleaseAnalyzer\b/.test(task)
+    && !/\bpublish(?:ing)?\b/i.test(task)
+    && !/\bnpm\s+package\b/i.test(task)
+    && !/\bworkflow\b/i.test(task);
 }
 
 function hasPackageScript(brief: WorkBrief, changedFiles: string[]): boolean {
@@ -217,6 +228,27 @@ function isDocsOnlyImpact(affectedFiles: ImpactFile[], tests: ImpactFile[], chan
     && !hasChangedNonDocsImpact(changedFiles);
 }
 
+function preferReadmeDocsImpact(task: string, affectedFiles: ImpactFile[], changedFiles: string[]): ImpactFile[] {
+  if (!isExplicitReadmeDocsTask(task) || hasChangedNonDocsImpact(changedFiles)) {
+    return affectedFiles;
+  }
+
+  const docsFiles = affectedFiles.filter((file) => isDocsOnlyPath(file.path));
+  const readmeFiles = docsFiles
+    .filter((file) => path.posix.basename(file.path).toLowerCase() === "readme.md")
+    .sort((left, right) => {
+      if (left.path === "README.md") {
+        return -1;
+      }
+      if (right.path === "README.md") {
+        return 1;
+      }
+      return 0;
+    });
+
+  return readmeFiles.length > 0 ? readmeFiles : docsFiles;
+}
+
 function suggestedCommands(
   brief: WorkBrief,
   changedFiles: string[],
@@ -238,7 +270,7 @@ function suggestedCommands(
     });
   }
 
-  if ((commands.length === 0 && !docsOnlyImpact) || hasPackageScript(brief, changedFiles)) {
+  if (!docsOnlyImpact && (commands.length === 0 || hasPackageScript(brief, changedFiles))) {
     commands.push({
       command: "npm test",
       type: "test",
@@ -302,12 +334,16 @@ export async function buildImpactAnalysis(
     changedFilesWithReasons.filter((file) => classifyRepoFile(file.path).role !== "test"),
     highConfidenceRouteFiles
   ], maxFiles);
-  const affectedTests = mergeImpactFiles([
+  const readmeDocsImpact = preferReadmeDocsImpact(task, affectedFiles, changedFiles);
+  const docsOnlyReadmeTask = readmeDocsImpact !== affectedFiles
+    && readmeDocsImpact.length > 0
+    && readmeDocsImpact.every((file) => isDocsOnlyPath(file.path));
+  const affectedTests = docsOnlyReadmeTask ? [] : mergeImpactFiles([
     changedTestFiles(changedFiles),
     pairedImpactTests,
     routeTests
   ], Math.min(maxFiles, 20));
-  const filteredWeakCount = routeFiles.filter((file) => isWeakSemanticImpact(file) && !affectedFiles.some((affected) => affected.path === file.path)).length;
+  const filteredWeakCount = routeFiles.filter((file) => isWeakSemanticImpact(file) && !readmeDocsImpact.some((affected) => affected.path === file.path)).length;
 
   return {
     schemaVersion: 1,
@@ -315,16 +351,16 @@ export async function buildImpactAnalysis(
     task,
     basis: basis(changedFiles, routeFiles),
     changedFiles: changedFilesWithReasons.slice(0, maxFiles),
-    affectedFiles,
+    affectedFiles: readmeDocsImpact,
     affectedTests,
-    suggestedCommands: suggestedCommands(brief, changedFiles, affectedFiles, affectedTests),
-    confidence: confidence(changedFiles, affectedFiles, affectedTests),
+    suggestedCommands: suggestedCommands(brief, changedFiles, readmeDocsImpact, affectedTests),
+    confidence: confidence(changedFiles, readmeDocsImpact, affectedTests),
     notes: [
       "Heuristic MVP: combines git working-tree changes, RCC task routing, learned test signals, and simple source/test pairing.",
       "This is not a full static dependency analysis.",
-      ...(isDocsOnlyImpact(affectedFiles, affectedTests, changedFiles) ? ["Docs-only impact detected; no focused test command suggested."] : []),
+      ...(isDocsOnlyImpact(readmeDocsImpact, affectedTests, changedFiles) ? ["Docs-only impact detected; no focused test command suggested."] : []),
       ...(filteredWeakCount > 0 ? ["Filtered weak semantic source candidates from affectedFiles."] : []),
-      ...(affectedFiles.length === 0 && affectedTests.length > 0 ? ["No high-confidence affected source files found."] : [])
+      ...(readmeDocsImpact.length === 0 && affectedTests.length > 0 ? ["No high-confidence affected source files found."] : [])
     ]
   };
 }

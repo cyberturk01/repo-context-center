@@ -143,5 +143,76 @@
       "maxAffectedTests": 1,
       "maxSuggestedCommands": 2
     }
+  },
+  {
+    "name": "typescript affected tests get focused command before build",
+    "task": "change markdown report output contract",
+    "files": {
+      "AGENTS.md": "Repo guidance\n",
+      "docs/ai-context/TASK_ROUTING.md": "# Task Routing\n\n- Markdown report work: read `src/reports/markdownReport.ts`, `tests/markdownReport.test.ts`, and `tests/sarifReport.test.ts`.\n",
+      "package.json": "{\n  \"scripts\": {\n    \"build\": \"tsc -p tsconfig.json\",\n    \"test\": \"node --test tests/*.test.ts\"\n  }\n}\n",
+      "src/reports/markdownReport.ts": "export function markdownReport() { return ''; }\n",
+      "tests/markdownReport.test.ts": "test('markdown report', () => {});\n",
+      "tests/sarifReport.test.ts": "test('sarif report', () => {});\n"
+    },
+    "changes": {
+      "src/reports/markdownReport.ts": "export function markdownReport() { return 'changed'; }\n"
+    },
+    "expect": {
+      "basis": "changed-files-and-task",
+      "confidence": "high",
+      "affectedContains": [
+        "src/reports/markdownReport.ts"
+      ],
+      "testsContains": [
+        "tests/markdownReport.test.ts",
+        "tests/sarifReport.test.ts"
+      ],
+      "commandsContain": [
+        "node --test tests/markdownReport.test.ts tests/sarifReport.test.ts",
+        "npm run build"
+      ],
+      "maxAffectedFiles": 3,
+      "maxAffectedTests": 3,
+      "maxSuggestedCommands": 2
+    }
+  },
+  {
+    "name": "readme release instructions stay docs-only",
+    "task": "update README release instructions",
+    "files": {
+      "AGENTS.md": "Repo guidance\n",
+      "docs/ai-context/TASK_ROUTING.md": "# Task Routing\n\n- README release instructions: read `README.md`, `package.json`, and `src/analyzers/releaseAnalyzer.ts`.\n",
+      "README.md": "# Project\n\nRelease instructions.\n",
+      "docs/README.md": "# Docs\n\nRelease details.\n",
+      "package.json": "{\n  \"scripts\": {\n    \"build\": \"tsc -p tsconfig.json\",\n    \"test\": \"node --test tests/*.test.js\"\n  }\n}\n",
+      "src/analyzers/releaseAnalyzer.ts": "export function releaseAnalyzer() { return true; }\n",
+      "tests/releaseAnalyzer.test.js": "test('release analyzer', () => {});\n"
+    },
+    "changes": {},
+    "expect": {
+      "basis": "task",
+      "confidence": "medium",
+      "affectedContains": [
+        "README.md"
+      ],
+      "affectedNotContains": [
+        "package.json",
+        "src/analyzers/releaseAnalyzer.ts"
+      ],
+      "testsNotContains": [
+        "tests/releaseAnalyzer.test.js"
+      ],
+      "commandsNotContain": [
+        "npm run build",
+        "npm test"
+      ],
+      "notesContain": [
+        "Docs-only impact detected; no focused test command suggested."
+      ],
+      "maxAffectedFiles": 2,
+      "maxAffectedTests": 0,
+      "maxSuggestedCommands": 0
+    }
   }
 ]
