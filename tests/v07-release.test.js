@@ -164,28 +164,24 @@ test("v0.7 release: rcc done rejects empty summaries", async () => {
   });
 });
 
-test("v0.7 release: init creates or updates AGENTS.md", async () => {
+test("v0.7 release: init creates AGENTS pointer and preserves existing AGENTS.md", async () => {
   await withTempRepo("repo-context-center-v07-init-", async (tempDir) => {
     const created = runCli(["init"], { cwd: tempDir });
     const createdAgents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
+    const workflow = await readFile(path.join(tempDir, "docs", "ai-context", "RCC_WORKFLOW.md"), "utf8");
 
     assert.equal(created.status, 0);
-    assert.match(createdAgents, /## RCC Workflow/);
-    assert.match(createdAgents, /For coding tasks, first run once at task start:/);
-    assert.match(createdAgents, /`rcc work "<task>" --agent`/);
+    assert.match(createdAgents, /For the RCC repository workflow, read docs\/ai-context\/RCC_WORKFLOW\.md before coding tasks\./);
+    assert.match(workflow, /For coding tasks, first run once at task start:/);
+    assert.match(workflow, /`rcc work "<task>" --agent`/);
 
     await writeFixtureFile(tempDir, "AGENTS.md", "# Existing Agents\n\nKeep this guidance.\n");
     const updated = runCli(["init"], { cwd: tempDir });
     const updatedAgents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
 
     assert.equal(updated.status, 0);
-    assert.match(updatedAgents, /# Existing Agents/);
-    assert.match(updatedAgents, /Keep this guidance\./);
-    assert.match(updatedAgents, /## RCC Workflow/);
-    assert.match(updatedAgents, /rcc find "<keyword>"/);
-    assert.match(updatedAgents, /Do not ask the human to run RCC commands\./);
-    assert.match(updatedAgents, /After meaningful changes, run tests and record:/);
-    assert.match(updatedAgents, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);
+    assert.equal(updatedAgents, "# Existing Agents\n\nKeep this guidance.\n");
+    assert.match(updated.stdout, /Detected AGENTS\.md\. RCC did not modify it/);
   });
 });
 
@@ -197,9 +193,8 @@ test("v0.7 release: init is idempotent", async () => {
 
     assert.equal(first.status, 0);
     assert.equal(second.status, 0);
-    assert.equal(countOccurrences(agents, "<!-- repo-context-center:workflow:start -->"), 1);
-    assert.equal(countOccurrences(agents, "<!-- repo-context-center:workflow:end -->"), 1);
-    assert.equal(countOccurrences(agents, "## RCC Workflow"), 1);
+    assert.equal(countOccurrences(agents, "<!-- repo-context-center:workflow:start -->"), 0);
+    assert.equal(countOccurrences(agents, "RCC_WORKFLOW.md"), 1);
   });
 });
 

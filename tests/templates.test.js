@@ -13,6 +13,7 @@ const compressedTemplateWordLimit = Math.floor(previousTemplateWordBaseline * 0.
 
 const requiredTemplates = [
   "AGENTS.md",
+  "docs/ai-context/RCC_WORKFLOW.md",
   "docs/ai-context/COMMUNICATION_MODE.md",
   "docs/ai-context/TASK_ROUTING.md",
   "docs/ai-context/MODULE_INDEX.md",
@@ -29,24 +30,11 @@ const requiredTemplates = [
   "docs/ai-context/CHANGE_LOG.md"
 ];
 
-const expectedWorkflowSection = `<!-- repo-context-center:workflow:start -->
-## RCC Workflow
-
-For coding tasks, first run once at task start:
-
-\`rcc work "<task>" --agent\`
-
-Then:
-- Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly.
-- Do not repeatedly run \`rcc work\` for the same task.
-- Use \`rcc find "<keyword>"\` only if the route is insufficient.
-- Do not ask the human to run RCC commands.
-- After meaningful changes, run tests and record:
-  \`rcc done --summary "<summary>" --files auto --verify "<checks>"\`
-<!-- repo-context-center:workflow:end -->`;
+const minimalAgentsPointer = "# Agent Instructions\n\nFor the RCC repository workflow, read docs/ai-context/RCC_WORKFLOW.md before coding tasks.\n";
 
 const templateTitles = {
-  "AGENTS.md": "# AGENTS.md",
+  "AGENTS.md": "# Agent Instructions",
+  "docs/ai-context/RCC_WORKFLOW.md": "# RCC Workflow",
   "docs/ai-context/COMMUNICATION_MODE.md": "# Communication Mode",
   "docs/ai-context/TASK_ROUTING.md": "# Task Routing",
   "docs/ai-context/MODULE_INDEX.md": "# Module Index",
@@ -63,19 +51,6 @@ const templateTitles = {
   "docs/ai-context/CHANGE_LOG.md": "# Change Log"
 };
 
-function shellFallbackLine(content) {
-  return content.split("\n").find((line) => line.includes("RCC commands are unavailable")) ?? "";
-}
-
-function workflowSection(content) {
-  const startMarker = "<!-- repo-context-center:workflow:start -->";
-  const endMarker = "<!-- repo-context-center:workflow:end -->";
-  const start = content.indexOf(startMarker);
-  const end = content.indexOf(endMarker);
-  assert.ok(start !== -1 && end !== -1 && end > start);
-  return content.slice(start, end + endMarker.length);
-}
-
 test("all required generic templates exist", async () => {
   for (const file of requiredTemplates) {
     const fileStat = await stat(path.join(templateRoot, file));
@@ -86,7 +61,7 @@ test("all required generic templates exist", async () => {
 test("generic template count and names stay unchanged", async () => {
   const { genericTemplateFiles } = require("../dist/templates/generic");
 
-  assert.equal(requiredTemplates.length, 15);
+  assert.equal(requiredTemplates.length, 16);
   assert.equal(genericTemplateFiles.length, requiredTemplates.length);
   assert.deepEqual([...genericTemplateFiles].sort(), [...requiredTemplates].sort());
 });
@@ -101,24 +76,11 @@ test("generic templates are non-empty and compact", async () => {
   }
 });
 
-test("AGENTS template keeps low-token startup references", async () => {
+test("AGENTS template is a minimal workflow pointer", async () => {
   const content = await readFile(path.join(templateRoot, "AGENTS.md"), "utf8");
-  const noShellLine = shellFallbackLine(content);
 
-  assert.equal(workflowSection(content), expectedWorkflowSection);
-  assert.match(content, /Read this first\./);
-  assert.match(content, /rcc doctor/);
-  assert.match(content, /For task-first route savings, use `rcc measure "<task>"`\./);
-  assert.match(content, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
-  assert.doesNotMatch(content, /measure[^.\n]*--compare-naive/);
-  assert.match(content, /TASK_ROUTING\.md/);
-  assert.match(noShellLine, /TOKEN_BUDGET\.md/);
-  assert.match(content, /DO_NOT_READ\.md/);
-  assert.match(content, /WORK_INDEX\.md/);
-  assert.match(content, /do not read full `WORK_LOG\.md` by default/);
-  assert.doesNotMatch(content, /COMMUNICATION_MODE\.md/);
-  assert.doesNotMatch(content, /MODULE_INDEX\.md/);
-  assert.match(content, /Avoid unnecessary repository scanning\./);
+  assert.equal(content, minimalAgentsPointer);
+  assert.doesNotMatch(content, /repo-context-center:workflow:start/);
 });
 
 test("AGENTS template remains startup-only", async () => {
@@ -133,6 +95,26 @@ test("AGENTS template remains startup-only", async () => {
   assert.doesNotMatch(content, /# Module Index/);
   assert.doesNotMatch(content, /# Risk Register/);
   assert.doesNotMatch(content, /# Change Log/);
+});
+
+test("RCC workflow template keeps core startup rules", async () => {
+  const content = await readFile(path.join(templateRoot, "docs/ai-context/RCC_WORKFLOW.md"), "utf8");
+
+  assert.match(content, /# RCC Workflow/);
+  assert.match(content, /For coding tasks, first run once at task start:/);
+  assert.match(content, /`rcc work "<task>" --agent`/);
+  assert.match(content, /Use `rcc doctor` for local\/global RCC confusion\./);
+  assert.match(content, /For task-first route savings, use `rcc measure "<task>"`\./);
+  assert.match(content, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
+  assert.doesNotMatch(content, /measure[^.\n]*--compare-naive/);
+  assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
+  assert.match(content, /docs\/ai-context\/TOKEN_BUDGET\.md/);
+  assert.match(content, /docs\/ai-context\/DO_NOT_READ\.md/);
+  assert.match(content, /docs\/ai-context\/WORK_INDEX\.md/);
+  assert.match(content, /do not read full `WORK_LOG\.md` by default/);
+  assert.doesNotMatch(content, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
+  assert.doesNotMatch(content, /docs\/ai-context\/MODULE_INDEX\.md/);
+  assert.match(content, /Avoid unnecessary repository scanning\./);
 });
 
 test("templates do not contain another template title", async () => {
@@ -170,24 +152,10 @@ test("generated AGENTS template avoids verbose meta headings", async () => {
   assert.doesNotMatch(content, /This file contains/);
 });
 
-test("generated AGENTS template keeps core startup rules", async () => {
+test("generated AGENTS template keeps minimal pointer", async () => {
   const content = await readFile(path.join(distTemplateRoot, "AGENTS.md"), "utf8");
-  const noShellLine = shellFallbackLine(content);
 
-  assert.equal(workflowSection(content), expectedWorkflowSection);
-  assert.match(content, /rcc doctor/);
-  assert.match(content, /For task-first route savings, use `rcc measure "<task>"`\./);
-  assert.match(content, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
-  assert.doesNotMatch(content, /measure[^.\n]*--compare-naive/);
-  assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
-  assert.match(noShellLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
-  assert.match(content, /docs\/ai-context\/DO_NOT_READ\.md/);
-  assert.match(content, /docs\/ai-context\/WORK_INDEX\.md/);
-  assert.match(content, /do not read full `WORK_LOG\.md` by default/);
-  assert.doesNotMatch(content, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
-  assert.doesNotMatch(content, /docs\/ai-context\/MODULE_INDEX\.md/);
-  assert.match(content, /Read this first\./);
-  assert.match(content, /Avoid unnecessary repository scanning\./);
+  assert.equal(content, minimalAgentsPointer);
   assert.doesNotMatch(content, /^Read:$/m);
   assert.doesNotMatch(content, /^Modes:$/m);
 });

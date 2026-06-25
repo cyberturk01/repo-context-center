@@ -10,6 +10,7 @@ const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
 
 const requiredTemplates = [
   "AGENTS.md",
+  "docs/ai-context/RCC_WORKFLOW.md",
   "docs/ai-context/COMMUNICATION_MODE.md",
   "docs/ai-context/TASK_ROUTING.md",
   "docs/ai-context/MODULE_INDEX.md",
@@ -26,20 +27,12 @@ const requiredTemplates = [
 ];
 
 const expectedWorkflowSection = `<!-- repo-context-center:workflow:start -->
-## RCC Workflow
+For the RCC repository workflow, read:
 
-For coding tasks, first run once at task start:
-
-\`rcc work "<task>" --agent\`
-
-Then:
-- Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly.
-- Do not repeatedly run \`rcc work\` for the same task.
-- Use \`rcc find "<keyword>"\` only if the route is insufficient.
-- Do not ask the human to run RCC commands.
-- After meaningful changes, run tests and record:
-  \`rcc done --summary "<summary>" --files auto --verify "<checks>"\`
+\`docs/ai-context/RCC_WORKFLOW.md\`
 <!-- repo-context-center:workflow:end -->`;
+
+const minimalAgentsPointer = "# Agent Instructions\n\nFor the RCC repository workflow, read docs/ai-context/RCC_WORKFLOW.md before coding tasks.\n";
 
 function runInit(cwd, args = []) {
   return spawnSync(process.execPath, [cliPath, "init", ...args], {
@@ -102,6 +95,7 @@ test("init creates missing context files and populates real map content", async 
     const result = runInit(tempDir);
     const taskRouting = await readFile(path.join(tempDir, "docs/ai-context/TASK_ROUTING.md"), "utf8");
     const moduleIndex = await readFile(path.join(tempDir, "docs/ai-context/MODULE_INDEX.md"), "utf8");
+    const workflow = await readFile(path.join(tempDir, "docs/ai-context/RCC_WORKFLOW.md"), "utf8");
     const repositoryLearning = await readFile(path.join(tempDir, "docs/ai-context/REPOSITORY_LEARNING.md"), "utf8");
     const agents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
 
@@ -109,13 +103,16 @@ test("init creates missing context files and populates real map content", async 
     assert.match(result.stdout, /Generated repository context: \d+ files updated\./);
     assert.match(result.stdout, /Repository size: small/);
     assert.match(result.stdout, /Scan cap: 500/);
-    assert.match(result.stdout, /Files scanned: 17/);
+    assert.match(result.stdout, /Files scanned: 18/);
     assert.match(taskRouting, /<!-- repo-context-center:generated:start -->/);
     assert.match(taskRouting, /src\/auth\/login\.ts/);
     assert.match(moduleIndex, /tests\/auth\/login\.test\.ts/);
     assert.match(repositoryLearning, /<!-- repo-context-center:repository-learning:start -->/);
     assert.match(repositoryLearning, /<!-- repo-context-center:repository-learning:end -->/);
     assert.match(repositoryLearning, /## Recent Focus Areas/);
+    assert.match(workflow, /For coding tasks, first run once at task start:/);
+    assert.match(workflow, /`rcc work "<task>" --agent`/);
+    assert.equal(agents, minimalAgentsPointer);
     assert.doesNotMatch(agents, /repo-context-center:generated:start/);
     assert.doesNotMatch(agents, /Compact generated entrypoint\./);
   } finally {
@@ -135,7 +132,7 @@ test("init --max-files overrides auto scan cap", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Repository size: small/);
-    assert.match(result.stdout, /Eligible files: 18/);
+    assert.match(result.stdout, /Eligible files: 19/);
     assert.match(result.stdout, /Scan cap: 2/);
     assert.match(result.stdout, /Files scanned: 2/);
   } finally {
@@ -193,7 +190,7 @@ test("init does not require a separate map --write call for work guidance", asyn
   }
 });
 
-test("init updates existing AGENTS.md without overwriting content", async () => {
+test("init leaves existing AGENTS.md without RCC marker unchanged", async () => {
   const tempDir = await createTempRepo();
   const agentsPath = path.join(tempDir, "AGENTS.md");
 
@@ -205,16 +202,14 @@ test("init updates existing AGENTS.md without overwriting content", async () => 
     const content = await readFile(agentsPath, "utf8");
 
     assert.equal(result.status, 0);
-    assert.match(content, /# Existing Agents/);
-    assert.match(content, /Keep this project-specific guidance\./);
-    assert.equal(workflowSection(content), expectedWorkflowSection);
-    assert.match(result.stdout, /Updated file: AGENTS\.md/);
+    assert.equal(content, "# Existing Agents\n\nKeep this project-specific guidance.\n");
+    assert.match(result.stdout, /Detected AGENTS\.md\. RCC did not modify it\. RCC workflow was generated at docs\/ai-context\/RCC_WORKFLOW\.md\./);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
 });
 
-test("init --update preserves manual AGENTS sections and refreshes outdated RCC guidance", async () => {
+test("init preserves manual AGENTS sections and refreshes marked RCC pointer", async () => {
   const tempDir = await createTempRepo();
   const agentsPath = path.join(tempDir, "AGENTS.md");
 
@@ -224,14 +219,9 @@ test("init --update preserves manual AGENTS sections and refreshes outdated RCC 
       "",
       "Manual intro: keep this.",
       "",
-      "## RCC Workflow",
-      "",
-      "For coding tasks, first run once:",
-      "",
-      "`rcc work \"<task>\"`",
-      "",
-      "- Follow the brief before reading files or searching broadly.",
-      "- Use `rcc find \"<keyword>\"` for follow-up lookup.",
+      "<!-- repo-context-center:workflow:start -->",
+      "old workflow",
+      "<!-- repo-context-center:workflow:end -->",
       "",
       "## Project Rules",
       "",
@@ -239,33 +229,21 @@ test("init --update preserves manual AGENTS sections and refreshes outdated RCC 
       ""
     ].join("\n"));
 
-    const result = runInit(tempDir, ["--update"]);
+    const result = runInit(tempDir);
     const content = await readFile(agentsPath, "utf8");
-    const fallbackLine = content.split("\n").find((line) => line.includes("RCC commands are unavailable")) ?? "";
 
     assert.equal(result.status, 0);
     assert.match(content, /Manual intro: keep this\./);
     assert.match(content, /## Project Rules/);
     assert.match(content, /Manual rule: keep this too\./);
     assert.equal(workflowSection(content), expectedWorkflowSection);
-    assert.match(content, /Read `docs\/ai-context\/HANDOFF\.md` if present\./);
-    assert.match(content, /Use `rcc doctor` for local\/global RCC confusion\./);
-    assert.match(content, /For task-first route savings, use `rcc measure "<task>"`\./);
-    assert.match(content, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
-    assert.doesNotMatch(content, /measure[^.\n]*--compare-naive/);
-    assert.match(fallbackLine, /docs\/ai-context\/TASK_ROUTING\.md/);
-    assert.match(fallbackLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
-    assert.match(fallbackLine, /docs\/ai-context\/DO_NOT_READ\.md/);
-    assert.doesNotMatch(content, /`rcc work "<task>"`\n/);
-    assert.doesNotMatch(content, /Follow the brief before reading files/);
     assert.match(result.stdout, /Updated file: AGENTS\.md/);
-    assert.match(result.stdout, /Updated RCC agent instructions in AGENTS\.md while preserving manual content\./);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
 });
 
-test("init --update removes orphaned legacy RCC helper lines around refreshed AGENTS workflow", async () => {
+test("init updates only marked AGENTS block and preserves surrounding user content", async () => {
   const tempDir = await createTempRepo();
   const agentsPath = path.join(tempDir, "AGENTS.md");
 
@@ -293,21 +271,15 @@ test("init --update removes orphaned legacy RCC helper lines around refreshed AG
       ""
     ].join("\n"));
 
-    const result = runInit(tempDir, ["--update"]);
+    const result = runInit(tempDir);
     const content = await readFile(agentsPath, "utf8");
 
     assert.equal(result.status, 0);
     assert.equal(workflowSection(content), expectedWorkflowSection);
     assert.match(content, /Keep this project-specific guidance\./);
-    assert.equal(countOccurrences(content, "rcc done --summary \"<summary>\" --files auto --verify \"<checks>\""), 1);
-    assert.equal(countOccurrences(content, "Read `docs/ai-context/HANDOFF.md` if present."), 1);
-    assert.doesNotMatch(content, /^After meaningful changes, run tests and record:$/m);
-    assert.doesNotMatch(content, /^- Use `doctor` for local\/global RCC confusion\.$/m);
-    assert.doesNotMatch(content, /^- Use `measure` for token-saving estimates\.$/m);
-    assert.match(content, /Use `rcc doctor` for local\/global RCC confusion\./);
-    assert.match(content, /For task-first route savings, use `rcc measure "<task>"`\./);
-    assert.match(content, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
-    assert.doesNotMatch(content, /measure[^.\n]*--compare-naive/);
+    assert.match(content, /After meaningful changes, run tests and record:/);
+    assert.match(content, /- Use `measure` for token-saving estimates\./);
+    assert.match(content, /- Read `docs\/ai-context\/HANDOFF\.md` if present\./);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -321,9 +293,62 @@ test("init creates AGENTS.md if missing", async () => {
     const content = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
 
     assert.equal(result.status, 0);
-    assert.match(content, /# AGENTS\.md/);
-    assert.equal(workflowSection(content), expectedWorkflowSection);
+    assert.equal(content, minimalAgentsPointer);
     assert.match(result.stdout, /Created file: AGENTS\.md/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init does not modify existing non-RCC AI instruction files", async () => {
+  const tempDir = await createTempRepo();
+  const aiFiles = {
+    "CLAUDE.md": "# Claude\n\nKeep Claude guidance.\n",
+    "GEMINI.md": "# Gemini\n\nKeep Gemini guidance.\n",
+    ".cursor/rules": "Keep Cursor rules.\n",
+    ".github/copilot-instructions.md": "# Copilot\n\nKeep Copilot guidance.\n",
+    ".windsurf/rules": "Keep Windsurf rules.\n"
+  };
+
+  try {
+    for (const [file, content] of Object.entries(aiFiles)) {
+      await writeFixtureFile(tempDir, file, content);
+    }
+
+    const result = runInit(tempDir);
+
+    assert.equal(result.status, 0);
+    for (const [file, content] of Object.entries(aiFiles)) {
+      assert.equal(await readFile(path.join(tempDir, file), "utf8"), content);
+      assert.match(
+        result.stdout,
+        new RegExp(`Detected ${file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\. RCC did not modify it\\. RCC workflow was generated at docs\\/ai-context\\/RCC_WORKFLOW\\.md\\.`)
+      );
+    }
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init --update-agent-file modifies only AGENTS.md", async () => {
+  const tempDir = await createTempRepo();
+  const agentsPath = path.join(tempDir, "AGENTS.md");
+  const claudePath = path.join(tempDir, "CLAUDE.md");
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "# Project Agents\n\nManual owner guidance.\n");
+    await writeFixtureFile(tempDir, "CLAUDE.md", "# Claude\n\nDo not touch.\n");
+
+    const result = runInit(tempDir, ["--update-agent-file"]);
+    const agents = await readFile(agentsPath, "utf8");
+    const claude = await readFile(claudePath, "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(agents, /Manual owner guidance\./);
+    assert.equal(workflowSection(agents), expectedWorkflowSection);
+    assert.equal(claude, "# Claude\n\nDo not touch.\n");
+    assert.match(result.stdout, /Updated file: AGENTS\.md/);
+    assert.match(result.stdout, /Detected CLAUDE\.md\. RCC did not modify it\./);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -340,16 +365,15 @@ test("init does not duplicate RCC workflow section", async () => {
 
     assert.equal(first.status, 0);
     assert.equal(second.status, 0);
-    assert.equal(countOccurrences(content, "<!-- repo-context-center:workflow:start -->"), 1);
-    assert.equal(countOccurrences(content, "<!-- repo-context-center:workflow:end -->"), 1);
-    assert.equal(countOccurrences(content, "## RCC Workflow"), 1);
-    assert.equal(countOccurrences(content, "rcc work \"<task>\""), 1);
+    assert.equal(content, minimalAgentsPointer);
+    assert.equal(countOccurrences(content, "<!-- repo-context-center:workflow:start -->"), 0);
+    assert.equal(countOccurrences(content, "RCC_WORKFLOW.md"), 1);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
 });
 
-test("init removes legacy markerless RCC workflow duplicates", async () => {
+test("init does not modify existing markerless AGENTS.md legacy content", async () => {
   const tempDir = await createTempRepo();
   const agentsPath = path.join(tempDir, "AGENTS.md");
 
@@ -381,10 +405,9 @@ test("init removes legacy markerless RCC workflow duplicates", async () => {
 
     assert.equal(result.status, 0);
     assert.match(content, /Keep this project-specific guidance\./);
-    assert.equal(workflowSection(content), expectedWorkflowSection);
-    assert.equal(countOccurrences(content, "## RCC Workflow"), 1);
-    assert.equal(countOccurrences(content, "rcc work \"<task>\""), 1);
-    assert.equal(countOccurrences(content, "rcc done --summary \"<summary>\" --files auto --verify \"<checks>\""), 1);
+    assert.match(content, /For any coding task, the first shell command must be:/);
+    assert.doesNotMatch(content, /repo-context-center:workflow:start/);
+    assert.match(result.stdout, /Detected AGENTS\.md\. RCC did not modify it/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -425,8 +448,7 @@ test("init removes legacy generated AGENTS stub", async () => {
 
     assert.equal(result.status, 0);
     assert.equal(workflowSection(content), expectedWorkflowSection);
-    assert.equal(countOccurrences(content, "rcc work \"<task>\""), 1);
-    assert.equal(countOccurrences(content, "rcc done --summary \"<summary>\" --files auto --verify \"<checks>\""), 1);
+    assert.equal(countOccurrences(content, "RCC_WORKFLOW.md"), 1);
     assert.doesNotMatch(content, /repo-context-center:generated:start/);
     assert.doesNotMatch(content, /Compact generated entrypoint\./);
     assert.doesNotMatch(content, /Generated repo maps live in `docs\/ai-context\/\*`/);
@@ -453,23 +475,24 @@ test("init is idempotent after repeated runs", async () => {
     assert.equal(second.status, 0);
     assert.equal(afterSecondAgents, afterFirstAgents);
     assert.equal(afterSecondRouting, afterFirstRouting);
-    assert.equal(countOccurrences(afterSecondAgents, "<!-- repo-context-center:workflow:start -->"), 1);
+    assert.equal(countOccurrences(afterSecondAgents, "<!-- repo-context-center:workflow:start -->"), 0);
     assert.equal(countOccurrences(afterSecondAgents, "<!-- repo-context-center:generated:start -->"), 0);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
 });
 
-test("init keeps AGENTS.md workflow concise", async () => {
+test("init generates dedicated RCC workflow guidance", async () => {
   const tempDir = await createTempRepo();
 
   try {
     const result = runInit(tempDir);
-    const content = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
-    const words = workflowSection(content).trim().split(/\s+/).filter(Boolean);
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "RCC_WORKFLOW.md"), "utf8");
 
     assert.equal(result.status, 0);
-    assert.ok(words.length <= 85, `AGENTS workflow has ${words.length} words`);
+    assert.match(content, /# RCC Workflow/);
+    assert.match(content, /`rcc work "<task>" --agent`/);
+    assert.match(content, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -488,7 +511,8 @@ test("init preserves existing AGENTS.md content with --force", async () => {
 
     assert.equal(result.status, 0);
     assert.match(content, /custom/);
-    assert.equal(workflowSection(content), expectedWorkflowSection);
+    assert.doesNotMatch(content, /repo-context-center:workflow:start/);
+    assert.match(result.stdout, /Detected AGENTS\.md\. RCC did not modify it/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -503,24 +527,7 @@ test("init dry-run does not write files", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Dry run complete/);
-    assert.match(agentsPreview, /For coding tasks, first run once at task start:/);
-    assert.match(agentsPreview, /`rcc work "<task>" --agent`/);
-    assert.match(agentsPreview, /Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly\./);
-    assert.match(agentsPreview, /Do not repeatedly run `rcc work` for the same task\./);
-    assert.match(agentsPreview, /Use `rcc find "<keyword>"` only if the route is insufficient\./);
-    assert.match(agentsPreview, /Do not ask the human to run RCC commands\./);
-    assert.match(agentsPreview, /After meaningful changes, run tests and record:/);
-    assert.match(agentsPreview, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);
-    assert.match(agentsPreview, /Use `rcc doctor` for local\/global RCC confusion\./);
-    assert.match(agentsPreview, /For task-first route savings, use `rcc measure "<task>"`\./);
-    assert.match(agentsPreview, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
-    assert.doesNotMatch(agentsPreview, /measure[^.\n]*--compare-naive/);
-    assert.match(agentsPreview, /If RCC commands are unavailable/);
-    assert.match(agentsPreview, /docs\/ai-context\/TASK_ROUTING\.md/);
-    assert.match(agentsPreview, /docs\/ai-context\/TOKEN_BUDGET\.md/);
-    assert.match(agentsPreview, /docs\/ai-context\/DO_NOT_READ\.md/);
-    assert.doesNotMatch(agentsPreview, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
-    assert.doesNotMatch(agentsPreview, /docs\/ai-context\/MODULE_INDEX\.md/);
+    assert.match(agentsPreview, /For the RCC repository workflow, read docs\/ai-context\/RCC_WORKFLOW\.md before coding tasks\./);
 
     for (const file of requiredTemplates) {
       await assert.rejects(() => stat(path.join(tempDir, file)), { code: "ENOENT" });

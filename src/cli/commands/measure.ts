@@ -14,11 +14,15 @@ interface MeasureReport {
   task: string;
   naiveTokens: number;
   rccTokens: number;
+  filesCounted: number;
+  filesExcluded: number;
+  excludedExamples: string[];
   primaryFiles: number;
   supportingFiles: number;
   tests: number;
   estimatedSavingTokens: number;
   estimatedSavingPercent: number;
+  warnings: string[];
 }
 
 const usage = 'Usage: rcc measure "<task>" [--json]';
@@ -68,6 +72,9 @@ async function measureTask(cwd: string, task: string): Promise<MeasureReport> {
   ]);
   const rccTokens = route.briefTokens;
   const estimatedSavingTokens = Math.max(0, naive.tokens - rccTokens);
+  const warnings = naive.tokens > 5_000_000
+    ? ["Warning: naive estimate is very large. Check excluded folders and generated files."]
+    : [];
 
   return {
     schemaVersion: 1,
@@ -75,26 +82,42 @@ async function measureTask(cwd: string, task: string): Promise<MeasureReport> {
     task,
     naiveTokens: naive.tokens,
     rccTokens,
+    filesCounted: naive.fileCount,
+    filesExcluded: naive.excludedFileCount,
+    excludedExamples: naive.excludedExamples,
     primaryFiles: routeItemCount(route.primaryFiles),
     supportingFiles: routeItemCount(route.supportingFiles),
     tests: routeItemCount(route.tests),
     estimatedSavingTokens,
-    estimatedSavingPercent: estimateSavingPercent(naive.tokens, rccTokens, estimatedSavingTokens)
+    estimatedSavingPercent: estimateSavingPercent(naive.tokens, rccTokens, estimatedSavingTokens),
+    warnings
   };
 }
 
 function formatMeasureReport(report: MeasureReport): string {
-  return [
+  const lines = [
     "RCC measurement",
     "",
     "Task:",
     report.task,
     "",
-    "Naive scan estimate:",
+    "Naive source scan:",
     `${formatNumber(report.naiveTokens)} tokens`,
     "",
-    "RCC agent route:",
+    "RCC route:",
     `${formatNumber(report.rccTokens)} tokens`,
+    "",
+    "Estimated saving:",
+    `${formatNumber(report.estimatedSavingTokens)} tokens (${formatPercent(report.estimatedSavingPercent)}%)`,
+    "",
+    "Files counted:",
+    `${formatNumber(report.filesCounted)}`,
+    "",
+    "Files excluded:",
+    `${formatNumber(report.filesExcluded)}`,
+    "",
+    "Excluded examples:",
+    report.excludedExamples.length > 0 ? report.excludedExamples.join(", ") : "none",
     "",
     "Primary files:",
     `${formatNumber(report.primaryFiles)}`,
@@ -103,11 +126,14 @@ function formatMeasureReport(report: MeasureReport): string {
     `${formatNumber(report.supportingFiles)}`,
     "",
     "Tests:",
-    `${formatNumber(report.tests)}`,
-    "",
-    "Estimated saving:",
-    `${formatNumber(report.estimatedSavingTokens)} tokens (${formatPercent(report.estimatedSavingPercent)}%)`
-  ].join("\n") + "\n";
+    `${formatNumber(report.tests)}`
+  ];
+
+  if (report.warnings.length > 0) {
+    lines.push("", ...report.warnings);
+  }
+
+  return lines.join("\n") + "\n";
 }
 
 export async function measureCommand(io: CliIO, args: string[] = []): Promise<number> {

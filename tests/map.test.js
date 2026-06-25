@@ -439,21 +439,21 @@ test("AGENTS.md avoids duplicate startup guidance after init and map write", asy
   await withMappedRepo(async (tempDir) => {
     const result = runCli(tempDir, ["map", "--write"]);
     const content = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
-    const fallbackLine = content.split("\n").find((line) => line.includes("RCC commands are unavailable")) ?? "";
+    const workflow = await readFile(path.join(tempDir, "docs", "ai-context", "RCC_WORKFLOW.md"), "utf8");
 
     assert.equal(result.status, 0);
-    assert.equal(countMatches(content, /`rcc work "<task>" --agent`/g), 1);
-    assert.match(content, /Read this first\./);
-    assert.match(content, /rcc doctor/);
-    assert.match(content, /For task-first route savings, use `rcc measure "<task>"`\./);
-    assert.match(content, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
-    assert.doesNotMatch(content, /measure[^.\n]*--compare-naive/);
-    assert.match(fallbackLine, /docs\/ai-context\/TASK_ROUTING\.md/);
-    assert.match(fallbackLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
-    assert.match(fallbackLine, /docs\/ai-context\/DO_NOT_READ\.md/);
+    assert.equal(countMatches(content, /RCC_WORKFLOW\.md/g), 1);
+    assert.equal(countMatches(workflow, /`rcc work "<task>" --agent`/g), 1);
+    assert.match(workflow, /rcc doctor/);
+    assert.match(workflow, /For task-first route savings, use `rcc measure "<task>"`\./);
+    assert.match(workflow, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
+    assert.doesNotMatch(workflow, /measure[^.\n]*--compare-naive/);
+    assert.match(workflow, /docs\/ai-context\/TASK_ROUTING\.md/);
+    assert.match(workflow, /docs\/ai-context\/TOKEN_BUDGET\.md/);
+    assert.match(workflow, /docs\/ai-context\/DO_NOT_READ\.md/);
     assert.doesNotMatch(content, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
     assert.doesNotMatch(content, /docs\/ai-context\/MODULE_INDEX\.md/);
-    assert.match(content, /rcc find "<keyword>"/);
+    assert.match(workflow, /rcc find "<keyword>"/);
     assert.doesNotMatch(content, /repo-context-center:generated:start/);
     assert.doesNotMatch(content, /Compact generated entrypoint\./);
     assert.doesNotMatch(content, /^Before a task:$/m);

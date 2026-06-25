@@ -2824,4 +2824,104 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-25T16:19:55.928Z
+- Summary: Hardened rcc measure naive source-scan estimates with generated/cache/debug/binary exclusions, DO_NOT_READ-derived exclusions, counted/excluded file reporting, excluded examples, and huge-estimate warning.
+- Changed files: `src/cli/commands/measure.ts`, `src/core/tokenEstimator.ts`, `tests/estimate.test.js`
+- Verification: npm run build; node --test tests/estimate.test.js; node --test tests/commandArchitecture.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Hardened rcc measure naive source-scan estimates with generated/cache/debug/binary exclusions, DO_NOT_READ-derived exclusions, counted/excluded file reporting, excluded examples, and huge-estimate warning.",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/core/tokenEstimator.ts",
+    "tests/estimate.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/estimate.test.js; node --test tests/commandArchitecture.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T16:19:55.928Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T16:19:55.928Z",
+  "summary": "Hardened rcc measure naive source-scan estimates with generated/cache/debug/binary exclusions, DO_NOT_READ-derived exclusions, counted/excluded file reporting, excluded examples, and huge-estimate warning.",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/core/tokenEstimator.ts",
+    "tests/estimate.test.js"
+  ],
+  "verification": "npm run build; node --test tests/estimate.test.js; node --test tests/commandArchitecture.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-25T16:28:00.687Z
+- Summary: Implemented safe AI instruction handling with dedicated docs/ai-context/RCC_WORKFLOW.md, minimal AGENTS pointer policy, non-RCC AI file detection notices, and --update-agent-file override for AGENTS only.
+- Changed files: `src/cli/commands/init.ts`, `src/cli/commands/measure.ts`, `src/core/repoMapper.ts`, `src/core/templateInstaller.ts`, `src/core/tokenEstimator.ts`, `src/templates/generic/AGENTS.md`, `src/templates/generic/docs/ai-context/RCC_WORKFLOW.md`, `src/templates/generic/index.ts`, `tests/agent-startup-adoption.test.js`, `tests/estimate.test.js`
+- Verification: npm run build; node --test tests/init.test.js tests/templates.test.js; node --test tests/map.test.js; node --test tests/agent-startup-adoption.test.js tests/v07-release.test.js tests/packageMetadata.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented safe AI instruction handling with dedicated docs/ai-context/RCC_WORKFLOW.md, minimal AGENTS pointer policy, non-RCC AI file detection notices, and --update-agent-file override for AGENTS only.",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/measure.ts",
+    "src/core/repoMapper.ts",
+    "src/core/templateInstaller.ts",
+    "src/core/tokenEstimator.ts",
+    "src/templates/generic/AGENTS.md",
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "src/templates/generic/index.ts",
+    "tests/agent-startup-adoption.test.js",
+    "tests/estimate.test.js",
+    "tests/init.test.js",
+    "tests/map.test.js",
+    "tests/packageMetadata.test.js",
+    "tests/templates.test.js",
+    "tests/v07-release.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/init.test.js tests/templates.test.js; node --test tests/map.test.js; node --test tests/agent-startup-adoption.test.js tests/v07-release.test.js tests/packageMetadata.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T16:28:00.687Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T16:28:00.687Z",
+  "summary": "Implemented safe AI instruction handling with dedicated docs/ai-context/RCC_WORKFLOW.md, minimal AGENTS pointer policy, non-RCC AI file detection notices, and --update-agent-file override for AGENTS only.",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/measure.ts",
+    "src/core/repoMapper.ts",
+    "src/core/templateInstaller.ts",
+    "src/core/tokenEstimator.ts",
+    "src/templates/generic/AGENTS.md",
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "src/templates/generic/index.ts",
+    "tests/agent-startup-adoption.test.js",
+    "tests/estimate.test.js",
+    "tests/init.test.js",
+    "tests/map.test.js",
+    "tests/packageMetadata.test.js",
+    "tests/templates.test.js",
+    "tests/v07-release.test.js"
+  ],
+  "verification": "npm run build; node --test tests/init.test.js tests/templates.test.js; node --test tests/map.test.js; node --test tests/agent-startup-adoption.test.js tests/v07-release.test.js tests/packageMetadata.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

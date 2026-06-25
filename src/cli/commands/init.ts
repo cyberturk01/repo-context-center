@@ -9,6 +9,7 @@ interface InitOptions {
   githubAction: boolean;
   update: boolean;
   maxFiles?: number;
+  updateAgentFile: boolean;
 }
 
 function parseInitOptions(args: string[]): InitOptions | undefined {
@@ -30,7 +31,8 @@ function parseInitOptions(args: string[]): InitOptions | undefined {
     dryRun: args.includes("--dry-run"),
     githubAction: args.includes("--github-action"),
     update: args.includes("--update"),
-    maxFiles
+    maxFiles,
+    updateAgentFile: args.includes("--update-agent-file")
   };
 }
 
@@ -38,6 +40,10 @@ function formatInstallMessage(
   result: Awaited<ReturnType<typeof installGenericTemplates>>[number],
   dryRun: boolean
 ): string {
+  if (result.message) {
+    return `${result.message}\n`;
+  }
+
   if (dryRun) {
     if (result.action === "skip") {
       return `Would skip ${result.type}: ${result.path} already exists\n`;
@@ -61,11 +67,11 @@ function formatInstallMessage(
 
 export async function initCommand(io: CliIO, args: string[] = []): Promise<number> {
   const options = parseInitOptions(args);
-  const knownFlags = new Set(["--force", "--dry-run", "--github-action", "--update", "--max-files"]);
+  const knownFlags = new Set(["--force", "--dry-run", "--github-action", "--update", "--update-agent-file", "--max-files"]);
   const unknownFlag = args.find((arg) => arg.startsWith("--") && !knownFlags.has(arg));
 
   if (!options || unknownFlag) {
-    io.stderr(unknownFlag ? `Unknown init option: ${unknownFlag}\n` : "Usage: repo-context-center init [--force] [--dry-run] [--github-action] [--update] [--max-files <number>]\n");
+    io.stderr(unknownFlag ? `Unknown init option: ${unknownFlag}\n` : "Usage: repo-context-center init [--force] [--dry-run] [--github-action] [--update] [--update-agent-file] [--max-files <number>]\n");
     return 1;
   }
 
@@ -73,19 +79,20 @@ export async function initCommand(io: CliIO, args: string[] = []): Promise<numbe
     cwd: io.cwd,
     force: options.force,
     dryRun: options.dryRun,
-    githubAction: options.githubAction
+    githubAction: options.githubAction,
+    updateAgentFile: options.updateAgentFile
   });
 
   for (const result of results) {
     io.stdout(formatInstallMessage(result, options.dryRun));
   }
 
-  if (options.update) {
+  if (options.update || options.updateAgentFile) {
     const agentsResult = results.find((result) => result.path === "AGENTS.md");
     if (agentsResult?.action === "update") {
-      io.stdout("Updated RCC agent instructions in AGENTS.md while preserving manual content.\n");
+      io.stdout("Updated RCC agent pointer in AGENTS.md while preserving manual content.\n");
     } else if (agentsResult?.action === "skip") {
-      io.stdout("AGENTS.md already has current RCC agent instructions.\n");
+      io.stdout("AGENTS.md already has current RCC agent pointer or was left unchanged.\n");
     }
   }
 

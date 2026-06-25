@@ -2008,7 +2008,7 @@ function manualContentWithoutGeneratedSection(existing: string | undefined): str
   return `${existing.slice(0, start)}\n${existing.slice(end + generatedEnd.length)}`;
 }
 
-type GeneratedContextFile = Exclude<RequiredContextFile, "AGENTS.md">;
+type GeneratedContextFile = Exclude<RequiredContextFile, "AGENTS.md" | "docs/ai-context/RCC_WORKFLOW.md">;
 
 const renderers: Record<GeneratedContextFile, { title: string; render: (data: RepoMapData, existing?: string) => string }> = {
   "docs/ai-context/COMMUNICATION_MODE.md": { title: "Communication Mode", render: renderCommunication },
@@ -2103,7 +2103,7 @@ async function buildChanges(cwd: string, data: RepoMapData): Promise<RepoMapChan
   const changes: RepoMapChange[] = [];
 
   for (const file of requiredContextFiles) {
-    if (file === "AGENTS.md") {
+    if (file === "AGENTS.md" || file === "docs/ai-context/RCC_WORKFLOW.md") {
       continue;
     }
 

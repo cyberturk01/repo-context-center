@@ -235,8 +235,11 @@ test("measure prints human-readable token estimates for a task", async () => {
     assert.equal(result.stderr, "");
     assert.match(result.stdout, /RCC measurement/);
     assert.match(result.stdout, /Task:\nfix workflow bug/);
-    assert.match(result.stdout, /Naive scan estimate:\n[\d,]+ tokens/);
-    assert.match(result.stdout, /RCC agent route:\n[\d,]+ tokens/);
+    assert.match(result.stdout, /Naive source scan:\n[\d,]+ tokens/);
+    assert.match(result.stdout, /RCC route:\n[\d,]+ tokens/);
+    assert.match(result.stdout, /Files counted:\n[\d,]+/);
+    assert.match(result.stdout, /Files excluded:\n[\d,]+/);
+    assert.match(result.stdout, /Excluded examples:\n/);
     assert.match(result.stdout, /Primary files:\n\d+/);
     assert.match(result.stdout, /Supporting files:\n\d+/);
     assert.match(result.stdout, /Tests:\n\d+/);
@@ -276,11 +279,15 @@ test("measure --json returns parseable measurement output", async () => {
         "task",
         "naiveTokens",
         "rccTokens",
+        "filesCounted",
+        "filesExcluded",
+        "excludedExamples",
         "primaryFiles",
         "supportingFiles",
         "tests",
         "estimatedSavingTokens",
-        "estimatedSavingPercent"
+        "estimatedSavingPercent",
+        "warnings"
       ]
     );
     assert.equal(report.schemaVersion, 1);
@@ -288,9 +295,13 @@ test("measure --json returns parseable measurement output", async () => {
     assert.equal(report.task, "fix workflow bug");
     assert.equal(typeof report.naiveTokens, "number");
     assert.equal(typeof report.rccTokens, "number");
+    assert.equal(typeof report.filesCounted, "number");
+    assert.equal(typeof report.filesExcluded, "number");
+    assert.ok(Array.isArray(report.excludedExamples));
     assert.equal(typeof report.primaryFiles, "number");
     assert.equal(typeof report.supportingFiles, "number");
     assert.equal(typeof report.tests, "number");
+    assert.ok(Array.isArray(report.warnings));
     assert.equal(result.stdout, `${JSON.stringify(report, null, 2)}\n`);
   });
 });
@@ -331,6 +342,71 @@ test("measure naive estimate excludes files ignored by RCC rules", async () => {
     assert.equal(result.status, 0);
     assert.ok(report.naiveTokens > 0);
     assert.ok(report.naiveTokens < 2000);
+  });
+});
+
+test("measure excludes noisy directories and binary files from naive source scan", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/app.ts", "a".repeat(400));
+    await writeText(tempDir, "node_modules/pkg/index.js", "n".repeat(40_000));
+    await writeText(tempDir, ".git/objects/aa/blob", "g".repeat(40_000));
+    await writeText(tempDir, "build/server.js", "b".repeat(40_000));
+    await writeText(tempDir, "coverage/lcov.info", "c".repeat(40_000));
+    await writeText(tempDir, "docs/ai-context/archive/old.md", "o".repeat(40_000));
+    await writeText(tempDir, "assets/logo.png", "p".repeat(40_000));
+    await writeText(tempDir, "release/archive.zip", "z".repeat(40_000));
+
+    const result = runCli(["measure", "fix login bug", "--json"], { cwd: tempDir });
+    const report = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(report.naiveTokens < 2000);
+    assert.ok(report.filesCounted > 0);
+    assert.ok(report.filesExcluded >= 6);
+    for (const example of ["node_modules", ".git", "build", "coverage", "docs/ai-context/archive"]) {
+      assert.ok(report.excludedExamples.includes(example), `${example} missing from ${report.excludedExamples.join(", ")}`);
+    }
+    assert.ok(report.excludedExamples.includes(".png") || report.excludedExamples.includes(".zip"));
+  });
+});
+
+test("measure incorporates DO_NOT_READ generated guidance into exclusions", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/app.ts", "a".repeat(400));
+    await writeText(tempDir, "debug-dumps/session.txt", "d".repeat(40_000));
+    await writeText(tempDir, "docs/ai-context/DO_NOT_READ.md", [
+      "# Do Not Read",
+      "",
+      "<!-- repo-context-center:generated:start -->",
+      "- `debug-dumps/`",
+      "<!-- repo-context-center:generated:end -->"
+    ].join("\n"));
+
+    const result = runCli(["measure", "fix login bug", "--json"], { cwd: tempDir });
+    const report = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(report.naiveTokens < 2000);
+    assert.ok(report.excludedExamples.includes("debug-dumps"));
+  });
+});
+
+test("measure warns but succeeds when naive estimate is very large", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/huge.ts", "x".repeat(20_000_004));
+
+    const textResult = runCli(["measure", "fix huge source bug"], { cwd: tempDir });
+    const jsonResult = runCli(["measure", "fix huge source bug", "--json"], { cwd: tempDir });
+    const report = JSON.parse(jsonResult.stdout);
+
+    assert.equal(textResult.status, 0);
+    assert.equal(jsonResult.status, 0);
+    assert.ok(report.naiveTokens > 5_000_000);
+    assert.ok(report.warnings.includes("Warning: naive estimate is very large. Check excluded folders and generated files."));
+    assert.match(textResult.stdout, /Warning: naive estimate is very large\. Check excluded folders and generated files\./);
   });
 });
 
