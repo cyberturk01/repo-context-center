@@ -111,6 +111,11 @@ function formatMeasureReport(report: MeasureReport): string {
 }
 
 export async function measureCommand(io: CliIO, args: string[] = []): Promise<number> {
+  if (args.includes("--compare-naive")) {
+    io.stderr("--compare-naive is supported by estimate, not measure. Use: rcc estimate --compare-naive\n");
+    return 1;
+  }
+
   const options = parseMeasureOptions(args);
   if (!options) {
     io.stderr(`${usage}\n`);

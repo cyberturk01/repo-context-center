@@ -8,7 +8,7 @@ const templateRoot = path.join(repoRoot, "src", "templates", "generic");
 const distTemplateRoot = path.join(repoRoot, "dist", "templates", "generic");
 const distGithubTemplateRoot = path.join(repoRoot, "dist", "templates", "github");
 const maxTemplateBytes = 1600;
-const previousTemplateWordBaseline = 945;
+const previousTemplateWordBaseline = 968;
 const compressedTemplateWordLimit = Math.floor(previousTemplateWordBaseline * 0.7);
 
 const requiredTemplates = [
@@ -108,7 +108,9 @@ test("AGENTS template keeps low-token startup references", async () => {
   assert.equal(workflowSection(content), expectedWorkflowSection);
   assert.match(content, /Read this first\./);
   assert.match(content, /rcc doctor/);
-  assert.match(content, /rcc measure "<task>"/);
+  assert.match(content, /For task-first route savings, use `rcc measure "<task>"`\./);
+  assert.match(content, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
+  assert.doesNotMatch(content, /measure[^.\n]*--compare-naive/);
   assert.match(content, /TASK_ROUTING\.md/);
   assert.match(noShellLine, /TOKEN_BUDGET\.md/);
   assert.match(content, /DO_NOT_READ\.md/);
@@ -123,7 +125,7 @@ test("AGENTS template remains startup-only", async () => {
   const content = await readFile(path.join(templateRoot, "AGENTS.md"), "utf8");
   const words = content.trim().split(/\s+/).filter(Boolean);
 
-  assert.ok(words.length <= 165, `AGENTS.md has ${words.length} words`);
+  assert.ok(words.length <= 185, `AGENTS.md has ${words.length} words`);
   assert.doesNotMatch(content, /^Read:$/m);
   assert.doesNotMatch(content, /^Modes:$/m);
   assert.doesNotMatch(content, /# Task Routing/);
@@ -174,7 +176,9 @@ test("generated AGENTS template keeps core startup rules", async () => {
 
   assert.equal(workflowSection(content), expectedWorkflowSection);
   assert.match(content, /rcc doctor/);
-  assert.match(content, /rcc measure "<task>"/);
+  assert.match(content, /For task-first route savings, use `rcc measure "<task>"`\./);
+  assert.match(content, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
+  assert.doesNotMatch(content, /measure[^.\n]*--compare-naive/);
   assert.match(content, /docs\/ai-context\/TASK_ROUTING\.md/);
   assert.match(noShellLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
   assert.match(content, /docs\/ai-context\/DO_NOT_READ\.md/);

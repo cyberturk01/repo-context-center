@@ -65,7 +65,9 @@ test("v0.5 adoption flow generates AGENTS.md task startup guidance", async () =>
     assert.match(agents, /After meaningful changes, run tests and record:/);
     assert.match(agents, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);
     assert.match(agents, /rcc doctor/);
-    assert.match(agents, /rcc measure "<task>"/);
+    assert.match(agents, /For task-first route savings, use `rcc measure "<task>"`\./);
+    assert.match(agents, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
+    assert.doesNotMatch(agents, /measure[^.\n]*--compare-naive/);
     assert.match(fallbackLine, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(fallbackLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
     assert.match(fallbackLine, /docs\/ai-context\/DO_NOT_READ\.md/);

@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Clarified measure vs estimate usage, added helpful measure --compare-naive error, updated generated workflow guidance and README, and cover...
 - Implemented auto scan profiles, eligible-file filtering, priority-based scan selection, max-files overrides, scan config defaults, and scan...
 - Fixed impact path normalization for cross-repo local dist execution
 - Fixed impact paths to resolve against analyzed Git repo root
 - Hardened impact focused test suggestions and README docs-only dominance
 - Updated README and CHANGE_LOG for the latest six RCC changes, including impact analysis, quality matrix, command metadata, test hardening, ...
 - Hardened impact suggestions for docs-only changes by suppressing npm test fallback and adding docs-only guidance note.
-- Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage.
 
 ## Hot Files
 
@@ -26,8 +26,8 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `src/cli/handoff/handoffTypes.ts` | 13 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/handoff/renderAgent.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/handoff/renderJson.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
+| `README.md` | 9 touches; Clarified measure vs estimate usage, added helpful measure --compare-naive error, updated generated workflow guidance and README, and covered the di... | 2026-06-25 |
 | `src/cli/work/renderAgent.ts` | 9 touches; Added JSON and agent output contract stability tests | 2026-06-22 |
-| `src/cli/impact/buildImpact.ts` | 8 touches; Fixed impact path normalization for cross-repo local dist execution | 2026-06-24 |
 
 ## Completed Work Themes
 
@@ -37,19 +37,19 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Work routing | 17 | Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage. |
 | General maintenance | 10 | Fixed impact path normalization for cross-repo local dist execution |
 | Repository context | 8 | Implemented auto scan profiles, eligible-file filtering, priority-based scan selection, max-files overrides, scan config defaults, and scan metrics output for ... |
+| Agent guidance | 5 | Clarified measure vs estimate usage, added helpful measure --compare-naive error, updated generated workflow guidance and README, and covered the distinction i... |
 | CLI commands | 5 | Clarified RCC local/global CLI alignment and doctor local install path |
 | Work memory | 5 | Implemented learning quality guards for repository memory |
 | Tests | 4 | Hardened impact focused test suggestions and README docs-only dominance |
-| Agent guidance | 4 | Updated README and CHANGE_LOG for the latest six RCC changes, including impact analysis, quality matrix, command metadata, test hardening, docs-only behavior, ... |
 
 ## Verification Patterns
 
-- `npm run build` (47)
+- `npm run build` (48)
 - `npm test` (39)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
+- `node --test tests/cli.test.js` (11)
 - `npm run benchmark:routing` (11)
-- `node --test tests/cli.test.js` (10)
 - `npm run release:check` (10)
 - `node --test tests/work.test.js` (5)
 

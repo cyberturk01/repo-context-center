@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdir, mkdtemp, rm, writeFile } = require("node:fs/promises");
+const { mkdir, mkdtemp, readFile, rm, writeFile } = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
@@ -245,6 +245,19 @@ test("measure prints human-readable token estimates for a task", async () => {
   });
 });
 
+test("measure --compare-naive fails with estimate guidance", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+
+    const result = runCli(["measure", "fix login bug", "--compare-naive"], { cwd: tempDir });
+
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /--compare-naive is supported by estimate, not measure\. Use: rcc estimate --compare-naive/);
+    assert.doesNotMatch(result.stderr, /Usage: rcc measure/);
+  });
+});
+
 test("measure --json returns parseable measurement output", async () => {
   await withTempRepo(async (tempDir) => {
     await writeContextRepo(tempDir);
@@ -458,4 +471,14 @@ test("estimate task recommendation ignores missing files", async () => {
     assert.equal(report.taskEstimate.likelyTestTokens, 0);
     assert.equal(report.taskEstimate.recommendedContextFiles.some((file) => file.missing), false);
   });
+});
+
+test("README distinguishes measure from estimate compare-naive examples", async () => {
+  const readme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+
+  assert.match(readme, /`measure` is the task-first command for route-vs-naive task estimates/);
+  assert.match(readme, /`estimate` is the broader context-cost command for installed files, startup context, and comparison scenarios/);
+  assert.match(readme, /npx repo-context-center estimate --compare-naive/);
+  assert.doesNotMatch(readme, /measure\s+"[^"]+"\s+--compare-naive/);
+  assert.doesNotMatch(readme, /measure\s+--compare-naive/);
 });

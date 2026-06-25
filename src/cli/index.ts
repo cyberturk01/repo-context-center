@@ -70,7 +70,7 @@ Commands:
                    decision list
                    decision search "<query>"
   doctor    Check local development CLI/version alignment
-  estimate  Estimate context token costs and rough savings
+  estimate  Estimate installed context costs and naive comparisons
             Options: --json, --mode <mode>, --task <text>, --compare-naive, --max-files <number>
   find      Find focused file candidates for a concept or query
             Usage: find "<query>" [--limit <number>]
@@ -84,7 +84,7 @@ Commands:
             Usage: log "<summary>" [--files <path,path>] [--dry-run]
   map       Generate repo-specific context maps
             Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>
-  measure   Estimate RCC token savings for a task
+  measure   Task-first route-vs-naive token estimate
             Usage: rcc measure "<task>"
                    rcc measure "<task>" --json
   scan      Suggest lightweight context entries from repo layout

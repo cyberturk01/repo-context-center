@@ -445,7 +445,9 @@ test("AGENTS.md avoids duplicate startup guidance after init and map write", asy
     assert.equal(countMatches(content, /`rcc work "<task>" --agent`/g), 1);
     assert.match(content, /Read this first\./);
     assert.match(content, /rcc doctor/);
-    assert.match(content, /rcc measure "<task>"/);
+    assert.match(content, /For task-first route savings, use `rcc measure "<task>"`\./);
+    assert.match(content, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
+    assert.doesNotMatch(content, /measure[^.\n]*--compare-naive/);
     assert.match(fallbackLine, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(fallbackLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
     assert.match(fallbackLine, /docs\/ai-context\/DO_NOT_READ\.md/);

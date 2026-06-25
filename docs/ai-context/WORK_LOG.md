@@ -2768,4 +2768,60 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-25T16:14:50.777Z
+- Summary: Clarified measure vs estimate usage, added helpful measure --compare-naive error, updated generated workflow guidance and README, and covered the distinction in tests.
+- Changed files: `AGENTS.md`, `README.md`, `src/cli/commands/measure.ts`, `src/cli/index.ts`, `src/core/templateInstaller.ts`, `src/templates/generic/AGENTS.md`, `tests/agent-startup-adoption.test.js`, `tests/cli.test.js`, `tests/estimate.test.js`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/estimate.test.js; node --test tests/templates.test.js; node --test tests/init.test.js; node --test tests/cli.test.js; node --test tests/agent-startup-adoption.test.js; node --test tests/map.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Clarified measure vs estimate usage, added helpful measure --compare-naive error, updated generated workflow guidance and README, and covered the distinction in tests.",
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "src/cli/commands/measure.ts",
+    "src/cli/index.ts",
+    "src/core/templateInstaller.ts",
+    "src/templates/generic/AGENTS.md",
+    "tests/agent-startup-adoption.test.js",
+    "tests/cli.test.js",
+    "tests/estimate.test.js",
+    "tests/init.test.js",
+    "tests/map.test.js",
+    "tests/templates.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/estimate.test.js; node --test tests/templates.test.js; node --test tests/init.test.js; node --test tests/cli.test.js; node --test tests/agent-startup-adoption.test.js; node --test tests/map.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T16:14:50.777Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T16:14:50.777Z",
+  "summary": "Clarified measure vs estimate usage, added helpful measure --compare-naive error, updated generated workflow guidance and README, and covered the distinction in tests.",
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "src/cli/commands/measure.ts",
+    "src/cli/index.ts",
+    "src/core/templateInstaller.ts",
+    "src/templates/generic/AGENTS.md",
+    "tests/agent-startup-adoption.test.js",
+    "tests/cli.test.js",
+    "tests/estimate.test.js",
+    "tests/init.test.js",
+    "tests/map.test.js",
+    "tests/templates.test.js"
+  ],
+  "verification": "npm run build; node --test tests/estimate.test.js; node --test tests/templates.test.js; node --test tests/init.test.js; node --test tests/cli.test.js; node --test tests/agent-startup-adoption.test.js; node --test tests/map.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

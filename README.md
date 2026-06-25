@@ -415,7 +415,13 @@ npx repo-context-center handoff --agent
 
 ### Estimate Broader Context Costs
 
-`measure` is the task-first command for the v0.9 workflow. `estimate` remains available for evaluating installed context files and broader token-cost scenarios:
+`measure` is the task-first command for route-vs-naive task estimates:
+
+```sh
+npx repo-context-center measure "fix login bug"
+```
+
+`estimate` is the broader context-cost command for installed files, startup context, and comparison scenarios. Use `estimate`, not `measure`, with `--compare-naive`:
 
 ```sh
 npx repo-context-center estimate --compare-naive
@@ -526,14 +532,14 @@ repo-context-center log "<summary>" [--files <path,path>] [--dry-run]
 | `work --agent` | print the compact agent route | once at task start |
 | `impact` | estimate affected files, tests, and verification commands | before or after a change |
 | `find` | locate focused candidate files | only if the route is insufficient |
-| `measure` | estimate route savings for a task | when evaluating routing efficiency |
+| `measure` | task-first route-vs-naive estimate | when evaluating routing efficiency for one task |
 | `done` | save completed-work memory | after meaningful agent work |
 | `learn` | regenerate repository learning | after memory edits, archive maintenance, or before release checks |
 | `handoff` | prepare a continuation brief | when work continues in another session or agent |
 | `validate` | check required context files | setup and CI |
 | `map --check` | detect stale generated maps | CI / PRs |
 | `archive` | keep long-running notes compact | periodic maintenance |
-| `estimate` | estimate broader context/token costs | evaluation and debugging |
+| `estimate` | estimate installed context, startup cost, and naive comparisons | evaluation and debugging |
 | `decision` | record durable project decisions | architecture/workflow decisions |
 | `suggest` | get recommendations or JSON | tooling and integrations |
 | `scan` | inspect repo layout | diagnostics |

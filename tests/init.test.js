@@ -250,7 +250,9 @@ test("init --update preserves manual AGENTS sections and refreshes outdated RCC 
     assert.equal(workflowSection(content), expectedWorkflowSection);
     assert.match(content, /Read `docs\/ai-context\/HANDOFF\.md` if present\./);
     assert.match(content, /Use `rcc doctor` for local\/global RCC confusion\./);
-    assert.match(content, /Use `rcc measure "<task>"` for token-saving estimates\./);
+    assert.match(content, /For task-first route savings, use `rcc measure "<task>"`\./);
+    assert.match(content, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
+    assert.doesNotMatch(content, /measure[^.\n]*--compare-naive/);
     assert.match(fallbackLine, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(fallbackLine, /docs\/ai-context\/TOKEN_BUDGET\.md/);
     assert.match(fallbackLine, /docs\/ai-context\/DO_NOT_READ\.md/);
@@ -303,7 +305,9 @@ test("init --update removes orphaned legacy RCC helper lines around refreshed AG
     assert.doesNotMatch(content, /^- Use `doctor` for local\/global RCC confusion\.$/m);
     assert.doesNotMatch(content, /^- Use `measure` for token-saving estimates\.$/m);
     assert.match(content, /Use `rcc doctor` for local\/global RCC confusion\./);
-    assert.match(content, /Use `rcc measure "<task>"` for token-saving estimates\./);
+    assert.match(content, /For task-first route savings, use `rcc measure "<task>"`\./);
+    assert.match(content, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
+    assert.doesNotMatch(content, /measure[^.\n]*--compare-naive/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -508,7 +512,9 @@ test("init dry-run does not write files", async () => {
     assert.match(agentsPreview, /After meaningful changes, run tests and record:/);
     assert.match(agentsPreview, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);
     assert.match(agentsPreview, /Use `rcc doctor` for local\/global RCC confusion\./);
-    assert.match(agentsPreview, /Use `rcc measure "<task>"` for token-saving estimates\./);
+    assert.match(agentsPreview, /For task-first route savings, use `rcc measure "<task>"`\./);
+    assert.match(agentsPreview, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
+    assert.doesNotMatch(agentsPreview, /measure[^.\n]*--compare-naive/);
     assert.match(agentsPreview, /If RCC commands are unavailable/);
     assert.match(agentsPreview, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(agentsPreview, /docs\/ai-context\/TOKEN_BUDGET\.md/);
