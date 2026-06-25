@@ -2966,4 +2966,40 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-25T22:40:18.641Z
+- Summary: Fixed validate to accept minimal AGENTS.md pointer when docs/ai-context/RCC_WORKFLOW.md contains DO_NOT_READ guidance, preserving warnings for custom AGENTS files without the pointer.
+- Changed files: `src/core/contextFiles.ts`, `src/core/validator.ts`
+- Verification: npm run build; node --test tests/validate.test.js; node --test tests/init.test.js; node --test tests/templates.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed validate to accept minimal AGENTS.md pointer when docs/ai-context/RCC_WORKFLOW.md contains DO_NOT_READ guidance, preserving warnings for custom AGENTS files without the pointer.",
+  "files": [
+    "src/core/contextFiles.ts",
+    "src/core/validator.ts"
+  ],
+  "verification": [
+    "npm run build; node --test tests/validate.test.js; node --test tests/init.test.js; node --test tests/templates.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T22:40:18.641Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T22:40:18.641Z",
+  "summary": "Fixed validate to accept minimal AGENTS.md pointer when docs/ai-context/RCC_WORKFLOW.md contains DO_NOT_READ guidance, preserving warnings for custom AGENTS files without the pointer.",
+  "files": [
+    "src/core/contextFiles.ts",
+    "src/core/validator.ts"
+  ],
+  "verification": "npm run build; node --test tests/validate.test.js; node --test tests/init.test.js; node --test tests/templates.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

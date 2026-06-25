@@ -8,6 +8,7 @@ import {
   generatedFolderExclusions,
   requiredContextFiles,
   requiredTokenBudgetModes,
+  rccWorkflowFile,
   tokenBudgetFile,
   type RequiredContextFile
 } from "./contextFiles";
@@ -116,6 +117,13 @@ async function validateAgentsReferences(cwd: string): Promise<ValidationIssue[]>
   const content = await readOptionalContextFile(cwd, agentsFile);
   if (content === undefined || includesPhrase(content, doNotReadFile)) {
     return [];
+  }
+
+  if (includesPhrase(content, rccWorkflowFile)) {
+    const workflowContent = await readOptionalContextFile(cwd, rccWorkflowFile);
+    if (workflowContent !== undefined && includesPhrase(workflowContent, doNotReadFile)) {
+      return [];
+    }
   }
 
   return [{
