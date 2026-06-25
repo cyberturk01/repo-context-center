@@ -2924,4 +2924,46 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-25T16:31:56.851Z
+- Summary: Updated RCC workflow guidance to require a three-command retry chain before fallback and added strict bounded fallback rules for minimal context/file reading.
+- Changed files: `src/templates/generic/docs/ai-context/RCC_WORKFLOW.md`, `tests/agent-startup-adoption.test.js`, `tests/init.test.js`, `tests/templates.test.js`, `tests/v07-release.test.js`
+- Verification: npm run build; node --test tests/templates.test.js; node --test tests/init.test.js; node --test tests/agent-startup-adoption.test.js tests/v07-release.test.js tests/map.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated RCC workflow guidance to require a three-command retry chain before fallback and added strict bounded fallback rules for minimal context/file reading.",
+  "files": [
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "tests/agent-startup-adoption.test.js",
+    "tests/init.test.js",
+    "tests/templates.test.js",
+    "tests/v07-release.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/templates.test.js; node --test tests/init.test.js; node --test tests/agent-startup-adoption.test.js tests/v07-release.test.js tests/map.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T16:31:56.851Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T16:31:56.851Z",
+  "summary": "Updated RCC workflow guidance to require a three-command retry chain before fallback and added strict bounded fallback rules for minimal context/file reading.",
+  "files": [
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "tests/agent-startup-adoption.test.js",
+    "tests/init.test.js",
+    "tests/templates.test.js",
+    "tests/v07-release.test.js"
+  ],
+  "verification": "npm run build; node --test tests/templates.test.js; node --test tests/init.test.js; node --test tests/agent-startup-adoption.test.js tests/v07-release.test.js tests/map.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

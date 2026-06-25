@@ -55,7 +55,7 @@ test("v0.5 adoption flow generates AGENTS pointer and RCC workflow guidance", as
     const workflow = await readFile(path.join(tempDir, "docs", "ai-context", "RCC_WORKFLOW.md"), "utf8");
 
     assert.match(agents, /For the RCC repository workflow, read docs\/ai-context\/RCC_WORKFLOW\.md before coding tasks\./);
-    assert.match(workflow, /For coding tasks, first run once at task start:/);
+    assert.match(workflow, /For coding tasks, try RCC in this order:/);
     assert.match(workflow, /`rcc work "<task>" --agent`/);
     assert.match(workflow, /Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly\./);
     assert.match(workflow, /Do not repeatedly run `rcc work` for the same task\./);

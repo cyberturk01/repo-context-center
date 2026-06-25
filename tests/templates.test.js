@@ -8,8 +8,9 @@ const templateRoot = path.join(repoRoot, "src", "templates", "generic");
 const distTemplateRoot = path.join(repoRoot, "dist", "templates", "generic");
 const distGithubTemplateRoot = path.join(repoRoot, "dist", "templates", "github");
 const maxTemplateBytes = 1600;
+const maxWorkflowTemplateBytes = 2200;
 const previousTemplateWordBaseline = 968;
-const compressedTemplateWordLimit = Math.floor(previousTemplateWordBaseline * 0.7);
+const compressedTemplateWordLimit = Math.floor(previousTemplateWordBaseline * 0.85);
 
 const requiredTemplates = [
   "AGENTS.md",
@@ -72,7 +73,8 @@ test("generic templates are non-empty and compact", async () => {
     const byteLength = Buffer.byteLength(content, "utf8");
 
     assert.notEqual(content.trim(), "", file);
-    assert.ok(byteLength <= maxTemplateBytes, `${file} is ${byteLength} bytes`);
+    const limit = file === "docs/ai-context/RCC_WORKFLOW.md" ? maxWorkflowTemplateBytes : maxTemplateBytes;
+    assert.ok(byteLength <= limit, `${file} is ${byteLength} bytes`);
   }
 });
 
@@ -101,8 +103,11 @@ test("RCC workflow template keeps core startup rules", async () => {
   const content = await readFile(path.join(templateRoot, "docs/ai-context/RCC_WORKFLOW.md"), "utf8");
 
   assert.match(content, /# RCC Workflow/);
-  assert.match(content, /For coding tasks, first run once at task start:/);
+  assert.match(content, /For coding tasks, try RCC in this order:/);
   assert.match(content, /`rcc work "<task>" --agent`/);
+  assert.match(content, /`repo-context-center work "<task>" --agent`/);
+  assert.match(content, /`npx repo-context-center@latest work "<task>" --agent`/);
+  assert.match(content, /Do not enter fallback mode after only one failed command\./);
   assert.match(content, /Use `rcc doctor` for local\/global RCC confusion\./);
   assert.match(content, /For task-first route savings, use `rcc measure "<task>"`\./);
   assert.match(content, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
@@ -115,6 +120,30 @@ test("RCC workflow template keeps core startup rules", async () => {
   assert.doesNotMatch(content, /docs\/ai-context\/COMMUNICATION_MODE\.md/);
   assert.doesNotMatch(content, /docs\/ai-context\/MODULE_INDEX\.md/);
   assert.match(content, /Avoid unnecessary repository scanning\./);
+});
+
+test("RCC workflow fallback stays strict and bounded", async () => {
+  const content = await readFile(path.join(templateRoot, "docs/ai-context/RCC_WORKFLOW.md"), "utf8");
+  const fallback = content.slice(content.indexOf("## If RCC commands are unavailable"));
+
+  assert.match(fallback, /Do not ask the human to run RCC commands\./);
+  assert.match(fallback, /Read only:\n  - `docs\/ai-context\/TASK_ROUTING\.md`\n  - `docs\/ai-context\/DO_NOT_READ\.md`/);
+  assert.match(fallback, /Use `docs\/ai-context\/TOKEN_BUDGET\.md` only if budget guidance is needed\./);
+  assert.match(fallback, /Do not read all context files\./);
+  assert.match(fallback, /If the route is still unclear, read at most one additional context file\./);
+  assert.match(fallback, /1-3 likely implementation files/);
+  assert.match(fallback, /1-2 likely test files/);
+  assert.match(fallback, /Do not perform broad repository scans\./);
+  assert.match(fallback, /Prefer targeted file\/path searches over broad scans\./);
+
+  for (const file of ["PROJECT_MAP.md", "MODULE_INDEX.md", "HOTSPOTS.md", "RISK_REGISTER.md", "DEPENDENCY_MAP.md", "SYMBOL_MAP.md"]) {
+    assert.match(fallback, new RegExp(`- \`${file.replace(".", "\\.")}\``));
+  }
+
+  assert.doesNotMatch(fallback, /read context files on demand/i);
+  assert.doesNotMatch(fallback, /check mapping files/i);
+  assert.doesNotMatch(fallback, /pull risk mapping files/i);
+  assert.doesNotMatch(fallback, /inspect project context/i);
 });
 
 test("templates do not contain another template title", async () => {

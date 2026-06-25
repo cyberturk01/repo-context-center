@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Updated RCC workflow guidance to require a three-command retry chain before fallback and added strict bounded fallback rules for minimal co...
 - Implemented safe AI instruction handling with dedicated docs/ai-context/RCC_WORKFLOW.md, minimal AGENTS pointer policy, non-RCC AI file det...
 - Hardened rcc measure naive source-scan estimates with generated/cache/debug/binary exclusions, DO_NOT_READ-derived exclusions, counted/excl...
 - Clarified measure vs estimate usage, added helpful measure --compare-naive error, updated generated workflow guidance and README, and cover...
 - Implemented auto scan profiles, eligible-file filtering, priority-based scan selection, max-files overrides, scan config defaults, and scan...
 - Fixed impact path normalization for cross-repo local dist execution
 - Fixed impact paths to resolve against analyzed Git repo root
-- Hardened impact focused test suggestions and README docs-only dominance
 
 ## Hot Files
 
@@ -34,7 +34,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
-| Work routing | 17 | Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage. |
+| Work routing | 18 | Updated RCC workflow guidance to require a three-command retry chain before fallback and added strict bounded fallback rules for minimal context/file reading. |
 | General maintenance | 10 | Fixed impact path normalization for cross-repo local dist execution |
 | Repository context | 9 | Implemented safe AI instruction handling with dedicated docs/ai-context/RCC_WORKFLOW.md, minimal AGENTS pointer policy, non-RCC AI file detection notices, and ... |
 | Agent guidance | 5 | Clarified measure vs estimate usage, added helpful measure --compare-naive error, updated generated workflow guidance and README, and covered the distinction i... |
@@ -44,7 +44,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (50)
+- `npm run build` (51)
 - `npm test` (39)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)

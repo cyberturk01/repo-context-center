@@ -1,8 +1,12 @@
 # RCC Workflow
 
-For coding tasks, first run once at task start:
+For coding tasks, try RCC in this order:
 
-`rcc work "<task>" --agent`
+1. `rcc work "<task>" --agent`
+2. `repo-context-center work "<task>" --agent`
+3. `npx repo-context-center@latest work "<task>" --agent`
+
+Do not enter fallback mode after only one failed command.
 
 Then:
 - Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly.
@@ -22,6 +26,26 @@ For task-first route savings, use `rcc measure "<task>"`.
 
 For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`.
 
-If RCC commands are unavailable, read only `docs/ai-context/TASK_ROUTING.md` and `docs/ai-context/TOKEN_BUDGET.md`; check `docs/ai-context/DO_NOT_READ.md` before manual broad scans.
+## If RCC commands are unavailable
+
+- Do not ask the human to run RCC commands.
+- Read only:
+  - `docs/ai-context/TASK_ROUTING.md`
+  - `docs/ai-context/DO_NOT_READ.md`
+- Use `docs/ai-context/TOKEN_BUDGET.md` only if budget guidance is needed.
+- Do not read all context files.
+- Do not read these by default:
+  - `PROJECT_MAP.md`
+  - `MODULE_INDEX.md`
+  - `HOTSPOTS.md`
+  - `RISK_REGISTER.md`
+  - `DEPENDENCY_MAP.md`
+  - `SYMBOL_MAP.md`
+- If the route is still unclear, read at most one additional context file.
+- Then inspect only:
+  - 1-3 likely implementation files
+  - 1-2 likely test files
+- Do not perform broad repository scans.
+- Prefer targeted file/path searches over broad scans.
 
 Keep changes focused. Avoid unnecessary repository scanning.
