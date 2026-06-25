@@ -8,14 +8,29 @@ interface InitOptions {
   dryRun: boolean;
   githubAction: boolean;
   update: boolean;
+  maxFiles?: number;
 }
 
-function parseInitOptions(args: string[]): InitOptions {
+function parseInitOptions(args: string[]): InitOptions | undefined {
+  let maxFiles: number | undefined;
+
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] === "--max-files") {
+      const value = Number.parseInt(args[index + 1] ?? "", 10);
+      if (!Number.isInteger(value) || value < 1) {
+        return undefined;
+      }
+      maxFiles = value;
+      index += 1;
+    }
+  }
+
   return {
     force: args.includes("--force"),
     dryRun: args.includes("--dry-run"),
     githubAction: args.includes("--github-action"),
-    update: args.includes("--update")
+    update: args.includes("--update"),
+    maxFiles
   };
 }
 
@@ -46,11 +61,11 @@ function formatInstallMessage(
 
 export async function initCommand(io: CliIO, args: string[] = []): Promise<number> {
   const options = parseInitOptions(args);
-  const knownFlags = new Set(["--force", "--dry-run", "--github-action", "--update"]);
+  const knownFlags = new Set(["--force", "--dry-run", "--github-action", "--update", "--max-files"]);
   const unknownFlag = args.find((arg) => arg.startsWith("--") && !knownFlags.has(arg));
 
-  if (unknownFlag) {
-    io.stderr(`Unknown init option: ${unknownFlag}\n`);
+  if (!options || unknownFlag) {
+    io.stderr(unknownFlag ? `Unknown init option: ${unknownFlag}\n` : "Usage: repo-context-center init [--force] [--dry-run] [--github-action] [--update] [--max-files <number>]\n");
     return 1;
   }
 
@@ -92,10 +107,17 @@ export async function initCommand(io: CliIO, args: string[] = []): Promise<numbe
   try {
     const mapResult = await mapRepository({
       cwd: io.cwd,
-      maxFiles: 500,
+      maxFiles: options.maxFiles,
       write: true
     });
-    io.stdout(`Generated repository context: ${mapResult.written.length} files updated (${mapResult.data.filesScanned} files scanned).\n`);
+    io.stdout([
+      `Generated repository context: ${mapResult.written.length} files updated.`,
+      `Repository size: ${mapResult.data.scanProfile}`,
+      `Eligible files: ${mapResult.data.eligibleFiles.toLocaleString("en-US")}`,
+      `Scan cap: ${mapResult.data.scanCap.toLocaleString("en-US")}`,
+      `Files scanned: ${mapResult.data.filesScanned.toLocaleString("en-US")}`,
+      `Files excluded: ${mapResult.data.filesExcluded.toLocaleString("en-US")}`
+    ].join("\n") + "\n");
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     io.stderr(`Warning: failed to generate repository context during init: ${message}\n`);

@@ -326,7 +326,7 @@ test("map --check fails when generated files are missing", async () => {
     assert.equal(result.status, 1);
     assert.match(result.stdout, /Generated context files are stale or missing\./);
     assert.match(result.stdout, /- docs\/ai-context\/HOTSPOTS\.md \(create\)/);
-    assert.match(result.stdout, /Run: npx repo-context-center map --write --max-files 500/);
+    assert.match(result.stdout, /Run: npx repo-context-center map --write$/m);
   });
 });
 
@@ -786,7 +786,7 @@ test("map classifies Guardian-like repo files without fixture or metrics noise",
       "docs/ai-context/TASK_ROUTING.md",
       "docs/ai-context/MODULE_INDEX.md",
       "docs/ai-context/PROJECT_MAP.md",
-      ".repo-context-center/config.json"
+      "docs/ai-context/CHANGE_LOG.md"
     ]);
     assert.ok(!context.primaryFiles.some((file) => file.startsWith(".project-brain/metrics/")));
 
@@ -806,7 +806,7 @@ test("map classifies Guardian-like repo files without fixture or metrics noise",
     assert.match(moduleIndex, /## Release workflow[\s\S]*- Related tests: `tests\/integration\/release\.ts`\./);
     assert.match(moduleIndex, /## Context docs[\s\S]*`AGENTS\.md`/);
     assert.match(moduleIndex, /## Context docs[\s\S]*`docs\/ai-context\/TASK_ROUTING\.md`/);
-    assert.match(moduleIndex, /## Context docs[\s\S]*`.repo-context-center\/config\.json`/);
+    assert.doesNotMatch(moduleSection(moduleIndex, "Context docs"), /\.repo-context-center\/config\.json/);
     assert.match(moduleIndex, /## Context docs[\s\S]*- Related tests: none detected\./);
     assert.doesNotMatch(moduleIndex, /## Context docs[\s\S]*\.project-brain\/metrics/);
   });
@@ -1067,14 +1067,14 @@ test("PROJECT_MAP.md reports low repository understanding quality without noise 
       keyDirectoriesDetected: 3,
       modulesDetected: 0,
       dependencyHintsMode: "Conservative",
-      noiseFilteringStatus: "Active (2 ignored/noise areas separated)"
+      noiseFilteringStatus: "Active (4 ignored/noise areas separated)"
     });
     assert.deepEqual(data.projectMap.tests, []);
     assert.match(projectMap, /\| Repo understanding level \| Low \|/);
     assert.match(projectMap, /\| Entrypoints detected \| 1 \|/);
     assert.match(projectMap, /\| Key directories detected \| 3 \|/);
     assert.match(projectMap, /\| Modules detected \| 0 \|/);
-    assert.match(projectMap, /\| Generated\/noise filtering \| Active \(2 ignored\/noise areas separated\) \|/);
+    assert.match(projectMap, /\| Generated\/noise filtering \| Active \(4 ignored\/noise areas separated\) \|/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -1345,4 +1345,167 @@ test("empty repo map does not fail and preserves compact generic guidance", asyn
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+});
+
+async function withSizedRepo(fileCount, callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-map-size-"));
+
+  try {
+    for (let index = 0; index < fileCount; index += 1) {
+      await writeFixture(tempDir, `src/generated-${String(index).padStart(5, "0")}.ts`, `export const value${index} = ${index};\n`);
+    }
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+test("map auto scan sizing uses small profile cap", async () => {
+  await withSizedRepo(12, async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--json"]);
+    const data = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(data.scanProfile, "small");
+    assert.equal(data.eligibleFiles, 12);
+    assert.equal(data.scanCap, 500);
+    assert.equal(data.filesScanned, 12);
+  });
+});
+
+test("map auto scan sizing uses medium profile cap", async () => {
+  await withSizedRepo(501, async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--json"]);
+    const data = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(data.scanProfile, "medium");
+    assert.equal(data.eligibleFiles, 501);
+    assert.equal(data.scanCap, 1000);
+    assert.equal(data.filesScanned, 501);
+  });
+});
+
+test("map auto scan sizing uses large profile cap", async () => {
+  await withSizedRepo(2001, async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--json"]);
+    const data = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(data.scanProfile, "large");
+    assert.equal(data.eligibleFiles, 2001);
+    assert.equal(data.scanCap, 2000);
+    assert.equal(data.filesScanned, 2000);
+  });
+});
+
+test("map auto scan sizing uses enterprise profile cap", async () => {
+  await withSizedRepo(8001, async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--json"]);
+    const data = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(data.scanProfile, "enterprise");
+    assert.equal(data.eligibleFiles, 8001);
+    assert.equal(data.scanCap, 5000);
+    assert.equal(data.filesScanned, 5000);
+  });
+});
+
+test("map excludes noisy folders before auto sizing", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-map-noise-"));
+
+  try {
+    await writeFixture(tempDir, "src/index.ts", "export const app = true;\n");
+    for (let index = 0; index < 650; index += 1) {
+      await writeFixture(tempDir, `dist/file-${index}.ts`, "export const generated = true;\n");
+    }
+
+    const result = runCli(tempDir, ["map", "--json"]);
+    const data = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(data.scanProfile, "small");
+    assert.equal(data.eligibleFiles, 1);
+    assert.equal(data.scanCap, 500);
+    assert.equal(data.filesScanned, 1);
+    assert.ok(data.filesExcluded > 0);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("map --max-files overrides auto scan cap", async () => {
+  await withSizedRepo(2001, async (tempDir) => {
+    const result = runCli(tempDir, ["map", "--json", "--max-files", "25"]);
+    const data = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(data.scanProfile, "large");
+    assert.equal(data.eligibleFiles, 2001);
+    assert.equal(data.scanCap, 25);
+    assert.equal(data.filesScanned, 25);
+  });
+});
+
+test("map uses configured scan maxFiles when CLI override is absent", async () => {
+  await withSizedRepo(12, async (tempDir) => {
+    await writeFixture(tempDir, ".repo-context-center/config.json", JSON.stringify({
+      version: 1,
+      createdBy: "repo-context-center",
+      scan: {
+        profile: "auto",
+        maxFiles: 4
+      }
+    }, null, 2));
+
+    const result = runCli(tempDir, ["map", "--json"]);
+    const data = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(data.scanProfile, "small");
+    assert.equal(data.eligibleFiles, 12);
+    assert.equal(data.scanCap, 4);
+    assert.equal(data.filesScanned, 4);
+  });
+});
+
+test("map selects prioritized source files before low-value docs and noise", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-map-priority-"));
+
+  try {
+    await writeFixture(tempDir, "src/a.ts", "export function alpha() { return true; }\n");
+    await writeFixture(tempDir, "src/b.ts", "export function beta() { return true; }\n");
+    await writeFixture(tempDir, "src/c.ts", "export function gamma() { return true; }\n");
+    await writeFixture(tempDir, "docs/a.md", "# A\n");
+    await writeFixture(tempDir, "docs/b.md", "# B\n");
+    await writeFixture(tempDir, "README.md", "# Readme\n");
+    await writeFixture(tempDir, "dist/source-looking.ts", "export function generatedShouldNotWin() { return true; }\n");
+
+    const result = runCli(tempDir, ["map", "--json", "--max-files", "3"]);
+    const data = JSON.parse(result.stdout);
+    const symbols = data.symbols.map((symbol) => symbol.symbol);
+
+    assert.equal(result.status, 0);
+    assert.equal(data.filesScanned, 3);
+    assert.deepEqual(symbols.sort(), ["alpha", "beta", "gamma"]);
+    assert.ok(!symbols.includes("generatedShouldNotWin"));
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("map output includes scan profile and file counts", async () => {
+  await withSizedRepo(3, async (tempDir) => {
+    await writeFixture(tempDir, "coverage/report.txt", "noise\n");
+    const result = runCli(tempDir, ["map", "--dry-run"]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Repository size: small/);
+    assert.match(result.stdout, /Eligible files: 3/);
+    assert.match(result.stdout, /Scan cap: 500/);
+    assert.match(result.stdout, /Files scanned: 3/);
+    assert.match(result.stdout, /Files excluded: 1/);
+  });
 });

@@ -4,6 +4,10 @@ import { pathExists, readJsonFile, writeJsonFile } from "./fileSystem";
 export interface RepoContextConfig {
   version: 1;
   createdBy: "repo-context-center";
+  scan?: {
+    profile?: "auto" | "small" | "medium" | "large" | "enterprise";
+    maxFiles?: "auto" | number;
+  };
 }
 
 export const configDirName = ".repo-context-center";
@@ -16,7 +20,11 @@ export function getConfigPath(cwd: string): string {
 export function createDefaultConfig(): RepoContextConfig {
   return {
     version: 1,
-    createdBy: "repo-context-center"
+    createdBy: "repo-context-center",
+    scan: {
+      profile: "auto",
+      maxFiles: "auto"
+    }
   };
 }
 

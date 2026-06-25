@@ -106,7 +106,10 @@ test("init creates missing context files and populates real map content", async 
     const agents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Generated repository context: \d+ files updated \(\d+ files scanned\)\./);
+    assert.match(result.stdout, /Generated repository context: \d+ files updated\./);
+    assert.match(result.stdout, /Repository size: small/);
+    assert.match(result.stdout, /Scan cap: 500/);
+    assert.match(result.stdout, /Files scanned: 17/);
     assert.match(taskRouting, /<!-- repo-context-center:generated:start -->/);
     assert.match(taskRouting, /src\/auth\/login\.ts/);
     assert.match(moduleIndex, /tests\/auth\/login\.test\.ts/);
@@ -119,6 +122,27 @@ test("init creates missing context files and populates real map content", async 
     await rm(tempDir, { recursive: true, force: true });
   }
 });
+
+test("init --max-files overrides auto scan cap", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeFixtureFile(tempDir, "src/a.ts", "export const a = true;\n");
+    await writeFixtureFile(tempDir, "src/b.ts", "export const b = true;\n");
+    await writeFixtureFile(tempDir, "src/c.ts", "export const c = true;\n");
+
+    const result = runInit(tempDir, ["--max-files", "2"]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Repository size: small/);
+    assert.match(result.stdout, /Eligible files: 18/);
+    assert.match(result.stdout, /Scan cap: 2/);
+    assert.match(result.stdout, /Files scanned: 2/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 
 test("init preserves manual repository learning sections outside generated markers", async () => {
   const tempDir = await createTempRepo();

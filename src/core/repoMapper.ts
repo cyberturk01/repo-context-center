@@ -1,6 +1,8 @@
 import path from "node:path";
+import { readdir } from "node:fs/promises";
+import { hasConfig, readConfig } from "./config";
 import { requiredContextFiles, type RequiredContextFile } from "./contextFiles";
-import { ensureDir, listDirectoryNames, readTextFile, writeTextFile, pathExists } from "./fileSystem";
+import { ensureDir, readTextFile, writeTextFile, pathExists } from "./fileSystem";
 import { renderRepositoryLearningBody, upsertRepositoryLearning } from "./renderRepositoryLearning";
 import { buildRepositoryLearningModel } from "./repositoryLearning";
 import { buildRepositoryUnderstanding, type RepositoryUnderstanding } from "./repositoryUnderstanding";
@@ -9,7 +11,7 @@ import { renderWorkIndex } from "./workMemory";
 
 export interface RepoMapOptions {
   cwd: string;
-  maxFiles: number;
+  maxFiles?: number;
   write?: boolean;
   dryRun?: boolean;
 }
@@ -72,7 +74,11 @@ export interface RepoUnderstandingQuality {
 export interface RepoMapData {
   root: string;
   generatedAt: string;
+  scanProfile: ScanProfileName;
+  eligibleFiles: number;
+  scanCap: number;
   filesScanned: number;
+  filesExcluded: number;
   riskDefaultChecks: string[];
   firstFiles: RepoFirstFilesGroup[];
   taskRouting: RepoMapRow[];
@@ -122,6 +128,23 @@ interface RepoFile {
   ext: string;
 }
 
+export type ScanProfileName = "small" | "medium" | "large" | "enterprise";
+
+interface ScanPlan {
+  profile: ScanProfileName;
+  eligibleFiles: number;
+  scanCap: number;
+  filesScanned: number;
+  filesExcluded: number;
+  excludedPaths: string[];
+  files: RepoFile[];
+}
+
+interface ScanSettings {
+  maxFiles?: number;
+  profile?: "auto" | ScanProfileName;
+}
+
 interface Category {
   key: string;
   label: string;
@@ -138,17 +161,26 @@ interface Category {
 const generatedStart = "<!-- repo-context-center:generated:start -->";
 const generatedEnd = "<!-- repo-context-center:generated:end -->";
 const defaultMaxFiles = 500;
-const sourceRoots = ["src", "app", "lib", "packages"];
+const sourceRoots = ["src", "app", "apps", "lib", "packages", "server", "client"];
 const testRoots = ["tests", "test", "__tests__", "cypress", "e2e"];
 const excludedDirs = new Set([
-  "node_modules",
-  "dist",
+  ".cache",
+  ".git",
+  ".next",
+  ".nuxt",
+  ".pnpm-store",
+  ".repo-context-center",
+  ".turbo",
   "build",
   "coverage",
-  ".next",
+  "debug-logs",
+  "dist",
+  "logs",
+  "node_modules",
+  "out",
   "target",
-  ".git",
-  ".repo-context-center"
+  "tmp",
+  "vendor"
 ]);
 const baseDoNotRead = [
   "node_modules",
@@ -164,17 +196,36 @@ const baseDoNotRead = [
   "package-lock.json"
 ];
 const generatedExtensions = new Set([
+  ".7z",
+  ".avif",
+  ".bmp",
+  ".bz2",
+  ".dmg",
+  ".eot",
+  ".exe",
   ".gif",
+  ".gz",
   ".ico",
+  ".jar",
   ".jpg",
   ".jpeg",
   ".map",
+  ".mov",
+  ".mp3",
   ".mp4",
+  ".otf",
+  ".pdf",
   ".png",
+  ".rar",
   ".svg",
+  ".tar",
+  ".tgz",
+  ".ttf",
+  ".wav",
   ".webp",
   ".woff",
-  ".woff2"
+  ".woff2",
+  ".zip"
 ]);
 const sourceExtensions = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".go", ".rs", ".java", ".kt", ".rb", ".php", ".sh"]);
 const textReadLimit = 128 * 1024;
@@ -351,127 +402,175 @@ function isLowValueHotspotPath(filePath: string, hasSourceOrTests = true): boole
     || isFixtureOrSnapshotPath(filePath);
 }
 
-async function walkRepo(cwd: string, maxFiles: number): Promise<RepoFile[]> {
-  const files: RepoFile[] = [];
-  const seen = new Set<string>();
-  const repoDirName = path.basename(cwd);
-
-  function addFile(filePath: string): void {
-    const normalized = normalizePath(filePath);
-    if (seen.has(normalized) || isGeneratedAsset(normalized) || files.length >= maxFiles) {
-      return;
-    }
-
-    seen.add(normalized);
-    files.push({
-      path: normalized,
-      parts: normalized.split("/"),
-      ext: path.extname(normalized).toLowerCase()
-    });
+function scanProfileForEligibleCount(eligibleFiles: number): { profile: ScanProfileName; cap: number } {
+  if (eligibleFiles <= 500) {
+    return { profile: "small", cap: 500 };
   }
-
-  async function seedRepresentativeFiles(relativeDir: string, limit: number): Promise<void> {
-    if (files.length >= maxFiles || limit <= 0) {
-      return;
-    }
-
-    let dirEntries;
-    try {
-      dirEntries = await import("node:fs/promises").then((fs) =>
-        fs.readdir(path.join(cwd, relativeDir), { withFileTypes: true })
-      );
-    } catch {
-      return;
-    }
-
-    dirEntries.sort((left, right) => left.name.localeCompare(right.name));
-    for (const entry of dirEntries) {
-      if (files.length >= maxFiles || limit <= 0) {
-        return;
-      }
-
-      const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
-      const normalized = normalizePath(relativePath);
-      if (entry.isFile()) {
-        if (!seen.has(normalized) && !isGeneratedAsset(normalized)) {
-          addFile(normalized);
-          limit -= 1;
-        }
-      } else if (entry.isDirectory() && !excludedDirs.has(entry.name) && normalized !== "docs/ai-context/archive") {
-        const before = files.length;
-        await seedRepresentativeFiles(normalized, limit);
-        limit -= files.length - before;
-      }
-    }
+  if (eligibleFiles <= 2000) {
+    return { profile: "medium", cap: 1000 };
   }
-
-  const seedDirs = uniqueOrdered([
-    repoDirName,
-    "src",
-    "app",
-    "lib",
-    "packages",
-    "tests",
-    "test",
-    "__tests__",
-    "scripts",
-    "docs",
-    ".github/workflows"
-  ]);
-
-  for (const dir of seedDirs) {
-    await seedRepresentativeFiles(dir, dir === repoDirName ? 8 : 4);
+  if (eligibleFiles <= 8000) {
+    return { profile: "large", cap: 2000 };
   }
+  return { profile: "enterprise", cap: 5000 };
+}
+
+function capForProfile(profile: ScanProfileName): number {
+  switch (profile) {
+    case "small":
+      return 500;
+    case "medium":
+      return 1000;
+    case "large":
+      return 2000;
+    case "enterprise":
+      return 5000;
+  }
+}
+
+function repoFile(filePath: string): RepoFile {
+  const normalized = normalizePath(filePath);
+  return {
+    path: normalized,
+    parts: normalized.split("/"),
+    ext: path.extname(normalized).toLowerCase()
+  };
+}
+
+function isExcludedDirectoryPath(filePath: string): boolean {
+  const normalized = normalizePath(filePath).toLowerCase();
+  if (normalized === "docs/ai-context/archive" || normalized.startsWith("docs/ai-context/archive/")) {
+    return true;
+  }
+  if (normalized === ".yarn/cache" || normalized.startsWith(".yarn/cache/")) {
+    return true;
+  }
+  return normalized.split("/").some((part) => excludedDirs.has(part));
+}
+
+function isEligibleScanFile(filePath: string): boolean {
+  return !isExcludedDirectoryPath(filePath)
+    && !isGeneratedAsset(filePath);
+}
+
+function isPrioritySourcePath(filePath: string): boolean {
+  return !isDocumentationPath(filePath)
+    && sourceRoots.some((root) => filePath === root || filePath.startsWith(`${root}/`))
+    && !isTestPath(filePath)
+    && sourceExtensions.has(path.extname(filePath).toLowerCase());
+}
+
+function isPriorityTestPath(filePath: string): boolean {
+  return isTestPath(filePath) || /(^|\/)spec\//i.test(filePath);
+}
+
+function isPriorityConfigPath(filePath: string): boolean {
+  const base = fileName(filePath).toLowerCase();
+  return base === "package.json"
+    || base === "pnpm-lock.yaml"
+    || base === "yarn.lock"
+    || base === "package-lock.json"
+    || base === "tsconfig.json"
+    || /^vite\.config\./i.test(base)
+    || /^next\.config\./i.test(base)
+    || /^eslint(\.|$)/i.test(base)
+    || /^jest(\.|$)/i.test(base)
+    || /^vitest(\.|$)/i.test(base)
+    || /^playwright(\.|$)/i.test(base)
+    || /^cypress(\.|$)/i.test(base)
+    || /^\.?eslintrc(\.|$)/i.test(base);
+}
+
+function isPriorityDocsPath(filePath: string): boolean {
+  return fileName(filePath).toLowerCase() === "readme.md"
+    || /^docs\/[^/]+\.md$/i.test(filePath);
+}
+
+function scanPriority(filePath: string): number {
+  if (isPrioritySourcePath(filePath)) {
+    return 1;
+  }
+  if (isPriorityTestPath(filePath)) {
+    return 2;
+  }
+  if (isPriorityConfigPath(filePath)) {
+    return 3;
+  }
+  if (filePath.startsWith(".github/workflows/")) {
+    return 4;
+  }
+  if (isPriorityDocsPath(filePath)) {
+    return 5;
+  }
+  return 6;
+}
+
+async function collectScanCandidates(cwd: string): Promise<{ eligible: string[]; excluded: number; excludedPaths: string[] }> {
+  const eligible: string[] = [];
+  const excludedPaths: string[] = [];
+  let excluded = 0;
 
   async function walk(relativeDir: string): Promise<void> {
-    if (files.length >= maxFiles) {
-      return;
-    }
-
-    const entries = await listDirectoryNames(path.join(cwd, relativeDir));
-    const names = new Set(entries);
-
     let dirEntries;
     try {
-      dirEntries = await import("node:fs/promises").then((fs) =>
-        fs.readdir(path.join(cwd, relativeDir), { withFileTypes: true })
-      );
+      dirEntries = await readdir(path.join(cwd, relativeDir), { withFileTypes: true });
     } catch {
       return;
     }
 
     dirEntries.sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of dirEntries) {
-      if (files.length >= maxFiles) {
-        return;
-      }
-
       const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
       const normalized = normalizePath(relativePath);
 
       if (entry.isDirectory()) {
-        if (normalized === ".repo-context-center") {
-          const configPath = ".repo-context-center/config.json";
-          if (await pathExists(path.join(cwd, configPath))) {
-            files.push({
-              path: configPath,
-              parts: configPath.split("/"),
-              ext: ".json"
-            });
+        if (isExcludedDirectoryPath(normalized)) {
+          excluded += 1;
+          if (normalized === ".repo-context-center" && await pathExists(path.join(cwd, ".repo-context-center/config.json"))) {
+            excludedPaths.push(".repo-context-center/config.json");
+          } else {
+            excludedPaths.push(normalized);
           }
-        } else if (!excludedDirs.has(entry.name) && normalized !== "docs/ai-context/archive") {
+        } else {
           await walk(normalized);
         }
-      } else if (entry.isFile() && !isGeneratedAsset(normalized)) {
-        addFile(normalized);
+      } else if (entry.isFile()) {
+        if (isEligibleScanFile(normalized)) {
+          eligible.push(normalized);
+        } else {
+          excluded += 1;
+          excludedPaths.push(normalized);
+        }
       }
     }
-
-    void names;
   }
 
   await walk("");
-  return files.sort((left, right) => left.path.localeCompare(right.path));
+  return { eligible: uniqueSorted(eligible), excluded, excludedPaths: uniqueSorted(excludedPaths) };
+}
+
+async function planRepoScan(cwd: string, settings: ScanSettings): Promise<ScanPlan> {
+  const { eligible, excluded, excludedPaths } = await collectScanCandidates(cwd);
+  const auto = scanProfileForEligibleCount(eligible.length);
+  const configuredProfile = settings.profile && settings.profile !== "auto" ? settings.profile : undefined;
+  const profile = configuredProfile ?? auto.profile;
+  const profileCap = configuredProfile ? capForProfile(configuredProfile) : auto.cap;
+  const scanCap = settings.maxFiles ?? profileCap;
+  const selected = eligible
+    .sort((left, right) => scanPriority(left) - scanPriority(right) || left.localeCompare(right))
+    .slice(0, scanCap)
+    .sort((left, right) => left.localeCompare(right))
+    .map(repoFile);
+
+  return {
+    profile,
+    eligibleFiles: eligible.length,
+    scanCap,
+    filesScanned: selected.length,
+    filesExcluded: excluded,
+    excludedPaths,
+    files: selected
+  };
 }
 
 function findMatchingTestFiles(sourceFile: string, tests: string[]): string[] {
@@ -1633,11 +1732,18 @@ function buildProjectMap(
   };
 }
 
-function buildDoNotRead(files: RepoFile[]): string[] {
+function buildDoNotRead(files: RepoFile[], excludedPaths: string[] = []): string[] {
   const topLevel = new Set(files.map((file) => file.parts[0] ?? ""));
   return uniqueSorted([
     ...baseDoNotRead,
     ...[...excludedDirs].filter((folder) => topLevel.has(folder)),
+    ...excludedPaths.map((filePath) => {
+      if (isGeneratedAsset(filePath)) {
+        const dirname = path.posix.dirname(filePath);
+        return dirname === "." ? filePath : dirname;
+      }
+      return filePath;
+    }),
     ...files
       .filter((file) => isFixtureOrSnapshotPath(file.path))
       .map((file) => path.posix.dirname(file.path))
@@ -1924,25 +2030,57 @@ const renderers: Record<GeneratedContextFile, { title: string; render: (data: Re
   "docs/ai-context/CHANGE_LOG.md": { title: "Change Log", render: renderChangeLog }
 };
 
-async function buildMapData(cwd: string, maxFiles: number): Promise<RepoMapData> {
-  const files = await walkRepo(cwd, maxFiles);
-  const understanding = await buildRepositoryUnderstanding({ cwd, files: files.map((file) => file.path) });
+async function resolveScanSettings(cwd: string, manualMaxFiles?: number): Promise<ScanSettings> {
+  if (manualMaxFiles !== undefined) {
+    if (!Number.isInteger(manualMaxFiles) || manualMaxFiles < 1) {
+      throw new Error("--max-files must be a positive integer");
+    }
+    return { maxFiles: manualMaxFiles };
+  }
+
+  if (!(await hasConfig(cwd))) {
+    return {};
+  }
+
+  const config = await readConfig(cwd);
+  const maxFiles = typeof config.scan?.maxFiles === "number" ? config.scan.maxFiles : undefined;
+  const profile = config.scan?.profile;
+
+  if (maxFiles !== undefined && (!Number.isInteger(maxFiles) || maxFiles < 1)) {
+    throw new Error("scan.maxFiles must be a positive integer or \"auto\"");
+  }
+
+  if (profile && !["auto", "small", "medium", "large", "enterprise"].includes(profile)) {
+    throw new Error("scan.profile must be auto, small, medium, large, or enterprise");
+  }
+
+  return { maxFiles, profile };
+}
+
+async function buildMapData(cwd: string, settings: ScanSettings): Promise<RepoMapData> {
+  const scan = await planRepoScan(cwd, settings);
+  const files = scan.files;
+  const understanding = await buildRepositoryUnderstanding({ cwd, files: [...files.map((file) => file.path), ...scan.excludedPaths] });
   const packageScripts = new Set(Object.keys(understanding.scripts));
   const sourceFiles = files.filter((file) => isSourcePath(file.path)).map((file) => file.path);
   const testFiles = understanding.testFiles;
   const modules = buildModules(files, understanding);
   const risks = buildRisks(files, testFiles, packageScripts);
   const dependencies = buildDependencies(files, understanding);
-  const symbolLimit = maxFiles === defaultMaxFiles ? 30 : Math.min(maxFiles, 30);
+  const symbolLimit = scan.scanCap === defaultMaxFiles ? 30 : Math.min(scan.scanCap, 30);
   const symbolSourceFiles = sourceFiles.filter((file) => !isFixtureOrSnapshotPath(file));
-  const symbols = await buildSymbols(cwd, symbolSourceFiles.slice(0, maxFiles), symbolLimit);
+  const symbols = await buildSymbols(cwd, symbolSourceFiles.slice(0, scan.scanCap), symbolLimit);
   const hotspots = await buildHotspots(cwd, files, understanding, risks, dependencies, packageScripts);
-  const doNotRead = buildDoNotRead(files);
+  const doNotRead = buildDoNotRead(files, scan.excludedPaths);
 
   return {
     root: cwd,
     generatedAt: todayIso(),
+    scanProfile: scan.profile,
+    eligibleFiles: scan.eligibleFiles,
+    scanCap: scan.scanCap,
     filesScanned: files.length,
+    filesExcluded: scan.filesExcluded,
     riskDefaultChecks: defaultVerificationChecks(packageScripts),
     firstFiles: buildFirstFiles(files, understanding),
     taskRouting: buildTaskRouting(files, understanding, packageScripts),
@@ -2030,11 +2168,7 @@ async function staleChanges(cwd: string, changes: RepoMapChange[]): Promise<Repo
 }
 
 export async function mapRepository(options: RepoMapOptions): Promise<RepoMapResult> {
-  if (!Number.isInteger(options.maxFiles) || options.maxFiles < 1) {
-    throw new Error("--max-files must be a positive integer");
-  }
-
-  const data = await buildMapData(options.cwd, options.maxFiles);
+  const data = await buildMapData(options.cwd, await resolveScanSettings(options.cwd, options.maxFiles));
   const changes = await buildChanges(options.cwd, data);
   const written: string[] = [];
 
@@ -2051,11 +2185,7 @@ export async function mapRepository(options: RepoMapOptions): Promise<RepoMapRes
 }
 
 export async function checkRepositoryMap(options: Pick<RepoMapOptions, "cwd" | "maxFiles">): Promise<RepoMapCheckResult> {
-  if (!Number.isInteger(options.maxFiles) || options.maxFiles < 1) {
-    throw new Error("--max-files must be a positive integer");
-  }
-
-  const data = await buildMapData(options.cwd, options.maxFiles);
+  const data = await buildMapData(options.cwd, await resolveScanSettings(options.cwd, options.maxFiles));
   const changes = await buildChanges(options.cwd, data);
   return {
     data,

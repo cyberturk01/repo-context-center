@@ -2724,4 +2724,48 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-25T16:06:45.278Z
+- Summary: Implemented auto scan profiles, eligible-file filtering, priority-based scan selection, max-files overrides, scan config defaults, and scan metrics output for init/map.
+- Changed files: `src/cli/commands/init.ts`, `src/cli/commands/map.ts`, `src/core/config.ts`, `src/core/repoMapper.ts`, `tests/init.test.js`, `tests/map.test.js`
+- Verification: npm run build; node --test tests/map.test.js; node --test tests/init.test.js; node --test tests/repoFileClassifier.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented auto scan profiles, eligible-file filtering, priority-based scan selection, max-files overrides, scan config defaults, and scan metrics output for init/map.",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/map.ts",
+    "src/core/config.ts",
+    "src/core/repoMapper.ts",
+    "tests/init.test.js",
+    "tests/map.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/map.test.js; node --test tests/init.test.js; node --test tests/repoFileClassifier.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T16:06:45.278Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T16:06:45.278Z",
+  "summary": "Implemented auto scan profiles, eligible-file filtering, priority-based scan selection, max-files overrides, scan config defaults, and scan metrics output for init/map.",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/map.ts",
+    "src/core/config.ts",
+    "src/core/repoMapper.ts",
+    "tests/init.test.js",
+    "tests/map.test.js"
+  ],
+  "verification": "npm run build; node --test tests/map.test.js; node --test tests/init.test.js; node --test tests/repoFileClassifier.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

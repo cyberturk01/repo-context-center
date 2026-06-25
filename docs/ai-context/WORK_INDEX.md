@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Implemented auto scan profiles, eligible-file filtering, priority-based scan selection, max-files overrides, scan config defaults, and scan...
 - Fixed impact path normalization for cross-repo local dist execution
 - Fixed impact paths to resolve against analyzed Git repo root
 - Hardened impact focused test suggestions and README docs-only dominance
 - Updated README and CHANGE_LOG for the latest six RCC changes, including impact analysis, quality matrix, command metadata, test hardening, ...
 - Hardened impact suggestions for docs-only changes by suppressing npm test fallback and adding docs-only guidance note.
 - Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage.
-- Prepared impact suggestedCommands for v0.12 verification intelligence with structured type, scope, and confidence metadata plus regression ...
 
 ## Hot Files
 
@@ -36,7 +36,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Work routing | 17 | Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage. |
 | General maintenance | 10 | Fixed impact path normalization for cross-repo local dist execution |
-| Repository context | 7 | Implemented cross-repo AGENTS upgrade reliability with init --update and map --write stale warnings |
+| Repository context | 8 | Implemented auto scan profiles, eligible-file filtering, priority-based scan selection, max-files overrides, scan config defaults, and scan metrics output for ... |
 | CLI commands | 5 | Clarified RCC local/global CLI alignment and doctor local install path |
 | Work memory | 5 | Implemented learning quality guards for repository memory |
 | Tests | 4 | Hardened impact focused test suggestions and README docs-only dominance |
@@ -44,7 +44,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (46)
+- `npm run build` (47)
 - `npm test` (39)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
