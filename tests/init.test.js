@@ -209,6 +209,101 @@ test("init leaves existing AGENTS.md without RCC marker unchanged", async () => 
   }
 });
 
+test("init detects and updates AGENTS.md with exact RCC marker block", async () => {
+  const tempDir = await createTempRepo();
+  const agentsPath = path.join(tempDir, "AGENTS.md");
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", [
+      "# Project Agents",
+      "",
+      "<!-- repo-context-center:workflow:start -->",
+      "temporary workflow",
+      "<!-- repo-context-center:workflow:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runInit(tempDir);
+    const content = await readFile(agentsPath, "utf8");
+
+    assert.equal(result.status, 0);
+    assert.equal(workflowSection(content), expectedWorkflowSection);
+    assert.doesNotMatch(result.stdout, /Detected AGENTS\.md\. RCC did not modify it/);
+    assert.match(result.stdout, /Updated file: AGENTS\.md/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init detects and replaces old full AGENTS workflow marker block", async () => {
+  const tempDir = await createTempRepo();
+  const agentsPath = path.join(tempDir, "AGENTS.md");
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", [
+      "# Project Agents",
+      "",
+      "<!-- repo-context-center:workflow:start -->",
+      "## RCC Workflow",
+      "",
+      "For coding tasks, first run once at task start:",
+      "",
+      "`rcc work \"<task>\" --agent`",
+      "",
+      "Then:",
+      "- Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly.",
+      "- Do not repeatedly run `rcc work` for the same task.",
+      "- Use `rcc find \"<keyword>\"` only if the route is insufficient.",
+      "- Do not ask the human to run RCC commands.",
+      "- After meaningful changes, run tests and record:",
+      "  `rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`",
+      "<!-- repo-context-center:workflow:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runInit(tempDir);
+    const content = await readFile(agentsPath, "utf8");
+
+    assert.equal(result.status, 0);
+    assert.equal(workflowSection(content), expectedWorkflowSection);
+    assert.doesNotMatch(content, /## RCC Workflow/);
+    assert.doesNotMatch(content, /rcc work "<task>" --agent/);
+    assert.match(result.stdout, /Updated file: AGENTS\.md/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init preserves AGENTS.md user content before and after RCC marker block", async () => {
+  const tempDir = await createTempRepo();
+  const agentsPath = path.join(tempDir, "AGENTS.md");
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", [
+      "# Project Agents",
+      "",
+      "Manual before.",
+      "",
+      "<!-- repo-context-center:workflow:start -->",
+      "old workflow",
+      "<!-- repo-context-center:workflow:end -->",
+      "",
+      "Manual after.",
+      ""
+    ].join("\n"));
+
+    const result = runInit(tempDir);
+    const content = await readFile(agentsPath, "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /Manual before\./);
+    assert.match(content, /Manual after\./);
+    assert.equal(workflowSection(content), expectedWorkflowSection);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("init preserves manual AGENTS sections and refreshes marked RCC pointer", async () => {
   const tempDir = await createTempRepo();
   const agentsPath = path.join(tempDir, "AGENTS.md");

@@ -3002,4 +3002,84 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-25T22:47:25.776Z
+- Summary: Fixed AGENTS.md RCC workflow marker detection so init updates marked blocks instead of treating them as markerless, and added regressions for exact markers, old full workflow markers, preserved user content, and markerless files.
+- Changed files: `AGENTS.md`, `src/core/templateInstaller.ts`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/init.test.js tests/templates.test.js; node dist/cli/index.js init --dry-run --max-files 1
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed AGENTS.md RCC workflow marker detection so init updates marked blocks instead of treating them as markerless, and added regressions for exact markers, old full workflow markers, preserved user content, and markerless files.",
+  "files": [
+    "AGENTS.md",
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/init.test.js tests/templates.test.js; node dist/cli/index.js init --dry-run --max-files 1"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T22:47:25.776Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T22:47:25.776Z",
+  "summary": "Fixed AGENTS.md RCC workflow marker detection so init updates marked blocks instead of treating them as markerless, and added regressions for exact markers, old full workflow markers, preserved user content, and markerless files.",
+  "files": [
+    "AGENTS.md",
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": "npm run build; node --test tests/init.test.js tests/templates.test.js; node dist/cli/index.js init --dry-run --max-files 1",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-25T22:54:13.002Z
+- Summary: Enhanced rcc doctor to inspect active CLI capabilities, probe shell rcc/repo-context-center commands, detect stale binaries and same-version work --agent capability mismatches, suppress false alignment messages, and print reinstall/cache/path suggestions.
+- Changed files: `AGENTS.md`, `src/cli/commands/doctor.ts`, `src/core/templateInstaller.ts`, `tests/cli.test.js`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/cli.test.js; node dist/cli/index.js doctor
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Enhanced rcc doctor to inspect active CLI capabilities, probe shell rcc/repo-context-center commands, detect stale binaries and same-version work --agent capability mismatches, suppress false alignment messages, and print reinstall/cache/path suggestions.",
+  "files": [
+    "AGENTS.md",
+    "src/cli/commands/doctor.ts",
+    "src/core/templateInstaller.ts",
+    "tests/cli.test.js",
+    "tests/init.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/cli.test.js; node dist/cli/index.js doctor"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T22:54:13.002Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T22:54:13.002Z",
+  "summary": "Enhanced rcc doctor to inspect active CLI capabilities, probe shell rcc/repo-context-center commands, detect stale binaries and same-version work --agent capability mismatches, suppress false alignment messages, and print reinstall/cache/path suggestions.",
+  "files": [
+    "AGENTS.md",
+    "src/cli/commands/doctor.ts",
+    "src/core/templateInstaller.ts",
+    "tests/cli.test.js",
+    "tests/init.test.js"
+  ],
+  "verification": "npm run build; node --test tests/cli.test.js; node dist/cli/index.js doctor",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

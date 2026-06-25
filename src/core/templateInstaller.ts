@@ -26,6 +26,8 @@ const agentsPath = "AGENTS.md";
 const rccWorkflowPath = "docs/ai-context/RCC_WORKFLOW.md";
 const workflowStart = "<!-- repo-context-center:workflow:start -->";
 const workflowEnd = "<!-- repo-context-center:workflow:end -->";
+const workflowStartPattern = /<!--\s*repo-context-center:workflow:start\s*-->/;
+const workflowEndPattern = /<!--\s*repo-context-center:workflow:end\s*-->/;
 const generatedStart = "<!-- repo-context-center:generated:start -->";
 const generatedEnd = "<!-- repo-context-center:generated:end -->";
 const agentsPointer = "# Agent Instructions\n\nFor the RCC repository workflow, read docs/ai-context/RCC_WORKFLOW.md before coding tasks.\n";
@@ -121,14 +123,28 @@ async function installGitHubWorkflow(options: TemplateInstallOptions): Promise<T
 }
 
 function extractWorkflowSection(content: string): string {
-  const start = content.indexOf(workflowStart);
-  const end = content.indexOf(workflowEnd);
+  const markers = findWorkflowMarkerBlock(content);
 
-  if (start === -1 || end === -1 || end <= start) {
-    return "";
+  return markers
+    ? content.slice(markers.start, markers.end).trim()
+    : "";
+}
+
+function findWorkflowMarkerBlock(content: string): { start: number; end: number } | undefined {
+  const startMatch = workflowStartPattern.exec(content);
+  if (!startMatch) {
+    return undefined;
   }
 
-  return content.slice(start, end + workflowEnd.length).trim();
+  workflowEndPattern.lastIndex = 0;
+  const afterStart = content.slice(startMatch.index + startMatch[0].length);
+  const endMatch = workflowEndPattern.exec(afterStart);
+  if (!endMatch) {
+    return undefined;
+  }
+
+  const end = startMatch.index + startMatch[0].length + endMatch.index + endMatch[0].length;
+  return { start: startMatch.index, end };
 }
 
 function stripLegacyWorkflowDuplicateLines(content: string): string {
@@ -170,12 +186,11 @@ export function upsertAgentsWorkflowSection(existing: string, templateContent = 
     return normalizedExisting;
   }
 
-  const start = normalizedExisting.indexOf(workflowStart);
-  const end = normalizedExisting.indexOf(workflowEnd);
+  const markers = findWorkflowMarkerBlock(normalizedExisting);
 
-  if (start !== -1 && end !== -1 && end > start) {
-    const beforeWorkflow = normalizedExisting.slice(0, start).trimEnd();
-    const afterWorkflow = normalizedExisting.slice(end + workflowEnd.length).trimStart();
+  if (markers) {
+    const beforeWorkflow = normalizedExisting.slice(0, markers.start).trimEnd();
+    const afterWorkflow = normalizedExisting.slice(markers.end).trimStart();
     return [beforeWorkflow, workflowSection, afterWorkflow].filter(Boolean).join("\n\n").trimEnd() + "\n";
   }
 
@@ -211,7 +226,7 @@ async function installAgentsTemplate(
   }
 
   const existing = await readTextFile(targetPath);
-  const hasMarker = existing.includes(workflowStart) && existing.includes(workflowEnd);
+  const hasMarker = findWorkflowMarkerBlock(existing.replace(/\r\n/g, "\n")) !== undefined;
   if (!hasMarker && !options.updateAgentFile) {
     return {
       path: agentsPath,

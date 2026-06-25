@@ -13,19 +13,9 @@ Read this first.
 - Use `npm run benchmark:routing` and `npm run benchmark:work-repeat` to validate RCC behavior.
 
 <!-- repo-context-center:workflow:start -->
-## RCC Workflow
+For the RCC repository workflow, read:
 
-For coding tasks, first run once at task start:
-
-`rcc work "<task>" --agent`
-
-Then:
-- Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly.
-- Do not repeatedly run `rcc work` for the same task.
-- Use `rcc find "<keyword>"` only if the route is insufficient.
-- Do not ask the human to run RCC commands.
-- After meaningful changes, run tests and record:
-  `rcc done --summary "<summary>" --files auto --verify "<checks>"`
+`docs/ai-context/RCC_WORKFLOW.md`
 <!-- repo-context-center:workflow:end -->
 
 - Read `docs/ai-context/HANDOFF.md` if present.
