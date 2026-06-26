@@ -110,7 +110,8 @@ test("init creates missing context files and populates real map content", async 
     assert.match(repositoryLearning, /<!-- repo-context-center:repository-learning:start -->/);
     assert.match(repositoryLearning, /<!-- repo-context-center:repository-learning:end -->/);
     assert.match(repositoryLearning, /## Recent Focus Areas/);
-    assert.match(workflow, /For coding tasks, try RCC in this order:/);
+    assert.match(workflow, /## Task Routing/);
+    assert.match(workflow, /Try once, in order:/);
     assert.match(workflow, /`rcc work "<task>" --agent`/);
     assert.equal(agents, minimalAgentsPointer);
     assert.doesNotMatch(agents, /repo-context-center:generated:start/);

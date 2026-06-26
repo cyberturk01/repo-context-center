@@ -55,19 +55,20 @@ test("v0.5 adoption flow generates AGENTS pointer and RCC workflow guidance", as
     const workflow = await readFile(path.join(tempDir, "docs", "ai-context", "RCC_WORKFLOW.md"), "utf8");
 
     assert.match(agents, /For the RCC repository workflow, read docs\/ai-context\/RCC_WORKFLOW\.md before coding tasks\./);
-    assert.match(workflow, /For coding tasks, try RCC in this order:/);
+    assert.match(workflow, /## Task Routing/);
+    assert.match(workflow, /Try once, in order:/);
     assert.match(workflow, /`rcc work "<task>" --agent`/);
-    assert.match(workflow, /Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly\./);
-    assert.match(workflow, /Do not repeatedly run `rcc work` for the same task\./);
+    assert.match(workflow, /Use the returned:\n- primaryFiles\n- supportingFiles\n- tests/);
+    assert.match(workflow, /Do not rerun `rcc work` for the same task\./);
     assert.match(workflow, /Use `rcc find "<keyword>"` only if the route is insufficient\./);
     assert.match(workflow, /rcc find "<keyword>"/);
-    assert.match(workflow, /Do not ask the human to run RCC commands\./);
-    assert.match(workflow, /After meaningful changes, run tests and record:/);
+    assert.doesNotMatch(workflow, /Do not ask the human to run RCC commands\./);
+    assert.match(workflow, /After meaningful changes:/);
     assert.match(workflow, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);
     assert.match(workflow, /rcc doctor/);
-    assert.match(workflow, /For task-first route savings, use `rcc measure "<task>"`\./);
-    assert.match(workflow, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
-    assert.doesNotMatch(workflow, /measure[^.\n]*--compare-naive/);
+    assert.match(workflow, /`rcc measure "<task>"`/);
+    assert.match(workflow, /`rcc estimate --compare-naive`/);
+    assert.doesNotMatch(workflow, /estimate --task|estimate --json/);
     assert.match(workflow, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(workflow, /docs\/ai-context\/TOKEN_BUDGET\.md/);
     assert.match(workflow, /docs\/ai-context\/DO_NOT_READ\.md/);

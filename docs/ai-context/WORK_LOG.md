@@ -3082,4 +3082,48 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-26T13:18:23.510Z
+- Summary: Simplified RCC workflow guidance and made validate check fallback guidance through RCC_WORKFLOW pointer
+- Changed files: `src/core/validator.ts`, `src/templates/generic/docs/ai-context/RCC_WORKFLOW.md`, `tests/agent-startup-adoption.test.js`, `tests/init.test.js`, `tests/templates.test.js`, `tests/validate.test.js`
+- Verification: npm run build; node --test tests/templates.test.js tests/validate.test.js tests/init.test.js tests/agent-startup-adoption.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Simplified RCC workflow guidance and made validate check fallback guidance through RCC_WORKFLOW pointer",
+  "files": [
+    "src/core/validator.ts",
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "tests/agent-startup-adoption.test.js",
+    "tests/init.test.js",
+    "tests/templates.test.js",
+    "tests/validate.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/templates.test.js tests/validate.test.js tests/init.test.js tests/agent-startup-adoption.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T13:18:23.510Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T13:18:23.510Z",
+  "summary": "Simplified RCC workflow guidance and made validate check fallback guidance through RCC_WORKFLOW pointer",
+  "files": [
+    "src/core/validator.ts",
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "tests/agent-startup-adoption.test.js",
+    "tests/init.test.js",
+    "tests/templates.test.js",
+    "tests/validate.test.js"
+  ],
+  "verification": "npm run build; node --test tests/templates.test.js tests/validate.test.js tests/init.test.js tests/agent-startup-adoption.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
