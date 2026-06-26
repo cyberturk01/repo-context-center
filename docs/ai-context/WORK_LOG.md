@@ -3126,4 +3126,40 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-26T13:30:57.932Z
+- Summary: Updated remaining map and v0.7 release tests for simplified RCC workflow guidance
+- Changed files: `tests/map.test.js`, `tests/v07-release.test.js`
+- Verification: node --test tests/map.test.js tests/v07-release.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated remaining map and v0.7 release tests for simplified RCC workflow guidance",
+  "files": [
+    "tests/map.test.js",
+    "tests/v07-release.test.js"
+  ],
+  "verification": [
+    "node --test tests/map.test.js tests/v07-release.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T13:30:57.932Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T13:30:57.932Z",
+  "summary": "Updated remaining map and v0.7 release tests for simplified RCC workflow guidance",
+  "files": [
+    "tests/map.test.js",
+    "tests/v07-release.test.js"
+  ],
+  "verification": "node --test tests/map.test.js tests/v07-release.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -172,8 +172,10 @@ test("v0.7 release: init creates AGENTS pointer and preserves existing AGENTS.md
 
     assert.equal(created.status, 0);
     assert.match(createdAgents, /For the RCC repository workflow, read docs\/ai-context\/RCC_WORKFLOW\.md before coding tasks\./);
-    assert.match(workflow, /For coding tasks, try RCC in this order:/);
+    assert.match(workflow, /## Task Routing/);
+    assert.match(workflow, /Try once, in order:/);
     assert.match(workflow, /`rcc work "<task>" --agent`/);
+    assert.match(workflow, /Use the returned:\n- primaryFiles\n- supportingFiles\n- tests/);
 
     await writeFixtureFile(tempDir, "AGENTS.md", "# Existing Agents\n\nKeep this guidance.\n");
     const updated = runCli(["init"], { cwd: tempDir });

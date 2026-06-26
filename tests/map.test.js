@@ -444,10 +444,14 @@ test("AGENTS.md avoids duplicate startup guidance after init and map write", asy
     assert.equal(result.status, 0);
     assert.equal(countMatches(content, /RCC_WORKFLOW\.md/g), 1);
     assert.equal(countMatches(workflow, /`rcc work "<task>" --agent`/g), 1);
+    assert.match(workflow, /## Task Routing/);
+    assert.match(workflow, /Try once, in order:/);
+    assert.match(workflow, /Use the returned:\n- primaryFiles\n- supportingFiles\n- tests/);
+    assert.match(workflow, /Do not rerun `rcc work` for the same task\./);
     assert.match(workflow, /rcc doctor/);
-    assert.match(workflow, /For task-first route savings, use `rcc measure "<task>"`\./);
-    assert.match(workflow, /For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task "<task>"`, or `rcc estimate --json`\./);
-    assert.doesNotMatch(workflow, /measure[^.\n]*--compare-naive/);
+    assert.match(workflow, /`rcc measure "<task>"`/);
+    assert.match(workflow, /`rcc estimate --compare-naive`/);
+    assert.doesNotMatch(workflow, /estimate --task|estimate --json/);
     assert.match(workflow, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.match(workflow, /docs\/ai-context\/TOKEN_BUDGET\.md/);
     assert.match(workflow, /docs\/ai-context\/DO_NOT_READ\.md/);

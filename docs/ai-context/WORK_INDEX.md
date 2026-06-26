@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Updated remaining map and v0.7 release tests for simplified RCC workflow guidance
 - Simplified RCC workflow guidance and made validate check fallback guidance through RCC_WORKFLOW pointer
 - Enhanced rcc doctor to inspect active CLI capabilities, probe shell rcc/repo-context-center commands, detect stale binaries and same-versio...
 - Fixed AGENTS.md RCC workflow marker detection so init updates marked blocks instead of treating them as markerless, and added regressions f...
 - Fixed validate to accept minimal AGENTS.md pointer when docs/ai-context/RCC_WORKFLOW.md contains DO_NOT_READ guidance, preserving warnings ...
 - Updated RCC workflow guidance to require a three-command retry chain before fallback and added strict bounded fallback rules for minimal co...
 - Implemented safe AI instruction handling with dedicated docs/ai-context/RCC_WORKFLOW.md, minimal AGENTS pointer policy, non-RCC AI file det...
-- Hardened rcc measure naive source-scan estimates with generated/cache/debug/binary exclusions, DO_NOT_READ-derived exclusions, counted/excl...
 
 ## Hot Files
 
@@ -34,7 +34,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
-| Work routing | 21 | Simplified RCC workflow guidance and made validate check fallback guidance through RCC_WORKFLOW pointer |
+| Work routing | 22 | Updated remaining map and v0.7 release tests for simplified RCC workflow guidance |
 | General maintenance | 10 | Fixed impact path normalization for cross-repo local dist execution |
 | Repository context | 9 | Implemented safe AI instruction handling with dedicated docs/ai-context/RCC_WORKFLOW.md, minimal AGENTS pointer policy, non-RCC AI file detection notices, and ... |
 | Agent guidance | 6 | Fixed validate to accept minimal AGENTS.md pointer when docs/ai-context/RCC_WORKFLOW.md contains DO_NOT_READ guidance, preserving warnings for custom AGENTS fi... |
