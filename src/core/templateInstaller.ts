@@ -110,6 +110,18 @@ function getGitHubWorkflowTemplatePath(): string {
   return path.join(__dirname, "..", "templates", "github", "context-check.yml");
 }
 
+function assertRootAgentsPath(cwd: string, targetPath: string): void {
+  const relativePath = path.relative(cwd, targetPath).split(path.sep).join("/");
+  if (relativePath !== agentsPath) {
+    throw new Error(`Refusing to update AI instruction file outside ${agentsPath}: ${relativePath}`);
+  }
+}
+
+async function writeRootAgentsFile(cwd: string, targetPath: string, content: string): Promise<void> {
+  assertRootAgentsPath(cwd, targetPath);
+  await writeTextFile(targetPath, content);
+}
+
 async function installGitHubWorkflow(options: TemplateInstallOptions): Promise<TemplateInstallResult> {
   const targetPath = path.join(options.cwd, githubWorkflowPath);
   const exists = await pathExists(targetPath);
@@ -219,7 +231,7 @@ async function installAgentsTemplate(
 
   if (!exists) {
     if (!options.dryRun) {
-      await writeTextFile(targetPath, agentsPointer);
+      await writeRootAgentsFile(options.cwd, targetPath, agentsPointer);
     }
 
     const preview = options.dryRun ? agentsPointer : undefined;
@@ -243,7 +255,7 @@ async function installAgentsTemplate(
   const action: TemplateInstallAction = nextContent === existing ? "skip" : "update";
 
   if (!options.dryRun && action === "update") {
-    await writeTextFile(targetPath, nextContent);
+    await writeRootAgentsFile(options.cwd, targetPath, nextContent);
   }
 
   const preview = options.dryRun && action === "update" ? nextContent : undefined;

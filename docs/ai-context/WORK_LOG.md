@@ -3198,4 +3198,40 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-26T14:00:27.409Z
+- Summary: Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage
+- Changed files: `src/core/templateInstaller.ts`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/init.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage",
+  "files": [
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/init.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T14:00:27.409Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T14:00:27.409Z",
+  "summary": "Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage",
+  "files": [
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": "npm run build; node --test tests/init.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

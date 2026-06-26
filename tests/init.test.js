@@ -485,6 +485,29 @@ test("init --update-agent-file leaves non-AGENTS AI files byte-for-byte unchange
   }
 });
 
+test("init --update-agent-file updates AGENTS only when CLAUDE has identical content", async () => {
+  const tempDir = await createTempRepo();
+  const initialContent = "# Shared Agent Guidance\n\nManual owner guidance.\n";
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", initialContent);
+    await writeFixtureFile(tempDir, "CLAUDE.md", initialContent);
+
+    const result = runInit(tempDir, ["--update-agent-file"]);
+    const agents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
+    const claude = await readFile(path.join(tempDir, "CLAUDE.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.notEqual(agents, initialContent);
+    assert.equal(workflowSection(agents), expectedWorkflowSection);
+    assert.equal(claude, initialContent);
+    assert.match(result.stdout, /Updated file: AGENTS\.md/);
+    assert.match(result.stdout, /Detected CLAUDE\.md\. RCC did not modify it\./);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("init does not duplicate RCC workflow section", async () => {
   const tempDir = await createTempRepo();
   const agentsPath = path.join(tempDir, "AGENTS.md");
