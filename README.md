@@ -353,6 +353,7 @@ Example output:
   "schemaVersion": 1,
   "command": "impact",
   "task": "update README wording",
+  "contextChanges": [],
   "affectedFiles": [
     {
       "path": "README.md",
@@ -368,7 +369,7 @@ Example output:
 }
 ```
 
-Impact analysis is intentionally heuristic, not a static dependency engine. It uses git working-tree changes, RCC task routing, learned test signals, and simple source/test pairing. For docs-only changes such as `README.md`, `docs/**`, and Markdown wording updates, RCC keeps the impact focused and avoids broad `npm test` fallback unless source, package, workflow, or known tests are also affected.
+Impact analysis is intentionally heuristic, not a static dependency engine. It uses git working-tree changes, RCC task routing, learned test signals, and simple source/test pairing. RCC setup and agent-context changes such as `docs/ai-context/**`, `.repo-context-center/**`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursor/**`, and `.github/copilot-instructions.md` are reported under `contextChanges` instead of `affectedFiles`. For docs-only changes such as `README.md`, `docs/**`, and Markdown wording updates, RCC keeps the impact focused and avoids broad `npm test` fallback unless source, package, workflow, or known tests are also affected.
 
 ### Validate Installation
 

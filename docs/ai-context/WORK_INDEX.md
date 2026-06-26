@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Added Impact contextChanges support and separated RCC/setup paths from affected files
 - Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage
 - Guarded init --update-agent-file so only AGENTS.md is writable and added external AI file regression coverage
 - Updated remaining map and v0.7 release tests for simplified RCC workflow guidance
 - Simplified RCC workflow guidance and made validate check fallback guidance through RCC_WORKFLOW pointer
 - Enhanced rcc doctor to inspect active CLI capabilities, probe shell rcc/repo-context-center commands, detect stale binaries and same-versio...
 - Fixed AGENTS.md RCC workflow marker detection so init updates marked blocks instead of treating them as markerless, and added regressions f...
-- Fixed validate to accept minimal AGENTS.md pointer when docs/ai-context/RCC_WORKFLOW.md contains DO_NOT_READ guidance, preserving warnings ...
 
 ## Hot Files
 
@@ -27,7 +27,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `src/cli/handoff/handoffTypes.ts` | 13 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/handoff/renderAgent.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/handoff/renderJson.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
-| `README.md` | 9 touches; Clarified measure vs estimate usage, added helpful measure --compare-naive error, updated generated workflow guidance and README, and covered the di... | 2026-06-25 |
+| `README.md` | 10 touches; Added Impact contextChanges support and separated RCC/setup paths from affected files | 2026-06-26 |
 
 ## Completed Work Themes
 
@@ -35,8 +35,8 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | ----- | ----: | -------------- |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Work routing | 22 | Updated remaining map and v0.7 release tests for simplified RCC workflow guidance |
+| Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
 | General maintenance | 10 | Fixed impact path normalization for cross-repo local dist execution |
-| Repository context | 9 | Implemented safe AI instruction handling with dedicated docs/ai-context/RCC_WORKFLOW.md, minimal AGENTS pointer policy, non-RCC AI file detection notices, and ... |
 | Agent guidance | 8 | Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage |
 | CLI commands | 5 | Clarified RCC local/global CLI alignment and doctor local install path |
 | Work memory | 5 | Implemented learning quality guards for repository memory |
@@ -44,7 +44,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (57)
+- `npm run build` (58)
 - `npm test` (39)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)

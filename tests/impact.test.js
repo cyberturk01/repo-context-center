@@ -277,6 +277,50 @@ test("impact suppresses npm test fallback for docs-only README changes", async (
   });
 });
 
+test("impact separates RCC and agent context changes from affected files", async () => {
+  await withImpactRepo(async (cwd) => {
+    await writeFixtureFile(cwd, ".repo-context-center/config.json", "{\"version\":1}\n");
+    await writeFixtureFile(cwd, "CLAUDE.md", "Old Claude guidance\n");
+    await writeFixtureFile(cwd, "GEMINI.md", "Old Gemini guidance\n");
+    await writeFixtureFile(cwd, ".cursor/rules.md", "Old Cursor guidance\n");
+    await writeFixtureFile(cwd, ".github/copilot-instructions.md", "Old Copilot guidance\n");
+
+    runGit(["init"], cwd);
+    runGit(["config", "user.email", "test@example.com"], cwd);
+    runGit(["config", "user.name", "Test User"], cwd);
+    runGit(["add", "-f", "."], cwd);
+    runGit(["commit", "-m", "initial"], cwd);
+
+    await writeFixtureFile(cwd, "docs/ai-context/TASK_ROUTING.md", "# Task Routing\n\n- Updated guidance.\n");
+    await writeFixtureFile(cwd, ".repo-context-center/config.json", "{}\n");
+    await writeFixtureFile(cwd, "CLAUDE.md", "Claude guidance\n");
+    await writeFixtureFile(cwd, "GEMINI.md", "Gemini guidance\n");
+    await writeFixtureFile(cwd, ".cursor/rules.md", "Cursor guidance\n");
+    await writeFixtureFile(cwd, ".github/copilot-instructions.md", "Copilot guidance\n");
+    await writeFixtureFile(cwd, "AGENTS.md", "Updated repo guidance\n");
+
+    const result = runCli(["impact", "refresh agent context", "--json"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const analysis = JSON.parse(result.stdout);
+    const contextPaths = [
+      "docs/ai-context/TASK_ROUTING.md",
+      ".repo-context-center/config.json",
+      "CLAUDE.md",
+      "GEMINI.md",
+      ".cursor/rules.md",
+      ".github/copilot-instructions.md",
+      "AGENTS.md"
+    ];
+
+    for (const filePath of contextPaths) {
+      assert.ok(analysis.contextChanges.some((file) => file.path === filePath), `${filePath} should be a context change`);
+      assert.equal(analysis.affectedFiles.some((file) => file.path === filePath), false, `${filePath} should not be affected source`);
+    }
+  });
+});
+
 test("impact rejects invalid args", () => {
   const result = runCli(["impact", "--unknown"]);
 

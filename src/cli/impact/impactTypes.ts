@@ -25,6 +25,7 @@ export interface ImpactAnalysis {
   task: string;
   basis: "changed-files-and-task" | "changed-files" | "task";
   changedFiles: ImpactFile[];
+  contextChanges: ImpactFile[];
   affectedFiles: ImpactFile[];
   affectedTests: ImpactFile[];
   suggestedCommands: ImpactCommand[];

@@ -156,7 +156,7 @@ function changedImpactFiles(changedFiles: string[]): ImpactFile[] {
 function changedSourceFiles(changedFiles: string[]): string[] {
   return changedFiles.filter((file) => {
     const info = classifyRepoFile(file);
-    return ["source", "config", "workflow", "package"].includes(info.role);
+    return !isContextScaffoldingPath(file) && ["source", "config", "workflow", "package"].includes(info.role);
   });
 }
 
@@ -183,7 +183,19 @@ function routeImpactTests(brief: WorkBrief): ImpactFile[] {
 }
 
 function isContextScaffoldingPath(filePath: string): boolean {
-  return filePath === "AGENTS.md" || filePath.startsWith("docs/ai-context/");
+  const normalizedPath = normalizeRepoPath(filePath);
+  const lowerPath = normalizedPath.toLowerCase();
+
+  return lowerPath === "agents.md"
+    || lowerPath === "claude.md"
+    || lowerPath === "gemini.md"
+    || lowerPath === ".github/copilot-instructions.md"
+    || lowerPath === "docs/ai-context"
+    || lowerPath === ".repo-context-center"
+    || lowerPath === ".cursor"
+    || lowerPath.startsWith("docs/ai-context/")
+    || lowerPath.startsWith(".repo-context-center/")
+    || lowerPath.startsWith(".cursor/");
 }
 
 function isWeakSemanticImpact(file: ImpactFile): boolean {
@@ -265,6 +277,15 @@ function isDocsOnlyImpact(affectedFiles: ImpactFile[], tests: ImpactFile[], chan
     && tests.length === 0
     && affectedFiles.every((file) => isDocsOnlyPath(file.path))
     && !hasChangedNonDocsImpact(changedFiles);
+}
+
+function contextChangeFiles(changedFiles: ImpactFile[], routeFiles: ImpactFile[], maxFiles: number): ImpactFile[] {
+  return mergeImpactFiles([
+    changedFiles.filter((file) => isContextScaffoldingPath(file.path)),
+    routeFiles
+      .filter((file) => isContextScaffoldingPath(file.path))
+      .map((file) => impactFile(file.path, file.reason === "changed in working tree" ? file.reason : `context candidate: ${file.reason}`))
+  ], maxFiles);
 }
 
 function preferReadmeDocsImpact(task: string, affectedFiles: ImpactFile[], changedFiles: string[]): ImpactFile[] {
@@ -374,8 +395,9 @@ export async function buildImpactAnalysis(
     repoRoot
   );
   const highConfidenceRouteFiles = routeFiles.filter(isHighConfidenceRoutedFile);
+  const contextChanges = contextChangeFiles(changedFilesWithReasons, routeFiles, maxFiles);
   const affectedFiles = mergeImpactFiles([
-    changedFilesWithReasons.filter((file) => classifyRepoFile(file.path).role !== "test"),
+    changedFilesWithReasons.filter((file) => classifyRepoFile(file.path).role !== "test" && !isContextScaffoldingPath(file.path)),
     highConfidenceRouteFiles
   ], maxFiles);
   const readmeDocsImpact = preferReadmeDocsImpact(task, affectedFiles, changedFiles);
@@ -395,6 +417,7 @@ export async function buildImpactAnalysis(
     task,
     basis: basis(changedFiles, routeFiles),
     changedFiles: changedFilesWithReasons.slice(0, maxFiles),
+    contextChanges,
     affectedFiles: readmeDocsImpact,
     affectedTests,
     suggestedCommands: suggestedCommands(brief, changedFiles, readmeDocsImpact, affectedTests),
