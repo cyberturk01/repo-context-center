@@ -17,6 +17,12 @@ interface MeasureReport {
   filesCounted: number;
   filesExcluded: number;
   excludedExamples: string[];
+  ignoredFiles: number;
+  ignoredExamples: string[];
+  unsupportedFiles: number;
+  unsupportedExamples: string[];
+  skippedByScanCap: number;
+  scanCapExamples: string[];
   primaryFiles: number;
   supportingFiles: number;
   tests: number;
@@ -85,6 +91,12 @@ async function measureTask(cwd: string, task: string): Promise<MeasureReport> {
     filesCounted: naive.fileCount,
     filesExcluded: naive.excludedFileCount,
     excludedExamples: naive.excludedExamples,
+    ignoredFiles: naive.ignoredFileCount,
+    ignoredExamples: naive.ignoredExamples,
+    unsupportedFiles: naive.unsupportedFileCount,
+    unsupportedExamples: naive.unsupportedExamples,
+    skippedByScanCap: naive.skippedByScanCap,
+    scanCapExamples: naive.scanCapExamples,
     primaryFiles: routeItemCount(route.primaryFiles),
     supportingFiles: routeItemCount(route.supportingFiles),
     tests: routeItemCount(route.tests),
@@ -95,6 +107,9 @@ async function measureTask(cwd: string, task: string): Promise<MeasureReport> {
 }
 
 function formatMeasureReport(report: MeasureReport): string {
+  const ignoredLabel = report.ignoredExamples.length > 0 ? report.ignoredExamples.join(", ") : "none";
+  const unsupportedLabel = report.unsupportedExamples.length > 0 ? report.unsupportedExamples.join(", ") : "none";
+  const capLabel = report.scanCapExamples.length > 0 ? report.scanCapExamples.join(", ") : "none";
   const lines = [
     "RCC measurement",
     "",
@@ -116,8 +131,20 @@ function formatMeasureReport(report: MeasureReport): string {
     "Files excluded:",
     `${formatNumber(report.filesExcluded)}`,
     "",
-    "Excluded examples:",
-    report.excludedExamples.length > 0 ? report.excludedExamples.join(", ") : "none",
+    "Ignored by RCC rules:",
+    `${formatNumber(report.ignoredFiles)}`,
+    "Ignored examples:",
+    ignoredLabel,
+    "",
+    "Unsupported or non-source files:",
+    `${formatNumber(report.unsupportedFiles)}`,
+    "Unsupported examples:",
+    unsupportedLabel,
+    "",
+    "Skipped because scan cap was reached:",
+    `${formatNumber(report.skippedByScanCap)}`,
+    "Scan cap examples:",
+    capLabel,
     "",
     "Primary files:",
     `${formatNumber(report.primaryFiles)}`,

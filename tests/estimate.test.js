@@ -239,7 +239,12 @@ test("measure prints human-readable token estimates for a task", async () => {
     assert.match(result.stdout, /RCC route:\n[\d,]+ tokens/);
     assert.match(result.stdout, /Files counted:\n[\d,]+/);
     assert.match(result.stdout, /Files excluded:\n[\d,]+/);
-    assert.match(result.stdout, /Excluded examples:\n/);
+    assert.match(result.stdout, /Ignored by RCC rules:\n[\d,]+/);
+    assert.match(result.stdout, /Ignored examples:\n/);
+    assert.match(result.stdout, /Unsupported or non-source files:\n[\d,]+/);
+    assert.match(result.stdout, /Unsupported examples:\n/);
+    assert.match(result.stdout, /Skipped because scan cap was reached:\n[\d,]+/);
+    assert.match(result.stdout, /Scan cap examples:\n/);
     assert.match(result.stdout, /Primary files:\n\d+/);
     assert.match(result.stdout, /Supporting files:\n\d+/);
     assert.match(result.stdout, /Tests:\n\d+/);
@@ -282,6 +287,12 @@ test("measure --json returns parseable measurement output", async () => {
         "filesCounted",
         "filesExcluded",
         "excludedExamples",
+        "ignoredFiles",
+        "ignoredExamples",
+        "unsupportedFiles",
+        "unsupportedExamples",
+        "skippedByScanCap",
+        "scanCapExamples",
         "primaryFiles",
         "supportingFiles",
         "tests",
@@ -298,6 +309,12 @@ test("measure --json returns parseable measurement output", async () => {
     assert.equal(typeof report.filesCounted, "number");
     assert.equal(typeof report.filesExcluded, "number");
     assert.ok(Array.isArray(report.excludedExamples));
+    assert.equal(typeof report.ignoredFiles, "number");
+    assert.ok(Array.isArray(report.ignoredExamples));
+    assert.equal(typeof report.unsupportedFiles, "number");
+    assert.ok(Array.isArray(report.unsupportedExamples));
+    assert.equal(typeof report.skippedByScanCap, "number");
+    assert.ok(Array.isArray(report.scanCapExamples));
     assert.equal(typeof report.primaryFiles, "number");
     assert.equal(typeof report.supportingFiles, "number");
     assert.equal(typeof report.tests, "number");
@@ -364,10 +381,15 @@ test("measure excludes noisy directories and binary files from naive source scan
     assert.ok(report.naiveTokens < 2000);
     assert.ok(report.filesCounted > 0);
     assert.ok(report.filesExcluded >= 6);
+    assert.ok(report.ignoredFiles >= 5);
+    assert.ok(report.unsupportedFiles >= 2);
+    assert.equal(report.skippedByScanCap, 0);
     for (const example of ["node_modules", ".git", "build", "coverage", "docs/ai-context/archive"]) {
       assert.ok(report.excludedExamples.includes(example), `${example} missing from ${report.excludedExamples.join(", ")}`);
+      assert.ok(report.ignoredExamples.includes(example), `${example} missing from ${report.ignoredExamples.join(", ")}`);
     }
     assert.ok(report.excludedExamples.includes(".png") || report.excludedExamples.includes(".zip"));
+    assert.ok(report.unsupportedExamples.includes(".png") || report.unsupportedExamples.includes(".zip"));
   });
 });
 

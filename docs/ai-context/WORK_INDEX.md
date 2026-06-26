@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Relaxed weak semantic impact assertion for dirty working-tree files
+- Improved Measure excluded-file reporting with separate ignored, unsupported, and scan-cap buckets
 - Fixed suggested command path spacing for concatenated test paths
 - Added confidence-based affected test scoring to Impact analysis
 - Ignored generic action words in Impact task parsing while preserving technical terms
 - Added Impact contextChanges support and separated RCC/setup paths from affected files
 - Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage
-- Guarded init --update-agent-file so only AGENTS.md is writable and added external AI file regression coverage
-- Updated remaining map and v0.7 release tests for simplified RCC workflow guidance
 
 ## Hot Files
 
@@ -25,8 +25,8 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `tests/init.test.js` | 13 touches; Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage | 2026-06-26 |
 | `tests/done.test.js` | 13 touches; Added negative coverage for done handoff file path injection and verbose agent JSON boundaries | 2026-06-24 |
 | `src/cli/handoff/handoffTypes.ts` | 13 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
+| `tests/impact.test.js` | 12 touches; Relaxed weak semantic impact assertion for dirty working-tree files | 2026-06-26 |
 | `src/cli/impact/buildImpact.ts` | 11 touches; Fixed suggested command path spacing for concatenated test paths | 2026-06-26 |
-| `tests/impact.test.js` | 11 touches; Fixed suggested command path spacing for concatenated test paths | 2026-06-26 |
 | `README.md` | 11 touches; Added confidence-based affected test scoring to Impact analysis | 2026-06-26 |
 
 ## Completed Work Themes
@@ -35,7 +35,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | ----- | ----: | -------------- |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Work routing | 22 | Updated remaining map and v0.7 release tests for simplified RCC workflow guidance |
-| General maintenance | 11 | Ignored generic action words in Impact task parsing while preserving technical terms |
+| General maintenance | 12 | Relaxed weak semantic impact assertion for dirty working-tree files |
 | Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
 | Agent guidance | 8 | Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage |
 | CLI commands | 6 | Fixed suggested command path spacing for concatenated test paths |
@@ -44,7 +44,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (60)
+- `npm run build` (61)
 - `npm test` (42)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)

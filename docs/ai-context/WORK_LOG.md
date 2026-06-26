@@ -3392,4 +3392,82 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-26T14:54:38.514Z
+- Summary: Improved Measure excluded-file reporting with separate ignored, unsupported, and scan-cap buckets
+- Changed files: `src/cli/commands/measure.ts`, `src/core/tokenEstimator.ts`, `tests/estimate.test.js`
+- Verification: npm run build; node --test tests/estimate.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Improved Measure excluded-file reporting with separate ignored, unsupported, and scan-cap buckets",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/core/tokenEstimator.ts",
+    "tests/estimate.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/estimate.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T14:54:38.514Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T14:54:38.514Z",
+  "summary": "Improved Measure excluded-file reporting with separate ignored, unsupported, and scan-cap buckets",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/core/tokenEstimator.ts",
+    "tests/estimate.test.js"
+  ],
+  "verification": "npm run build; node --test tests/estimate.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T14:57:19.467Z
+- Summary: Relaxed weak semantic impact assertion for dirty working-tree files
+- Changed files: `src/cli/commands/measure.ts`, `src/core/tokenEstimator.ts`, `tests/estimate.test.js`, `tests/impact.test.js`
+- Verification: node --test --test-name-pattern "impact filters weak semantic source matches from affected files" tests/impact.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Relaxed weak semantic impact assertion for dirty working-tree files",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/core/tokenEstimator.ts",
+    "tests/estimate.test.js",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "node --test --test-name-pattern \"impact filters weak semantic source matches from affected files\" tests/impact.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T14:57:19.467Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T14:57:19.467Z",
+  "summary": "Relaxed weak semantic impact assertion for dirty working-tree files",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/core/tokenEstimator.ts",
+    "tests/estimate.test.js",
+    "tests/impact.test.js"
+  ],
+  "verification": "node --test --test-name-pattern \"impact filters weak semantic source matches from affected files\" tests/impact.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

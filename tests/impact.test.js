@@ -236,6 +236,7 @@ test("impact filters weak semantic source matches from affected files", () => {
 
   const analysis = JSON.parse(result.stdout);
   const affectedFiles = analysis.affectedFiles.map((file) => file.path);
+  const changedFiles = analysis.changedFiles.map((file) => file.path);
   const weakAffectedFiles = analysis.affectedFiles.filter((file) => /weak semantic match/i.test(file.reason));
 
   assert.ok(analysis.affectedTests.some((file) => file.path === "tests/outputContract.test.js"));
@@ -251,6 +252,9 @@ test("impact filters weak semantic source matches from affected files", () => {
     "src/cli/commands/validate.ts",
     "src/core/tokenEstimator.ts"
   ]) {
+    if (changedFiles.includes(filePath)) {
+      continue;
+    }
     assert.equal(affectedFiles.includes(filePath), false, `${filePath} should not be reported as affected`);
   }
   assert.ok(analysis.suggestedCommands.some((item) => (
