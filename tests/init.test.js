@@ -430,10 +430,11 @@ test("init --update-agent-file modifies only AGENTS.md", async () => {
   const tempDir = await createTempRepo();
   const agentsPath = path.join(tempDir, "AGENTS.md");
   const claudePath = path.join(tempDir, "CLAUDE.md");
+  const claudeContent = "# Claude\n\nDo not touch.\n";
 
   try {
     await writeFixtureFile(tempDir, "AGENTS.md", "# Project Agents\n\nManual owner guidance.\n");
-    await writeFixtureFile(tempDir, "CLAUDE.md", "# Claude\n\nDo not touch.\n");
+    await writeFixtureFile(tempDir, "CLAUDE.md", claudeContent);
 
     const result = runInit(tempDir, ["--update-agent-file"]);
     const agents = await readFile(agentsPath, "utf8");
@@ -442,9 +443,43 @@ test("init --update-agent-file modifies only AGENTS.md", async () => {
     assert.equal(result.status, 0);
     assert.match(agents, /Manual owner guidance\./);
     assert.equal(workflowSection(agents), expectedWorkflowSection);
-    assert.equal(claude, "# Claude\n\nDo not touch.\n");
+    assert.notEqual(agents, "# Project Agents\n\nManual owner guidance.\n");
+    assert.equal(claude, claudeContent);
     assert.match(result.stdout, /Updated file: AGENTS\.md/);
     assert.match(result.stdout, /Detected CLAUDE\.md\. RCC did not modify it\./);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init --update-agent-file leaves non-AGENTS AI files byte-for-byte unchanged", async () => {
+  const tempDir = await createTempRepo();
+  const aiFiles = {
+    "CLAUDE.md": "# Claude\r\n\r\nKeep Claude guidance.\r\n",
+    "GEMINI.md": "# Gemini\n\nKeep Gemini guidance.\n",
+    ".cursor/rules": "Keep Cursor rules.\nDo not append RCC.\n",
+    ".github/copilot-instructions.md": "# Copilot\n\nKeep Copilot guidance.\n",
+    ".windsurf/rules": "Keep Windsurf rules.\n"
+  };
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "# Project Agents\n\nManual owner guidance.\n");
+    for (const [file, content] of Object.entries(aiFiles)) {
+      await writeFixtureFile(tempDir, file, content);
+    }
+
+    const result = runInit(tempDir, ["--update-agent-file"]);
+    const agents = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.equal(workflowSection(agents), expectedWorkflowSection);
+    for (const [file, content] of Object.entries(aiFiles)) {
+      assert.equal(await readFile(path.join(tempDir, file), "utf8"), content, file);
+      assert.match(
+        result.stdout,
+        new RegExp(`Detected ${file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\. RCC did not modify it\\.`)
+      );
+    }
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

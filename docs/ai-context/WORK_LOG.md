@@ -3162,4 +3162,40 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-26T13:50:46.219Z
+- Summary: Guarded init --update-agent-file so only AGENTS.md is writable and added external AI file regression coverage
+- Changed files: `src/core/templateInstaller.ts`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/init.test.js tests/templates.test.js tests/validate.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Guarded init --update-agent-file so only AGENTS.md is writable and added external AI file regression coverage",
+  "files": [
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/init.test.js tests/templates.test.js tests/validate.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T13:50:46.219Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T13:50:46.219Z",
+  "summary": "Guarded init --update-agent-file so only AGENTS.md is writable and added external AI file regression coverage",
+  "files": [
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": "npm run build; node --test tests/init.test.js tests/templates.test.js tests/validate.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -43,6 +43,7 @@ const aiInstructionFiles = [
   ".github/copilot-instructions.md",
   ".windsurf/rules"
 ];
+const externalAiInstructionFileSet = new Set(aiInstructionFiles);
 const modernAgentsSignals = [
   "For the RCC repository workflow, read docs/ai-context/RCC_WORKFLOW.md before coding tasks."
 ];
@@ -275,6 +276,10 @@ export async function installGenericTemplates(
 
   for (const template of templates) {
     if (template.path === agentsPath) {
+      continue;
+    }
+
+    if (externalAiInstructionFileSet.has(template.path)) {
       continue;
     }
 
