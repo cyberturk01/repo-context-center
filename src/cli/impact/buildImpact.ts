@@ -8,13 +8,14 @@ import { buildRepositoryLearningModelForRepo } from "../../core/repositoryLearni
 import { buildWorkBriefForTask } from "../work/buildWorkBrief";
 import { uniquePaths } from "../work/taskFileRecommendations";
 import type { WorkBrief, WorkRecommendation } from "../work/workTypes";
-import type { ImpactAnalysis, ImpactCommand, ImpactFile } from "./impactTypes";
+import type { ImpactAnalysis, ImpactCommand, ImpactConfidenceExplanation, ImpactFile } from "./impactTypes";
 import { recommendationReason } from "./impactTypes";
 
 const execFileAsync = promisify(execFile);
 const directTestPattern = /\.(test|spec)\.[cm]?[jt]sx?$/i;
 const runnableNodeTestPattern = /\.(test|spec)\.[cm]?[jt]sx?$/i;
-const affectedTestScoreThreshold = 60;
+const affectedTestScoreThreshold = 75;
+const maximumAffectedTests = 5;
 const maximumWalkFiles = 2000;
 
 function normalizeRepoPath(filePath: string): string {
@@ -316,6 +317,23 @@ function sameDirectoryScore(testPath: string, sourcePaths: string[]): number {
   return sourcePaths.some((sourcePath) => path.posix.dirname(comparableStem(sourcePath)) === testDir) ? 22 : 0;
 }
 
+function moduleScope(filePath: string): string {
+  const parts = comparableStem(filePath).split("/").filter(Boolean);
+  if (parts[0] === "packages" && parts.length >= 2) {
+    return parts.slice(0, 2).join("/");
+  }
+  return parts[0] ?? "";
+}
+
+function sameModuleScore(testPath: string, sourcePaths: string[]): number {
+  const testScope = moduleScope(testPath);
+  if (!testScope) {
+    return 0;
+  }
+
+  return sourcePaths.some((sourcePath) => moduleScope(sourcePath) === testScope) ? 24 : 0;
+}
+
 async function importRelationshipScore(cwd: string, testPath: string, sourcePaths: string[]): Promise<number> {
   let content;
   try {
@@ -378,6 +396,29 @@ function reasonFromSignals(score: number, signals: string[]): string {
   return `confidence score ${score}: ${signals.join("; ")}`;
 }
 
+function hasStrongAffectedTestSignals(signals: string[]): boolean {
+  const strongSignals = new Set([
+    "changed test file",
+    "imports affected source",
+    "repository learning",
+    "co-change history"
+  ]);
+
+  if (signals.some((signal) => strongSignals.has(signal))) {
+    return true;
+  }
+
+  const corroboratingLocalSignals = signals.filter((signal) => [
+    "same package/module",
+    "same directory",
+    "filename similarity",
+    "specific routed test name"
+  ].includes(signal));
+
+  return signals.includes("task routing evidence")
+    && corroboratingLocalSignals.length >= 1;
+}
+
 async function scoredAffectedTests(
   cwd: string,
   brief: WorkBrief,
@@ -416,6 +457,10 @@ async function scoredAffectedTests(
       score += taskNameScore;
       signals.push("task/test name match");
     }
+    if (routeTestSet.has(testPath) && taskNameScore >= 22) {
+      score += 20;
+      signals.push("specific routed test name");
+    }
     if (learnedTests.has(testPath)) {
       score += 58;
       signals.push("repository learning");
@@ -437,19 +482,30 @@ async function scoredAffectedTests(
       signals.push("filename similarity");
     }
 
+    const moduleScore = sameModuleScore(testPath, sourcePaths);
+    if (moduleScore > 0) {
+      score += moduleScore;
+      signals.push("same package/module");
+    }
+
     const directoryScore = sameDirectoryScore(testPath, sourcePaths);
     if (directoryScore > 0) {
       score += directoryScore;
       signals.push("same directory");
     }
 
+    if (signals.length === 1 && signals[0] === "task routing evidence") {
+      score -= 30;
+      signals.push("weak generic route penalty");
+    }
+
     return { path: testPath, score, signals };
   }));
 
   return scored
-    .filter((item) => item.score >= affectedTestScoreThreshold && item.signals.length > 0)
+    .filter((item) => item.score >= affectedTestScoreThreshold && hasStrongAffectedTestSignals(item.signals))
     .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
-    .slice(0, Math.min(maxFiles, 20))
+    .slice(0, Math.min(maxFiles, maximumAffectedTests))
     .map((item) => impactFile(item.path, reasonFromSignals(item.score, item.signals)));
 }
 
@@ -626,16 +682,6 @@ function mergeCommands(commands: ImpactCommand[]): ImpactCommand[] {
   });
 }
 
-function confidence(changedFiles: string[], affectedFiles: ImpactFile[], affectedTests: ImpactFile[]): ImpactAnalysis["confidence"] {
-  if (changedFiles.length > 0 && affectedTests.length > 0) {
-    return "high";
-  }
-  if (affectedFiles.length > 0 || affectedTests.length > 0) {
-    return "medium";
-  }
-  return "low";
-}
-
 function basis(changedFiles: string[], routeFiles: ImpactFile[]): ImpactAnalysis["basis"] {
   if (changedFiles.length > 0 && routeFiles.length > 0) {
     return "changed-files-and-task";
@@ -644,6 +690,86 @@ function basis(changedFiles: string[], routeFiles: ImpactFile[]): ImpactAnalysis
     return "changed-files";
   }
   return "task";
+}
+
+function hasFilenameStemMatch(files: ImpactFile[]): boolean {
+  return files.some((file) => /\b(filename similarity|specific routed test name)\b/i.test(file.reason));
+}
+
+function testRelationship(tests: ImpactFile[]): ImpactConfidenceExplanation["evidence"]["testRelationship"] {
+  if (tests.length === 0) {
+    return "none";
+  }
+
+  return tests.some((file) => /\b(changed test file|imports affected source|repository learning|co-change history|filename similarity|same directory|same package\/module|specific routed test name)\b/i.test(file.reason))
+    ? "strong"
+    : "weak";
+}
+
+function confidenceExplanation(
+  changedFiles: string[],
+  contextChanges: ImpactFile[],
+  routeFiles: ImpactFile[],
+  routeTests: ImpactFile[],
+  affectedFiles: ImpactFile[],
+  affectedTests: ImpactFile[]
+): ImpactConfidenceExplanation {
+  const nonContextChangedFiles = changedFiles.filter((file) => !isContextScaffoldingPath(file));
+  const taskRoutingMatched = routeFiles.length > 0 || routeTests.length > 0;
+  const filenameStemMatched = hasFilenameStemMatch([...affectedFiles, ...affectedTests]);
+  const contextOnlyChanges = changedFiles.length > 0
+    && nonContextChangedFiles.length === 0
+    && contextChanges.length > 0;
+  const relationship = testRelationship(affectedTests);
+  const reasons: string[] = [];
+  let level: ImpactConfidenceExplanation["level"] = "low";
+
+  if (nonContextChangedFiles.length > 0 && affectedTests.length > 0 && relationship === "strong") {
+    level = "high";
+  } else if (affectedFiles.length > 0 || affectedTests.length > 0 || contextChanges.length > 0 || taskRoutingMatched) {
+    level = "medium";
+  }
+
+  if (nonContextChangedFiles.length > 0) {
+    reasons.push("changed files detected");
+  }
+  if (contextOnlyChanges) {
+    reasons.push("context-only changes detected");
+  } else if (contextChanges.length > 0) {
+    reasons.push("context changes detected");
+  }
+  if (taskRoutingMatched) {
+    reasons.push("task routing matched");
+  }
+  if (filenameStemMatched) {
+    reasons.push("filename stem matched");
+  }
+  if (relationship === "strong") {
+    reasons.push("strong test relationship");
+  } else if (relationship === "weak") {
+    reasons.push("weak test relationship");
+  } else {
+    reasons.push("no test relationship");
+  }
+  if (level !== "high" && contextOnlyChanges) {
+    reasons.push("context changes do not raise confidence to high");
+  }
+
+  return {
+    level,
+    reasons,
+    evidence: {
+      changedFiles: changedFiles.length,
+      nonContextChangedFiles: nonContextChangedFiles.length,
+      contextChanges: contextChanges.length,
+      affectedFiles: affectedFiles.length,
+      affectedTests: affectedTests.length,
+      taskRoutingMatched,
+      filenameStemMatched,
+      contextOnlyChanges,
+      testRelationship: relationship
+    }
+  };
 }
 
 export async function buildImpactAnalysis(
@@ -680,6 +806,14 @@ export async function buildImpactAnalysis(
     maxFiles
   );
   const filteredWeakCount = routeFiles.filter((file) => isWeakSemanticImpact(file) && !readmeDocsImpact.some((affected) => affected.path === file.path)).length;
+  const confidenceDetails = confidenceExplanation(
+    changedFiles,
+    contextChanges,
+    routeFiles,
+    routeTests,
+    readmeDocsImpact,
+    affectedTests
+  );
 
   return {
     schemaVersion: 1,
@@ -691,7 +825,8 @@ export async function buildImpactAnalysis(
     affectedFiles: readmeDocsImpact,
     affectedTests,
     suggestedCommands: suggestedCommands(brief, changedFiles, readmeDocsImpact, affectedTests),
-    confidence: confidence(changedFiles, readmeDocsImpact, affectedTests),
+    confidence: confidenceDetails.level,
+    confidenceExplanation: confidenceDetails,
     notes: [
       "Heuristic MVP: combines git working-tree changes, RCC task routing, learned test signals, and scored affected test candidates.",
       "This is not a full static dependency analysis.",

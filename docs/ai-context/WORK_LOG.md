@@ -3470,4 +3470,80 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-26T15:16:27.051Z
+- Summary: Tightened rcc impact affected test scoring and capped noisy recommendations
+- Changed files: `src/cli/impact/buildImpact.ts`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Tightened rcc impact affected test scoring and capped noisy recommendations",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:16:27.051Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:16:27.051Z",
+  "summary": "Tightened rcc impact affected test scoring and capped noisy recommendations",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T15:18:59.938Z
+- Summary: Added confidence explanation evidence to rcc impact JSON and text output
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactTypes.ts`, `src/cli/impact/renderImpact.ts`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added confidence explanation evidence to rcc impact JSON and text output",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:18:59.938Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:18:59.938Z",
+  "summary": "Added confidence explanation evidence to rcc impact JSON and text output",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

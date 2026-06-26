@@ -16,6 +16,10 @@ function formatCommands(commands: ImpactCommand[]): string[] {
   return commands.map((item) => `- ${item.command} (${item.reason})`);
 }
 
+function formatConfidenceEvidence(analysis: ImpactAnalysis): string[] {
+  return analysis.confidenceExplanation.reasons.map((reason) => `- ${reason}`);
+}
+
 export function renderImpactText(analysis: ImpactAnalysis): string {
   return `${[
     "repo-context-center impact",
@@ -23,6 +27,8 @@ export function renderImpactText(analysis: ImpactAnalysis): string {
     `Task: ${analysis.task}`,
     `Basis: ${analysis.basis}`,
     `Confidence: ${analysis.confidence}`,
+    "Confidence evidence:",
+    ...formatConfidenceEvidence(analysis),
     "",
     "Changed files:",
     ...formatFiles(analysis.changedFiles),

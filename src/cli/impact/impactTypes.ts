@@ -19,6 +19,22 @@ export interface ImpactCommand {
   reason: string;
 }
 
+export interface ImpactConfidenceExplanation {
+  level: "high" | "medium" | "low";
+  reasons: string[];
+  evidence: {
+    changedFiles: number;
+    nonContextChangedFiles: number;
+    contextChanges: number;
+    affectedFiles: number;
+    affectedTests: number;
+    taskRoutingMatched: boolean;
+    filenameStemMatched: boolean;
+    contextOnlyChanges: boolean;
+    testRelationship: "strong" | "weak" | "none";
+  };
+}
+
 export interface ImpactAnalysis {
   schemaVersion: 1;
   command: "impact";
@@ -30,6 +46,7 @@ export interface ImpactAnalysis {
   affectedTests: ImpactFile[];
   suggestedCommands: ImpactCommand[];
   confidence: "high" | "medium" | "low";
+  confidenceExplanation: ImpactConfidenceExplanation;
   notes: string[];
 }
 

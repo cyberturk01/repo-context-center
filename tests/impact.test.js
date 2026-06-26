@@ -152,6 +152,12 @@ test("impact --json returns task-based affected files and commands", async () =>
     assert.equal(analysis.command, "impact");
     assert.equal(analysis.task, "update login flow");
     assert.equal(analysis.basis, "task");
+    assert.equal(analysis.confidence, analysis.confidenceExplanation.level);
+    assert.equal(analysis.confidenceExplanation.evidence.taskRoutingMatched, true);
+    assert.equal(analysis.confidenceExplanation.evidence.filenameStemMatched, true);
+    assert.equal(analysis.confidenceExplanation.evidence.testRelationship, "strong");
+    assert.ok(analysis.confidenceExplanation.reasons.includes("task routing matched"));
+    assert.ok(analysis.confidenceExplanation.reasons.includes("filename stem matched"));
     assert.deepEqual(analysis.changedFiles, []);
     assert.ok(analysis.affectedFiles.some((file) => file.path === "src/auth/login.ts"));
     assert.ok(analysis.affectedTests.some((file) => file.path === "tests/auth/login.test.js"));
@@ -180,6 +186,10 @@ test("impact includes git working-tree changes and paired tests", async () => {
     const analysis = JSON.parse(result.stdout);
 
     assert.equal(analysis.basis, "changed-files-and-task");
+    assert.equal(analysis.confidence, "high");
+    assert.ok(analysis.confidenceExplanation.reasons.includes("changed files detected"));
+    assert.ok(analysis.confidenceExplanation.reasons.includes("strong test relationship"));
+    assert.equal(analysis.confidenceExplanation.evidence.nonContextChangedFiles, 1);
     assert.ok(analysis.changedFiles.some((file) => file.path === "src/auth/login.ts"));
     assert.ok(analysis.affectedFiles.some((file) => file.path === "src/auth/login.ts"));
     assert.ok(analysis.affectedTests.some((file) => file.path === "tests/auth/login.test.js"));
@@ -321,6 +331,21 @@ test("impact separates RCC and agent context changes from affected files", async
       assert.ok(analysis.contextChanges.some((file) => file.path === filePath), `${filePath} should be a context change`);
       assert.equal(analysis.affectedFiles.some((file) => file.path === filePath), false, `${filePath} should not be affected source`);
     }
+    assert.notEqual(analysis.confidence, "high");
+    assert.equal(analysis.confidenceExplanation.evidence.contextOnlyChanges, true);
+    assert.equal(analysis.confidenceExplanation.evidence.nonContextChangedFiles, 0);
+    assert.ok(analysis.confidenceExplanation.reasons.includes("context-only changes detected"));
+    assert.ok(analysis.confidenceExplanation.reasons.includes("context changes do not raise confidence to high"));
+  });
+});
+
+test("impact text output explains confidence evidence", async () => {
+  await withImpactRepo(async (cwd) => {
+    const result = runCli(["impact", "update login flow"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /Confidence: medium/);
+    assert.match(result.stdout, /Confidence evidence:\n- task routing matched\n- filename stem matched\n- strong test relationship/);
   });
 });
 
@@ -399,6 +424,36 @@ test("impact scores import relationships when recommending affected tests", asyn
     assert.ok(checkoutTest);
     assert.match(checkoutTest.reason, /imports affected source/);
     assert.equal(analysis.affectedTests.some((file) => file.path === "tests/integration/paymentFlow.test.js"), false);
+  });
+});
+
+test("impact suppresses weak generic affected test recommendations", async () => {
+  await withImpactRepo(async (cwd) => {
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Login work: read `src/auth/login.ts`, `tests/auth/login.test.js`, `tests/server/backend.test.js`, `tests/api/server.test.js`, `tests/cache/session.test.js`, `tests/workflow/smoke.test.js`, and `tests/docker/container.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(cwd, "tests/server/backend.test.js", "test('backend', () => {});\n");
+    await writeFixtureFile(cwd, "tests/api/server.test.js", "test('server api', () => {});\n");
+    await writeFixtureFile(cwd, "tests/cache/session.test.js", "test('session cache', () => {});\n");
+    await writeFixtureFile(cwd, "tests/workflow/smoke.test.js", "test('workflow smoke', () => {});\n");
+    await writeFixtureFile(cwd, "tests/docker/container.test.js", "test('container', () => {});\n");
+
+    const result = runCli(["impact", "fix login bug", "--json"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const analysis = JSON.parse(result.stdout);
+    const affectedTests = analysis.affectedTests.map((file) => file.path);
+
+    assert.deepEqual(affectedTests, ["tests/auth/login.test.js"]);
+    assert.ok(analysis.affectedTests.length <= 5);
+    assert.equal(analysis.affectedTests.some((file) => /weak generic route penalty/.test(file.reason)), false);
   });
 });
 
