@@ -814,17 +814,26 @@ export async function buildImpactAnalysis(
     readmeDocsImpact,
     affectedTests
   );
+  const returnedChangedFiles = changedFilesWithReasons.slice(0, maxFiles);
+  const commands = suggestedCommands(brief, changedFiles, readmeDocsImpact, affectedTests);
 
   return {
     schemaVersion: 1,
     command: "impact",
     task,
     basis: basis(changedFiles, routeFiles),
-    changedFiles: changedFilesWithReasons.slice(0, maxFiles),
+    summary: {
+      changedFiles: returnedChangedFiles.length,
+      contextChanges: contextChanges.length,
+      affectedFiles: readmeDocsImpact.length,
+      affectedTests: affectedTests.length,
+      suggestedCommands: commands.length
+    },
+    changedFiles: returnedChangedFiles,
     contextChanges,
     affectedFiles: readmeDocsImpact,
     affectedTests,
-    suggestedCommands: suggestedCommands(brief, changedFiles, readmeDocsImpact, affectedTests),
+    suggestedCommands: commands,
     confidence: confidenceDetails.level,
     confidenceExplanation: confidenceDetails,
     notes: [

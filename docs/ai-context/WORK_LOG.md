@@ -3622,4 +3622,42 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-26T15:27:13.296Z
+- Summary: Added compact count summary to rcc impact JSON output
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactTypes.ts`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added compact count summary to rcc impact JSON output",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:27:13.296Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:27:13.296Z",
+  "summary": "Added compact count summary to rcc impact JSON output",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

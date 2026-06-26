@@ -152,6 +152,25 @@ test("impact --json returns task-based affected files and commands", async () =>
     assert.equal(analysis.command, "impact");
     assert.equal(analysis.task, "update login flow");
     assert.equal(analysis.basis, "task");
+    assert.deepEqual(Object.keys(analysis.summary).sort(), [
+      "affectedFiles",
+      "affectedTests",
+      "changedFiles",
+      "contextChanges",
+      "suggestedCommands"
+    ]);
+    assert.deepEqual(analysis.summary, {
+      changedFiles: analysis.changedFiles.length,
+      contextChanges: analysis.contextChanges.length,
+      affectedFiles: analysis.affectedFiles.length,
+      affectedTests: analysis.affectedTests.length,
+      suggestedCommands: analysis.suggestedCommands.length
+    });
+    assert.ok(Array.isArray(analysis.changedFiles));
+    assert.ok(Array.isArray(analysis.contextChanges));
+    assert.ok(Array.isArray(analysis.affectedFiles));
+    assert.ok(Array.isArray(analysis.affectedTests));
+    assert.ok(Array.isArray(analysis.suggestedCommands));
     assert.equal(analysis.confidence, analysis.confidenceExplanation.level);
     assert.equal(analysis.confidenceExplanation.evidence.taskRoutingMatched, true);
     assert.equal(analysis.confidenceExplanation.evidence.filenameStemMatched, true);

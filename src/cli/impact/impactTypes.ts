@@ -35,11 +35,20 @@ export interface ImpactConfidenceExplanation {
   };
 }
 
+export interface ImpactSummary {
+  changedFiles: number;
+  contextChanges: number;
+  affectedFiles: number;
+  affectedTests: number;
+  suggestedCommands: number;
+}
+
 export interface ImpactAnalysis {
   schemaVersion: 1;
   command: "impact";
   task: string;
   basis: "changed-files-and-task" | "changed-files" | "task";
+  summary: ImpactSummary;
   changedFiles: ImpactFile[];
   contextChanges: ImpactFile[];
   affectedFiles: ImpactFile[];
