@@ -43,6 +43,13 @@ export interface ImpactSummary {
   suggestedCommands: number;
 }
 
+export interface ImpactVerificationHint {
+  type: string;
+  reason: string;
+  command?: string;
+  paths?: string[];
+}
+
 export interface ImpactAnalysis {
   schemaVersion: 1;
   command: "impact";
@@ -56,6 +63,7 @@ export interface ImpactAnalysis {
   suggestedCommands: ImpactCommand[];
   confidence: "high" | "medium" | "low";
   confidenceExplanation: ImpactConfidenceExplanation;
+  verificationHints: ImpactVerificationHint[];
   notes: string[];
 }
 

@@ -171,6 +171,7 @@ test("impact --json returns task-based affected files and commands", async () =>
     assert.ok(Array.isArray(analysis.affectedFiles));
     assert.ok(Array.isArray(analysis.affectedTests));
     assert.ok(Array.isArray(analysis.suggestedCommands));
+    assert.deepEqual(analysis.verificationHints, []);
     assert.equal(analysis.confidence, analysis.confidenceExplanation.level);
     assert.equal(analysis.confidenceExplanation.evidence.taskRoutingMatched, true);
     assert.equal(analysis.confidenceExplanation.evidence.filenameStemMatched, true);
@@ -365,6 +366,7 @@ test("impact text output explains confidence evidence", async () => {
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.match(result.stdout, /Confidence: medium/);
     assert.match(result.stdout, /Confidence evidence:\n- task routing matched\n- filename stem matched\n- strong test relationship/);
+    assert.doesNotMatch(result.stdout, /verificationHints|Verification hints/i);
   });
 });
 

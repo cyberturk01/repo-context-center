@@ -6,22 +6,22 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Added empty verificationHints field to impact analysis model
 - Added compact count summary to rcc impact JSON output
 - Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy
 - Clarified measure excluded-path wording in human output
 - Added confidence explanation evidence to rcc impact JSON and text output
 - Tightened rcc impact affected test scoring and capped noisy recommendations
 - Relaxed weak semantic impact assertion for dirty working-tree files
-- Improved Measure excluded-file reporting with separate ignored, unsupported, and scan-cap buckets
 
 ## Hot Files
 
 | File | Reason | Last touched |
 | ---- | ------ | ------------ |
 | `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
-| `tests/impact.test.js` | 15 touches; Added compact count summary to rcc impact JSON output | 2026-06-26 |
+| `tests/impact.test.js` | 16 touches; Added empty verificationHints field to impact analysis model | 2026-06-26 |
+| `src/cli/impact/buildImpact.ts` | 15 touches; Added empty verificationHints field to impact analysis model | 2026-06-26 |
 | `src/cli/handoff/buildHandoffBrief.ts` | 15 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
-| `src/cli/impact/buildImpact.ts` | 14 touches; Added compact count summary to rcc impact JSON output | 2026-06-26 |
 | `tests/work.test.js` | 14 touches; Calibrated cross-repo routing for Guardian-style release hardening output-contract tasks | 2026-06-24 |
 | `src/cli/commands/done.ts` | 14 touches; Added negative coverage for done handoff file path injection and verbose agent JSON boundaries | 2026-06-24 |
 | `tests/init.test.js` | 13 touches; Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage | 2026-06-26 |
@@ -35,7 +35,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | ----- | ----: | -------------- |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Work routing | 22 | Updated remaining map and v0.7 release tests for simplified RCC workflow guidance |
-| General maintenance | 14 | Added compact count summary to rcc impact JSON output |
+| General maintenance | 15 | Added empty verificationHints field to impact analysis model |
 | Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
 | Tests | 6 | Tightened rcc impact affected test scoring and capped noisy recommendations |
@@ -44,13 +44,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (66)
+- `npm run build` (67)
 - `npm test` (42)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/cli.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
 - `npm run benchmark:routing` (11)
 - `npm run release:check` (10)
-- `node --test tests/impact.test.js` (7)
+- `node --test tests/impact.test.js` (8)
 
 <!-- repo-context-center:work-index:end -->

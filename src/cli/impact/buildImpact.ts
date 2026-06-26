@@ -836,6 +836,7 @@ export async function buildImpactAnalysis(
     suggestedCommands: commands,
     confidence: confidenceDetails.level,
     confidenceExplanation: confidenceDetails,
+    verificationHints: [],
     notes: [
       "Heuristic MVP: combines git working-tree changes, RCC task routing, learned test signals, and scored affected test candidates.",
       "This is not a full static dependency analysis.",
