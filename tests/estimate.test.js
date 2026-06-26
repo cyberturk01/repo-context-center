@@ -240,11 +240,12 @@ test("measure prints human-readable token estimates for a task", async () => {
     assert.match(result.stdout, /Files counted:\n[\d,]+/);
     assert.match(result.stdout, /Files excluded:\n[\d,]+/);
     assert.match(result.stdout, /Ignored by RCC rules:\n[\d,]+/);
-    assert.match(result.stdout, /Ignored examples:\n/);
+    assert.match(result.stdout, /Representative ignored paths:\nExamples only; these are not necessarily full excluded directories\./);
+    assert.doesNotMatch(result.stdout, /Ignored examples:\n/);
     assert.match(result.stdout, /Unsupported or non-source files:\n[\d,]+/);
-    assert.match(result.stdout, /Unsupported examples:\n/);
+    assert.match(result.stdout, /Representative unsupported paths:\nExamples only; these are not necessarily full excluded directories\./);
     assert.match(result.stdout, /Skipped because scan cap was reached:\n[\d,]+/);
-    assert.match(result.stdout, /Scan cap examples:\n/);
+    assert.match(result.stdout, /Representative scan-cap paths:\nExamples only; these are not necessarily full excluded directories\./);
     assert.match(result.stdout, /Primary files:\n\d+/);
     assert.match(result.stdout, /Supporting files:\n\d+/);
     assert.match(result.stdout, /Tests:\n\d+/);

@@ -348,10 +348,14 @@ export async function doctorCommand(io: CliIO, args: string[] = []): Promise<num
   const localInstallOlder = compareVersion(localVersion, runningVersion) < 0 && Boolean(localVersion);
   const declaredDependencyNewer = compareVersion(declaredDependency, runningVersion) > 0;
   const shellProblems = shellChecks.filter((check) => check.status !== "ok");
+  const shellCommandProblem = shellProblems.length > 0;
   const shellPathDiffers = shellChecks.some((check) =>
     check.status === "ok" && check.resolvedPath !== undefined && executable !== null && check.resolvedPath !== executable
   );
-  const shouldWarn = repoPackageMismatch || localInstallNewer || localInstallOlder || declaredDependencyNewer || shellProblems.length > 0 || shellPathDiffers;
+  const activeCliProblem = !activeSupportsAgent || repoPackageMismatch || declaredDependencyNewer || localInstallNewer;
+  const staleNearestLocalInstall = localInstallOlder && !runningFromLocalInstall;
+  const hardSuggestedFixesNeeded = !activeSupportsAgent || declaredDependencyNewer || localInstallNewer || shellCommandProblem;
+  const shouldWarn = activeCliProblem || staleNearestLocalInstall || shellCommandProblem || shellPathDiffers;
 
   const lines = [
     "repo-context-center doctor",
@@ -372,15 +376,17 @@ export async function doctorCommand(io: CliIO, args: string[] = []): Promise<num
     lines.push(
       `Warning: running global RCC version ${runningVersion} while repo package version is ${repoVersion}. Use node dist/cli/index.js during local development.`
     );
+  } else if (!activeSupportsAgent) {
+    lines.push("Active CLI problem: running CLI does not support required work --agent capability.");
   } else if (localInstallNewer) {
     lines.push(
       `Detected local ${packageName}@${localVersion} but active rcc command appears older.`,
       `Try: npx ${packageName}@${localVersion} work "<task>" --agent`
     );
-  } else if (localInstallOlder) {
+  } else if (staleNearestLocalInstall) {
     lines.push(
-      `Detected local ${packageName}@${localVersion} but active CLI is ${runningVersion}.`,
-      "Local package and active CLI are not aligned."
+      `Old local install detected but active CLI is healthy: ${packageName}@${localVersion} is nearest local install, active CLI is ${runningVersion}.`,
+      "Remove or upgrade local dependency only if this repository intends to use local RCC."
     );
   } else if (declaredDependencyNewer) {
     const targetVersion = firstVersion(declaredDependency) ?? declaredDependency;
@@ -399,7 +405,7 @@ export async function doctorCommand(io: CliIO, args: string[] = []): Promise<num
     lines.push("Local package and active CLI are aligned.");
   }
 
-  if (shellProblems.length > 0 || localInstallOlder || localInstallNewer || declaredDependencyNewer) {
+  if (hardSuggestedFixesNeeded) {
     lines.push("", ...suggestedFixes());
   }
 

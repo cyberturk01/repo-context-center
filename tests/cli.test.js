@@ -250,6 +250,8 @@ test("doctor warns when local install is newer than active CLI", async () => {
 
 test("doctor warns when nearest local install is older than active CLI", async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-doctor-local-older-"));
+  const binDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-doctor-bin-"));
+  const packageJson = require(path.join(repoRoot, "package.json"));
 
   try {
     await writeJson(path.join(tempDir, "package.json"), {
@@ -257,17 +259,25 @@ test("doctor warns when nearest local install is older than active CLI", async (
       version: "1.0.0"
     });
     await writeLocalRccPackage(tempDir, "0.0.1");
+    const fakeRcc = await writeFakeCommand(binDir, "rcc", { version: packageJson.version, supportsAgent: true });
+    await writeFakeCommand(binDir, "repo-context-center", { version: packageJson.version, supportsAgent: true });
 
-    const result = runCli(["doctor"], { cwd: tempDir });
+    const result = runCli(["doctor"], { cwd: tempDir, env: fakeRcc.env });
 
     assert.equal(result.status, 0);
     assert.equal(result.stderr, "");
     assert.match(result.stdout, /Nearest local install: 0\.0\.1 \(.+node_modules.+repo-context-center\)/);
-    assert.match(result.stdout, /Detected local repo-context-center@0\.0\.1 but active CLI is \d+\.\d+\.\d+/);
-    assert.match(result.stdout, /Local package and active CLI are not aligned\./);
+    assert.match(result.stdout, /rcc: ok/);
+    assert.match(result.stdout, /repo-context-center: ok/);
+    assert.match(result.stdout, /Old local install detected but active CLI is healthy: repo-context-center@0\.0\.1 is nearest local install, active CLI is \d+\.\d+\.\d+\./);
+    assert.match(result.stdout, /Remove or upgrade local dependency only if this repository intends to use local RCC\./);
+    assert.doesNotMatch(result.stdout, /Suggested fixes:/);
+    assert.doesNotMatch(result.stdout, /npm uninstall -g repo-context-center/);
+    assert.doesNotMatch(result.stdout, /npm install -g repo-context-center@latest/);
     assert.doesNotMatch(result.stdout, /Local package and active CLI are aligned\./);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
+    await rm(binDir, { recursive: true, force: true });
   }
 });
 

@@ -3546,4 +3546,80 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-26T15:21:39.578Z
+- Summary: Clarified measure excluded-path wording in human output
+- Changed files: `src/cli/commands/measure.ts`, `tests/estimate.test.js`
+- Verification: npm run build; node --test tests/estimate.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Clarified measure excluded-path wording in human output",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "tests/estimate.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/estimate.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:21:39.578Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:21:39.578Z",
+  "summary": "Clarified measure excluded-path wording in human output",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "tests/estimate.test.js"
+  ],
+  "verification": "npm run build; node --test tests/estimate.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T15:24:34.581Z
+- Summary: Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy
+- Changed files: `src/cli/commands/doctor.ts`, `src/cli/commands/measure.ts`, `tests/cli.test.js`, `tests/estimate.test.js`
+- Verification: npm run build; node --test tests/cli.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy",
+  "files": [
+    "src/cli/commands/doctor.ts",
+    "src/cli/commands/measure.ts",
+    "tests/cli.test.js",
+    "tests/estimate.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/cli.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:24:34.581Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:24:34.581Z",
+  "summary": "Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy",
+  "files": [
+    "src/cli/commands/doctor.ts",
+    "src/cli/commands/measure.ts",
+    "tests/cli.test.js",
+    "tests/estimate.test.js"
+  ],
+  "verification": "npm run build; node --test tests/cli.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
