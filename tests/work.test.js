@@ -1476,6 +1476,64 @@ test("work does not recommend unrelated learned tests without a strong affected-
   }
 });
 
+test("work does not recommend unrelated infrastructure tests for translation tasks", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-translation-test-filter-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Translation work: read `src/i18n/translate.ts`, `tests/cache/redis.test.js`, `tests/queue/worker.test.js`, `tests/invites/invite.test.js`, and `tests/api/public.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "src/i18n/translate.ts", "export function translate() { return ''; }\n");
+    await writeFixtureFile(tempDir, "tests/cache/redis.test.js", "test('redis cache', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/queue/worker.test.js", "test('queue worker', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/invites/invite.test.js", "test('invite flow', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/api/public.test.js", "test('public api', () => {});\n");
+
+    const result = runCli(["work", "--agent", "update translation strings"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.deepEqual(route.tests, []);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work still recommends Redis cache tests for Redis cache tasks", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-cache-test-filter-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Redis cache work: read `src/cache/redis.ts`, `tests/cache/redis.test.js`, and `tests/api/public.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "src/cache/redis.ts", "export function redisCache() { return true; }\n");
+    await writeFixtureFile(tempDir, "tests/cache/redis.test.js", "test('redis cache', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/api/public.test.js", "test('public api', () => {});\n");
+
+    const result = runCli(["work", "--agent", "fix redis cache expiration"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.deepEqual(route.tests, ["tests/cache/redis.test.js"]);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("work exact filename routing stays primary ahead of learned hints", async () => {
   await withLearningRoutingRepo(async (tempDir) => {
     const result = runCli(["work", "--json", "--debug", "fix doctor.ts work routing"], { cwd: tempDir });

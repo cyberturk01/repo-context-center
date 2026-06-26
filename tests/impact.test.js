@@ -478,6 +478,60 @@ test("impact suppresses weak generic affected test recommendations", async () =>
   });
 });
 
+test("impact does not recommend unrelated infrastructure tests for translation tasks", async () => {
+  await withImpactRepo(async (cwd) => {
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Translation work: read `src/i18n/translate.ts`, `tests/cache/redis.test.js`, `tests/queue/worker.test.js`, `tests/invites/invite.test.js`, and `tests/api/public.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(cwd, "src/i18n/translate.ts", "export function translate() { return ''; }\n");
+    await writeFixtureFile(cwd, "tests/cache/redis.test.js", "test('redis cache', () => {});\n");
+    await writeFixtureFile(cwd, "tests/queue/worker.test.js", "test('queue worker', () => {});\n");
+    await writeFixtureFile(cwd, "tests/invites/invite.test.js", "test('invite flow', () => {});\n");
+    await writeFixtureFile(cwd, "tests/api/public.test.js", "test('public api', () => {});\n");
+
+    const result = runCli(["impact", "update translation strings", "--json"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const analysis = JSON.parse(result.stdout);
+
+    assert.deepEqual(analysis.affectedTests, []);
+  });
+});
+
+test("impact still recommends Redis cache tests for Redis cache tasks", async () => {
+  await withImpactRepo(async (cwd) => {
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Redis cache work: read `src/cache/redis.ts`, `tests/cache/redis.test.js`, and `tests/api/public.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(cwd, "src/cache/redis.ts", "export function redisCache() { return true; }\n");
+    await writeFixtureFile(cwd, "tests/cache/redis.test.js", "test('redis cache', () => {});\n");
+    await writeFixtureFile(cwd, "tests/api/public.test.js", "test('public api', () => {});\n");
+
+    const result = runCli(["impact", "fix redis cache expiration", "--json"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const analysis = JSON.parse(result.stdout);
+    const affectedTests = analysis.affectedTests.map((file) => file.path);
+
+    assert.deepEqual(affectedTests, ["tests/cache/redis.test.js"]);
+    assert.match(analysis.affectedTests[0].reason, /^strong confidence score /);
+  });
+});
+
 test("impact combines co-change history with directory affinity for affected tests", async () => {
   await withImpactRepo(async (cwd) => {
     await writeFixtureFile(

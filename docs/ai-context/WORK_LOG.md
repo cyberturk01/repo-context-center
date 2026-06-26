@@ -3782,4 +3782,42 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-26T18:18:26.221Z
+- Summary: Tightened affected-test confidence thresholds
+- Changed files: `src/cli/shared/affectedTests.ts`, `tests/impact.test.js`, `tests/work.test.js`
+- Verification: node --test tests/work.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Tightened affected-test confidence thresholds",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "tests/impact.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "node --test tests/work.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T18:18:26.221Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T18:18:26.221Z",
+  "summary": "Tightened affected-test confidence thresholds",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "tests/impact.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "node --test tests/work.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -11,6 +11,8 @@ const affectedTestScoreThreshold = 75;
 const defaultMaximumAffectedTests = 5;
 const maximumWalkFiles = 2000;
 
+export type AffectedTestConfidence = "strong" | "medium" | "weak";
+
 export interface AffectedTestCandidate {
   path: string;
   reason?: string;
@@ -20,6 +22,7 @@ export interface ScoredAffectedTest {
   path: string;
   reason: string;
   score: number;
+  confidence: AffectedTestConfidence;
   signals: string[];
 }
 
@@ -208,13 +211,22 @@ function moduleScope(filePath: string): string {
   return parts[0] ?? "";
 }
 
-function sameModuleScore(testPath: string, sourcePaths: string[]): number {
+function sameModuleRelationship(testPath: string, sourcePaths: string[], terms: Set<string>): { score: number; direct: boolean } {
   const testScope = moduleScope(testPath);
   if (!testScope) {
-    return 0;
+    return { score: 0, direct: false };
   }
 
-  return sourcePaths.some((sourcePath) => moduleScope(sourcePath) === testScope) ? 24 : 0;
+  const sameModule = sourcePaths.some((sourcePath) => moduleScope(sourcePath) === testScope);
+  if (!sameModule) {
+    return { score: 0, direct: false };
+  }
+
+  const scopeTokens = testScope.split(/[\/._-]+/).filter((token) => token.length > 1);
+  return {
+    score: 24,
+    direct: scopeTokens.some((token) => terms.has(token))
+  };
 }
 
 async function importRelationshipScore(cwd: string, testPath: string, sourcePaths: string[]): Promise<number> {
@@ -266,31 +278,33 @@ async function coChangeTestSet(cwd: string, sourcePaths: string[]): Promise<Set<
   return tests;
 }
 
-function reasonFromSignals(score: number, signals: string[]): string {
-  return `confidence score ${score}: ${signals.join("; ")}`;
+function reasonFromSignals(score: number, confidence: AffectedTestConfidence, signals: string[]): string {
+  return `${confidence} confidence score ${score}: ${signals.join("; ")}`;
 }
 
-function hasStrongAffectedTestSignals(signals: string[]): boolean {
-  const strongSignals = new Set([
+function hasDirectRelationshipSignal(signals: string[]): boolean {
+  const directSignals = new Set([
     "changed test file",
     "imports affected source",
-    "repository learning",
-    "co-change history"
-  ]);
-
-  if (signals.some((signal) => strongSignals.has(signal))) {
-    return true;
-  }
-
-  const corroboratingLocalSignals = signals.filter((signal) => [
-    "same package/module",
     "same directory",
     "filename similarity",
+    "same package/module with task token",
     "specific routed test name"
-  ].includes(signal));
+  ]);
 
-  return signals.includes("task routing evidence")
-    && corroboratingLocalSignals.length >= 1;
+  return signals.some((signal) => directSignals.has(signal));
+}
+
+function confidenceForAffectedTest(score: number, signals: string[]): AffectedTestConfidence {
+  if (score >= affectedTestScoreThreshold && hasDirectRelationshipSignal(signals)) {
+    return "strong";
+  }
+
+  if (score >= 50) {
+    return "medium";
+  }
+
+  return "weak";
 }
 
 function changedTestFiles(changedFiles: string[]): string[] {
@@ -369,10 +383,10 @@ export async function scoreAffectedTests(options: AffectedTestScoringOptions): P
       signals.push("filename similarity");
     }
 
-    const moduleScore = sameModuleScore(testPath, sourcePaths);
-    if (moduleScore > 0) {
-      score += moduleScore;
-      signals.push("same package/module");
+    const moduleRelationship = sameModuleRelationship(testPath, sourcePaths, terms);
+    if (moduleRelationship.score > 0) {
+      score += moduleRelationship.score;
+      signals.push(moduleRelationship.direct ? "same package/module with task token" : "same package/module");
     }
 
     const directoryScore = sameDirectoryScore(testPath, sourcePaths);
@@ -386,11 +400,16 @@ export async function scoreAffectedTests(options: AffectedTestScoringOptions): P
       signals.push("weak generic route penalty");
     }
 
-    return { path: testPath, score, signals };
+    return {
+      path: testPath,
+      score,
+      confidence: confidenceForAffectedTest(score, signals),
+      signals
+    };
   }));
 
   const filtered = scored
-    .filter((item) => item.score >= affectedTestScoreThreshold && hasStrongAffectedTestSignals(item.signals))
+    .filter((item) => item.confidence === "strong")
     .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
     .slice(0, Math.min(options.maxTests ?? defaultMaximumAffectedTests, defaultMaximumAffectedTests));
   const existing = await Promise.all(filtered.map(async (item) => ({
@@ -403,6 +422,6 @@ export async function scoreAffectedTests(options: AffectedTestScoringOptions): P
     .map((entry) => entry.item)
     .map((item) => ({
       ...item,
-      reason: reasonFromSignals(item.score, item.signals)
+      reason: reasonFromSignals(item.score, item.confidence, item.signals)
     }));
 }
