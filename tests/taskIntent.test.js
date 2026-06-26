@@ -84,11 +84,23 @@ test("generic update verb is filtered from workflow validation lookup terms", ()
   assert.equal(intent.nextLookupKeyword, "workflow");
 });
 
-test("generic-only tasks keep a fallback lookup term", () => {
+test("generic-only tasks do not keep noisy fallback lookup terms", () => {
   const intent = analyzeTaskIntent("continue implementation");
 
-  assert.deepEqual(intent.lookupTerms, ["continue", "implementation"]);
-  assert.equal(intent.nextLookupKeyword, "continue");
+  assert.deepEqual(intent.lookupTerms, []);
+  assert.equal(intent.nextLookupKeyword, null);
+});
+
+test("generic action words are ignored while technical terms remain", () => {
+  const intent = analyzeTaskIntent("fix bug issue update improve change refactor cleanup login auth cache redis workflow docker");
+
+  for (const genericTerm of ["fix", "bug", "issue", "update", "improve", "change", "refactor", "cleanup"]) {
+    assert.equal(intent.lookupTerms.includes(genericTerm), false, `${genericTerm} should not be a lookup term`);
+  }
+  for (const technicalTerm of ["login", "auth", "cache", "redis", "workflow", "docker"]) {
+    assert.equal(intent.lookupTerms.includes(technicalTerm), true, `${technicalTerm} should remain a lookup term`);
+  }
+  assert.equal(intent.nextLookupKeyword, "login");
 });
 
 test("code investigation detection includes English and Turkish signals", () => {

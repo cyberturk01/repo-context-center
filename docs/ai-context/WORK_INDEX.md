@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Ignored generic action words in Impact task parsing while preserving technical terms
 - Added Impact contextChanges support and separated RCC/setup paths from affected files
 - Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage
 - Guarded init --update-agent-file so only AGENTS.md is writable and added external AI file regression coverage
 - Updated remaining map and v0.7 release tests for simplified RCC workflow guidance
 - Simplified RCC workflow guidance and made validate check fallback guidance through RCC_WORKFLOW pointer
 - Enhanced rcc doctor to inspect active CLI capabilities, probe shell rcc/repo-context-center commands, detect stale binaries and same-versio...
-- Fixed AGENTS.md RCC workflow marker detection so init updates marked blocks instead of treating them as markerless, and added regressions f...
 
 ## Hot Files
 
@@ -35,8 +35,8 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | ----- | ----: | -------------- |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Work routing | 22 | Updated remaining map and v0.7 release tests for simplified RCC workflow guidance |
+| General maintenance | 11 | Ignored generic action words in Impact task parsing while preserving technical terms |
 | Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
-| General maintenance | 10 | Fixed impact path normalization for cross-repo local dist execution |
 | Agent guidance | 8 | Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage |
 | CLI commands | 5 | Clarified RCC local/global CLI alignment and doctor local install path |
 | Work memory | 5 | Implemented learning quality guards for repository memory |
@@ -44,8 +44,8 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (58)
-- `npm test` (39)
+- `npm run build` (59)
+- `npm test` (40)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
 - `node --test tests/cli.test.js` (12)

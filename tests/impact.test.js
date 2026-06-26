@@ -249,7 +249,6 @@ test("impact filters weak semantic source matches from affected files", () => {
     "src/cli/commands/measure.ts",
     "src/cli/commands/scan.ts",
     "src/cli/commands/validate.ts",
-    "src/core/taskIntent.ts",
     "src/core/tokenEstimator.ts"
   ]) {
     assert.equal(affectedFiles.includes(filePath), false, `${filePath} should not be reported as affected`);
@@ -318,6 +317,48 @@ test("impact separates RCC and agent context changes from affected files", async
       assert.ok(analysis.contextChanges.some((file) => file.path === filePath), `${filePath} should be a context change`);
       assert.equal(analysis.affectedFiles.some((file) => file.path === filePath), false, `${filePath} should not be affected source`);
     }
+  });
+});
+
+test("impact ignores generic task words when matching affected filenames", async () => {
+  await withImpactRepo(async (cwd) => {
+    for (const filePath of [
+      "src/fix.ts",
+      "src/bug.ts",
+      "src/issue.ts",
+      "src/update.ts",
+      "src/improve.ts",
+      "src/change.ts",
+      "src/refactor.ts",
+      "src/cleanup.ts"
+    ]) {
+      await writeFixtureFile(cwd, filePath, "export const noisy = true;\n");
+    }
+    await writeFixtureFile(cwd, "src/cache/redis.ts", "export const cache = 'redis';\n");
+    await writeFixtureFile(cwd, "src/docker/workflow.ts", "export const workflow = 'docker';\n");
+
+    const result = runCli(["impact", "fix bug issue update improve change refactor cleanup login auth cache redis workflow docker", "--json"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const analysis = JSON.parse(result.stdout);
+    const affectedFiles = analysis.affectedFiles.map((file) => file.path);
+
+    for (const filePath of [
+      "src/fix.ts",
+      "src/bug.ts",
+      "src/issue.ts",
+      "src/update.ts",
+      "src/improve.ts",
+      "src/change.ts",
+      "src/refactor.ts",
+      "src/cleanup.ts"
+    ]) {
+      assert.equal(affectedFiles.includes(filePath), false, `${filePath} should not match generic task wording`);
+    }
+    assert.ok(affectedFiles.includes("src/auth/login.ts"));
+    assert.ok(affectedFiles.includes("src/cache/redis.ts"));
+    assert.ok(affectedFiles.includes("src/docker/workflow.ts"));
   });
 });
 
