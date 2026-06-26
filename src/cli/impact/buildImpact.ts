@@ -476,12 +476,29 @@ function commandForTests(tests: ImpactFile[]): ImpactCommand[] {
   }
 
   return [{
-    command: `node --test ${runnable.join(" ")}`,
+    command: `node --test ${commandPathArgs(runnable)}`,
     type: "test",
     scope: "focused",
     confidence: "high",
     reason: "run affected tests directly"
   }];
+}
+
+function commandPathArgs(filePaths: string[]): string {
+  return filePaths
+    .flatMap(splitConcatenatedCommandPaths)
+    .filter(Boolean)
+    .join(" ");
+}
+
+function splitConcatenatedCommandPaths(filePath: string): string[] {
+  return normalizeRepoPath(filePath)
+    .replace(
+      /(\.(?:test|spec)\.(?:tsx|jsx|mjs|cjs|ts|js)|\.(?:tsx|jsx|mjs|cjs|ts|js))(?=(?:[A-Za-z0-9_.-]+\/|[A-Za-z0-9_.-]+\.(?:test|spec)\.|[A-Za-z0-9_.-]+\.(?:tsx|jsx|mjs|cjs|ts|js)))/g,
+      "$1 "
+    )
+    .split(/\s+/)
+    .map((item) => item.trim());
 }
 
 function isExplicitReadmeDocsTask(task: string): boolean {

@@ -464,6 +464,29 @@ test("impact combines co-change history with directory affinity for affected tes
   });
 });
 
+test("impact separates concatenated test paths in suggested commands", async () => {
+  await withImpactRepo(async (cwd) => {
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/TASK_ROUTING.md",
+      "# Task Routing\n\n- Alpha beta work: read `tests/alpha.test.jstests/beta.test.js`.\n"
+    );
+    await writeFixtureFile(cwd, "tests/alpha.test.js", "test('alpha', () => {});\n");
+    await writeFixtureFile(cwd, "tests/beta.test.js", "test('beta', () => {});\n");
+
+    const result = runCli(["impact", "fix alpha beta behavior", "--json"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const analysis = JSON.parse(result.stdout);
+    const focusedCommand = analysis.suggestedCommands.find((item) => item.command.startsWith("node --test "));
+
+    assert.ok(focusedCommand);
+    assert.match(focusedCommand.command, /tests\/alpha\.test\.js tests\/beta\.test\.js/);
+    assert.doesNotMatch(focusedCommand.command, /tests\/alpha\.test\.jstests\/beta\.test\.js/);
+  });
+});
+
 test("impact rejects invalid args", () => {
   const result = runCli(["impact", "--unknown"]);
 

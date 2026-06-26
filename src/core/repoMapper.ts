@@ -763,8 +763,25 @@ function testReviewCheck(tests: string[]): string {
   const selected = tests.slice(0, 2);
   const nodeRunnable = selected.every((testFile) => /\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(testFile));
   return nodeRunnable
-    ? `node --test ${selected.join(" ")}`
+    ? `node --test ${commandPathArgs(selected)}`
     : `review ${selected.join(", ")}`;
+}
+
+function commandPathArgs(filePaths: string[]): string {
+  return filePaths
+    .flatMap(splitConcatenatedCommandPaths)
+    .filter(Boolean)
+    .join(" ");
+}
+
+function splitConcatenatedCommandPaths(filePath: string): string[] {
+  return filePath.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/g, "")
+    .replace(
+      /(\.(?:test|spec)\.(?:tsx|jsx|mjs|cjs|ts|js)|\.(?:tsx|jsx|mjs|cjs|ts|js))(?=(?:[A-Za-z0-9_.-]+\/|[A-Za-z0-9_.-]+\.(?:test|spec)\.|[A-Za-z0-9_.-]+\.(?:tsx|jsx|mjs|cjs|ts|js)))/g,
+      "$1 "
+    )
+    .split(/\s+/)
+    .map((item) => item.trim());
 }
 
 function defaultVerificationChecks(packageScripts: Set<string>): string[] {
