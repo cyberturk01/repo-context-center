@@ -151,6 +151,7 @@ test("impact --json returns task-based affected files and commands", async () =>
     assert.equal(analysis.schemaVersion, 1);
     assert.equal(analysis.command, "impact");
     assert.equal(analysis.task, "update login flow");
+    assert.equal(analysis.mode, "working-tree");
     assert.equal(analysis.basis, "task");
     assert.deepEqual(Object.keys(analysis.summary).sort(), [
       "affectedFiles",
@@ -232,6 +233,51 @@ test("impact includes git working-tree changes and paired tests", async () => {
       && item.scope === "focused"
       && item.confidence === "high"
     )));
+  });
+});
+
+test("impact --task-only ignores git context changes in confidence evidence", async () => {
+  await withImpactRepo(async (cwd) => {
+    await writeFixtureFile(cwd, "CLAUDE.md", "Old Claude guidance\n");
+    await writeFixtureFile(cwd, ".repo-context-center/config.json", "{\"version\":1}\n");
+
+    runGit(["init"], cwd);
+    runGit(["config", "user.email", "test@example.com"], cwd);
+    runGit(["config", "user.name", "Test User"], cwd);
+    runGit(["add", "-f", "."], cwd);
+    runGit(["commit", "-m", "initial"], cwd);
+
+    await writeFixtureFile(cwd, "AGENTS.md", "Updated repo guidance\n");
+    await writeFixtureFile(cwd, "CLAUDE.md", "Updated Claude guidance\n");
+    await writeFixtureFile(cwd, ".repo-context-center/config.json", "{}\n");
+
+    const defaultResult = runCli(["impact", "fix login bug", "--json"], { cwd });
+    const taskOnlyResult = runCli(["impact", "fix login bug", "--task-only", "--json"], { cwd });
+
+    assert.equal(defaultResult.status, 0, defaultResult.stderr || defaultResult.stdout);
+    assert.equal(taskOnlyResult.status, 0, taskOnlyResult.stderr || taskOnlyResult.stdout);
+
+    const defaultAnalysis = JSON.parse(defaultResult.stdout);
+    const taskOnlyAnalysis = JSON.parse(taskOnlyResult.stdout);
+
+    assert.equal(defaultAnalysis.mode, "working-tree");
+    assert.equal(defaultAnalysis.basis, "changed-files-and-task");
+    assert.ok(defaultAnalysis.changedFiles.some((file) => file.path === "AGENTS.md"));
+    assert.equal(defaultAnalysis.confidenceExplanation.evidence.contextOnlyChanges, true);
+    assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("context-only changes detected"));
+
+    assert.equal(taskOnlyAnalysis.mode, "task-only");
+    assert.equal(taskOnlyAnalysis.basis, "task");
+    assert.deepEqual(taskOnlyAnalysis.changedFiles, []);
+    assert.deepEqual(taskOnlyAnalysis.contextChanges, []);
+    assert.equal(taskOnlyAnalysis.confidenceExplanation.evidence.changedFiles, 0);
+    assert.equal(taskOnlyAnalysis.confidenceExplanation.evidence.contextChanges, 0);
+    assert.equal(taskOnlyAnalysis.confidenceExplanation.evidence.contextOnlyChanges, false);
+    assert.equal(taskOnlyAnalysis.confidenceExplanation.reasons.includes("context-only changes detected"), false);
+    assert.equal(taskOnlyAnalysis.confidenceExplanation.reasons.includes("context changes do not raise confidence to high"), false);
+    assert.ok(taskOnlyAnalysis.affectedFiles.some((file) => file.path === "src/auth/login.ts"));
+    assert.ok(taskOnlyAnalysis.affectedTests.some((file) => file.path === "tests/auth/login.test.js"));
+    assert.ok(taskOnlyAnalysis.notes.includes("Task-only mode: ignored git working-tree changes."));
   });
 });
 

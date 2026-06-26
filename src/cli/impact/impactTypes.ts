@@ -5,6 +5,7 @@ export interface ImpactOptions {
   json: boolean;
   maxFiles: number;
   task: string;
+  taskOnly: boolean;
 }
 
 export interface ImpactFile {
@@ -61,6 +62,7 @@ export interface ImpactAnalysis {
   schemaVersion: 1;
   command: "impact";
   task: string;
+  mode: "working-tree" | "task-only";
   basis: "changed-files-and-task" | "changed-files" | "task";
   summary: ImpactSummary;
   changedFiles: ImpactFile[];

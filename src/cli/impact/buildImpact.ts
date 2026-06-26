@@ -452,13 +452,14 @@ function confidenceExplanation(
 export async function buildImpactAnalysis(
   cwd: string,
   task: string,
-  options: { maxFiles?: number } = {}
+  options: { maxFiles?: number; taskOnly?: boolean } = {}
 ): Promise<ImpactAnalysis> {
   const maxFiles = options.maxFiles ?? 50;
+  const taskOnly = options.taskOnly ?? false;
   const repoRoot = path.resolve(cwd);
   const [brief, rawChangedFiles] = await Promise.all([
     buildWorkBriefForTask(repoRoot, task, { maxFiles }),
-    changedRepoPaths(repoRoot)
+    taskOnly ? Promise.resolve([]) : changedRepoPaths(repoRoot)
   ]);
   const changedFiles = uniquePaths(rawChangedFiles.map((file) => normalizeImpactPath(file, repoRoot)));
   const changedFilesWithReasons = normalizeImpactFiles(changedImpactFiles(changedFiles), repoRoot);
@@ -498,6 +499,7 @@ export async function buildImpactAnalysis(
     schemaVersion: 1,
     command: "impact",
     task,
+    mode: taskOnly ? "task-only" : "working-tree",
     basis: basis(changedFiles, routeFiles),
     summary: {
       changedFiles: returnedChangedFiles.length,
@@ -516,6 +518,7 @@ export async function buildImpactAnalysis(
     verificationHints: [],
     notes: [
       "Heuristic MVP: combines git working-tree changes, RCC task routing, learned test signals, and scored affected test candidates.",
+      ...(taskOnly ? ["Task-only mode: ignored git working-tree changes."] : []),
       "This is not a full static dependency analysis.",
       ...(isDocsOnlyImpact(readmeDocsImpact, affectedTests, changedFiles) ? ["Docs-only impact detected; no focused test command suggested."] : []),
       ...(filteredWeakCount > 0 ? ["Filtered weak semantic source candidates from affectedFiles."] : []),

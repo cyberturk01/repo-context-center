@@ -507,7 +507,7 @@ repo-context-center --version
 repo-context-center doctor
 repo-context-center init [--dry-run] [--force] [--github-action]
 repo-context-center work "<task>" [--agent] [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
-repo-context-center impact "<task>" [--json] [--max-files <number>]
+repo-context-center impact "<task>" [--json] [--task-only] [--max-files <number>]
 repo-context-center measure "<task>" [--json]
 repo-context-center done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]
 repo-context-center learn [--json] [--write] [--debug]

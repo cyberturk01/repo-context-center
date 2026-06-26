@@ -11,7 +11,8 @@ export async function impactCommand(io: CliIO, args: string[] = []): Promise<num
   }
 
   const analysis = await buildImpactAnalysis(io.cwd, options.task, {
-    maxFiles: options.maxFiles
+    maxFiles: options.maxFiles,
+    taskOnly: options.taskOnly
   });
 
   io.stdout(options.json ? renderImpactJson(analysis) : renderImpactText(analysis));

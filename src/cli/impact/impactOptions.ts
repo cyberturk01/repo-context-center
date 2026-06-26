@@ -1,10 +1,11 @@
 import type { ImpactOptions } from "./impactTypes";
 
-export const impactUsage = 'Usage: rcc impact "<task>" [--json] [--max-files <number>]';
+export const impactUsage = 'Usage: rcc impact "<task>" [--json] [--task-only] [--max-files <number>]';
 
 export function parseImpactOptions(args: string[]): ImpactOptions | undefined {
   let json = false;
   let maxFiles = 50;
+  let taskOnly = false;
   const taskParts: string[] = [];
 
   for (let index = 0; index < args.length; index += 1) {
@@ -12,6 +13,11 @@ export function parseImpactOptions(args: string[]): ImpactOptions | undefined {
 
     if (arg === "--json") {
       json = true;
+      continue;
+    }
+
+    if (arg === "--task-only") {
+      taskOnly = true;
       continue;
     }
 
@@ -37,5 +43,5 @@ export function parseImpactOptions(args: string[]): ImpactOptions | undefined {
     return undefined;
   }
 
-  return { json, maxFiles, task };
+  return { json, maxFiles, task, taskOnly };
 }

@@ -25,6 +25,7 @@ export function renderImpactText(analysis: ImpactAnalysis): string {
     "repo-context-center impact",
     "",
     `Task: ${analysis.task}`,
+    `Mode: ${analysis.mode}`,
     `Basis: ${analysis.basis}`,
     `Confidence: ${analysis.confidence}`,
     "Confidence evidence:",

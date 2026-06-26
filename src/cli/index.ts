@@ -77,7 +77,7 @@ Commands:
   handoff   Print a handoff brief for continuing agent work
             Usage: handoff [task] [--json|--agent] [--debug] [--write]
   impact    Estimate affected files, tests, and commands
-            Usage: impact "<task>" [--json] [--max-files <number>]
+            Usage: impact "<task>" [--json] [--task-only] [--max-files <number>]
   learn     Regenerate repository learning on demand
             Usage: learn [--json] [--write] [--debug]
   log       Add a durable entry to docs/ai-context/CHANGE_LOG.md
