@@ -362,6 +362,108 @@ test("impact ignores generic task words when matching affected filenames", async
   });
 });
 
+test("impact scores import relationships when recommending affected tests", async () => {
+  await withImpactRepo(async (cwd) => {
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/TASK_ROUTING.md",
+      "# Task Routing\n\n- Checkout work: read `src/payments/checkout.ts`.\n"
+    );
+    await writeFixtureFile(cwd, "src/payments/checkout.ts", "export function checkout() { return true; }\n");
+    await writeFixtureFile(
+      cwd,
+      "tests/integration/checkoutFlow.test.js",
+      "import { checkout } from '../../src/payments/checkout';\ntest('checkout flow', () => checkout());\n"
+    );
+    await writeFixtureFile(cwd, "tests/integration/paymentFlow.test.js", "test('payment flow', () => {});\n");
+
+    runGit(["init"], cwd);
+    runGit(["config", "user.email", "test@example.com"], cwd);
+    runGit(["config", "user.name", "Test User"], cwd);
+    runGit(["add", "."], cwd);
+    runGit(["commit", "-m", "initial"], cwd);
+
+    await writeFixtureFile(cwd, "src/payments/checkout.ts", "export function checkout() { return false; }\n");
+
+    const result = runCli(["impact", "fix checkout behavior", "--json"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const analysis = JSON.parse(result.stdout);
+    const checkoutTest = analysis.affectedTests.find((file) => file.path === "tests/integration/checkoutFlow.test.js");
+
+    assert.ok(checkoutTest);
+    assert.match(checkoutTest.reason, /imports affected source/);
+    assert.equal(analysis.affectedTests.some((file) => file.path === "tests/integration/paymentFlow.test.js"), false);
+  });
+});
+
+test("impact combines co-change history with directory affinity for affected tests", async () => {
+  await withImpactRepo(async (cwd) => {
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/TASK_ROUTING.md",
+      "# Task Routing\n\n- Invoice work: read `src/billing/invoice.ts`.\n"
+    );
+    await writeFixtureFile(cwd, "src/billing/invoice.ts", "export function invoiceTotal() { return 1; }\n");
+    await writeFixtureFile(cwd, "tests/billing/money.test.js", "test('money math', () => {});\n");
+    await writeFixtureFile(cwd, "tests/billing/unrelated.test.js", "test('unrelated', () => {});\n");
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/WORK_LOG.md",
+      [
+        "# Work Log",
+        "<!-- repo-context-center:work-log:start -->",
+        "```json repo-context-center:done",
+        JSON.stringify({
+          schemaVersion: 1,
+          command: "done",
+          timestamp: "2026-01-01T00:00:00.000Z",
+          summary: "Fixed invoice total with money regression coverage",
+          files: ["src/billing/invoice.ts", "tests/billing/money.test.js"],
+          verification: "node --test tests/billing/money.test.js",
+          followUps: [],
+          risks: []
+        }, null, 2),
+        "```",
+        "```json repo-context-center:done",
+        JSON.stringify({
+          schemaVersion: 1,
+          command: "done",
+          timestamp: "2026-01-02T00:00:00.000Z",
+          summary: "Adjusted invoice rounding with money regression coverage",
+          files: ["src/billing/invoice.ts", "tests/billing/money.test.js"],
+          verification: "node --test tests/billing/money.test.js",
+          followUps: [],
+          risks: []
+        }, null, 2),
+        "```",
+        "<!-- repo-context-center:work-log:end -->"
+      ].join("\n")
+    );
+
+    runGit(["init"], cwd);
+    runGit(["config", "user.email", "test@example.com"], cwd);
+    runGit(["config", "user.name", "Test User"], cwd);
+    runGit(["add", "."], cwd);
+    runGit(["commit", "-m", "initial"], cwd);
+
+    await writeFixtureFile(cwd, "src/billing/invoice.ts", "export function invoiceTotal() { return 2; }\n");
+
+    const result = runCli(["impact", "fix invoice total", "--json"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const analysis = JSON.parse(result.stdout);
+    const moneyTest = analysis.affectedTests.find((file) => file.path === "tests/billing/money.test.js");
+
+    assert.ok(moneyTest);
+    assert.match(moneyTest.reason, /co-change history/);
+    assert.match(moneyTest.reason, /same directory/);
+    assert.equal(analysis.affectedTests.some((file) => file.path === "tests/billing/unrelated.test.js"), false);
+  });
+});
+
 test("impact rejects invalid args", () => {
   const result = runCli(["impact", "--unknown"]);
 

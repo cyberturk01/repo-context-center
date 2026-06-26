@@ -369,7 +369,7 @@ Example output:
 }
 ```
 
-Impact analysis is intentionally heuristic, not a static dependency engine. It uses git working-tree changes, RCC task routing, learned test signals, and simple source/test pairing. RCC setup and agent-context changes such as `docs/ai-context/**`, `.repo-context-center/**`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursor/**`, and `.github/copilot-instructions.md` are reported under `contextChanges` instead of `affectedFiles`. For docs-only changes such as `README.md`, `docs/**`, and Markdown wording updates, RCC keeps the impact focused and avoids broad `npm test` fallback unless source, package, workflow, or known tests are also affected.
+Impact analysis is intentionally heuristic, not a static dependency engine. It uses git working-tree changes, RCC task routing, learned test signals, and confidence-scored affected test candidates. Test recommendations can combine signals such as same directory, filename similarity, imports of affected source, repository learning, task routing evidence, and co-change history; only candidates above the confidence threshold are reported. RCC setup and agent-context changes such as `docs/ai-context/**`, `.repo-context-center/**`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursor/**`, and `.github/copilot-instructions.md` are reported under `contextChanges` instead of `affectedFiles`. For docs-only changes such as `README.md`, `docs/**`, and Markdown wording updates, RCC keeps the impact focused and avoids broad `npm test` fallback unless source, package, workflow, or known tests are also affected.
 
 ### Validate Installation
 

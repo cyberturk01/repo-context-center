@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Added confidence-based affected test scoring to Impact analysis
 - Ignored generic action words in Impact task parsing while preserving technical terms
 - Added Impact contextChanges support and separated RCC/setup paths from affected files
 - Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage
 - Guarded init --update-agent-file so only AGENTS.md is writable and added external AI file regression coverage
 - Updated remaining map and v0.7 release tests for simplified RCC workflow guidance
 - Simplified RCC workflow guidance and made validate check fallback guidance through RCC_WORKFLOW pointer
-- Enhanced rcc doctor to inspect active CLI capabilities, probe shell rcc/repo-context-center commands, detect stale binaries and same-versio...
 
 ## Hot Files
 
@@ -25,9 +25,9 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `tests/init.test.js` | 13 touches; Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage | 2026-06-26 |
 | `tests/done.test.js` | 13 touches; Added negative coverage for done handoff file path injection and verbose agent JSON boundaries | 2026-06-24 |
 | `src/cli/handoff/handoffTypes.ts` | 13 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
+| `README.md` | 11 touches; Added confidence-based affected test scoring to Impact analysis | 2026-06-26 |
 | `src/cli/handoff/renderAgent.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
 | `src/cli/handoff/renderJson.ts` | 11 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
-| `README.md` | 10 touches; Added Impact contextChanges support and separated RCC/setup paths from affected files | 2026-06-26 |
 
 ## Completed Work Themes
 
@@ -38,14 +38,14 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | General maintenance | 11 | Ignored generic action words in Impact task parsing while preserving technical terms |
 | Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
 | Agent guidance | 8 | Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage |
+| Tests | 5 | Added confidence-based affected test scoring to Impact analysis |
 | CLI commands | 5 | Clarified RCC local/global CLI alignment and doctor local install path |
 | Work memory | 5 | Implemented learning quality guards for repository memory |
-| Tests | 4 | Hardened impact focused test suggestions and README docs-only dominance |
 
 ## Verification Patterns
 
-- `npm run build` (59)
-- `npm test` (40)
+- `npm run build` (60)
+- `npm test` (41)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
 - `node --test tests/cli.test.js` (12)

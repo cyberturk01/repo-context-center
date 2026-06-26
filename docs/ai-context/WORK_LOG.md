@@ -3316,4 +3316,42 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-26T14:41:53.446Z
+- Summary: Added confidence-based affected test scoring to Impact analysis
+- Changed files: `README.md`, `src/cli/impact/buildImpact.ts`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js; node --test tests/impactQuality.test.js; node --test tests/commandArchitecture.test.js; npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added confidence-based affected test scoring to Impact analysis",
+  "files": [
+    "README.md",
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js; node --test tests/impactQuality.test.js; node --test tests/commandArchitecture.test.js; npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T14:41:53.446Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T14:41:53.446Z",
+  "summary": "Added confidence-based affected test scoring to Impact analysis",
+  "files": [
+    "README.md",
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js; node --test tests/impactQuality.test.js; node --test tests/commandArchitecture.test.js; npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
