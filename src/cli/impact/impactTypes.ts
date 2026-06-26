@@ -1,4 +1,5 @@
 import type { WorkRecommendation } from "../work/workTypes";
+import type { AffectedTestConfidence } from "../shared/affectedTests";
 
 export interface ImpactOptions {
   json: boolean;
@@ -9,6 +10,12 @@ export interface ImpactOptions {
 export interface ImpactFile {
   path: string;
   reason: string;
+}
+
+export interface ImpactAffectedTest extends ImpactFile {
+  score: number;
+  confidence: AffectedTestConfidence;
+  signals: string[];
 }
 
 export interface ImpactCommand {
@@ -59,7 +66,7 @@ export interface ImpactAnalysis {
   changedFiles: ImpactFile[];
   contextChanges: ImpactFile[];
   affectedFiles: ImpactFile[];
-  affectedTests: ImpactFile[];
+  affectedTests: ImpactAffectedTest[];
   suggestedCommands: ImpactCommand[];
   confidence: "high" | "medium" | "low";
   confidenceExplanation: ImpactConfidenceExplanation;

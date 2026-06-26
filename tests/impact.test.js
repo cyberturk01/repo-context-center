@@ -180,7 +180,20 @@ test("impact --json returns task-based affected files and commands", async () =>
     assert.ok(analysis.confidenceExplanation.reasons.includes("filename stem matched"));
     assert.deepEqual(analysis.changedFiles, []);
     assert.ok(analysis.affectedFiles.some((file) => file.path === "src/auth/login.ts"));
-    assert.ok(analysis.affectedTests.some((file) => file.path === "tests/auth/login.test.js"));
+    const affectedTest = analysis.affectedTests.find((file) => file.path === "tests/auth/login.test.js");
+    assert.ok(affectedTest);
+    assert.deepEqual(Object.keys(affectedTest).sort(), [
+      "confidence",
+      "path",
+      "reason",
+      "score",
+      "signals"
+    ]);
+    assert.equal(typeof affectedTest.reason, "string");
+    assert.equal(typeof affectedTest.score, "number");
+    assert.equal(affectedTest.confidence, "strong");
+    assert.ok(Array.isArray(affectedTest.signals));
+    assert.ok(affectedTest.signals.includes("task routing evidence"));
     const testCommand = analysis.suggestedCommands.find((item) => item.command.includes("tests/auth/login.test.js"));
     assert.ok(testCommand);
     assert.equal(testCommand.type, "test");

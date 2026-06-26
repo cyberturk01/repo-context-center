@@ -6,22 +6,22 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Add structured affected-test metadata to impact JSON
 - Tightened affected-test confidence thresholds
 - Keep work affected-test scoring from broad test discovery
 - Shared affected-test scoring between impact and work
 - Added empty verificationHints field to impact analysis model
 - Added compact count summary to rcc impact JSON output
 - Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy
-- Clarified measure excluded-path wording in human output
 
 ## Hot Files
 
 | File | Reason | Last touched |
 | ---- | ------ | ------------ |
 | `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
-| `tests/impact.test.js` | 17 touches; Tightened affected-test confidence thresholds | 2026-06-26 |
+| `src/cli/impact/buildImpact.ts` | 18 touches; Add structured affected-test metadata to impact JSON | 2026-06-26 |
+| `tests/impact.test.js` | 18 touches; Add structured affected-test metadata to impact JSON | 2026-06-26 |
 | `tests/work.test.js` | 17 touches; Tightened affected-test confidence thresholds | 2026-06-26 |
-| `src/cli/impact/buildImpact.ts` | 17 touches; Keep work affected-test scoring from broad test discovery | 2026-06-26 |
 | `src/cli/handoff/buildHandoffBrief.ts` | 15 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
 | `src/cli/commands/done.ts` | 14 touches; Added negative coverage for done handoff file path injection and verbose agent JSON boundaries | 2026-06-24 |
 | `tests/init.test.js` | 13 touches; Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage | 2026-06-26 |
@@ -38,7 +38,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | General maintenance | 15 | Added empty verificationHints field to impact analysis model |
 | Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
-| Tests | 7 | Tightened affected-test confidence thresholds |
+| Tests | 8 | Add structured affected-test metadata to impact JSON |
 | CLI commands | 6 | Fixed suggested command path spacing for concatenated test paths |
 | Work memory | 5 | Implemented learning quality guards for repository memory |
 
@@ -49,7 +49,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 - `node --test tests/*.test.js` (13)
 - `node --test tests/cli.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
-- `node --test tests/impact.test.js` (11)
+- `node --test tests/impact.test.js` (12)
 - `npm run benchmark:routing` (11)
 - `npm run release:check` (10)
 

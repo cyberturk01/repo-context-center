@@ -7,7 +7,7 @@ import { scoreAffectedTests } from "../shared/affectedTests";
 import { buildWorkBriefForTask } from "../work/buildWorkBrief";
 import { uniquePaths } from "../work/taskFileRecommendations";
 import type { WorkBrief, WorkRecommendation } from "../work/workTypes";
-import type { ImpactAnalysis, ImpactCommand, ImpactConfidenceExplanation, ImpactFile } from "./impactTypes";
+import type { ImpactAffectedTest, ImpactAnalysis, ImpactCommand, ImpactConfidenceExplanation, ImpactFile } from "./impactTypes";
 import { recommendationReason } from "./impactTypes";
 
 const execFileAsync = promisify(execFile);
@@ -160,7 +160,7 @@ async function scoredAffectedTests(
   affectedFiles: ImpactFile[],
   routeTests: ImpactFile[],
   maxFiles: number
-): Promise<ImpactFile[]> {
+): Promise<ImpactAffectedTest[]> {
   const sourcePaths = uniquePaths([
     ...changedSourceFiles(changedFiles),
     ...affectedFiles
@@ -177,7 +177,13 @@ async function scoredAffectedTests(
     maxTests: maxFiles
   });
 
-  return scored.map((item) => impactFile(item.path, item.reason));
+  return scored.map((item) => ({
+    path: item.path,
+    reason: item.reason,
+    score: item.score,
+    confidence: item.confidence,
+    signals: item.signals
+  }));
 }
 
 function isWeakSemanticImpact(file: ImpactFile): boolean {
@@ -271,7 +277,7 @@ function hasChangedNonDocsImpact(changedFiles: string[]): boolean {
   });
 }
 
-function isDocsOnlyImpact(affectedFiles: ImpactFile[], tests: ImpactFile[], changedFiles: string[]): boolean {
+function isDocsOnlyImpact(affectedFiles: ImpactFile[], tests: ImpactAffectedTest[], changedFiles: string[]): boolean {
   return affectedFiles.length > 0
     && tests.length === 0
     && affectedFiles.every((file) => isDocsOnlyPath(file.path))
@@ -312,7 +318,7 @@ function suggestedCommands(
   brief: WorkBrief,
   changedFiles: string[],
   affectedFiles: ImpactFile[],
-  tests: ImpactFile[]
+  tests: ImpactAffectedTest[]
 ): ImpactCommand[] {
   const commands: ImpactCommand[] = [
     ...commandForTests(tests)

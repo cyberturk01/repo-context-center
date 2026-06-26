@@ -3820,4 +3820,42 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-26T18:49:01.511Z
+- Summary: Add structured affected-test metadata to impact JSON
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactTypes.ts`, `tests/impact.test.js`
+- Verification: node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add structured affected-test metadata to impact JSON",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T18:49:01.511Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T18:49:01.511Z",
+  "summary": "Add structured affected-test metadata to impact JSON",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
