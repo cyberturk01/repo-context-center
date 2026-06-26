@@ -1,6 +1,8 @@
 import { buildStartupContext, focusStartupContextForStart, type StartupContext } from "../../core/suggester";
 import { learnedRoutingSignalsForTask, type LearnedRoutingSignals } from "../../core/repositoryLearningRouting";
+import { classifyRepoFile } from "../../core/repoFileClassifier";
 import { analyzeTaskIntent, type TaskIntentAnalysis } from "../../core/taskIntent";
+import { scoreAffectedTests } from "../shared/affectedTests";
 import {
   nextCommand
 } from "./workConstants";
@@ -82,6 +84,12 @@ function limitRecommendations(
   }
 
   return selected;
+}
+
+function verificationReferencesFilteredTest(command: string, affectedTestSet: Set<string>): boolean {
+  const testPaths = command.match(/\b(?:tests?|__tests__|e2e|cypress)\/[^\s'"`]+\.(?:test|spec)\.[cm]?[jt]sx?\b/g) ?? [];
+
+  return testPaths.length > 0 && !testPaths.some((file) => affectedTestSet.has(file));
 }
 
 function isHighlyRelevantLearnedTest(item: WorkRecommendation): boolean {
@@ -228,10 +236,11 @@ export function buildWorkBrief(
   contextBudget: ContextBudget,
   taskIntent: TaskIntentAnalysis,
   learnedSignals: LearnedRoutingSignals,
+  affectedTestPaths: string[] = [],
   estimateTokens?: WorkBriefTokenEstimator
 ): WorkBrief {
   const categorized = buildTaskFileRecommendations(startup, lookupHints, readFirstGuidance, taskIntent);
-  const fileCategories = buildWorkFileCategorization(categorized, startup, lookupHints, taskIntent, learnedSignals);
+  const fileCategories = buildWorkFileCategorization(categorized, startup, lookupHints, taskIntent, learnedSignals, affectedTestPaths);
   const nextCheapest = nextCheapestLookupCommand(taskIntent);
   const taskSize = classifyTaskSize(startup.task);
   const supportingTier = taskSize.size === "medium"
@@ -347,6 +356,51 @@ export async function buildWorkBriefForTask(
     existingContextFiles,
     taskIntent
   );
+  const categorized = buildTaskFileRecommendations(focusedStartupContext, lookupHints, readFirstGuidance, taskIntent);
+  const preliminaryCategories = buildWorkFileCategorization(
+    categorized,
+    focusedStartupContext,
+    lookupHints,
+    taskIntent,
+    learnedSignals,
+    []
+  );
+  const sourcePaths = [
+    ...preliminaryCategories.primaryFiles,
+    ...preliminaryCategories.supportingFiles,
+    ...categorized.taskFiles,
+    ...learnedSignals.learnedRelatedFiles.map((file) => ({ path: file, reasons: [] }))
+  ]
+    .map((file) => file.path)
+    .filter((file) => classifyRepoFile(file).role !== "test");
+  const affectedTests = await scoreAffectedTests({
+    cwd,
+    task,
+    sourcePaths,
+    routeTests: [
+      ...categorized.supportingTests,
+      ...categorized.relevantTests
+    ],
+    learnedTests: learnedSignals.learnedTests,
+    includeRepoTestDiscovery: false,
+    maxTests: Math.min(maxFiles, 6)
+  });
+  const affectedTestPaths = affectedTests.map((file) => file.path);
+  const affectedTestSet = new Set(affectedTestPaths);
+  const filteredLearnedTests = learnedSignals.learnedTests.filter((file) => affectedTestSet.has(file));
+  const filteredLearnedVerification = learnedSignals.learnedVerification.filter((command) => (
+    !verificationReferencesFilteredTest(command, affectedTestSet)
+  ));
+  const hasLearnedContext = learnedSignals.learnedRelatedFiles.length > 0
+    || filteredLearnedTests.length > 0
+    || filteredLearnedVerification.length > 0;
+  const filteredLearnedSignals = {
+    ...learnedSignals,
+    learnedTests: filteredLearnedTests,
+    learnedVerification: filteredLearnedVerification,
+    learnedHabits: hasLearnedContext ? learnedSignals.learnedHabits : []
+  };
+
   return buildWorkBrief(
     focusedStartupContext,
     mapFreshness,
@@ -356,7 +410,8 @@ export async function buildWorkBriefForTask(
     readFirstGuidance,
     contextBudget,
     taskIntent,
-    learnedSignals,
+    filteredLearnedSignals,
+    affectedTestPaths,
     options.estimateTokens
   );
 }

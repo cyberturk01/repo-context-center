@@ -1430,6 +1430,52 @@ test("work routing leaves unrelated tasks without learned hints", async () => {
   });
 });
 
+test("work does not recommend unrelated learned tests without a strong affected-test relationship", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-learned-test-filter-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "src/billing/invoice.ts", "export function invoice() {}\n");
+    await writeFixtureFile(tempDir, "tests/work.test.js", "test('work command', () => {});\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/REPOSITORY_LEARNING.md",
+      [
+        "# Repository Learning",
+        "",
+        "<!-- repo-context-center:repository-learning:start -->",
+        "## Common File Relationships",
+        "",
+        "| Source | Related | Reason | Count |",
+        "| --- | --- | --- | ---: |",
+        "| billing | `tests/work.test.js` | Observed in completed billing work | 4 |",
+        "",
+        "## Verification Patterns",
+        "",
+        "| Scope | Command | Count |",
+        "| --- | --- | ---: |",
+        "| billing | `node --test tests/work.test.js` | 4 |",
+        "<!-- repo-context-center:repository-learning:end -->",
+        ""
+      ].join("\n")
+    );
+
+    const result = runCli(["work", "--agent", "adjust billing invoices"], { cwd: tempDir });
+    const debugResult = runCli(["work", "--json", "--debug", "adjust billing invoices"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+    const brief = JSON.parse(debugResult.stdout);
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(debugResult.status, 0, debugResult.stderr || debugResult.stdout);
+    assert.deepEqual(route.tests, []);
+    assert.deepEqual(brief.tests, []);
+    assert.deepEqual(brief.learnedTests, []);
+    assert.deepEqual(brief.learnedVerification, []);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("work exact filename routing stays primary ahead of learned hints", async () => {
   await withLearningRoutingRepo(async (tempDir) => {
     const result = runCli(["work", "--json", "--debug", "fix doctor.ts work routing"], { cwd: tempDir });

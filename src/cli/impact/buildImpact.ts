@@ -1,10 +1,9 @@
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { classifyRepoFile } from "../../core/repoFileClassifier";
-import { buildRepositoryLearningModelForRepo } from "../../core/repositoryLearning";
+import { scoreAffectedTests } from "../shared/affectedTests";
 import { buildWorkBriefForTask } from "../work/buildWorkBrief";
 import { uniquePaths } from "../work/taskFileRecommendations";
 import type { WorkBrief, WorkRecommendation } from "../work/workTypes";
@@ -12,11 +11,7 @@ import type { ImpactAnalysis, ImpactCommand, ImpactConfidenceExplanation, Impact
 import { recommendationReason } from "./impactTypes";
 
 const execFileAsync = promisify(execFile);
-const directTestPattern = /\.(test|spec)\.[cm]?[jt]sx?$/i;
 const runnableNodeTestPattern = /\.(test|spec)\.[cm]?[jt]sx?$/i;
-const affectedTestScoreThreshold = 75;
-const maximumAffectedTests = 5;
-const maximumWalkFiles = 2000;
 
 function normalizeRepoPath(filePath: string): string {
   return filePath.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/g, "");
@@ -78,15 +73,6 @@ async function changedRepoPaths(cwd: string): Promise<string[]> {
   }
 }
 
-async function pathExists(cwd: string, repoPath: string): Promise<boolean> {
-  try {
-    await access(path.join(cwd, repoPath));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function impactFile(pathValue: string, reason: string): ImpactFile {
   return { path: pathValue, reason };
 }
@@ -135,79 +121,6 @@ function changedSourceFiles(changedFiles: string[]): string[] {
   });
 }
 
-function changedTestFiles(changedFiles: string[]): ImpactFile[] {
-  return changedFiles
-    .filter((file) => classifyRepoFile(file).role === "test" || directTestPattern.test(file))
-    .map((file) => impactFile(file, "changed test file"));
-}
-
-async function gitRepoFiles(cwd: string): Promise<string[]> {
-  try {
-    const { stdout } = await execFileAsync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
-      cwd,
-      encoding: "utf8",
-      maxBuffer: 1024 * 1024
-    });
-
-    return stdout.split(/\r?\n/).map(normalizeRepoPath).filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
-async function walkedRepoFiles(cwd: string): Promise<string[]> {
-  const files: string[] = [];
-  const ignoredDirs = new Set([".git", "node_modules", "dist", "coverage", "build", ".cache", ".turbo"]);
-
-  async function walk(relativeDir: string): Promise<void> {
-    if (files.length >= maximumWalkFiles) {
-      return;
-    }
-
-    let entries;
-    try {
-      entries = await readdir(path.join(cwd, relativeDir), { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const repoPath = normalizeRepoPath(path.posix.join(relativeDir, entry.name));
-      if (!repoPath) {
-        continue;
-      }
-      if (entry.isDirectory()) {
-        if (!ignoredDirs.has(entry.name) && !classifyRepoFile(repoPath).isNoise) {
-          await walk(repoPath);
-        }
-        continue;
-      }
-      if (entry.isFile()) {
-        files.push(repoPath);
-      }
-      if (files.length >= maximumWalkFiles) {
-        return;
-      }
-    }
-  }
-
-  await walk("");
-  return files;
-}
-
-async function repoTestFiles(cwd: string, changedFiles: string[], routedTests: ImpactFile[]): Promise<string[]> {
-  const listedFiles = await gitRepoFiles(cwd);
-  const repoFiles = listedFiles.length > 0 ? listedFiles : await walkedRepoFiles(cwd);
-
-  return uniquePaths([
-    ...changedFiles,
-    ...routedTests.map((file) => file.path),
-    ...repoFiles
-  ].map(normalizeRepoPath).filter((file) => (
-    classifyRepoFile(file).role === "test" || directTestPattern.test(file)
-  )));
-}
-
 function routeImpactFiles(brief: WorkBrief): ImpactFile[] {
   return impactFilesFromRecommendations([
     ...brief.primaryFiles,
@@ -240,185 +153,6 @@ function isContextScaffoldingPath(filePath: string): boolean {
     || lowerPath.startsWith(".cursor/");
 }
 
-function stripExtension(filePath: string): string {
-  return filePath
-    .replace(/\.(test|spec)\.[cm]?[jt]sx?$/i, "")
-    .replace(/\.[cm]?[jt]sx?$/i, "")
-    .replace(/\.[^.]+$/i, "");
-}
-
-function comparableStem(filePath: string): string {
-  return stripExtension(normalizeRepoPath(filePath))
-    .replace(/^src\//, "")
-    .replace(/^tests?\//, "")
-    .replace(/^__tests__\//, "");
-}
-
-function pathTokens(filePath: string): Set<string> {
-  return new Set(comparableStem(filePath)
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .toLowerCase()
-    .split(/[\/._\-\s]+/)
-    .filter((token) => token.length > 1 && !["src", "test", "tests", "spec", "__tests__"].includes(token)));
-}
-
-function taskTokens(task: string): Set<string> {
-  const generic = new Set([
-    "add",
-    "change",
-    "fix",
-    "improve",
-    "test",
-    "tests",
-    "update",
-    "work"
-  ]);
-
-  return new Set((task.toLowerCase().match(/[a-z0-9][a-z0-9._-]*/g) ?? [])
-    .flatMap((term) => term.split(/[._-]+/))
-    .filter((term) => term.length > 1 && !generic.has(term)));
-}
-
-function taskTestNameScore(testPath: string, terms: Set<string>): number {
-  if (terms.size === 0) {
-    return 0;
-  }
-
-  const shared = [...pathTokens(testPath)].filter((token) => terms.has(token)).length;
-  return shared > 0 ? Math.min(28, 16 + shared * 6) : 0;
-}
-
-function filenameSimilarityScore(testPath: string, sourcePaths: string[]): number {
-  const testTokens = pathTokens(testPath);
-  let bestScore = 0;
-
-  for (const sourcePath of sourcePaths) {
-    const sourceTokens = pathTokens(sourcePath);
-    const shared = [...testTokens].filter((token) => sourceTokens.has(token)).length;
-    if (shared === 0) {
-      continue;
-    }
-
-    const exactStem = comparableStem(testPath).toLowerCase() === comparableStem(sourcePath).toLowerCase();
-    const union = new Set([...testTokens, ...sourceTokens]).size || 1;
-    const score = exactStem ? 42 : Math.min(34, 10 + Math.round((shared / union) * 32));
-    bestScore = Math.max(bestScore, score);
-  }
-
-  return bestScore;
-}
-
-function sameDirectoryScore(testPath: string, sourcePaths: string[]): number {
-  const testDir = path.posix.dirname(comparableStem(testPath));
-  if (testDir === ".") {
-    return 0;
-  }
-
-  return sourcePaths.some((sourcePath) => path.posix.dirname(comparableStem(sourcePath)) === testDir) ? 22 : 0;
-}
-
-function moduleScope(filePath: string): string {
-  const parts = comparableStem(filePath).split("/").filter(Boolean);
-  if (parts[0] === "packages" && parts.length >= 2) {
-    return parts.slice(0, 2).join("/");
-  }
-  return parts[0] ?? "";
-}
-
-function sameModuleScore(testPath: string, sourcePaths: string[]): number {
-  const testScope = moduleScope(testPath);
-  if (!testScope) {
-    return 0;
-  }
-
-  return sourcePaths.some((sourcePath) => moduleScope(sourcePath) === testScope) ? 24 : 0;
-}
-
-async function importRelationshipScore(cwd: string, testPath: string, sourcePaths: string[]): Promise<number> {
-  let content;
-  try {
-    content = await readFile(path.join(cwd, testPath), "utf8");
-  } catch {
-    return 0;
-  }
-
-  const normalizedContent = content.replace(/\\/g, "/");
-  const testDir = path.posix.dirname(testPath);
-
-  for (const sourcePath of sourcePaths) {
-    const sourceNoExt = stripExtension(sourcePath);
-    const relativeNoExt = normalizeRepoPath(path.posix.relative(testDir, sourceNoExt));
-    const fragments = [
-      sourceNoExt,
-      `./${relativeNoExt}`,
-      relativeNoExt,
-      path.posix.basename(sourceNoExt)
-    ].filter((fragment) => fragment.length > 1);
-
-    if (fragments.some((fragment) => normalizedContent.includes(fragment))) {
-      return 48;
-    }
-  }
-
-  return 0;
-}
-
-function learnedTestSet(brief: WorkBrief, routeTests: ImpactFile[]): Set<string> {
-  return new Set([
-    ...brief.learnedTests,
-    ...routeTests
-      .filter((file) => /\blearned|repository learning|work-log\b/i.test(file.reason))
-      .map((file) => file.path)
-  ].map(normalizeRepoPath));
-}
-
-async function coChangeTestSet(cwd: string, sourcePaths: string[]): Promise<Set<string>> {
-  const model = await buildRepositoryLearningModelForRepo(cwd);
-  const sourceSet = new Set(sourcePaths.map(normalizeRepoPath));
-  const tests = new Set<string>();
-
-  for (const item of model.frequentlyModifiedTogether) {
-    if (item.count < 2 || !item.files.some((file) => sourceSet.has(normalizeRepoPath(file)))) {
-      continue;
-    }
-
-    for (const file of item.files.map(normalizeRepoPath)) {
-      if (classifyRepoFile(file).role === "test" || directTestPattern.test(file)) {
-        tests.add(file);
-      }
-    }
-  }
-
-  return tests;
-}
-
-function reasonFromSignals(score: number, signals: string[]): string {
-  return `confidence score ${score}: ${signals.join("; ")}`;
-}
-
-function hasStrongAffectedTestSignals(signals: string[]): boolean {
-  const strongSignals = new Set([
-    "changed test file",
-    "imports affected source",
-    "repository learning",
-    "co-change history"
-  ]);
-
-  if (signals.some((signal) => strongSignals.has(signal))) {
-    return true;
-  }
-
-  const corroboratingLocalSignals = signals.filter((signal) => [
-    "same package/module",
-    "same directory",
-    "filename similarity",
-    "specific routed test name"
-  ].includes(signal));
-
-  return signals.includes("task routing evidence")
-    && corroboratingLocalSignals.length >= 1;
-}
-
 async function scoredAffectedTests(
   cwd: string,
   brief: WorkBrief,
@@ -427,86 +161,23 @@ async function scoredAffectedTests(
   routeTests: ImpactFile[],
   maxFiles: number
 ): Promise<ImpactFile[]> {
-  const candidatePaths = await repoTestFiles(cwd, changedFiles, routeTests);
-  const terms = taskTokens(brief.task);
-  const changedTestSet = new Set(changedTestFiles(changedFiles).map((file) => file.path));
-  const routeTestSet = new Set(routeTests.map((file) => file.path));
-  const learnedTests = learnedTestSet(brief, routeTests);
   const sourcePaths = uniquePaths([
     ...changedSourceFiles(changedFiles),
     ...affectedFiles
       .map((file) => file.path)
       .filter((file) => !isDocsOnlyPath(file) && classifyRepoFile(file).role !== "test")
   ]);
-  const coChangedTests = await coChangeTestSet(cwd, sourcePaths);
+  const scored = await scoreAffectedTests({
+    cwd,
+    task: brief.task,
+    changedFiles,
+    sourcePaths,
+    routeTests,
+    learnedTests: brief.learnedTests,
+    maxTests: maxFiles
+  });
 
-  const scored = await Promise.all(candidatePaths.map(async (testPath) => {
-    let score = 0;
-    const signals: string[] = [];
-
-    if (changedTestSet.has(testPath)) {
-      score += 100;
-      signals.push("changed test file");
-    }
-    if (routeTestSet.has(testPath)) {
-      score += 40;
-      signals.push("task routing evidence");
-    }
-    const taskNameScore = routeTestSet.has(testPath) ? taskTestNameScore(testPath, terms) : 0;
-    if (taskNameScore > 0) {
-      score += taskNameScore;
-      signals.push("task/test name match");
-    }
-    if (routeTestSet.has(testPath) && taskNameScore >= 22) {
-      score += 20;
-      signals.push("specific routed test name");
-    }
-    if (learnedTests.has(testPath)) {
-      score += 58;
-      signals.push("repository learning");
-    }
-    if (coChangedTests.has(testPath)) {
-      score += 46;
-      signals.push("co-change history");
-    }
-
-    const importScore = await importRelationshipScore(cwd, testPath, sourcePaths);
-    if (importScore > 0) {
-      score += importScore;
-      signals.push("imports affected source");
-    }
-
-    const nameScore = filenameSimilarityScore(testPath, sourcePaths);
-    if (nameScore > 0) {
-      score += nameScore;
-      signals.push("filename similarity");
-    }
-
-    const moduleScore = sameModuleScore(testPath, sourcePaths);
-    if (moduleScore > 0) {
-      score += moduleScore;
-      signals.push("same package/module");
-    }
-
-    const directoryScore = sameDirectoryScore(testPath, sourcePaths);
-    if (directoryScore > 0) {
-      score += directoryScore;
-      signals.push("same directory");
-    }
-
-    if (signals.length === 1 && signals[0] === "task routing evidence") {
-      score -= 30;
-      signals.push("weak generic route penalty");
-    }
-
-    return { path: testPath, score, signals };
-  }));
-
-  return scored
-    .filter((item) => item.score >= affectedTestScoreThreshold && hasStrongAffectedTestSignals(item.signals))
-    .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
-    .slice(0, Math.min(maxFiles, maximumAffectedTests))
-    .map((item) => impactFile(item.path, reasonFromSignals(item.score, item.signals)));
+  return scored.map((item) => impactFile(item.path, item.reason));
 }
 
 function isWeakSemanticImpact(file: ImpactFile): boolean {

@@ -3698,4 +3698,88 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-26T15:52:10.986Z
+- Summary: Shared affected-test scoring between impact and work
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/shared/affectedTests.ts`, `src/cli/work/buildWorkBrief.ts`, `src/cli/work/taskFileRecommendations.ts`, `tests/work.test.js`
+- Verification: node --test tests/work.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Shared affected-test scoring between impact and work",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/shared/affectedTests.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "node --test tests/work.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:52:10.986Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:52:10.986Z",
+  "summary": "Shared affected-test scoring between impact and work",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/shared/affectedTests.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "node --test tests/work.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T15:55:07.616Z
+- Summary: Keep work affected-test scoring from broad test discovery
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/shared/affectedTests.ts`, `src/cli/work/buildWorkBrief.ts`, `src/cli/work/taskFileRecommendations.ts`, `tests/work.test.js`
+- Verification: node --test tests/routingRegression.test.js; node --test tests/work.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Keep work affected-test scoring from broad test discovery",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/shared/affectedTests.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "node --test tests/routingRegression.test.js; node --test tests/work.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:55:07.616Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:55:07.616Z",
+  "summary": "Keep work affected-test scoring from broad test discovery",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/shared/affectedTests.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "node --test tests/routingRegression.test.js; node --test tests/work.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

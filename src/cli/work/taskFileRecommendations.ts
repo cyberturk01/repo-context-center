@@ -339,7 +339,8 @@ export function buildWorkFileCategorization(
     learnedTests: [],
     learnedVerification: [],
     learnedHabits: []
-  }
+  },
+  affectedTestPaths: string[] = []
 ): WorkFileCategorization {
   const directPrimaryPaths = lookupHints
     .filter((hint) => classifyRepoFile(hint.path).role !== "test")
@@ -352,7 +353,7 @@ export function buildWorkFileCategorization(
   const primarySet = new Set(primaryPaths);
   const testPaths = sortTestsByPrimaryRelevance(uniquePaths([
     ...categorized.supportingTests.map((file) => file.path),
-    ...learnedSignals.learnedTests
+    ...affectedTestPaths
   ]), primaryPaths);
   const testSet = new Set(testPaths);
   const supportingPaths = uniquePaths([
