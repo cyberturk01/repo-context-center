@@ -3942,4 +3942,38 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-27T08:29:57.605Z
+- Summary: updated README for latest RCC workflow and impact changes
+- Changed files: `README.md`
+- Verification: node dist/cli/index.js impact "update README wording" --json; node dist/cli/index.js impact "update README for latest 20 changes" --json --task-only
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "updated README for latest RCC workflow and impact changes",
+  "files": [
+    "README.md"
+  ],
+  "verification": [
+    "node dist/cli/index.js impact \"update README wording\" --json; node dist/cli/index.js impact \"update README for latest 20 changes\" --json --task-only"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-27T08:29:57.605Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-27T08:29:57.605Z",
+  "summary": "updated README for latest RCC workflow and impact changes",
+  "files": [
+    "README.md"
+  ],
+  "verification": "node dist/cli/index.js impact \"update README wording\" --json; node dist/cli/index.js impact \"update README for latest 20 changes\" --json --task-only",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

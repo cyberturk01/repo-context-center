@@ -135,6 +135,7 @@ Agent guidance:
 - Run `rcc work "<task>" --agent` once at task start.
 - Inspect `primaryFiles`, `tests`, and `supportingFiles` before broader search.
 - Do not repeatedly rerun the same task route.
+- If `tests` is empty, follow the `next` guidance; for tiny and small tasks RCC tells agents to open only the primary file and avoid adding generic tests when no strongly related tests were found.
 - Use `rcc find "<keyword>"` only if the route is insufficient.
 - Use `rcc impact "<task>" --json` when you need a compact estimate of affected files, tests, and verification commands.
 - Use `rcc done` after meaningful work.
@@ -153,7 +154,7 @@ RCC does not run in the background, automatically edit source code, or automatic
 | `init` | Run the command when adopting RCC or adding the default CI workflow | Creates missing RCC templates and config; preserves existing manual content |
 | `map --write` | Run after structural changes | Refreshes generated sections in `docs/ai-context/*` and warns if `AGENTS.md` needs `init --update` |
 | `work` | Run once at task start and follow the route | Reads context and repo metadata to produce a compact task route |
-| `impact` | Run when estimating change impact | Combines working-tree changes, task routing, learned test signals, and simple source/test pairing |
+| `impact` | Run when estimating change impact | Combines working-tree changes, task routing, learned test signals, and scored affected-test candidates |
 | `find` | Run only when the route is insufficient | Returns focused fallback file candidates with reasons |
 | `done` | Record summary, changed files, and verification after meaningful work | Appends lightweight work memory for future handoff and routing |
 | `learn` | Regenerate learned repository patterns on demand | Reads work memory, work index, and decisions to refresh `REPOSITORY_LEARNING.md` |
@@ -243,6 +244,30 @@ Supporting files:
 
 Tests:
 1
+
+Files counted:
+137
+
+Files excluded:
+42
+
+Ignored by RCC rules:
+18
+Representative ignored paths:
+Examples only; these are not necessarily full excluded directories.
+docs/ai-context/archive
+
+Unsupported or non-source files:
+24
+Representative unsupported paths:
+Examples only; these are not necessarily full excluded directories.
+package-lock.json
+
+Skipped because scan cap was reached:
+0
+Representative scan-cap paths:
+Examples only; these are not necessarily full excluded directories.
+none
 
 Estimated saving:
 195,536 tokens (99.9%)
@@ -353,6 +378,21 @@ Example output:
   "schemaVersion": 1,
   "command": "impact",
   "task": "update README wording",
+  "mode": "working-tree",
+  "basis": "changed-files-and-task",
+  "summary": {
+    "changedFiles": 1,
+    "contextChanges": 0,
+    "affectedFiles": 1,
+    "affectedTests": 0,
+    "suggestedCommands": 0
+  },
+  "changedFiles": [
+    {
+      "path": "README.md",
+      "reason": "changed in working tree"
+    }
+  ],
   "contextChanges": [],
   "affectedFiles": [
     {
@@ -363,13 +403,45 @@ Example output:
   "affectedTests": [],
   "suggestedCommands": [],
   "confidence": "medium",
+  "confidenceExplanation": {
+    "level": "medium",
+    "reasons": [
+      "changed files detected",
+      "task routing matched",
+      "no test relationship"
+    ],
+    "evidence": {
+      "changedFiles": 1,
+      "nonContextChangedFiles": 1,
+      "contextChanges": 0,
+      "affectedFiles": 1,
+      "affectedTests": 0,
+      "taskRoutingMatched": true,
+      "filenameStemMatched": false,
+      "contextOnlyChanges": false,
+      "testRelationship": "none"
+    }
+  },
+  "verificationHints": [],
   "notes": [
+    "Heuristic MVP: combines git working-tree changes, RCC task routing, learned test signals, and scored affected test candidates.",
+    "This is not a full static dependency analysis.",
     "Docs-only impact detected; no focused test command suggested."
   ]
 }
 ```
 
-Impact analysis is intentionally heuristic, not a static dependency engine. It uses git working-tree changes, RCC task routing, learned test signals, and confidence-scored affected test candidates. Test recommendations can combine signals such as same directory, filename similarity, imports of affected source, repository learning, task routing evidence, and co-change history; only candidates above the confidence threshold are reported. RCC setup and agent-context changes such as `docs/ai-context/**`, `.repo-context-center/**`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursor/**`, and `.github/copilot-instructions.md` are reported under `contextChanges` instead of `affectedFiles`. For docs-only changes such as `README.md`, `docs/**`, and Markdown wording updates, RCC keeps the impact focused and avoids broad `npm test` fallback unless source, package, workflow, or known tests are also affected.
+Use `--task-only` to estimate impact from the task route without reading current git changes:
+
+```sh
+npx repo-context-center impact "fix login regression" --task-only --json
+```
+
+Impact analysis is intentionally heuristic, not a static dependency engine. It uses git working-tree changes, RCC task routing, learned test signals, and confidence-scored affected test candidates. In `--task-only` mode, the `mode` field is `task-only`, `changedFiles` is empty, and the analysis is based on the task route.
+
+Affected test entries include `score`, `confidence`, and `signals` fields in JSON output. Test recommendations can combine signals such as changed test file, same directory, same package/module, filename similarity, imports of affected source, repository learning, task routing evidence, and co-change history. RCC filters weak generic route-only tests and reports only candidates above the confidence threshold.
+
+RCC setup and agent-context changes such as `docs/ai-context/**`, `.repo-context-center/**`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursor/**`, and `.github/copilot-instructions.md` are reported under `contextChanges` instead of `affectedFiles`. For docs-only changes such as `README.md`, `docs/**`, and Markdown wording updates, RCC keeps the impact focused and avoids broad `npm test` fallback unless source, package, workflow, or known tests are also affected.
 
 ### Validate Installation
 
@@ -379,6 +451,8 @@ Validate installed context files:
 npx repo-context-center validate
 npx repo-context-center validate --strict
 ```
+
+Validation accepts either an `AGENTS.md` pointer to `docs/ai-context/RCC_WORKFLOW.md` or complete fallback guidance directly in `AGENTS.md`. Fallback guidance should tell agents to read `TASK_ROUTING.md` and `DO_NOT_READ.md`, use `TOKEN_BUDGET.md` only when needed, inspect a small number of likely files, and avoid broad repository scans when RCC commands are unavailable.
 
 ### Record Completed Work
 
@@ -438,6 +512,8 @@ Use `work --agent` for the compact route:
 npx repo-context-center work "improve package scripts" --agent
 ```
 
+When no strongly related tests are found, `work --agent` keeps `tests` empty and tells the agent not to add generic tests. Tiny and small task routes also bias toward opening only the primary file before editing.
+
 Use `work --json` when an agent or tool needs the full work brief in a stable machine-readable shape:
 
 ```sh
@@ -449,6 +525,7 @@ Use `impact --json` when a tool needs affected files, tests, suggested commands,
 
 ```sh
 npx repo-context-center impact "fix login regression" --json
+npx repo-context-center impact "fix login regression" --task-only --json
 ```
 
 Use `handoff --json` or `handoff --agent` when a tool needs continuation context:
@@ -505,7 +582,7 @@ Prefer `rcc work`, `rcc done`, and `rcc handoff` for new agent workflows.
 repo-context-center --help
 repo-context-center --version
 repo-context-center doctor
-repo-context-center init [--dry-run] [--force] [--github-action]
+repo-context-center init [--dry-run] [--force] [--update] [--update-agent-file] [--github-action]
 repo-context-center work "<task>" [--agent] [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
 repo-context-center impact "<task>" [--json] [--task-only] [--max-files <number>]
 repo-context-center measure "<task>" [--json]
@@ -644,6 +721,10 @@ It also creates `.repo-context-center/config.json`.
 
 Use `repo-context-center init --update` to refresh RCC-managed agent workflow guidance in `AGENTS.md` while preserving manual sections.
 
+Use `repo-context-center init --update-agent-file` when only the root `AGENTS.md` workflow block should be refreshed. RCC leaves other AI instruction files such as `CLAUDE.md`, `GEMINI.md`, `.cursor/rules`, `.github/copilot-instructions.md`, and `.windsurf/rules` byte-for-byte unchanged and reports them as detected but not modified.
+
+Use `repo-context-center doctor` when local and global RCC commands are confusing. It distinguishes active CLI problems that need action from a harmless older nearest local install when the active CLI is otherwise healthy.
+
 `repo-context-center done`, `repo-context-center archive`, and `repo-context-center learn --write` may update:
 
 - `docs/ai-context/WORK_LOG.md`
@@ -669,6 +750,8 @@ With `--github-action`, init also creates:
 | Repository learning | Available |
 | Agent handover | Available |
 | Impact analysis | Available |
+| Task-only impact mode | Available |
+| Scored affected-test recommendations | Available |
 | Explainable recommendation reasons | Available |
 | Targeted fallback search | Available |
 | Token estimation | Available |
