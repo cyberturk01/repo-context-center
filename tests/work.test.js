@@ -944,7 +944,7 @@ test("work --agent marks tiny tasks as fast fixes with lightweight guidance", as
     assert.equal(result.status, 0);
     assert.equal(route.taskSize, "tiny");
     assert.equal(route.mode, "fast_fix");
-    assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong. Do not rerun rcc work for this task.");
+    assert.equal(route.next, "Tiny task: open only the primary file and apply the fix. No strongly related tests found; do not add generic tests. Do not rerun rcc work for this task.");
   });
 });
 
@@ -959,7 +959,7 @@ test("work --agent tiny guidance keeps word spacing stable", async () => {
 
       assert.equal(result.status, 0, task);
       assert.equal(route.taskSize, "tiny", task);
-      assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong. Do not rerun rcc work for this task.");
+      assert.equal(route.next, "Tiny task: open only the primary file and apply the fix. No strongly related tests found; do not add generic tests. Do not rerun rcc work for this task.");
       assert.doesNotMatch(route.next, /relevanttest/, task);
       assert.doesNotMatch(route.next, /runthe/, task);
     }
@@ -1468,6 +1468,8 @@ test("work does not recommend unrelated learned tests without a strong affected-
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.equal(debugResult.status, 0, debugResult.stderr || debugResult.stdout);
     assert.deepEqual(route.tests, []);
+    assert.match(route.next, /No strongly related tests found; do not add generic tests\./);
+    assert.doesNotMatch(route.next, /broad exploration/i);
     assert.deepEqual(brief.tests, []);
     assert.deepEqual(brief.learnedTests, []);
     assert.deepEqual(brief.learnedVerification, []);
@@ -1501,6 +1503,8 @@ test("work does not recommend unrelated infrastructure tests for translation tas
 
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.deepEqual(route.tests, []);
+    assert.match(route.next, /No strongly related tests found; do not add generic tests\./);
+    assert.doesNotMatch(route.next, /broad exploration/i);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -2279,7 +2283,7 @@ test("work --agent exact filename task puts AGENTS files in primaryFiles", async
     assert.ok(route.primaryFiles.includes("src/templates/generic/AGENTS.md"), route.primaryFiles.join("\n"));
     assert.ok(!route.primaryFiles.includes("src/cli/commands/doctor.ts"), route.primaryFiles.join("\n"));
     assert.ok(route.readFirst.includes("AGENTS.md"), route.readFirst.join("\n"));
-    assert.equal(route.next, 'Start with primaryFiles. Do not rerun rcc work for this task. Use rcc find "agents.md" only if needed.');
+    assert.equal(route.next, "Start with primaryFiles. No strongly related tests found; do not add generic tests. Do not rerun rcc work for this task.");
   });
 });
 

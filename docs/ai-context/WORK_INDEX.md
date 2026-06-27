@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Improved work agent no-test guidance
 - Added task-only mode to impact analysis
 - Add structured affected-test metadata to impact JSON
 - Tightened affected-test confidence thresholds
 - Keep work affected-test scoring from broad test discovery
 - Shared affected-test scoring between impact and work
 - Added empty verificationHints field to impact analysis model
-- Added compact count summary to rcc impact JSON output
 
 ## Hot Files
 
@@ -21,7 +21,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
 | `src/cli/impact/buildImpact.ts` | 19 touches; Added task-only mode to impact analysis | 2026-06-26 |
 | `tests/impact.test.js` | 19 touches; Added task-only mode to impact analysis | 2026-06-26 |
-| `tests/work.test.js` | 17 touches; Tightened affected-test confidence thresholds | 2026-06-26 |
+| `tests/work.test.js` | 18 touches; Improved work agent no-test guidance | 2026-06-26 |
 | `src/cli/handoff/buildHandoffBrief.ts` | 15 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
 | `src/cli/commands/done.ts` | 14 touches; Added negative coverage for done handoff file path injection and verbose agent JSON boundaries | 2026-06-24 |
 | `tests/init.test.js` | 13 touches; Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage | 2026-06-26 |
@@ -33,7 +33,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Work routing | 24 | Keep work affected-test scoring from broad test discovery |
+| Work routing | 25 | Improved work agent no-test guidance |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | General maintenance | 16 | Added task-only mode to impact analysis |
 | Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |

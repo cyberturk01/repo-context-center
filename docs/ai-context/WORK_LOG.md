@@ -3906,4 +3906,40 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-26T22:45:56.450Z
+- Summary: Improved work agent no-test guidance
+- Changed files: `src/cli/work/renderAgent.ts`, `tests/work.test.js`
+- Verification: node --test tests/work.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Improved work agent no-test guidance",
+  "files": [
+    "src/cli/work/renderAgent.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "node --test tests/work.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T22:45:56.450Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T22:45:56.450Z",
+  "summary": "Improved work agent no-test guidance",
+  "files": [
+    "src/cli/work/renderAgent.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "node --test tests/work.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
