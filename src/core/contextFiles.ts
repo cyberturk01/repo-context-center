@@ -5,6 +5,7 @@ export type RequiredContextFile = (typeof requiredContextFiles)[number];
 
 export const contextArchiveDir = "docs/ai-context/archive";
 export const agentsFile = "AGENTS.md";
+export const rccWorkflowFile = "docs/ai-context/RCC_WORKFLOW.md";
 export const tokenBudgetFile = "docs/ai-context/TOKEN_BUDGET.md";
 export const doNotReadFile = "docs/ai-context/DO_NOT_READ.md";
 

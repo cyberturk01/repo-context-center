@@ -6,6 +6,7 @@ import { doneCommand } from "./commands/done";
 import { estimateCommand } from "./commands/estimate";
 import { findCommand } from "./commands/find";
 import { handoffCommand } from "./commands/handoff";
+import { impactCommand } from "./commands/impact";
 import { initCommand } from "./commands/init";
 import { learnCommand } from "./commands/learn";
 import { logCommand } from "./commands/log";
@@ -35,6 +36,7 @@ const commands: Record<string, CommandHandler> = {
   estimate: estimateCommand,
   find: findCommand,
   handoff: handoffCommand,
+  impact: impactCommand,
   learn: learnCommand,
   log: logCommand,
   map: mapCommand,
@@ -68,19 +70,21 @@ Commands:
                    decision list
                    decision search "<query>"
   doctor    Check local development CLI/version alignment
-  estimate  Estimate context token costs and rough savings
+  estimate  Estimate installed context costs and naive comparisons
             Options: --json, --mode <mode>, --task <text>, --compare-naive, --max-files <number>
   find      Find focused file candidates for a concept or query
             Usage: find "<query>" [--limit <number>]
   handoff   Print a handoff brief for continuing agent work
             Usage: handoff [task] [--json|--agent] [--debug] [--write]
+  impact    Estimate affected files, tests, and commands
+            Usage: impact "<task>" [--json] [--task-only] [--max-files <number>]
   learn     Regenerate repository learning on demand
             Usage: learn [--json] [--write] [--debug]
   log       Add a durable entry to docs/ai-context/CHANGE_LOG.md
             Usage: log "<summary>" [--files <path,path>] [--dry-run]
   map       Generate repo-specific context maps
             Options: --write, --check, --json, --dry-run, --max-files <number>, --repo <path>
-  measure   Estimate RCC token savings for a task
+  measure   Task-first route-vs-naive token estimate
             Usage: rcc measure "<task>"
                    rcc measure "<task>" --json
   scan      Suggest lightweight context entries from repo layout

@@ -2322,4 +2322,1624 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-24T19:29:51.032Z
+- Summary: Clarified RCC local/global CLI alignment and doctor local install path
+- Changed files: `AGENTS.md`, `README.md`, `src/cli/commands/doctor.ts`, `tests/cli.test.js`
+- Verification: npm run build; node --test tests/cli.test.js; node dist/cli/index.js doctor; git diff --check; npm link failed with EACCES on /usr/local/lib/node_modules/repo-context-center
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Clarified RCC local/global CLI alignment and doctor local install path",
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "src/cli/commands/doctor.ts",
+    "tests/cli.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/cli.test.js; node dist/cli/index.js doctor; git diff --check; npm link failed with EACCES on /usr/local/lib/node_modules/repo-context-center"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T19:29:51.032Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T19:29:51.032Z",
+  "summary": "Clarified RCC local/global CLI alignment and doctor local install path",
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "src/cli/commands/doctor.ts",
+    "tests/cli.test.js"
+  ],
+  "verification": "npm run build; node --test tests/cli.test.js; node dist/cli/index.js doctor; git diff --check; npm link failed with EACCES on /usr/local/lib/node_modules/repo-context-center",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T20:23:22.729Z
+- Summary: Implemented RCC v0.11 impact analysis MVP with task/change heuristics, JSON output, suggested commands, and tests.
+- Changed files: `src/cli/commands/impact.ts`, `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactOptions.ts`, `src/cli/impact/impactTypes.ts`, `src/cli/impact/renderImpact.ts`, `src/cli/index.ts`, `tests/cli.test.js`, `tests/impact.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented RCC v0.11 impact analysis MVP with task/change heuristics, JSON output, suggested commands, and tests.",
+  "files": [
+    "src/cli/commands/impact.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactOptions.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T20:23:22.729Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T20:23:22.729Z",
+  "summary": "Implemented RCC v0.11 impact analysis MVP with task/change heuristics, JSON output, suggested commands, and tests.",
+  "files": [
+    "src/cli/commands/impact.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactOptions.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T20:28:39.914Z
+- Summary: Added fixture-based impact quality matrix covering focused source, docs-only, package, and changed-test cases; filtered RCC scaffolding from inferred affected files.
+- Changed files: `src/cli/commands/impact.ts`, `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactOptions.ts`, `src/cli/impact/impactTypes.ts`, `src/cli/impact/renderImpact.ts`, `src/cli/index.ts`, `tests/cli.test.js`, `tests/fixtures/impact-cases.json`, `tests/helpers/impactEvaluation.js`, `tests/impact.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added fixture-based impact quality matrix covering focused source, docs-only, package, and changed-test cases; filtered RCC scaffolding from inferred affected files.",
+  "files": [
+    "src/cli/commands/impact.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactOptions.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js",
+    "tests/fixtures/impact-cases.json",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js",
+    "tests/impactQuality.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T20:28:39.914Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T20:28:39.914Z",
+  "summary": "Added fixture-based impact quality matrix covering focused source, docs-only, package, and changed-test cases; filtered RCC scaffolding from inferred affected files.",
+  "files": [
+    "src/cli/commands/impact.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactOptions.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js",
+    "tests/fixtures/impact-cases.json",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js",
+    "tests/impactQuality.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T20:32:09.883Z
+- Summary: Prepared impact suggestedCommands for v0.12 verification intelligence with structured type, scope, and confidence metadata plus regression guards.
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactTypes.ts`, `tests/helpers/impactEvaluation.js`, `tests/impact.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Prepared impact suggestedCommands for v0.12 verification intelligence with structured type, scope, and confidence metadata plus regression guards.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T20:32:09.883Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T20:32:09.883Z",
+  "summary": "Prepared impact suggestedCommands for v0.12 verification intelligence with structured type, scope, and confidence metadata plus regression guards.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T20:39:30.678Z
+- Summary: Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage.
+- Changed files: `src/cli/impact/buildImpact.ts`, `tests/helpers/impactEvaluation.js`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T20:39:30.678Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T20:39:30.678Z",
+  "summary": "Filtered weak semantic route candidates out of rcc impact affectedFiles and added report output contract regression coverage.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T20:45:08.403Z
+- Summary: Hardened impact suggestions for docs-only changes by suppressing npm test fallback and adding docs-only guidance note.
+- Changed files: `src/cli/impact/buildImpact.ts`, `tests/fixtures/impact-cases.json`, `tests/helpers/impactEvaluation.js`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Hardened impact suggestions for docs-only changes by suppressing npm test fallback and adding docs-only guidance note.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/fixtures/impact-cases.json",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T20:45:08.403Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T20:45:08.403Z",
+  "summary": "Hardened impact suggestions for docs-only changes by suppressing npm test fallback and adding docs-only guidance note.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/fixtures/impact-cases.json",
+    "tests/helpers/impactEvaluation.js",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T20:50:09.659Z
+- Summary: Updated README and CHANGE_LOG for the latest six RCC changes, including impact analysis, quality matrix, command metadata, test hardening, docs-only behavior, and current workflow guidance.
+- Changed files: `README.md`
+- Verification: node dist/cli/index.js impact "update README wording" --json; npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated README and CHANGE_LOG for the latest six RCC changes, including impact analysis, quality matrix, command metadata, test hardening, docs-only behavior, and current workflow guidance.",
+  "files": [
+    "README.md"
+  ],
+  "verification": [
+    "node dist/cli/index.js impact \"update README wording\" --json; npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T20:50:09.659Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T20:50:09.659Z",
+  "summary": "Updated README and CHANGE_LOG for the latest six RCC changes, including impact analysis, quality matrix, command metadata, test hardening, docs-only behavior, and current workflow guidance.",
+  "files": [
+    "README.md"
+  ],
+  "verification": "node dist/cli/index.js impact \"update README wording\" --json; npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T21:12:34.180Z
+- Summary: Hardened impact focused test suggestions and README docs-only dominance
+- Changed files: `src/cli/impact/buildImpact.ts`, `tests/fixtures/impact-cases.json`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Hardened impact focused test suggestions and README docs-only dominance",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/fixtures/impact-cases.json"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T21:12:34.180Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T21:12:34.180Z",
+  "summary": "Hardened impact focused test suggestions and README docs-only dominance",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/fixtures/impact-cases.json"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T21:22:53.153Z
+- Summary: Fixed impact paths to resolve against analyzed Git repo root
+- Changed files: `src/cli/impact/buildImpact.ts`, `tests/impact.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed impact paths to resolve against analyzed Git repo root",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T21:22:53.153Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T21:22:53.153Z",
+  "summary": "Fixed impact paths to resolve against analyzed Git repo root",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-24T21:34:37.541Z
+- Summary: Fixed impact path normalization for cross-repo local dist execution
+- Changed files: `src/cli/impact/buildImpact.ts`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check; manual ai-project-guardian impact JSON check
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed impact path normalization for cross-repo local dist execution",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check; manual ai-project-guardian impact JSON check"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-24T21:34:37.541Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-24T21:34:37.541Z",
+  "summary": "Fixed impact path normalization for cross-repo local dist execution",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js tests/impactQuality.test.js; npm test; npm run release:check; manual ai-project-guardian impact JSON check",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-25T16:06:45.278Z
+- Summary: Implemented auto scan profiles, eligible-file filtering, priority-based scan selection, max-files overrides, scan config defaults, and scan metrics output for init/map.
+- Changed files: `src/cli/commands/init.ts`, `src/cli/commands/map.ts`, `src/core/config.ts`, `src/core/repoMapper.ts`, `tests/init.test.js`, `tests/map.test.js`
+- Verification: npm run build; node --test tests/map.test.js; node --test tests/init.test.js; node --test tests/repoFileClassifier.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented auto scan profiles, eligible-file filtering, priority-based scan selection, max-files overrides, scan config defaults, and scan metrics output for init/map.",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/map.ts",
+    "src/core/config.ts",
+    "src/core/repoMapper.ts",
+    "tests/init.test.js",
+    "tests/map.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/map.test.js; node --test tests/init.test.js; node --test tests/repoFileClassifier.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T16:06:45.278Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T16:06:45.278Z",
+  "summary": "Implemented auto scan profiles, eligible-file filtering, priority-based scan selection, max-files overrides, scan config defaults, and scan metrics output for init/map.",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/map.ts",
+    "src/core/config.ts",
+    "src/core/repoMapper.ts",
+    "tests/init.test.js",
+    "tests/map.test.js"
+  ],
+  "verification": "npm run build; node --test tests/map.test.js; node --test tests/init.test.js; node --test tests/repoFileClassifier.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-25T16:14:50.777Z
+- Summary: Clarified measure vs estimate usage, added helpful measure --compare-naive error, updated generated workflow guidance and README, and covered the distinction in tests.
+- Changed files: `AGENTS.md`, `README.md`, `src/cli/commands/measure.ts`, `src/cli/index.ts`, `src/core/templateInstaller.ts`, `src/templates/generic/AGENTS.md`, `tests/agent-startup-adoption.test.js`, `tests/cli.test.js`, `tests/estimate.test.js`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/estimate.test.js; node --test tests/templates.test.js; node --test tests/init.test.js; node --test tests/cli.test.js; node --test tests/agent-startup-adoption.test.js; node --test tests/map.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Clarified measure vs estimate usage, added helpful measure --compare-naive error, updated generated workflow guidance and README, and covered the distinction in tests.",
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "src/cli/commands/measure.ts",
+    "src/cli/index.ts",
+    "src/core/templateInstaller.ts",
+    "src/templates/generic/AGENTS.md",
+    "tests/agent-startup-adoption.test.js",
+    "tests/cli.test.js",
+    "tests/estimate.test.js",
+    "tests/init.test.js",
+    "tests/map.test.js",
+    "tests/templates.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/estimate.test.js; node --test tests/templates.test.js; node --test tests/init.test.js; node --test tests/cli.test.js; node --test tests/agent-startup-adoption.test.js; node --test tests/map.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T16:14:50.777Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T16:14:50.777Z",
+  "summary": "Clarified measure vs estimate usage, added helpful measure --compare-naive error, updated generated workflow guidance and README, and covered the distinction in tests.",
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "src/cli/commands/measure.ts",
+    "src/cli/index.ts",
+    "src/core/templateInstaller.ts",
+    "src/templates/generic/AGENTS.md",
+    "tests/agent-startup-adoption.test.js",
+    "tests/cli.test.js",
+    "tests/estimate.test.js",
+    "tests/init.test.js",
+    "tests/map.test.js",
+    "tests/templates.test.js"
+  ],
+  "verification": "npm run build; node --test tests/estimate.test.js; node --test tests/templates.test.js; node --test tests/init.test.js; node --test tests/cli.test.js; node --test tests/agent-startup-adoption.test.js; node --test tests/map.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-25T16:19:55.928Z
+- Summary: Hardened rcc measure naive source-scan estimates with generated/cache/debug/binary exclusions, DO_NOT_READ-derived exclusions, counted/excluded file reporting, excluded examples, and huge-estimate warning.
+- Changed files: `src/cli/commands/measure.ts`, `src/core/tokenEstimator.ts`, `tests/estimate.test.js`
+- Verification: npm run build; node --test tests/estimate.test.js; node --test tests/commandArchitecture.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Hardened rcc measure naive source-scan estimates with generated/cache/debug/binary exclusions, DO_NOT_READ-derived exclusions, counted/excluded file reporting, excluded examples, and huge-estimate warning.",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/core/tokenEstimator.ts",
+    "tests/estimate.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/estimate.test.js; node --test tests/commandArchitecture.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T16:19:55.928Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T16:19:55.928Z",
+  "summary": "Hardened rcc measure naive source-scan estimates with generated/cache/debug/binary exclusions, DO_NOT_READ-derived exclusions, counted/excluded file reporting, excluded examples, and huge-estimate warning.",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/core/tokenEstimator.ts",
+    "tests/estimate.test.js"
+  ],
+  "verification": "npm run build; node --test tests/estimate.test.js; node --test tests/commandArchitecture.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-25T16:28:00.687Z
+- Summary: Implemented safe AI instruction handling with dedicated docs/ai-context/RCC_WORKFLOW.md, minimal AGENTS pointer policy, non-RCC AI file detection notices, and --update-agent-file override for AGENTS only.
+- Changed files: `src/cli/commands/init.ts`, `src/cli/commands/measure.ts`, `src/core/repoMapper.ts`, `src/core/templateInstaller.ts`, `src/core/tokenEstimator.ts`, `src/templates/generic/AGENTS.md`, `src/templates/generic/docs/ai-context/RCC_WORKFLOW.md`, `src/templates/generic/index.ts`, `tests/agent-startup-adoption.test.js`, `tests/estimate.test.js`
+- Verification: npm run build; node --test tests/init.test.js tests/templates.test.js; node --test tests/map.test.js; node --test tests/agent-startup-adoption.test.js tests/v07-release.test.js tests/packageMetadata.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented safe AI instruction handling with dedicated docs/ai-context/RCC_WORKFLOW.md, minimal AGENTS pointer policy, non-RCC AI file detection notices, and --update-agent-file override for AGENTS only.",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/measure.ts",
+    "src/core/repoMapper.ts",
+    "src/core/templateInstaller.ts",
+    "src/core/tokenEstimator.ts",
+    "src/templates/generic/AGENTS.md",
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "src/templates/generic/index.ts",
+    "tests/agent-startup-adoption.test.js",
+    "tests/estimate.test.js",
+    "tests/init.test.js",
+    "tests/map.test.js",
+    "tests/packageMetadata.test.js",
+    "tests/templates.test.js",
+    "tests/v07-release.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/init.test.js tests/templates.test.js; node --test tests/map.test.js; node --test tests/agent-startup-adoption.test.js tests/v07-release.test.js tests/packageMetadata.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T16:28:00.687Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T16:28:00.687Z",
+  "summary": "Implemented safe AI instruction handling with dedicated docs/ai-context/RCC_WORKFLOW.md, minimal AGENTS pointer policy, non-RCC AI file detection notices, and --update-agent-file override for AGENTS only.",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/measure.ts",
+    "src/core/repoMapper.ts",
+    "src/core/templateInstaller.ts",
+    "src/core/tokenEstimator.ts",
+    "src/templates/generic/AGENTS.md",
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "src/templates/generic/index.ts",
+    "tests/agent-startup-adoption.test.js",
+    "tests/estimate.test.js",
+    "tests/init.test.js",
+    "tests/map.test.js",
+    "tests/packageMetadata.test.js",
+    "tests/templates.test.js",
+    "tests/v07-release.test.js"
+  ],
+  "verification": "npm run build; node --test tests/init.test.js tests/templates.test.js; node --test tests/map.test.js; node --test tests/agent-startup-adoption.test.js tests/v07-release.test.js tests/packageMetadata.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-25T16:31:56.851Z
+- Summary: Updated RCC workflow guidance to require a three-command retry chain before fallback and added strict bounded fallback rules for minimal context/file reading.
+- Changed files: `src/templates/generic/docs/ai-context/RCC_WORKFLOW.md`, `tests/agent-startup-adoption.test.js`, `tests/init.test.js`, `tests/templates.test.js`, `tests/v07-release.test.js`
+- Verification: npm run build; node --test tests/templates.test.js; node --test tests/init.test.js; node --test tests/agent-startup-adoption.test.js tests/v07-release.test.js tests/map.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated RCC workflow guidance to require a three-command retry chain before fallback and added strict bounded fallback rules for minimal context/file reading.",
+  "files": [
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "tests/agent-startup-adoption.test.js",
+    "tests/init.test.js",
+    "tests/templates.test.js",
+    "tests/v07-release.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/templates.test.js; node --test tests/init.test.js; node --test tests/agent-startup-adoption.test.js tests/v07-release.test.js tests/map.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T16:31:56.851Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T16:31:56.851Z",
+  "summary": "Updated RCC workflow guidance to require a three-command retry chain before fallback and added strict bounded fallback rules for minimal context/file reading.",
+  "files": [
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "tests/agent-startup-adoption.test.js",
+    "tests/init.test.js",
+    "tests/templates.test.js",
+    "tests/v07-release.test.js"
+  ],
+  "verification": "npm run build; node --test tests/templates.test.js; node --test tests/init.test.js; node --test tests/agent-startup-adoption.test.js tests/v07-release.test.js tests/map.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-25T22:40:18.641Z
+- Summary: Fixed validate to accept minimal AGENTS.md pointer when docs/ai-context/RCC_WORKFLOW.md contains DO_NOT_READ guidance, preserving warnings for custom AGENTS files without the pointer.
+- Changed files: `src/core/contextFiles.ts`, `src/core/validator.ts`
+- Verification: npm run build; node --test tests/validate.test.js; node --test tests/init.test.js; node --test tests/templates.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed validate to accept minimal AGENTS.md pointer when docs/ai-context/RCC_WORKFLOW.md contains DO_NOT_READ guidance, preserving warnings for custom AGENTS files without the pointer.",
+  "files": [
+    "src/core/contextFiles.ts",
+    "src/core/validator.ts"
+  ],
+  "verification": [
+    "npm run build; node --test tests/validate.test.js; node --test tests/init.test.js; node --test tests/templates.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T22:40:18.641Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T22:40:18.641Z",
+  "summary": "Fixed validate to accept minimal AGENTS.md pointer when docs/ai-context/RCC_WORKFLOW.md contains DO_NOT_READ guidance, preserving warnings for custom AGENTS files without the pointer.",
+  "files": [
+    "src/core/contextFiles.ts",
+    "src/core/validator.ts"
+  ],
+  "verification": "npm run build; node --test tests/validate.test.js; node --test tests/init.test.js; node --test tests/templates.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-25T22:47:25.776Z
+- Summary: Fixed AGENTS.md RCC workflow marker detection so init updates marked blocks instead of treating them as markerless, and added regressions for exact markers, old full workflow markers, preserved user content, and markerless files.
+- Changed files: `AGENTS.md`, `src/core/templateInstaller.ts`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/init.test.js tests/templates.test.js; node dist/cli/index.js init --dry-run --max-files 1
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed AGENTS.md RCC workflow marker detection so init updates marked blocks instead of treating them as markerless, and added regressions for exact markers, old full workflow markers, preserved user content, and markerless files.",
+  "files": [
+    "AGENTS.md",
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/init.test.js tests/templates.test.js; node dist/cli/index.js init --dry-run --max-files 1"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T22:47:25.776Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T22:47:25.776Z",
+  "summary": "Fixed AGENTS.md RCC workflow marker detection so init updates marked blocks instead of treating them as markerless, and added regressions for exact markers, old full workflow markers, preserved user content, and markerless files.",
+  "files": [
+    "AGENTS.md",
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": "npm run build; node --test tests/init.test.js tests/templates.test.js; node dist/cli/index.js init --dry-run --max-files 1",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-25T22:54:13.002Z
+- Summary: Enhanced rcc doctor to inspect active CLI capabilities, probe shell rcc/repo-context-center commands, detect stale binaries and same-version work --agent capability mismatches, suppress false alignment messages, and print reinstall/cache/path suggestions.
+- Changed files: `AGENTS.md`, `src/cli/commands/doctor.ts`, `src/core/templateInstaller.ts`, `tests/cli.test.js`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/cli.test.js; node dist/cli/index.js doctor
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Enhanced rcc doctor to inspect active CLI capabilities, probe shell rcc/repo-context-center commands, detect stale binaries and same-version work --agent capability mismatches, suppress false alignment messages, and print reinstall/cache/path suggestions.",
+  "files": [
+    "AGENTS.md",
+    "src/cli/commands/doctor.ts",
+    "src/core/templateInstaller.ts",
+    "tests/cli.test.js",
+    "tests/init.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/cli.test.js; node dist/cli/index.js doctor"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-25T22:54:13.002Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-25T22:54:13.002Z",
+  "summary": "Enhanced rcc doctor to inspect active CLI capabilities, probe shell rcc/repo-context-center commands, detect stale binaries and same-version work --agent capability mismatches, suppress false alignment messages, and print reinstall/cache/path suggestions.",
+  "files": [
+    "AGENTS.md",
+    "src/cli/commands/doctor.ts",
+    "src/core/templateInstaller.ts",
+    "tests/cli.test.js",
+    "tests/init.test.js"
+  ],
+  "verification": "npm run build; node --test tests/cli.test.js; node dist/cli/index.js doctor",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T13:18:23.510Z
+- Summary: Simplified RCC workflow guidance and made validate check fallback guidance through RCC_WORKFLOW pointer
+- Changed files: `src/core/validator.ts`, `src/templates/generic/docs/ai-context/RCC_WORKFLOW.md`, `tests/agent-startup-adoption.test.js`, `tests/init.test.js`, `tests/templates.test.js`, `tests/validate.test.js`
+- Verification: npm run build; node --test tests/templates.test.js tests/validate.test.js tests/init.test.js tests/agent-startup-adoption.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Simplified RCC workflow guidance and made validate check fallback guidance through RCC_WORKFLOW pointer",
+  "files": [
+    "src/core/validator.ts",
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "tests/agent-startup-adoption.test.js",
+    "tests/init.test.js",
+    "tests/templates.test.js",
+    "tests/validate.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/templates.test.js tests/validate.test.js tests/init.test.js tests/agent-startup-adoption.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T13:18:23.510Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T13:18:23.510Z",
+  "summary": "Simplified RCC workflow guidance and made validate check fallback guidance through RCC_WORKFLOW pointer",
+  "files": [
+    "src/core/validator.ts",
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "tests/agent-startup-adoption.test.js",
+    "tests/init.test.js",
+    "tests/templates.test.js",
+    "tests/validate.test.js"
+  ],
+  "verification": "npm run build; node --test tests/templates.test.js tests/validate.test.js tests/init.test.js tests/agent-startup-adoption.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T13:30:57.932Z
+- Summary: Updated remaining map and v0.7 release tests for simplified RCC workflow guidance
+- Changed files: `tests/map.test.js`, `tests/v07-release.test.js`
+- Verification: node --test tests/map.test.js tests/v07-release.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated remaining map and v0.7 release tests for simplified RCC workflow guidance",
+  "files": [
+    "tests/map.test.js",
+    "tests/v07-release.test.js"
+  ],
+  "verification": [
+    "node --test tests/map.test.js tests/v07-release.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T13:30:57.932Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T13:30:57.932Z",
+  "summary": "Updated remaining map and v0.7 release tests for simplified RCC workflow guidance",
+  "files": [
+    "tests/map.test.js",
+    "tests/v07-release.test.js"
+  ],
+  "verification": "node --test tests/map.test.js tests/v07-release.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T13:50:46.219Z
+- Summary: Guarded init --update-agent-file so only AGENTS.md is writable and added external AI file regression coverage
+- Changed files: `src/core/templateInstaller.ts`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/init.test.js tests/templates.test.js tests/validate.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Guarded init --update-agent-file so only AGENTS.md is writable and added external AI file regression coverage",
+  "files": [
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/init.test.js tests/templates.test.js tests/validate.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T13:50:46.219Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T13:50:46.219Z",
+  "summary": "Guarded init --update-agent-file so only AGENTS.md is writable and added external AI file regression coverage",
+  "files": [
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": "npm run build; node --test tests/init.test.js tests/templates.test.js tests/validate.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T14:00:27.409Z
+- Summary: Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage
+- Changed files: `src/core/templateInstaller.ts`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/init.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage",
+  "files": [
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/init.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T14:00:27.409Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T14:00:27.409Z",
+  "summary": "Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage",
+  "files": [
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js"
+  ],
+  "verification": "npm run build; node --test tests/init.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T14:27:37.737Z
+- Summary: Added Impact contextChanges support and separated RCC/setup paths from affected files
+- Changed files: `README.md`, `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactTypes.ts`, `src/cli/impact/renderImpact.ts`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js; node --test tests/impactQuality.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added Impact contextChanges support and separated RCC/setup paths from affected files",
+  "files": [
+    "README.md",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js; node --test tests/impactQuality.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T14:27:37.737Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T14:27:37.737Z",
+  "summary": "Added Impact contextChanges support and separated RCC/setup paths from affected files",
+  "files": [
+    "README.md",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js; node --test tests/impactQuality.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T14:34:22.487Z
+- Summary: Ignored generic action words in Impact task parsing while preserving technical terms
+- Changed files: `src/core/suggester.ts`, `src/core/taskIntent.ts`, `tests/impact.test.js`, `tests/taskIntent.test.js`
+- Verification: npm run build; node --test tests/taskIntent.test.js; node --test tests/impact.test.js; node --test tests/impactQuality.test.js; npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Ignored generic action words in Impact task parsing while preserving technical terms",
+  "files": [
+    "src/core/suggester.ts",
+    "src/core/taskIntent.ts",
+    "tests/impact.test.js",
+    "tests/taskIntent.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/taskIntent.test.js; node --test tests/impact.test.js; node --test tests/impactQuality.test.js; npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T14:34:22.487Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T14:34:22.487Z",
+  "summary": "Ignored generic action words in Impact task parsing while preserving technical terms",
+  "files": [
+    "src/core/suggester.ts",
+    "src/core/taskIntent.ts",
+    "tests/impact.test.js",
+    "tests/taskIntent.test.js"
+  ],
+  "verification": "npm run build; node --test tests/taskIntent.test.js; node --test tests/impact.test.js; node --test tests/impactQuality.test.js; npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T14:41:53.446Z
+- Summary: Added confidence-based affected test scoring to Impact analysis
+- Changed files: `README.md`, `src/cli/impact/buildImpact.ts`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js; node --test tests/impactQuality.test.js; node --test tests/commandArchitecture.test.js; npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added confidence-based affected test scoring to Impact analysis",
+  "files": [
+    "README.md",
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js; node --test tests/impactQuality.test.js; node --test tests/commandArchitecture.test.js; npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T14:41:53.446Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T14:41:53.446Z",
+  "summary": "Added confidence-based affected test scoring to Impact analysis",
+  "files": [
+    "README.md",
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js; node --test tests/impactQuality.test.js; node --test tests/commandArchitecture.test.js; npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T14:48:08.490Z
+- Summary: Fixed suggested command path spacing for concatenated test paths
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/core/repoMapper.ts`, `tests/impact.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed suggested command path spacing for concatenated test paths",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/core/repoMapper.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T14:48:08.490Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T14:48:08.490Z",
+  "summary": "Fixed suggested command path spacing for concatenated test paths",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/core/repoMapper.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T14:54:38.514Z
+- Summary: Improved Measure excluded-file reporting with separate ignored, unsupported, and scan-cap buckets
+- Changed files: `src/cli/commands/measure.ts`, `src/core/tokenEstimator.ts`, `tests/estimate.test.js`
+- Verification: npm run build; node --test tests/estimate.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Improved Measure excluded-file reporting with separate ignored, unsupported, and scan-cap buckets",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/core/tokenEstimator.ts",
+    "tests/estimate.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/estimate.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T14:54:38.514Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T14:54:38.514Z",
+  "summary": "Improved Measure excluded-file reporting with separate ignored, unsupported, and scan-cap buckets",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/core/tokenEstimator.ts",
+    "tests/estimate.test.js"
+  ],
+  "verification": "npm run build; node --test tests/estimate.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T14:57:19.467Z
+- Summary: Relaxed weak semantic impact assertion for dirty working-tree files
+- Changed files: `src/cli/commands/measure.ts`, `src/core/tokenEstimator.ts`, `tests/estimate.test.js`, `tests/impact.test.js`
+- Verification: node --test --test-name-pattern "impact filters weak semantic source matches from affected files" tests/impact.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Relaxed weak semantic impact assertion for dirty working-tree files",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/core/tokenEstimator.ts",
+    "tests/estimate.test.js",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "node --test --test-name-pattern \"impact filters weak semantic source matches from affected files\" tests/impact.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T14:57:19.467Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T14:57:19.467Z",
+  "summary": "Relaxed weak semantic impact assertion for dirty working-tree files",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/core/tokenEstimator.ts",
+    "tests/estimate.test.js",
+    "tests/impact.test.js"
+  ],
+  "verification": "node --test --test-name-pattern \"impact filters weak semantic source matches from affected files\" tests/impact.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T15:16:27.051Z
+- Summary: Tightened rcc impact affected test scoring and capped noisy recommendations
+- Changed files: `src/cli/impact/buildImpact.ts`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Tightened rcc impact affected test scoring and capped noisy recommendations",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:16:27.051Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:16:27.051Z",
+  "summary": "Tightened rcc impact affected test scoring and capped noisy recommendations",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T15:18:59.938Z
+- Summary: Added confidence explanation evidence to rcc impact JSON and text output
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactTypes.ts`, `src/cli/impact/renderImpact.ts`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added confidence explanation evidence to rcc impact JSON and text output",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:18:59.938Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:18:59.938Z",
+  "summary": "Added confidence explanation evidence to rcc impact JSON and text output",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T15:21:39.578Z
+- Summary: Clarified measure excluded-path wording in human output
+- Changed files: `src/cli/commands/measure.ts`, `tests/estimate.test.js`
+- Verification: npm run build; node --test tests/estimate.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Clarified measure excluded-path wording in human output",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "tests/estimate.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/estimate.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:21:39.578Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:21:39.578Z",
+  "summary": "Clarified measure excluded-path wording in human output",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "tests/estimate.test.js"
+  ],
+  "verification": "npm run build; node --test tests/estimate.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T15:24:34.581Z
+- Summary: Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy
+- Changed files: `src/cli/commands/doctor.ts`, `src/cli/commands/measure.ts`, `tests/cli.test.js`, `tests/estimate.test.js`
+- Verification: npm run build; node --test tests/cli.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy",
+  "files": [
+    "src/cli/commands/doctor.ts",
+    "src/cli/commands/measure.ts",
+    "tests/cli.test.js",
+    "tests/estimate.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/cli.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:24:34.581Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:24:34.581Z",
+  "summary": "Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy",
+  "files": [
+    "src/cli/commands/doctor.ts",
+    "src/cli/commands/measure.ts",
+    "tests/cli.test.js",
+    "tests/estimate.test.js"
+  ],
+  "verification": "npm run build; node --test tests/cli.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T15:27:13.296Z
+- Summary: Added compact count summary to rcc impact JSON output
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactTypes.ts`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added compact count summary to rcc impact JSON output",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:27:13.296Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:27:13.296Z",
+  "summary": "Added compact count summary to rcc impact JSON output",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T15:28:49.894Z
+- Summary: Added empty verificationHints field to impact analysis model
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactTypes.ts`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added empty verificationHints field to impact analysis model",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:28:49.894Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:28:49.894Z",
+  "summary": "Added empty verificationHints field to impact analysis model",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T15:52:10.986Z
+- Summary: Shared affected-test scoring between impact and work
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/shared/affectedTests.ts`, `src/cli/work/buildWorkBrief.ts`, `src/cli/work/taskFileRecommendations.ts`, `tests/work.test.js`
+- Verification: node --test tests/work.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Shared affected-test scoring between impact and work",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/shared/affectedTests.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "node --test tests/work.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:52:10.986Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:52:10.986Z",
+  "summary": "Shared affected-test scoring between impact and work",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/shared/affectedTests.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "node --test tests/work.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T15:55:07.616Z
+- Summary: Keep work affected-test scoring from broad test discovery
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/shared/affectedTests.ts`, `src/cli/work/buildWorkBrief.ts`, `src/cli/work/taskFileRecommendations.ts`, `tests/work.test.js`
+- Verification: node --test tests/routingRegression.test.js; node --test tests/work.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Keep work affected-test scoring from broad test discovery",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/shared/affectedTests.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "node --test tests/routingRegression.test.js; node --test tests/work.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T15:55:07.616Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T15:55:07.616Z",
+  "summary": "Keep work affected-test scoring from broad test discovery",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/shared/affectedTests.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "node --test tests/routingRegression.test.js; node --test tests/work.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T18:18:26.221Z
+- Summary: Tightened affected-test confidence thresholds
+- Changed files: `src/cli/shared/affectedTests.ts`, `tests/impact.test.js`, `tests/work.test.js`
+- Verification: node --test tests/work.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Tightened affected-test confidence thresholds",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "tests/impact.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "node --test tests/work.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T18:18:26.221Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T18:18:26.221Z",
+  "summary": "Tightened affected-test confidence thresholds",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "tests/impact.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "node --test tests/work.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T18:49:01.511Z
+- Summary: Add structured affected-test metadata to impact JSON
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactTypes.ts`, `tests/impact.test.js`
+- Verification: node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add structured affected-test metadata to impact JSON",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T18:49:01.511Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T18:49:01.511Z",
+  "summary": "Add structured affected-test metadata to impact JSON",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T18:59:15.216Z
+- Summary: Added task-only mode to impact analysis
+- Changed files: `README.md`, `src/cli/commands/impact.ts`, `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactOptions.ts`, `src/cli/impact/impactTypes.ts`, `src/cli/impact/renderImpact.ts`, `src/cli/index.ts`, `tests/impact.test.js`
+- Verification: node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added task-only mode to impact analysis",
+  "files": [
+    "README.md",
+    "src/cli/commands/impact.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactOptions.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "src/cli/index.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T18:59:15.216Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T18:59:15.216Z",
+  "summary": "Added task-only mode to impact analysis",
+  "files": [
+    "README.md",
+    "src/cli/commands/impact.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactOptions.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/impact/renderImpact.ts",
+    "src/cli/index.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-26T22:45:56.450Z
+- Summary: Improved work agent no-test guidance
+- Changed files: `src/cli/work/renderAgent.ts`, `tests/work.test.js`
+- Verification: node --test tests/work.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Improved work agent no-test guidance",
+  "files": [
+    "src/cli/work/renderAgent.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "node --test tests/work.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-26T22:45:56.450Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-26T22:45:56.450Z",
+  "summary": "Improved work agent no-test guidance",
+  "files": [
+    "src/cli/work/renderAgent.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "node --test tests/work.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -8,6 +8,7 @@ import {
   generatedFolderExclusions,
   requiredContextFiles,
   requiredTokenBudgetModes,
+  rccWorkflowFile,
   tokenBudgetFile,
   type RequiredContextFile
 } from "./contextFiles";
@@ -43,6 +44,10 @@ async function readOptionalContextFile(cwd: string, file: RequiredContextFile): 
 
 function includesPhrase(content: string, phrase: string): boolean {
   return content.toLowerCase().includes(phrase.toLowerCase());
+}
+
+function hasPattern(content: string, pattern: RegExp): boolean {
+  return pattern.test(content);
 }
 
 function includesFolderExclusion(content: string, folder: string): boolean {
@@ -112,15 +117,42 @@ async function validateDoNotReadRules(cwd: string): Promise<ValidationIssue[]> {
   }];
 }
 
+function validateFallbackGuidance(content: string, issuePath: string): ValidationIssue[] {
+  const checks: Array<[boolean, string]> = [
+    [includesPhrase(content, "If RCC Is Unavailable") || includesPhrase(content, "If RCC commands are unavailable"), "Missing RCC unavailable fallback section"],
+    [includesPhrase(content, "docs/ai-context/TASK_ROUTING.md"), "Missing TASK_ROUTING.md fallback read"],
+    [includesPhrase(content, doNotReadFile), `Missing ${doNotReadFile} fallback read`],
+    [includesPhrase(content, tokenBudgetFile), "Missing TOKEN_BUDGET.md optional fallback guidance"],
+    [hasPattern(content, /at most one additional context file/i), "Missing one-additional-context-file limit"],
+    [hasPattern(content, /1\s*[-–]\s*3\s+(?:likely\s+)?implementation files/i), "Missing implementation file inspection limit"],
+    [hasPattern(content, /1\s*[-–]\s*2\s+(?:likely\s+)?tests?/i), "Missing test inspection limit"],
+    [hasPattern(content, /do not perform broad repository scans/i), "Missing broad-scan prohibition"]
+  ];
+
+  return checks
+    .filter(([passes]) => !passes)
+    .map(([, message]) => ({ path: issuePath, message }));
+}
+
 async function validateAgentsReferences(cwd: string): Promise<ValidationIssue[]> {
   const content = await readOptionalContextFile(cwd, agentsFile);
-  if (content === undefined || includesPhrase(content, doNotReadFile)) {
+  if (content === undefined) {
+    return [];
+  }
+
+  if (includesPhrase(content, rccWorkflowFile)) {
+    const workflowContent = await readOptionalContextFile(cwd, rccWorkflowFile);
+    return workflowContent === undefined ? [] : validateFallbackGuidance(workflowContent, rccWorkflowFile);
+  }
+
+  const fallbackWarnings = validateFallbackGuidance(content, agentsFile);
+  if (fallbackWarnings.length === 0) {
     return [];
   }
 
   return [{
     path: agentsFile,
-    message: `Does not mention ${doNotReadFile}`
+    message: `Does not mention ${rccWorkflowFile} or complete RCC fallback guidance`
   }];
 }
 

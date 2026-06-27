@@ -7,6 +7,7 @@ export interface TemplateInstallOptions {
   force?: boolean;
   dryRun?: boolean;
   githubAction?: boolean;
+  updateAgentFile?: boolean;
 }
 
 export type TemplateInstallAction = "create" | "overwrite" | "skip" | "update";
@@ -16,28 +17,35 @@ export interface TemplateInstallResult {
   action: TemplateInstallAction;
   type: "file" | "directory";
   preview?: string;
+  message?: string;
 }
 
 const archiveDir = "docs/ai-context/archive";
 export const githubWorkflowPath = ".github/workflows/repo-context-check.yml";
 const agentsPath = "AGENTS.md";
+const rccWorkflowPath = "docs/ai-context/RCC_WORKFLOW.md";
 const workflowStart = "<!-- repo-context-center:workflow:start -->";
 const workflowEnd = "<!-- repo-context-center:workflow:end -->";
+const workflowStartPattern = /<!--\s*repo-context-center:workflow:start\s*-->/;
+const workflowEndPattern = /<!--\s*repo-context-center:workflow:end\s*-->/;
 const generatedStart = "<!-- repo-context-center:generated:start -->";
 const generatedEnd = "<!-- repo-context-center:generated:end -->";
+const agentsPointer = "# Agent Instructions\n\nFor the RCC repository workflow, read docs/ai-context/RCC_WORKFLOW.md before coding tasks.\n";
+const agentsWorkflowPointerBlock = `${workflowStart}
+For the RCC repository workflow, read:
+
+\`docs/ai-context/RCC_WORKFLOW.md\`
+${workflowEnd}`;
+const aiInstructionFiles = [
+  "CLAUDE.md",
+  "GEMINI.md",
+  ".cursor/rules",
+  ".github/copilot-instructions.md",
+  ".windsurf/rules"
+];
+const externalAiInstructionFileSet = new Set(aiInstructionFiles);
 const modernAgentsSignals = [
-  "For coding tasks, first run once at task start:",
-  "`rcc work \"<task>\" --agent`",
-  "Inspect the returned primaryFiles, tests, and supportingFiles before reading or searching broadly.",
-  "Do not repeatedly run `rcc work` for the same task.",
-  "Use `rcc find \"<keyword>\"` only if the route is insufficient.",
-  "Do not ask the human to run RCC commands.",
-  "`rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`",
-  "Read `docs/ai-context/HANDOFF.md` if present.",
-  "Read `docs/ai-context/WORK_INDEX.md` if task/history context is unclear; do not read full `WORK_LOG.md` by default.",
-  "Use `rcc doctor` for local/global RCC confusion.",
-  "Use `rcc measure \"<task>\"` for token-saving estimates.",
-  "If RCC commands are unavailable, read only `docs/ai-context/TASK_ROUTING.md` and `docs/ai-context/TOKEN_BUDGET.md`; check `docs/ai-context/DO_NOT_READ.md` before manual broad scans."
+  "For the RCC repository workflow, read docs/ai-context/RCC_WORKFLOW.md before coding tasks."
 ];
 const legacyAgentsSignals = [
   "repo-context-center:workflow:start",
@@ -87,6 +95,8 @@ const legacyAgentsSupportLines = new Set([
   "- Use `rcc doctor` for local/global RCC confusion.",
   "- Use `doctor` for local/global RCC confusion.",
   "- Use `rcc measure \"<task>\"` for token-saving estimates.",
+  "- For task-first route savings, use `rcc measure \"<task>\"`.",
+  "- For broader context-cost estimates, use `rcc estimate --compare-naive`, `rcc estimate --task \"<task>\"`, or `rcc estimate --json`.",
   "- Use `measure` for token-saving estimates.",
   "- If RCC commands are unavailable, read only `docs/ai-context/TASK_ROUTING.md` and `docs/ai-context/TOKEN_BUDGET.md`; check `docs/ai-context/DO_NOT_READ.md` before manual broad scans.",
   "Keep changes focused. Avoid unnecessary repository scanning.",
@@ -98,6 +108,18 @@ const legacyAgentsSupportLines = new Set([
 
 function getGitHubWorkflowTemplatePath(): string {
   return path.join(__dirname, "..", "templates", "github", "context-check.yml");
+}
+
+function assertRootAgentsPath(cwd: string, targetPath: string): void {
+  const relativePath = path.relative(cwd, targetPath).split(path.sep).join("/");
+  if (relativePath !== agentsPath) {
+    throw new Error(`Refusing to update AI instruction file outside ${agentsPath}: ${relativePath}`);
+  }
+}
+
+async function writeRootAgentsFile(cwd: string, targetPath: string, content: string): Promise<void> {
+  assertRootAgentsPath(cwd, targetPath);
+  await writeTextFile(targetPath, content);
 }
 
 async function installGitHubWorkflow(options: TemplateInstallOptions): Promise<TemplateInstallResult> {
@@ -114,22 +136,28 @@ async function installGitHubWorkflow(options: TemplateInstallOptions): Promise<T
 }
 
 function extractWorkflowSection(content: string): string {
-  const start = content.indexOf(workflowStart);
-  const end = content.indexOf(workflowEnd);
+  const markers = findWorkflowMarkerBlock(content);
 
-  if (start === -1 || end === -1 || end <= start) {
-    return "";
-  }
-
-  return content.slice(start, end + workflowEnd.length).trim();
+  return markers
+    ? content.slice(markers.start, markers.end).trim()
+    : "";
 }
 
-function extractAgentsManagedSupport(content: string): string {
-  const normalized = content.replace(/\r\n/g, "\n");
-  const end = normalized.indexOf(workflowEnd);
-  return (end === -1
-    ? normalized
-    : normalized.slice(end + workflowEnd.length)).trim();
+function findWorkflowMarkerBlock(content: string): { start: number; end: number } | undefined {
+  const startMatch = workflowStartPattern.exec(content);
+  if (!startMatch) {
+    return undefined;
+  }
+
+  workflowEndPattern.lastIndex = 0;
+  const afterStart = content.slice(startMatch.index + startMatch[0].length);
+  const endMatch = workflowEndPattern.exec(afterStart);
+  if (!endMatch) {
+    return undefined;
+  }
+
+  const end = startMatch.index + startMatch[0].length + endMatch.index + endMatch[0].length;
+  return { start: startMatch.index, end };
 }
 
 function stripLegacyWorkflowDuplicateLines(content: string): string {
@@ -163,27 +191,24 @@ function stripLegacyAgentsGeneratedSection(content: string): string {
     .trim();
 }
 
-export function upsertAgentsWorkflowSection(existing: string, templateContent: string): string {
-  const workflowSection = extractWorkflowSection(templateContent);
-  const managedSupport = extractAgentsManagedSupport(templateContent);
+export function upsertAgentsWorkflowSection(existing: string, templateContent = agentsWorkflowPointerBlock): string {
+  const workflowSection = extractWorkflowSection(templateContent) || templateContent.trim();
   const normalizedExisting = stripLegacyAgentsGeneratedSection(existing.replace(/\r\n/g, "\n")).replace(/\n*$/u, "\n");
 
   if (!workflowSection) {
     return normalizedExisting;
   }
 
-  const managedSection = [workflowSection, managedSupport].filter(Boolean).join("\n\n");
-  const start = normalizedExisting.indexOf(workflowStart);
-  const end = normalizedExisting.indexOf(workflowEnd);
+  const markers = findWorkflowMarkerBlock(normalizedExisting);
 
-  if (start !== -1 && end !== -1 && end > start) {
-    const beforeWorkflow = stripLegacyWorkflowDuplicateLines(normalizedExisting.slice(0, start));
-    const afterWorkflow = stripLegacyWorkflowDuplicateLines(normalizedExisting.slice(end + workflowEnd.length));
-    return [beforeWorkflow, managedSection, afterWorkflow].filter(Boolean).join("\n\n").trimEnd() + "\n";
+  if (markers) {
+    const beforeWorkflow = normalizedExisting.slice(0, markers.start).trimEnd();
+    const afterWorkflow = normalizedExisting.slice(markers.end).trimStart();
+    return [beforeWorkflow, workflowSection, afterWorkflow].filter(Boolean).join("\n\n").trimEnd() + "\n";
   }
 
   const cleanedExisting = stripLegacyWorkflowDuplicateLines(normalizedExisting);
-  return [cleanedExisting, managedSection].filter(Boolean).join("\n\n").trimEnd() + "\n";
+  return [cleanedExisting, workflowSection].filter(Boolean).join("\n\n").trimEnd() + "\n";
 }
 
 export function isModernAgentsContent(content: string): boolean {
@@ -206,23 +231,52 @@ async function installAgentsTemplate(
 
   if (!exists) {
     if (!options.dryRun) {
-      await writeTextFile(targetPath, templateContent);
+      await writeRootAgentsFile(options.cwd, targetPath, agentsPointer);
     }
 
-    const preview = options.dryRun ? templateContent : undefined;
+    const preview = options.dryRun ? agentsPointer : undefined;
     return { path: agentsPath, action: "create", type: "file", preview };
   }
 
   const existing = await readTextFile(targetPath);
-  const nextContent = upsertAgentsWorkflowSection(existing, templateContent);
+  const hasMarker = findWorkflowMarkerBlock(existing.replace(/\r\n/g, "\n")) !== undefined;
+  if (!hasMarker && !options.updateAgentFile) {
+    return {
+      path: agentsPath,
+      action: "skip",
+      type: "file",
+      message: `Detected AGENTS.md. RCC did not modify it. RCC workflow was generated at ${rccWorkflowPath}.`
+    };
+  }
+
+  const nextContent = hasMarker
+    ? upsertAgentsWorkflowSection(existing, agentsWorkflowPointerBlock)
+    : [existing.replace(/\s*$/u, ""), agentsWorkflowPointerBlock].filter(Boolean).join("\n\n") + "\n";
   const action: TemplateInstallAction = nextContent === existing ? "skip" : "update";
 
   if (!options.dryRun && action === "update") {
-    await writeTextFile(targetPath, nextContent);
+    await writeRootAgentsFile(options.cwd, targetPath, nextContent);
   }
 
   const preview = options.dryRun && action === "update" ? nextContent : undefined;
   return { path: agentsPath, action, type: "file", preview };
+}
+
+async function detectExternalAiInstructionFiles(options: TemplateInstallOptions): Promise<TemplateInstallResult[]> {
+  const results: TemplateInstallResult[] = [];
+
+  for (const filePath of aiInstructionFiles) {
+    if (await pathExists(path.join(options.cwd, filePath))) {
+      results.push({
+        path: filePath,
+        action: "skip",
+        type: "file",
+        message: `Detected ${filePath}. RCC did not modify it. RCC workflow was generated at ${rccWorkflowPath}.`
+      });
+    }
+  }
+
+  return results;
 }
 
 export async function installGenericTemplates(
@@ -230,10 +284,14 @@ export async function installGenericTemplates(
 ): Promise<TemplateInstallResult[]> {
   const results: TemplateInstallResult[] = [];
   const templates = await readGenericTemplates();
+  const agentsTemplate = templates.find((template) => template.path === agentsPath);
 
   for (const template of templates) {
     if (template.path === agentsPath) {
-      results.push(await installAgentsTemplate(options, template.content));
+      continue;
+    }
+
+    if (externalAiInstructionFileSet.has(template.path)) {
       continue;
     }
 
@@ -247,6 +305,11 @@ export async function installGenericTemplates(
 
     results.push({ path: template.path, action, type: "file" });
   }
+
+  if (agentsTemplate) {
+    results.unshift(await installAgentsTemplate(options, agentsTemplate.content));
+  }
+  results.push(...await detectExternalAiInstructionFiles(options));
 
   const archivePath = path.join(options.cwd, archiveDir);
   const archiveExists = await pathExists(archivePath);

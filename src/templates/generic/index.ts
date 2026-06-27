@@ -3,6 +3,7 @@ import path from "node:path";
 
 export const genericTemplateFiles = [
   "AGENTS.md",
+  "docs/ai-context/RCC_WORKFLOW.md",
   "docs/ai-context/COMMUNICATION_MODE.md",
   "docs/ai-context/TASK_ROUTING.md",
   "docs/ai-context/MODULE_INDEX.md",

@@ -46,6 +46,14 @@ export interface TokenEstimateReport {
   includedContextFiles: FileTokenEstimate[];
   naiveScanTokens?: number;
   naiveScanFiles?: number;
+  naiveScanExcludedFiles?: number;
+  naiveScanExcludedExamples?: string[];
+  naiveScanIgnoredFiles?: number;
+  naiveScanIgnoredExamples?: string[];
+  naiveScanUnsupportedFiles?: number;
+  naiveScanUnsupportedExamples?: string[];
+  naiveScanSkippedByCap?: number;
+  naiveScanCapExamples?: string[];
   naiveScanCapped?: boolean;
   maxFiles: number;
   estimatedSavedTokens?: number;
@@ -106,16 +114,43 @@ const sourceExtensions = new Set([
 
 const naiveGeneratedExclusions = [
   "node_modules",
+  ".git",
   "dist",
   "build",
   "coverage",
+  ".cache",
   ".next",
+  ".nuxt",
   "generated",
   "out",
+  "tmp",
+  "logs",
+  "debug-logs",
+  ".repo-context-center",
+  ".turbo",
+  ".pnpm-store",
+  ".yarn/cache",
   "target",
   "vendor",
   "docs/ai-context/archive"
 ];
+
+const naiveBinaryExtensions = new Set([
+  ".7z",
+  ".dll",
+  ".dylib",
+  ".exe",
+  ".gif",
+  ".gz",
+  ".jpeg",
+  ".jpg",
+  ".pdf",
+  ".png",
+  ".so",
+  ".tar",
+  ".webp",
+  ".zip"
+]);
 
 const naiveLockFileNames = new Set([
   "bun.lockb",
@@ -215,14 +250,18 @@ async function readExcludedPaths(cwd: string): Promise<string[]> {
   return uniqueSorted([...defaults, ...parseDoNotReadPaths(content)]);
 }
 
-function isExcluded(relativePath: string, excludedPaths: string[]): boolean {
+function matchingExcludedPath(relativePath: string, excludedPaths: string[]): string | undefined {
   const normalized = relativePath.replace(/\\/g, "/").replace(/\/$/, "");
   const parts = normalized.split("/");
 
-  return excludedPaths.some((excludedPath) => {
+  return excludedPaths.find((excludedPath) => {
     const excluded = excludedPath.replace(/\\/g, "/").replace(/\/$/, "");
     return normalized === excluded || normalized.startsWith(`${excluded}/`) || parts.includes(excluded);
   });
+}
+
+function isExcluded(relativePath: string, excludedPaths: string[]): boolean {
+  return matchingExcludedPath(relativePath, excludedPaths) !== undefined;
 }
 
 function isSourceOrDocFile(filePath: string): boolean {
@@ -247,13 +286,113 @@ function isNaiveScanReadableFile(filePath: string): boolean {
     && info.role !== "asset";
 }
 
-function isNaiveScanExcludedPath(filePath: string, excludedPaths: string[]): boolean {
-  if (isExcluded(filePath, excludedPaths)) {
-    return true;
+type NaiveSkipCategory = "ignored" | "unsupported" | "cap";
+
+interface NaiveSkipReason {
+  category: NaiveSkipCategory;
+  reason: string;
+}
+
+function naiveSkipReason(filePath: string, excludedPaths: string[]): NaiveSkipReason | undefined {
+  const excludedPath = matchingExcludedPath(filePath, excludedPaths);
+  if (excludedPath) {
+    return { category: "ignored", reason: excludedPath };
   }
 
+  const normalized = filePath.replace(/\\/g, "/");
+  const basename = path.posix.basename(normalized).toLowerCase();
+  const extension = path.extname(basename).toLowerCase();
+  if (naiveBinaryExtensions.has(extension)) {
+    return { category: "unsupported", reason: extension };
+  }
+  if (naiveLockFileNames.has(basename)) {
+    return { category: "unsupported", reason: basename };
+  }
   const role = classifyRepoFile(filePath).role;
-  return role === "generated" || role === "fixture" || role === "snapshot" || role === "asset";
+  if (role === "generated" || role === "fixture" || role === "snapshot") {
+    return { category: "ignored", reason: role };
+  }
+  if (role === "asset") {
+    return { category: "unsupported", reason: role };
+  }
+
+  return undefined;
+}
+
+interface NaiveScanStats {
+  excludedFiles: number;
+  exclusionCounts: Map<string, number>;
+  ignoredFiles: number;
+  ignoredCounts: Map<string, number>;
+  unsupportedFiles: number;
+  unsupportedCounts: Map<string, number>;
+  skippedByCap: number;
+  capCounts: Map<string, number>;
+}
+
+function addCount(counts: Map<string, number>, reason: string, fileCount: number): void {
+  counts.set(reason, (counts.get(reason) ?? 0) + fileCount);
+}
+
+function addExclusion(stats: NaiveScanStats, skip: NaiveSkipReason, fileCount: number): void {
+  if (fileCount <= 0) {
+    return;
+  }
+
+  stats.excludedFiles += fileCount;
+  addCount(stats.exclusionCounts, skip.reason, fileCount);
+
+  if (skip.category === "ignored") {
+    stats.ignoredFiles += fileCount;
+    addCount(stats.ignoredCounts, skip.reason, fileCount);
+  } else if (skip.category === "unsupported") {
+    stats.unsupportedFiles += fileCount;
+    addCount(stats.unsupportedCounts, skip.reason, fileCount);
+  } else {
+    stats.skippedByCap += fileCount;
+    addCount(stats.capCounts, skip.reason, fileCount);
+  }
+}
+
+async function countFilesRecursive(cwd: string, dir: string): Promise<number> {
+  let entries;
+  try {
+    entries = await readdir(path.join(cwd, dir), { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+
+  let count = 0;
+  for (const entry of entries) {
+    const relativePath = dir ? `${dir}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      count += await countFilesRecursive(cwd, relativePath);
+    } else if (entry.isFile()) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+function topExamples(counts: Map<string, number>): string[] {
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 8)
+    .map(([reason]) => reason);
+}
+
+function emptyNaiveScanStats(): NaiveScanStats {
+  return {
+    excludedFiles: 0,
+    exclusionCounts: new Map(),
+    ignoredFiles: 0,
+    ignoredCounts: new Map(),
+    unsupportedFiles: 0,
+    unsupportedCounts: new Map(),
+    skippedByCap: 0,
+    capCounts: new Map()
+  };
 }
 
 async function collectNaiveFiles(
@@ -261,7 +400,8 @@ async function collectNaiveFiles(
   dir: string,
   excludedPaths: string[],
   maxFiles: number,
-  files: string[]
+  files: string[],
+  stats: NaiveScanStats
 ): Promise<void> {
   if (files.length >= maxFiles) {
     return;
@@ -276,20 +416,34 @@ async function collectNaiveFiles(
 
   entries.sort((left, right) => left.name.localeCompare(right.name));
 
-  for (const entry of entries) {
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    const relativePath = dir ? `${dir}/${entry.name}` : entry.name;
+
     if (files.length >= maxFiles) {
+      for (const remainingEntry of entries.slice(index)) {
+        const remainingPath = dir ? `${dir}/${remainingEntry.name}` : remainingEntry.name;
+        addExclusion(stats, { category: "cap", reason: remainingPath }, remainingEntry.isDirectory()
+          ? await countFilesRecursive(cwd, remainingPath)
+          : remainingEntry.isFile() ? 1 : 0);
+      }
       return;
     }
 
-    const relativePath = dir ? `${dir}/${entry.name}` : entry.name;
-    if (entry.name === ".git" || isNaiveScanExcludedPath(relativePath, excludedPaths)) {
-      continue;
-    }
+    const skipReason = naiveSkipReason(relativePath, excludedPaths);
 
     if (entry.isDirectory()) {
-      await collectNaiveFiles(cwd, relativePath, excludedPaths, maxFiles, files);
-    } else if (entry.isFile() && isNaiveScanReadableFile(relativePath)) {
-      files.push(relativePath);
+      if (skipReason) {
+        addExclusion(stats, skipReason, await countFilesRecursive(cwd, relativePath));
+      } else {
+        await collectNaiveFiles(cwd, relativePath, excludedPaths, maxFiles, files, stats);
+      }
+    } else if (entry.isFile()) {
+      if (skipReason || !isNaiveScanReadableFile(relativePath)) {
+        addExclusion(stats, skipReason ?? { category: "unsupported", reason: "non-source" }, 1);
+      } else {
+        files.push(relativePath);
+      }
     }
   }
 }
@@ -297,16 +451,33 @@ async function collectNaiveFiles(
 export async function estimateNaiveScan(cwd: string, maxFiles: number): Promise<{
   tokens: number;
   fileCount: number;
+  excludedFileCount: number;
+  excludedExamples: string[];
+  ignoredFileCount: number;
+  ignoredExamples: string[];
+  unsupportedFileCount: number;
+  unsupportedExamples: string[];
+  skippedByScanCap: number;
+  scanCapExamples: string[];
   capped: boolean;
 }> {
   const excludedPaths = await readExcludedPaths(cwd);
   const files: string[] = [];
-  await collectNaiveFiles(cwd, "", excludedPaths, maxFiles, files);
+  const stats = emptyNaiveScanStats();
+  await collectNaiveFiles(cwd, "", excludedPaths, maxFiles, files, stats);
   const estimates = await Promise.all(files.map((file) => estimateBySize(cwd, file)));
 
   return {
     tokens: sumTokens(estimates),
     fileCount: files.length,
+    excludedFileCount: stats.excludedFiles,
+    excludedExamples: topExamples(stats.exclusionCounts),
+    ignoredFileCount: stats.ignoredFiles,
+    ignoredExamples: topExamples(stats.ignoredCounts),
+    unsupportedFileCount: stats.unsupportedFiles,
+    unsupportedExamples: topExamples(stats.unsupportedCounts),
+    skippedByScanCap: stats.skippedByCap,
+    scanCapExamples: topExamples(stats.capCounts),
     capped: files.length >= maxFiles
   };
 }
@@ -545,6 +716,14 @@ export async function estimateTokenCost(options: TokenEstimateOptions): Promise<
     const naive = await estimateNaiveScan(options.cwd, options.maxFiles);
     report.naiveScanTokens = naive.tokens;
     report.naiveScanFiles = naive.fileCount;
+    report.naiveScanExcludedFiles = naive.excludedFileCount;
+    report.naiveScanExcludedExamples = naive.excludedExamples;
+    report.naiveScanIgnoredFiles = naive.ignoredFileCount;
+    report.naiveScanIgnoredExamples = naive.ignoredExamples;
+    report.naiveScanUnsupportedFiles = naive.unsupportedFileCount;
+    report.naiveScanUnsupportedExamples = naive.unsupportedExamples;
+    report.naiveScanSkippedByCap = naive.skippedByScanCap;
+    report.naiveScanCapExamples = naive.scanCapExamples;
     report.naiveScanCapped = naive.capped;
     report.estimatedSavedTokens = Math.max(0, naive.tokens - report.startupTokens);
     report.estimatedSavingPercent = estimateSavingPercent(naive.tokens, report.startupTokens, report.estimatedSavedTokens);

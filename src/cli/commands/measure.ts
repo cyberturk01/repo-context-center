@@ -14,11 +14,21 @@ interface MeasureReport {
   task: string;
   naiveTokens: number;
   rccTokens: number;
+  filesCounted: number;
+  filesExcluded: number;
+  excludedExamples: string[];
+  ignoredFiles: number;
+  ignoredExamples: string[];
+  unsupportedFiles: number;
+  unsupportedExamples: string[];
+  skippedByScanCap: number;
+  scanCapExamples: string[];
   primaryFiles: number;
   supportingFiles: number;
   tests: number;
   estimatedSavingTokens: number;
   estimatedSavingPercent: number;
+  warnings: string[];
 }
 
 const usage = 'Usage: rcc measure "<task>" [--json]';
@@ -68,6 +78,9 @@ async function measureTask(cwd: string, task: string): Promise<MeasureReport> {
   ]);
   const rccTokens = route.briefTokens;
   const estimatedSavingTokens = Math.max(0, naive.tokens - rccTokens);
+  const warnings = naive.tokens > 5_000_000
+    ? ["Warning: naive estimate is very large. Check excluded folders and generated files."]
+    : [];
 
   return {
     schemaVersion: 1,
@@ -75,26 +88,66 @@ async function measureTask(cwd: string, task: string): Promise<MeasureReport> {
     task,
     naiveTokens: naive.tokens,
     rccTokens,
+    filesCounted: naive.fileCount,
+    filesExcluded: naive.excludedFileCount,
+    excludedExamples: naive.excludedExamples,
+    ignoredFiles: naive.ignoredFileCount,
+    ignoredExamples: naive.ignoredExamples,
+    unsupportedFiles: naive.unsupportedFileCount,
+    unsupportedExamples: naive.unsupportedExamples,
+    skippedByScanCap: naive.skippedByScanCap,
+    scanCapExamples: naive.scanCapExamples,
     primaryFiles: routeItemCount(route.primaryFiles),
     supportingFiles: routeItemCount(route.supportingFiles),
     tests: routeItemCount(route.tests),
     estimatedSavingTokens,
-    estimatedSavingPercent: estimateSavingPercent(naive.tokens, rccTokens, estimatedSavingTokens)
+    estimatedSavingPercent: estimateSavingPercent(naive.tokens, rccTokens, estimatedSavingTokens),
+    warnings
   };
 }
 
 function formatMeasureReport(report: MeasureReport): string {
-  return [
+  const ignoredLabel = report.ignoredExamples.length > 0 ? report.ignoredExamples.join(", ") : "none";
+  const unsupportedLabel = report.unsupportedExamples.length > 0 ? report.unsupportedExamples.join(", ") : "none";
+  const capLabel = report.scanCapExamples.length > 0 ? report.scanCapExamples.join(", ") : "none";
+  const lines = [
     "RCC measurement",
     "",
     "Task:",
     report.task,
     "",
-    "Naive scan estimate:",
+    "Naive source scan:",
     `${formatNumber(report.naiveTokens)} tokens`,
     "",
-    "RCC agent route:",
+    "RCC route:",
     `${formatNumber(report.rccTokens)} tokens`,
+    "",
+    "Estimated saving:",
+    `${formatNumber(report.estimatedSavingTokens)} tokens (${formatPercent(report.estimatedSavingPercent)}%)`,
+    "",
+    "Files counted:",
+    `${formatNumber(report.filesCounted)}`,
+    "",
+    "Files excluded:",
+    `${formatNumber(report.filesExcluded)}`,
+    "",
+    "Ignored by RCC rules:",
+    `${formatNumber(report.ignoredFiles)}`,
+    "Representative ignored paths:",
+    "Examples only; these are not necessarily full excluded directories.",
+    ignoredLabel,
+    "",
+    "Unsupported or non-source files:",
+    `${formatNumber(report.unsupportedFiles)}`,
+    "Representative unsupported paths:",
+    "Examples only; these are not necessarily full excluded directories.",
+    unsupportedLabel,
+    "",
+    "Skipped because scan cap was reached:",
+    `${formatNumber(report.skippedByScanCap)}`,
+    "Representative scan-cap paths:",
+    "Examples only; these are not necessarily full excluded directories.",
+    capLabel,
     "",
     "Primary files:",
     `${formatNumber(report.primaryFiles)}`,
@@ -103,14 +156,22 @@ function formatMeasureReport(report: MeasureReport): string {
     `${formatNumber(report.supportingFiles)}`,
     "",
     "Tests:",
-    `${formatNumber(report.tests)}`,
-    "",
-    "Estimated saving:",
-    `${formatNumber(report.estimatedSavingTokens)} tokens (${formatPercent(report.estimatedSavingPercent)}%)`
-  ].join("\n") + "\n";
+    `${formatNumber(report.tests)}`
+  ];
+
+  if (report.warnings.length > 0) {
+    lines.push("", ...report.warnings);
+  }
+
+  return lines.join("\n") + "\n";
 }
 
 export async function measureCommand(io: CliIO, args: string[] = []): Promise<number> {
+  if (args.includes("--compare-naive")) {
+    io.stderr("--compare-naive is supported by estimate, not measure. Use: rcc estimate --compare-naive\n");
+    return 1;
+  }
+
   const options = parseMeasureOptions(args);
   if (!options) {
     io.stderr(`${usage}\n`);

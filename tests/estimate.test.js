@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdir, mkdtemp, rm, writeFile } = require("node:fs/promises");
+const { mkdir, mkdtemp, readFile, rm, writeFile } = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
@@ -235,13 +235,35 @@ test("measure prints human-readable token estimates for a task", async () => {
     assert.equal(result.stderr, "");
     assert.match(result.stdout, /RCC measurement/);
     assert.match(result.stdout, /Task:\nfix workflow bug/);
-    assert.match(result.stdout, /Naive scan estimate:\n[\d,]+ tokens/);
-    assert.match(result.stdout, /RCC agent route:\n[\d,]+ tokens/);
+    assert.match(result.stdout, /Naive source scan:\n[\d,]+ tokens/);
+    assert.match(result.stdout, /RCC route:\n[\d,]+ tokens/);
+    assert.match(result.stdout, /Files counted:\n[\d,]+/);
+    assert.match(result.stdout, /Files excluded:\n[\d,]+/);
+    assert.match(result.stdout, /Ignored by RCC rules:\n[\d,]+/);
+    assert.match(result.stdout, /Representative ignored paths:\nExamples only; these are not necessarily full excluded directories\./);
+    assert.doesNotMatch(result.stdout, /Ignored examples:\n/);
+    assert.match(result.stdout, /Unsupported or non-source files:\n[\d,]+/);
+    assert.match(result.stdout, /Representative unsupported paths:\nExamples only; these are not necessarily full excluded directories\./);
+    assert.match(result.stdout, /Skipped because scan cap was reached:\n[\d,]+/);
+    assert.match(result.stdout, /Representative scan-cap paths:\nExamples only; these are not necessarily full excluded directories\./);
     assert.match(result.stdout, /Primary files:\n\d+/);
     assert.match(result.stdout, /Supporting files:\n\d+/);
     assert.match(result.stdout, /Tests:\n\d+/);
     assert.match(result.stdout, /Estimated saving:\n[\d,]+ tokens \(\d+\.\d%\)/);
     assert.doesNotMatch(result.stdout, /```/);
+  });
+});
+
+test("measure --compare-naive fails with estimate guidance", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+
+    const result = runCli(["measure", "fix login bug", "--compare-naive"], { cwd: tempDir });
+
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /--compare-naive is supported by estimate, not measure\. Use: rcc estimate --compare-naive/);
+    assert.doesNotMatch(result.stderr, /Usage: rcc measure/);
   });
 });
 
@@ -263,11 +285,21 @@ test("measure --json returns parseable measurement output", async () => {
         "task",
         "naiveTokens",
         "rccTokens",
+        "filesCounted",
+        "filesExcluded",
+        "excludedExamples",
+        "ignoredFiles",
+        "ignoredExamples",
+        "unsupportedFiles",
+        "unsupportedExamples",
+        "skippedByScanCap",
+        "scanCapExamples",
         "primaryFiles",
         "supportingFiles",
         "tests",
         "estimatedSavingTokens",
-        "estimatedSavingPercent"
+        "estimatedSavingPercent",
+        "warnings"
       ]
     );
     assert.equal(report.schemaVersion, 1);
@@ -275,9 +307,19 @@ test("measure --json returns parseable measurement output", async () => {
     assert.equal(report.task, "fix workflow bug");
     assert.equal(typeof report.naiveTokens, "number");
     assert.equal(typeof report.rccTokens, "number");
+    assert.equal(typeof report.filesCounted, "number");
+    assert.equal(typeof report.filesExcluded, "number");
+    assert.ok(Array.isArray(report.excludedExamples));
+    assert.equal(typeof report.ignoredFiles, "number");
+    assert.ok(Array.isArray(report.ignoredExamples));
+    assert.equal(typeof report.unsupportedFiles, "number");
+    assert.ok(Array.isArray(report.unsupportedExamples));
+    assert.equal(typeof report.skippedByScanCap, "number");
+    assert.ok(Array.isArray(report.scanCapExamples));
     assert.equal(typeof report.primaryFiles, "number");
     assert.equal(typeof report.supportingFiles, "number");
     assert.equal(typeof report.tests, "number");
+    assert.ok(Array.isArray(report.warnings));
     assert.equal(result.stdout, `${JSON.stringify(report, null, 2)}\n`);
   });
 });
@@ -318,6 +360,76 @@ test("measure naive estimate excludes files ignored by RCC rules", async () => {
     assert.equal(result.status, 0);
     assert.ok(report.naiveTokens > 0);
     assert.ok(report.naiveTokens < 2000);
+  });
+});
+
+test("measure excludes noisy directories and binary files from naive source scan", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/app.ts", "a".repeat(400));
+    await writeText(tempDir, "node_modules/pkg/index.js", "n".repeat(40_000));
+    await writeText(tempDir, ".git/objects/aa/blob", "g".repeat(40_000));
+    await writeText(tempDir, "build/server.js", "b".repeat(40_000));
+    await writeText(tempDir, "coverage/lcov.info", "c".repeat(40_000));
+    await writeText(tempDir, "docs/ai-context/archive/old.md", "o".repeat(40_000));
+    await writeText(tempDir, "assets/logo.png", "p".repeat(40_000));
+    await writeText(tempDir, "release/archive.zip", "z".repeat(40_000));
+
+    const result = runCli(["measure", "fix login bug", "--json"], { cwd: tempDir });
+    const report = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(report.naiveTokens < 2000);
+    assert.ok(report.filesCounted > 0);
+    assert.ok(report.filesExcluded >= 6);
+    assert.ok(report.ignoredFiles >= 5);
+    assert.ok(report.unsupportedFiles >= 2);
+    assert.equal(report.skippedByScanCap, 0);
+    for (const example of ["node_modules", ".git", "build", "coverage", "docs/ai-context/archive"]) {
+      assert.ok(report.excludedExamples.includes(example), `${example} missing from ${report.excludedExamples.join(", ")}`);
+      assert.ok(report.ignoredExamples.includes(example), `${example} missing from ${report.ignoredExamples.join(", ")}`);
+    }
+    assert.ok(report.excludedExamples.includes(".png") || report.excludedExamples.includes(".zip"));
+    assert.ok(report.unsupportedExamples.includes(".png") || report.unsupportedExamples.includes(".zip"));
+  });
+});
+
+test("measure incorporates DO_NOT_READ generated guidance into exclusions", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/app.ts", "a".repeat(400));
+    await writeText(tempDir, "debug-dumps/session.txt", "d".repeat(40_000));
+    await writeText(tempDir, "docs/ai-context/DO_NOT_READ.md", [
+      "# Do Not Read",
+      "",
+      "<!-- repo-context-center:generated:start -->",
+      "- `debug-dumps/`",
+      "<!-- repo-context-center:generated:end -->"
+    ].join("\n"));
+
+    const result = runCli(["measure", "fix login bug", "--json"], { cwd: tempDir });
+    const report = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.ok(report.naiveTokens < 2000);
+    assert.ok(report.excludedExamples.includes("debug-dumps"));
+  });
+});
+
+test("measure warns but succeeds when naive estimate is very large", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/huge.ts", "x".repeat(20_000_004));
+
+    const textResult = runCli(["measure", "fix huge source bug"], { cwd: tempDir });
+    const jsonResult = runCli(["measure", "fix huge source bug", "--json"], { cwd: tempDir });
+    const report = JSON.parse(jsonResult.stdout);
+
+    assert.equal(textResult.status, 0);
+    assert.equal(jsonResult.status, 0);
+    assert.ok(report.naiveTokens > 5_000_000);
+    assert.ok(report.warnings.includes("Warning: naive estimate is very large. Check excluded folders and generated files."));
+    assert.match(textResult.stdout, /Warning: naive estimate is very large\. Check excluded folders and generated files\./);
   });
 });
 
@@ -458,4 +570,14 @@ test("estimate task recommendation ignores missing files", async () => {
     assert.equal(report.taskEstimate.likelyTestTokens, 0);
     assert.equal(report.taskEstimate.recommendedContextFiles.some((file) => file.missing), false);
   });
+});
+
+test("README distinguishes measure from estimate compare-naive examples", async () => {
+  const readme = await readFile(path.join(repoRoot, "README.md"), "utf8");
+
+  assert.match(readme, /`measure` is the task-first command for route-vs-naive task estimates/);
+  assert.match(readme, /`estimate` is the broader context-cost command for installed files, startup context, and comparison scenarios/);
+  assert.match(readme, /npx repo-context-center estimate --compare-naive/);
+  assert.doesNotMatch(readme, /measure\s+"[^"]+"\s+--compare-naive/);
+  assert.doesNotMatch(readme, /measure\s+--compare-naive/);
 });

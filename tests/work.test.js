@@ -944,7 +944,7 @@ test("work --agent marks tiny tasks as fast fixes with lightweight guidance", as
     assert.equal(result.status, 0);
     assert.equal(route.taskSize, "tiny");
     assert.equal(route.mode, "fast_fix");
-    assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong. Do not rerun rcc work for this task.");
+    assert.equal(route.next, "Tiny task: open only the primary file and apply the fix. No strongly related tests found; do not add generic tests. Do not rerun rcc work for this task.");
   });
 });
 
@@ -959,7 +959,7 @@ test("work --agent tiny guidance keeps word spacing stable", async () => {
 
       assert.equal(result.status, 0, task);
       assert.equal(route.taskSize, "tiny", task);
-      assert.equal(route.next, "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong. Do not rerun rcc work for this task.");
+      assert.equal(route.next, "Tiny task: open only the primary file and apply the fix. No strongly related tests found; do not add generic tests. Do not rerun rcc work for this task.");
       assert.doesNotMatch(route.next, /relevanttest/, task);
       assert.doesNotMatch(route.next, /runthe/, task);
     }
@@ -1428,6 +1428,114 @@ test("work routing leaves unrelated tasks without learned hints", async () => {
     assert.deepEqual(brief.learnedHabits, []);
     assert.equal(brief.supportingFiles.some((file) => file.path === "src/cli/commands/doctor.ts"), false);
   });
+});
+
+test("work does not recommend unrelated learned tests without a strong affected-test relationship", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-learned-test-filter-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "src/billing/invoice.ts", "export function invoice() {}\n");
+    await writeFixtureFile(tempDir, "tests/work.test.js", "test('work command', () => {});\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/REPOSITORY_LEARNING.md",
+      [
+        "# Repository Learning",
+        "",
+        "<!-- repo-context-center:repository-learning:start -->",
+        "## Common File Relationships",
+        "",
+        "| Source | Related | Reason | Count |",
+        "| --- | --- | --- | ---: |",
+        "| billing | `tests/work.test.js` | Observed in completed billing work | 4 |",
+        "",
+        "## Verification Patterns",
+        "",
+        "| Scope | Command | Count |",
+        "| --- | --- | ---: |",
+        "| billing | `node --test tests/work.test.js` | 4 |",
+        "<!-- repo-context-center:repository-learning:end -->",
+        ""
+      ].join("\n")
+    );
+
+    const result = runCli(["work", "--agent", "adjust billing invoices"], { cwd: tempDir });
+    const debugResult = runCli(["work", "--json", "--debug", "adjust billing invoices"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+    const brief = JSON.parse(debugResult.stdout);
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(debugResult.status, 0, debugResult.stderr || debugResult.stdout);
+    assert.deepEqual(route.tests, []);
+    assert.match(route.next, /No strongly related tests found; do not add generic tests\./);
+    assert.doesNotMatch(route.next, /broad exploration/i);
+    assert.deepEqual(brief.tests, []);
+    assert.deepEqual(brief.learnedTests, []);
+    assert.deepEqual(brief.learnedVerification, []);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work does not recommend unrelated infrastructure tests for translation tasks", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-translation-test-filter-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Translation work: read `src/i18n/translate.ts`, `tests/cache/redis.test.js`, `tests/queue/worker.test.js`, `tests/invites/invite.test.js`, and `tests/api/public.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "src/i18n/translate.ts", "export function translate() { return ''; }\n");
+    await writeFixtureFile(tempDir, "tests/cache/redis.test.js", "test('redis cache', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/queue/worker.test.js", "test('queue worker', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/invites/invite.test.js", "test('invite flow', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/api/public.test.js", "test('public api', () => {});\n");
+
+    const result = runCli(["work", "--agent", "update translation strings"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.deepEqual(route.tests, []);
+    assert.match(route.next, /No strongly related tests found; do not add generic tests\./);
+    assert.doesNotMatch(route.next, /broad exploration/i);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work still recommends Redis cache tests for Redis cache tasks", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-cache-test-filter-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Redis cache work: read `src/cache/redis.ts`, `tests/cache/redis.test.js`, and `tests/api/public.test.js`."
+      ].join("\n")
+    );
+    await writeFixtureFile(tempDir, "src/cache/redis.ts", "export function redisCache() { return true; }\n");
+    await writeFixtureFile(tempDir, "tests/cache/redis.test.js", "test('redis cache', () => {});\n");
+    await writeFixtureFile(tempDir, "tests/api/public.test.js", "test('public api', () => {});\n");
+
+    const result = runCli(["work", "--agent", "fix redis cache expiration"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.deepEqual(route.tests, ["tests/cache/redis.test.js"]);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("work exact filename routing stays primary ahead of learned hints", async () => {
@@ -2175,7 +2283,7 @@ test("work --agent exact filename task puts AGENTS files in primaryFiles", async
     assert.ok(route.primaryFiles.includes("src/templates/generic/AGENTS.md"), route.primaryFiles.join("\n"));
     assert.ok(!route.primaryFiles.includes("src/cli/commands/doctor.ts"), route.primaryFiles.join("\n"));
     assert.ok(route.readFirst.includes("AGENTS.md"), route.readFirst.join("\n"));
-    assert.equal(route.next, 'Start with primaryFiles. Do not rerun rcc work for this task. Use rcc find "agents.md" only if needed.');
+    assert.equal(route.next, "Start with primaryFiles. No strongly related tests found; do not add generic tests. Do not rerun rcc work for this task.");
   });
 });
 

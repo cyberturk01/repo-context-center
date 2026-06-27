@@ -8,14 +8,31 @@ interface InitOptions {
   dryRun: boolean;
   githubAction: boolean;
   update: boolean;
+  maxFiles?: number;
+  updateAgentFile: boolean;
 }
 
-function parseInitOptions(args: string[]): InitOptions {
+function parseInitOptions(args: string[]): InitOptions | undefined {
+  let maxFiles: number | undefined;
+
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] === "--max-files") {
+      const value = Number.parseInt(args[index + 1] ?? "", 10);
+      if (!Number.isInteger(value) || value < 1) {
+        return undefined;
+      }
+      maxFiles = value;
+      index += 1;
+    }
+  }
+
   return {
     force: args.includes("--force"),
     dryRun: args.includes("--dry-run"),
     githubAction: args.includes("--github-action"),
-    update: args.includes("--update")
+    update: args.includes("--update"),
+    maxFiles,
+    updateAgentFile: args.includes("--update-agent-file")
   };
 }
 
@@ -23,6 +40,10 @@ function formatInstallMessage(
   result: Awaited<ReturnType<typeof installGenericTemplates>>[number],
   dryRun: boolean
 ): string {
+  if (result.message) {
+    return `${result.message}\n`;
+  }
+
   if (dryRun) {
     if (result.action === "skip") {
       return `Would skip ${result.type}: ${result.path} already exists\n`;
@@ -46,11 +67,11 @@ function formatInstallMessage(
 
 export async function initCommand(io: CliIO, args: string[] = []): Promise<number> {
   const options = parseInitOptions(args);
-  const knownFlags = new Set(["--force", "--dry-run", "--github-action", "--update"]);
+  const knownFlags = new Set(["--force", "--dry-run", "--github-action", "--update", "--update-agent-file", "--max-files"]);
   const unknownFlag = args.find((arg) => arg.startsWith("--") && !knownFlags.has(arg));
 
-  if (unknownFlag) {
-    io.stderr(`Unknown init option: ${unknownFlag}\n`);
+  if (!options || unknownFlag) {
+    io.stderr(unknownFlag ? `Unknown init option: ${unknownFlag}\n` : "Usage: repo-context-center init [--force] [--dry-run] [--github-action] [--update] [--update-agent-file] [--max-files <number>]\n");
     return 1;
   }
 
@@ -58,19 +79,20 @@ export async function initCommand(io: CliIO, args: string[] = []): Promise<numbe
     cwd: io.cwd,
     force: options.force,
     dryRun: options.dryRun,
-    githubAction: options.githubAction
+    githubAction: options.githubAction,
+    updateAgentFile: options.updateAgentFile
   });
 
   for (const result of results) {
     io.stdout(formatInstallMessage(result, options.dryRun));
   }
 
-  if (options.update) {
+  if (options.update || options.updateAgentFile) {
     const agentsResult = results.find((result) => result.path === "AGENTS.md");
     if (agentsResult?.action === "update") {
-      io.stdout("Updated RCC agent instructions in AGENTS.md while preserving manual content.\n");
+      io.stdout("Updated RCC agent pointer in AGENTS.md while preserving manual content.\n");
     } else if (agentsResult?.action === "skip") {
-      io.stdout("AGENTS.md already has current RCC agent instructions.\n");
+      io.stdout("AGENTS.md already has current RCC agent pointer or was left unchanged.\n");
     }
   }
 
@@ -92,10 +114,17 @@ export async function initCommand(io: CliIO, args: string[] = []): Promise<numbe
   try {
     const mapResult = await mapRepository({
       cwd: io.cwd,
-      maxFiles: 500,
+      maxFiles: options.maxFiles,
       write: true
     });
-    io.stdout(`Generated repository context: ${mapResult.written.length} files updated (${mapResult.data.filesScanned} files scanned).\n`);
+    io.stdout([
+      `Generated repository context: ${mapResult.written.length} files updated.`,
+      `Repository size: ${mapResult.data.scanProfile}`,
+      `Eligible files: ${mapResult.data.eligibleFiles.toLocaleString("en-US")}`,
+      `Scan cap: ${mapResult.data.scanCap.toLocaleString("en-US")}`,
+      `Files scanned: ${mapResult.data.filesScanned.toLocaleString("en-US")}`,
+      `Files excluded: ${mapResult.data.filesExcluded.toLocaleString("en-US")}`
+    ].join("\n") + "\n");
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     io.stderr(`Warning: failed to generate repository context during init: ${message}\n`);

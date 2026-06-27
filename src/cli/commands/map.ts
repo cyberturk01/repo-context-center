@@ -9,7 +9,7 @@ interface MapOptions {
   check: boolean;
   json: boolean;
   dryRun: boolean;
-  maxFiles: number;
+  maxFiles?: number;
   repo?: string;
 }
 
@@ -18,7 +18,7 @@ function parseMapOptions(args: string[]): MapOptions | undefined {
   let check = false;
   let json = false;
   let dryRun = false;
-  let maxFiles = 500;
+  let maxFiles: number | undefined;
   let repo: string | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
@@ -62,7 +62,11 @@ function formatResult(result: RepoMapResult, willWrite: boolean): string {
   const lines = [
     "repo-context-center map",
     "",
-    `Files scanned: ${result.data.filesScanned}`,
+    `Repository size: ${result.data.scanProfile}`,
+    `Eligible files: ${result.data.eligibleFiles.toLocaleString("en-US")}`,
+    `Scan cap: ${result.data.scanCap.toLocaleString("en-US")}`,
+    `Files scanned: ${result.data.filesScanned.toLocaleString("en-US")}`,
+    `Files excluded: ${result.data.filesExcluded.toLocaleString("en-US")}`,
     `Mode: ${willWrite ? "write" : "proposal"}`,
     "",
     willWrite ? "Updated files:" : "Proposed updates:",
@@ -89,11 +93,15 @@ async function hasOutdatedAgents(cwd: string): Promise<boolean> {
   return isOutdatedRccAgentsContent(await readTextFile(agentsPath));
 }
 
-function formatCheckResult(result: RepoMapCheckResult, maxFiles: number): string {
+function formatCheckResult(result: RepoMapCheckResult, maxFiles: number | undefined): string {
   const lines = [
     "repo-context-center map --check",
     "",
-    `Files scanned: ${result.data.filesScanned}`,
+    `Repository size: ${result.data.scanProfile}`,
+    `Eligible files: ${result.data.eligibleFiles.toLocaleString("en-US")}`,
+    `Scan cap: ${result.data.scanCap.toLocaleString("en-US")}`,
+    `Files scanned: ${result.data.filesScanned.toLocaleString("en-US")}`,
+    `Files excluded: ${result.data.filesExcluded.toLocaleString("en-US")}`,
     "Mode: check",
     ""
   ];
@@ -106,7 +114,8 @@ function formatCheckResult(result: RepoMapCheckResult, maxFiles: number): string
     lines.push("Files that would change:");
     lines.push(...result.staleChanges.map((change) => `- ${change.path} (${change.action})`));
     lines.push("");
-    lines.push(`Run: npx repo-context-center map --write --max-files ${maxFiles}`);
+    const maxFilesFlag = maxFiles ? ` --max-files ${maxFiles}` : "";
+    lines.push(`Run: npx repo-context-center map --write${maxFilesFlag}`);
   }
 
   return `${lines.join("\n")}\n`;

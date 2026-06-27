@@ -139,6 +139,7 @@ test("npm pack dry-run contains runtime files and excludes local development fil
     "dist/core/suggester.js",
     "dist/templates/generic/index.js",
     "dist/templates/generic/AGENTS.md",
+    "dist/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
     "dist/templates/generic/docs/ai-context/TASK_ROUTING.md",
     "dist/templates/github/context-check.yml",
     "docs/assets/repo-context-center-diagram.svg"

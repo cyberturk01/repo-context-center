@@ -7,6 +7,22 @@ const test = require("node:test");
 
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
+const completeFallbackGuidance = [
+  "# RCC Workflow",
+  "",
+  "## If RCC Is Unavailable",
+  "",
+  "- Read:",
+  "  - `docs/ai-context/TASK_ROUTING.md`",
+  "  - `docs/ai-context/DO_NOT_READ.md`",
+  "- Read `docs/ai-context/TOKEN_BUDGET.md` only if needed.",
+  "- Read at most one additional context file.",
+  "- Inspect only:",
+  "  - 1-3 implementation files",
+  "  - 1-2 tests",
+  "- Do not perform broad repository scans.",
+  ""
+].join("\n");
 
 function runCli(cwd, args) {
   return spawnSync(process.execPath, [cliPath, ...args], {
@@ -214,7 +230,45 @@ test("validate warns when generated folder exclusions are missing", async () => 
   }
 });
 
-test("validate warns when AGENTS does not reference DO_NOT_READ", async () => {
+test("validate accepts AGENTS pointer when RCC_WORKFLOW has fallback guidance", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeFile(
+      path.join(tempDir, "AGENTS.md"),
+      "# AGENTS.md\n\nRead docs/ai-context/RCC_WORKFLOW.md before coding.\n",
+      "utf8"
+    );
+
+    const result = runCli(tempDir, ["validate"]);
+
+    assert.equal(result.status, 0);
+    assert.doesNotMatch(result.stdout, /AGENTS\.md: Does not mention/);
+    assert.doesNotMatch(result.stdout, /RCC_WORKFLOW\.md: Missing/);
+    assert.match(result.stdout, /Result: passed/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("validate accepts legacy AGENTS workflow with fallback guidance", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeFile(path.join(tempDir, "AGENTS.md"), completeFallbackGuidance, "utf8");
+
+    const result = runCli(tempDir, ["validate"]);
+
+    assert.equal(result.status, 0);
+    assert.doesNotMatch(result.stdout, /AGENTS\.md: Does not mention/);
+    assert.doesNotMatch(result.stdout, /AGENTS\.md: Missing/);
+    assert.match(result.stdout, /Result: passed/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("validate warns when AGENTS has neither workflow pointer nor legacy fallback", async () => {
   const tempDir = await createTempRepo();
 
   try {
@@ -227,7 +281,28 @@ test("validate warns when AGENTS does not reference DO_NOT_READ", async () => {
     const result = runCli(tempDir, ["validate"]);
 
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /AGENTS\.md: Does not mention docs\/ai-context\/DO_NOT_READ\.md/);
+    assert.match(result.stdout, /AGENTS\.md: Does not mention docs\/ai-context\/RCC_WORKFLOW\.md or complete RCC fallback guidance/);
+    assert.match(result.stdout, /Result: passed/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("validate warns when pointed RCC_WORKFLOW is missing fallback guidance", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeFile(
+      path.join(tempDir, "docs", "ai-context", "RCC_WORKFLOW.md"),
+      "# RCC Workflow\n\n## Task Routing\n\nTry RCC first.\n",
+      "utf8"
+    );
+
+    const result = runCli(tempDir, ["validate"]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC_WORKFLOW\.md: Missing RCC unavailable fallback section/);
+    assert.match(result.stdout, /RCC_WORKFLOW\.md: Missing docs\/ai-context\/DO_NOT_READ\.md fallback read/);
     assert.match(result.stdout, /Result: passed/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
