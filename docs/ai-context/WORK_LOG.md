@@ -5082,4 +5082,40 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T23:36:02.234Z
+- Summary: Documented RCC v0.12.0 Verify Intelligence in README and CHANGELOG
+- Changed files: `CHANGELOG.md`, `README.md`
+- Verification: node --test tests/verify.test.js; node --test tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Documented RCC v0.12.0 Verify Intelligence in README and CHANGELOG",
+  "files": [
+    "CHANGELOG.md",
+    "README.md"
+  ],
+  "verification": [
+    "node --test tests/verify.test.js; node --test tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T23:36:02.234Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T23:36:02.234Z",
+  "summary": "Documented RCC v0.12.0 Verify Intelligence in README and CHANGELOG",
+  "files": [
+    "CHANGELOG.md",
+    "README.md"
+  ],
+  "verification": "node --test tests/verify.test.js; node --test tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

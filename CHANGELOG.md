@@ -1,5 +1,17 @@
 # ChangeLog
 
+## [0.12.0]
+
+Repo Context Center v0.12.0 adds Verification Intelligence: a dedicated verification-planning layer built from existing Impact Analysis output.
+
+### Verify Intelligence
+
+- Added the new `verify` command.
+- Added VerificationPlan output for targeted tests, targeted test commands, build commands, smoke checks, manual checks, validation checklist items, confidence, and notes.
+- Reused Impact Analysis as the source of truth for affected files, affected tests, suggested commands, confidence, docs-only notes, and context-only signals.
+- Added smoke-check and validation-checklist planning for stronger review handoffs.
+- Added `verify --json` and `verify --task-only --json` for a stable machine-readable JSON contract.
+
 ## [0.11.1]
 
 Repo Context Center v0.11.1 expands RCC from task routing into practical change-impact guidance, with stronger installation diagnostics and safer agent-instruction updates.
