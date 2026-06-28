@@ -27,9 +27,10 @@ const requiredTemplates = [
 ];
 
 const expectedWorkflowSection = `<!-- repo-context-center:workflow:start -->
-For the RCC repository workflow, read:
-
-\`docs/ai-context/RCC_WORKFLOW.md\`
+RCC workflow:
+- Read \`docs/ai-context/RCC_WORKFLOW.md\` before broad repo scans.
+- Use \`rcc work "<task>" --agent\` for task briefing.
+- If the CLI is unavailable, read \`docs/ai-context/TASK_ROUTING.md\` and \`docs/ai-context/MODULE_INDEX.md\`.
 <!-- repo-context-center:workflow:end -->`;
 
 const minimalAgentsPointer = "# Agent Instructions\n\nFor the RCC repository workflow, read docs/ai-context/RCC_WORKFLOW.md before coding tasks.\n";
@@ -224,7 +225,7 @@ test("init detects and updates AGENTS.md with exact RCC marker block", async () 
       ""
     ].join("\n"));
 
-    const result = runInit(tempDir);
+    const result = runInit(tempDir, ["--update-agent-file"]);
     const content = await readFile(agentsPath, "utf8");
 
     assert.equal(result.status, 0);
@@ -262,13 +263,12 @@ test("init detects and replaces old full AGENTS workflow marker block", async ()
       ""
     ].join("\n"));
 
-    const result = runInit(tempDir);
+    const result = runInit(tempDir, ["--update-agent-file"]);
     const content = await readFile(agentsPath, "utf8");
 
     assert.equal(result.status, 0);
     assert.equal(workflowSection(content), expectedWorkflowSection);
     assert.doesNotMatch(content, /## RCC Workflow/);
-    assert.doesNotMatch(content, /rcc work "<task>" --agent/);
     assert.match(result.stdout, /Updated file: AGENTS\.md/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -293,7 +293,7 @@ test("init preserves AGENTS.md user content before and after RCC marker block", 
       ""
     ].join("\n"));
 
-    const result = runInit(tempDir);
+    const result = runInit(tempDir, ["--update-agent-file"]);
     const content = await readFile(agentsPath, "utf8");
 
     assert.equal(result.status, 0);
@@ -325,7 +325,7 @@ test("init preserves manual AGENTS sections and refreshes marked RCC pointer", a
       ""
     ].join("\n"));
 
-    const result = runInit(tempDir);
+    const result = runInit(tempDir, ["--update-agent-file"]);
     const content = await readFile(agentsPath, "utf8");
 
     assert.equal(result.status, 0);
@@ -367,7 +367,7 @@ test("init updates only marked AGENTS block and preserves surrounding user conte
       ""
     ].join("\n"));
 
-    const result = runInit(tempDir);
+    const result = runInit(tempDir, ["--update-agent-file"]);
     const content = await readFile(agentsPath, "utf8");
 
     assert.equal(result.status, 0);
@@ -426,11 +426,11 @@ test("init does not modify existing non-RCC AI instruction files", async () => {
   }
 });
 
-test("init --update-agent-file modifies only AGENTS.md", async () => {
+test("init --update-agent-file updates AGENTS.md and CLAUDE.md", async () => {
   const tempDir = await createTempRepo();
   const agentsPath = path.join(tempDir, "AGENTS.md");
   const claudePath = path.join(tempDir, "CLAUDE.md");
-  const claudeContent = "# Claude\n\nDo not touch.\n";
+  const claudeContent = "# Claude\n\nManual Claude guidance.\n";
 
   try {
     await writeFixtureFile(tempDir, "AGENTS.md", "# Project Agents\n\nManual owner guidance.\n");
@@ -444,18 +444,18 @@ test("init --update-agent-file modifies only AGENTS.md", async () => {
     assert.match(agents, /Manual owner guidance\./);
     assert.equal(workflowSection(agents), expectedWorkflowSection);
     assert.notEqual(agents, "# Project Agents\n\nManual owner guidance.\n");
-    assert.equal(claude, claudeContent);
+    assert.match(claude, /Manual Claude guidance\./);
+    assert.equal(workflowSection(claude), expectedWorkflowSection);
     assert.match(result.stdout, /Updated file: AGENTS\.md/);
-    assert.match(result.stdout, /Detected CLAUDE\.md\. RCC did not modify it\./);
+    assert.match(result.stdout, /Updated file: CLAUDE\.md/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
 });
 
-test("init --update-agent-file leaves non-AGENTS AI files byte-for-byte unchanged", async () => {
+test("init --update-agent-file updates supported agent files and leaves other AI files unchanged", async () => {
   const tempDir = await createTempRepo();
   const aiFiles = {
-    "CLAUDE.md": "# Claude\r\n\r\nKeep Claude guidance.\r\n",
     "GEMINI.md": "# Gemini\n\nKeep Gemini guidance.\n",
     ".cursor/rules": "Keep Cursor rules.\nDo not append RCC.\n",
     ".github/copilot-instructions.md": "# Copilot\n\nKeep Copilot guidance.\n",
@@ -464,6 +464,7 @@ test("init --update-agent-file leaves non-AGENTS AI files byte-for-byte unchange
 
   try {
     await writeFixtureFile(tempDir, "AGENTS.md", "# Project Agents\n\nManual owner guidance.\n");
+    await writeFixtureFile(tempDir, "CLAUDE.md", "# Claude\n\nManual Claude guidance.\n");
     for (const [file, content] of Object.entries(aiFiles)) {
       await writeFixtureFile(tempDir, file, content);
     }
@@ -473,6 +474,7 @@ test("init --update-agent-file leaves non-AGENTS AI files byte-for-byte unchange
 
     assert.equal(result.status, 0);
     assert.equal(workflowSection(agents), expectedWorkflowSection);
+    assert.equal(workflowSection(await readFile(path.join(tempDir, "CLAUDE.md"), "utf8")), expectedWorkflowSection);
     for (const [file, content] of Object.entries(aiFiles)) {
       assert.equal(await readFile(path.join(tempDir, file), "utf8"), content, file);
       assert.match(
@@ -485,7 +487,7 @@ test("init --update-agent-file leaves non-AGENTS AI files byte-for-byte unchange
   }
 });
 
-test("init --update-agent-file updates AGENTS only when CLAUDE has identical content", async () => {
+test("init --update-agent-file updates AGENTS and CLAUDE when they have identical content", async () => {
   const tempDir = await createTempRepo();
   const initialContent = "# Shared Agent Guidance\n\nManual owner guidance.\n";
 
@@ -500,9 +502,65 @@ test("init --update-agent-file updates AGENTS only when CLAUDE has identical con
     assert.equal(result.status, 0);
     assert.notEqual(agents, initialContent);
     assert.equal(workflowSection(agents), expectedWorkflowSection);
-    assert.equal(claude, initialContent);
+    assert.notEqual(claude, initialContent);
+    assert.equal(workflowSection(claude), expectedWorkflowSection);
     assert.match(result.stdout, /Updated file: AGENTS\.md/);
-    assert.match(result.stdout, /Detected CLAUDE\.md\. RCC did not modify it\./);
+    assert.match(result.stdout, /Updated file: CLAUDE\.md/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init --update updates existing AGENTS.md pointer and validate warning disappears", async () => {
+  const tempDir = await createTempRepo();
+  const agentsPath = path.join(tempDir, "AGENTS.md");
+  const initialAgents = "# Project Agents\n\nManual owner guidance.\n";
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", initialAgents);
+
+    const plain = runInit(tempDir);
+    const afterPlain = await readFile(agentsPath, "utf8");
+    const warned = runCli(tempDir, ["validate"]);
+    const updated = runInit(tempDir, ["--update"]);
+    const afterUpdate = await readFile(agentsPath, "utf8");
+    const validated = runCli(tempDir, ["validate"]);
+
+    assert.equal(plain.status, 0);
+    assert.equal(afterPlain, initialAgents);
+    assert.match(warned.stdout, /AGENTS\.md: Does not mention docs\/ai-context\/RCC_WORKFLOW\.md or complete RCC fallback guidance/);
+    assert.equal(updated.status, 0);
+    assert.equal(workflowSection(afterUpdate), expectedWorkflowSection);
+    assert.match(updated.stdout, /Updated file: AGENTS\.md/);
+    assert.equal(validated.status, 0);
+    assert.doesNotMatch(validated.stdout, /AGENTS\.md: Does not mention/);
+    assert.match(validated.stdout, /Warnings: 0/);
+    assert.match(validated.stdout, /Result: passed/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init --update-agent-file is idempotent for AGENTS.md and CLAUDE.md", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "# Project Agents\n\nManual owner guidance.\n");
+    await writeFixtureFile(tempDir, "CLAUDE.md", "# Claude\n\nManual Claude guidance.\n");
+
+    const first = runInit(tempDir, ["--update-agent-file"]);
+    const agentsAfterFirst = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
+    const claudeAfterFirst = await readFile(path.join(tempDir, "CLAUDE.md"), "utf8");
+    const second = runInit(tempDir, ["--update-agent-file"]);
+    const agentsAfterSecond = await readFile(path.join(tempDir, "AGENTS.md"), "utf8");
+    const claudeAfterSecond = await readFile(path.join(tempDir, "CLAUDE.md"), "utf8");
+
+    assert.equal(first.status, 0);
+    assert.equal(second.status, 0);
+    assert.equal(agentsAfterSecond, agentsAfterFirst);
+    assert.equal(claudeAfterSecond, claudeAfterFirst);
+    assert.equal(countOccurrences(agentsAfterSecond, "repo-context-center:workflow:start"), 1);
+    assert.equal(countOccurrences(claudeAfterSecond, "repo-context-center:workflow:start"), 1);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -597,7 +655,7 @@ test("init removes legacy generated AGENTS stub", async () => {
       ""
     ].join("\n"));
 
-    const result = runInit(tempDir);
+    const result = runInit(tempDir, ["--update-agent-file"]);
     const content = await readFile(agentsPath, "utf8");
 
     assert.equal(result.status, 0);

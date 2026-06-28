@@ -4590,4 +4590,46 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T20:28:58.862Z
+- Summary: Fix RCC agent-file update mode for AGENTS and CLAUDE
+- Changed files: `src/cli/commands/init.ts`, `src/cli/commands/validate.ts`, `src/core/templateInstaller.ts`, `tests/init.test.js`, `tests/validate.test.js`
+- Verification: npm run build; node --test tests/init.test.js; node --test tests/validate.test.js; acceptance sequence: node dist/cli/index.js init; node dist/cli/index.js init --update; node dist/cli/index.js validate
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fix RCC agent-file update mode for AGENTS and CLAUDE",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/validate.ts",
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js",
+    "tests/validate.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/init.test.js; node --test tests/validate.test.js; acceptance sequence: node dist/cli/index.js init; node dist/cli/index.js init --update; node dist/cli/index.js validate"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T20:28:58.862Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T20:28:58.862Z",
+  "summary": "Fix RCC agent-file update mode for AGENTS and CLAUDE",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/validate.ts",
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js",
+    "tests/validate.test.js"
+  ],
+  "verification": "npm run build; node --test tests/init.test.js; node --test tests/validate.test.js; acceptance sequence: node dist/cli/index.js init; node dist/cli/index.js init --update; node dist/cli/index.js validate",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
