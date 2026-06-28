@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Made rcc verify conservative for context-only working-tree changes
 - Documented RCC v0.12.0 Verify Intelligence in README and CHANGELOG
 - Hardened verify JSON output contract coverage for agent-safe parseable plans
 - Added short validation checklist generation to RCC Verify
 - Added safe manual smoke check heuristics to VerificationPlan generation
 - Added rcc verify CLI backed by ImpactAnalysis recommendations
 - Updated CLI help test to keep verify hidden until CLI command is implemented
-- Built VerificationPlan generation from ImpactAnalysis with focused adapter tests
 
 ## Hot Files
 
@@ -37,20 +37,20 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | General maintenance | 25 | Documented RCC v0.12.0 Verify Intelligence in README and CHANGELOG |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Tests | 12 | Hardened verify JSON output contract coverage for agent-safe parseable plans |
+| Repository context | 11 | Made rcc verify conservative for context-only working-tree changes |
 | CLI commands | 10 | Added rcc verify CLI backed by ImpactAnalysis recommendations |
-| Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
 | Measurement and benchmarks | 5 | Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches. |
 
 ## Verification Patterns
 
-- `npm run build` (79)
+- `npm run build` (80)
 - `npm test` (43)
 - `node --test tests/impact.test.js` (24)
 - `node --test tests/cli.test.js` (15)
 - `node --test tests/work.test.js` (14)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
-- `node --test tests/verify.test.js` (11)
+- `node --test tests/verify.test.js` (12)
 
 <!-- repo-context-center:work-index:end -->

@@ -31,26 +31,23 @@ function textMatches(value: string, pattern: RegExp): boolean {
   return pattern.test(value);
 }
 
+function isContextOnlyVerification(impact: ImpactAnalysis): boolean {
+  return (
+    impact.confidenceExplanation.evidence.contextOnlyChanges
+    && impact.confidenceExplanation.evidence.nonContextChangedFiles === 0
+  );
+}
+
 function impactText(impact: ImpactAnalysis): string {
-  return [
-    impact.task,
-    ...impact.affectedFiles.map((file) => file.path),
-    ...impact.contextChanges.map((file) => file.path)
-  ].join(" ");
+  return impact.affectedFiles.map((file) => file.path).join(" ");
 }
 
 function matchingPaths(impact: ImpactAnalysis, pattern: RegExp): string[] {
-  return [
-    ...impact.affectedFiles,
-    ...impact.contextChanges
-  ].map((file) => file.path).filter((filePath) => pattern.test(filePath));
+  return impact.affectedFiles.map((file) => file.path).filter((filePath) => pattern.test(filePath));
 }
 
 function fallbackPaths(impact: ImpactAnalysis): string[] {
-  return [
-    ...impact.affectedFiles,
-    ...impact.contextChanges
-  ].map((file) => file.path);
+  return impact.affectedFiles.map((file) => file.path);
 }
 
 function smokeCheck(type: string, reason: string, paths: string[]): ImpactVerificationHint {
@@ -58,6 +55,10 @@ function smokeCheck(type: string, reason: string, paths: string[]): ImpactVerifi
 }
 
 function smokeChecksFromImpact(impact: ImpactAnalysis): ImpactVerificationHint[] {
+  if (isContextOnlyVerification(impact)) {
+    return [];
+  }
+
   const checks: ImpactVerificationHint[] = [];
   const text = impactText(impact).toLowerCase();
   const docsOnly = impact.affectedFiles.length > 0 && impact.affectedFiles.every((file) => isDocsPath(file.path));
@@ -107,7 +108,24 @@ function smokeChecksFromImpact(impact: ImpactAnalysis): ImpactVerificationHint[]
   return checks;
 }
 
+function contextOnlyValidationChecklist(impact: ImpactAnalysis): string[] {
+  const checklist = ["Inspect context changes."];
+
+  if (impact.contextChanges.length > 0) {
+    checklist.push("Confirm RCC workflow/context changes are intentional.");
+    checklist.push("Run `rcc validate` if context files changed.");
+  }
+
+  checklist.push("Record verification with `rcc done` only if the context change is meaningful.");
+
+  return checklist;
+}
+
 function validationChecklistFromImpact(impact: ImpactAnalysis): string[] {
+  if (isContextOnlyVerification(impact)) {
+    return contextOnlyValidationChecklist(impact);
+  }
+
   const checklist = ["Inspect affected files."];
 
   if (impact.affectedTests.length > 0) {
@@ -136,9 +154,14 @@ function validationChecklistFromImpact(impact: ImpactAnalysis): string[] {
 function notesFromImpact(impact: ImpactAnalysis): string[] {
   const notes = [...impact.notes];
   const docsOnly = impact.affectedFiles.length > 0 && impact.affectedFiles.every((file) => isDocsPath(file.path));
+  const contextOnlyNote = "Context-only changes detected; verify focuses on RCC/context files and does not promote task-route estimates to targeted tests or smoke checks.";
 
   if (docsOnly && !notes.includes("Docs-only impact detected; verify documentation changes manually.")) {
     notes.push("Docs-only impact detected; verify documentation changes manually.");
+  }
+
+  if (isContextOnlyVerification(impact) && !notes.includes(contextOnlyNote)) {
+    notes.push(contextOnlyNote);
   }
 
   if (
@@ -173,6 +196,27 @@ export function createVerificationPlan(input: VerificationPlanInput): Verificati
 export function createVerificationPlanFromImpact(impact: ImpactAnalysis): VerificationPlan {
   const affectedFilePaths = impact.affectedFiles.map((file) => file.path);
   const contextChangePaths = impact.contextChanges.map((file) => file.path);
+  const contextOnly = isContextOnlyVerification(impact);
+
+  if (contextOnly) {
+    return createVerificationPlan({
+      task: impact.task,
+      mode: impact.mode,
+      summary: impact.summary,
+      targetedTests: [],
+      targetedTestCommands: [],
+      buildCommands: [],
+      smokeChecks: [],
+      manualChecks: compactChecks([
+        manualCheck("context-changes", "Manually review context changes for workflow and routing impact.", contextChangePaths)
+      ]),
+      validationChecklist: validationChecklistFromImpact(impact),
+      confidence: impact.confidence,
+      confidenceExplanation: impact.confidenceExplanation,
+      notes: notesFromImpact(impact)
+    });
+  }
+
   const targetedTestCommands = impact.affectedTests.length > 0
     ? commandsByType(impact.suggestedCommands, "test")
     : [];

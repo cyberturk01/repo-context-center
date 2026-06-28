@@ -296,6 +296,43 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
   ]);
 });
 
+test("createVerificationPlanFromImpact preserves verification for non-context changed files", () => {
+  const impact = impactAnalysis({
+    changedFiles: [
+      {
+        path: "src/cache/redis.ts",
+        reason: "changed in working tree"
+      }
+    ],
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        changedFiles: 2,
+        nonContextChangedFiles: 1,
+        contextChanges: 1,
+        affectedFiles: 1,
+        affectedTests: 1,
+        contextOnlyChanges: false,
+        testRelationship: "strong"
+      }
+    })
+  });
+
+  const plan = createVerificationPlanFromImpact(impact);
+
+  assert.strictEqual(plan.targetedTests, impact.affectedTests);
+  assert.deepEqual(plan.targetedTestCommands.map((command) => command.command), [
+    "node --test tests/cache/redis.spec.ts"
+  ]);
+  assert.deepEqual(plan.buildCommands.map((command) => command.command), ["npm run build"]);
+  assert.deepEqual(plan.smokeChecks.map((check) => check.type), ["cache-behavior"]);
+});
+
 test("createVerificationPlanFromImpact suggests a login/auth smoke check for fix login bug", () => {
   const plan = createVerificationPlanFromImpact(impactAnalysis({
     task: "fix login bug",
@@ -459,18 +496,46 @@ test("createVerificationPlanFromImpact does not invent tests when Impact has no 
   assert.ok(plan.notes.includes("Docs-only impact detected; verify documentation changes manually."));
 });
 
-test("createVerificationPlanFromImpact adds context-only notes from Impact evidence", () => {
+test("createVerificationPlanFromImpact is conservative for context-only route estimates", () => {
   const impact = impactAnalysis({
-    task: "refresh agent context",
-    affectedFiles: [],
-    affectedTests: [],
+    task: "add redis cache",
+    affectedFiles: [
+      {
+        path: "src/cache/redis.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/cache/redis.spec.ts",
+        reason: "task route matched cache test",
+        score: 120,
+        confidence: "strong",
+        signals: ["task routing evidence", "filename similarity"]
+      }
+    ],
     contextChanges: [
       {
-        path: "AGENTS.md",
+        path: "docs/ai-context/TASK_ROUTING.md",
         reason: "changed in working tree"
       }
     ],
-    suggestedCommands: [],
+    suggestedCommands: [
+      {
+        command: "node --test tests/cache/redis.spec.ts",
+        type: "test",
+        scope: "focused",
+        confidence: "high",
+        reason: "run affected tests directly"
+      },
+      {
+        command: "npm run build",
+        type: "build",
+        scope: "project",
+        confidence: "medium",
+        reason: "verify TypeScript and generated CLI output"
+      }
+    ],
     confidence: "medium",
     confidenceExplanation: confidenceExplanation({
       level: "medium",
@@ -478,10 +543,10 @@ test("createVerificationPlanFromImpact adds context-only notes from Impact evide
         changedFiles: 1,
         nonContextChangedFiles: 0,
         contextChanges: 1,
-        affectedFiles: 0,
-        affectedTests: 0,
+        affectedFiles: 1,
+        affectedTests: 1,
         contextOnlyChanges: true,
-        testRelationship: "none"
+        testRelationship: "strong"
       }
     })
   });
@@ -489,17 +554,73 @@ test("createVerificationPlanFromImpact adds context-only notes from Impact evide
   const plan = createVerificationPlanFromImpact(impact);
 
   assert.deepEqual(plan.targetedTests, []);
-  assert.deepEqual(plan.validationChecklist, [
-    "Inspect affected files.",
-    "No strongly related tests were found; do not add generic tests.",
-    "Confirm RCC context changes are intentional.",
-    "Record verification with `rcc done`."
+  assert.deepEqual(plan.targetedTestCommands, []);
+  assert.deepEqual(plan.buildCommands, []);
+  assert.deepEqual(plan.smokeChecks, []);
+  assert.deepEqual(plan.manualChecks, [
+    {
+      type: "context-changes",
+      reason: "Manually review context changes for workflow and routing impact.",
+      paths: ["docs/ai-context/TASK_ROUTING.md"]
+    }
   ]);
+  assert.deepEqual(plan.validationChecklist, [
+    "Inspect context changes.",
+    "Confirm RCC workflow/context changes are intentional.",
+    "Run `rcc validate` if context files changed.",
+    "Record verification with `rcc done` only if the context change is meaningful."
+  ]);
+  assert.ok(plan.notes.includes(
+    "Context-only changes detected; verify focuses on RCC/context files and does not promote task-route estimates to targeted tests or smoke checks."
+  ));
+  assert.ok(plan.notes.includes("Context-only impact detected; verify context changes manually."));
+});
+
+test("createVerificationPlanFromImpact does not let context paths trigger source smoke checks", () => {
+  const impact = impactAnalysis({
+    task: "refresh context",
+    affectedFiles: [
+      {
+        path: "src/domain/service.ts",
+        reason: "changed in working tree"
+      }
+    ],
+    affectedTests: [],
+    contextChanges: [
+      {
+        path: ".github/workflows/ci.yml",
+        reason: "changed in working tree"
+      },
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        changedFiles: 3,
+        nonContextChangedFiles: 1,
+        contextChanges: 2,
+        affectedFiles: 1,
+        affectedTests: 0,
+        contextOnlyChanges: false,
+        testRelationship: "none"
+      }
+    })
+  });
+
+  const plan = createVerificationPlanFromImpact(impact);
+
+  assert.deepEqual(plan.smokeChecks, []);
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "affected-files"
+    && check.paths.includes("src/domain/service.ts")
+  )));
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "context-changes"
-    && check.paths.includes("AGENTS.md")
+    && check.paths.includes(".github/workflows/ci.yml")
   )));
-  assert.ok(plan.notes.includes("Context-only impact detected; verify context changes manually."));
 });
 
 test("verify --json builds recommendations from Impact analysis", () => {
