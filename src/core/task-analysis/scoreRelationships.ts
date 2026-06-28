@@ -131,7 +131,12 @@ function suggestedCommands(
 }
 
 function hasFilenameStemMatch(files: CandidateFile[]): boolean {
-  return files.some((file) => /\b(filename similarity|specific routed test name)\b/i.test(file.reason));
+  return files.some((file) => {
+    const signals = "signals" in file && Array.isArray(file.signals) ? file.signals : [];
+
+    return signals.some((signal) => signal === "filename similarity" || signal === "specific routed test name")
+      || /\b(filename similarity|specific routed test name)\b/i.test(file.reason);
+  });
 }
 
 function testRelationship(tests: CandidateFile[]): ConfidenceInfo["evidence"]["testRelationship"] {
@@ -139,7 +144,21 @@ function testRelationship(tests: CandidateFile[]): ConfidenceInfo["evidence"]["t
     return "none";
   }
 
-  return tests.some((file) => /\b(changed test file|imports affected source|repository learning|co-change history|filename similarity|same directory|same package\/module|specific routed test name)\b/i.test(file.reason))
+  return tests.some((file) => {
+    const signals = "signals" in file && Array.isArray(file.signals) ? file.signals : [];
+
+    return signals.some((signal) => [
+      "changed test file",
+      "imports affected source",
+      "repository learning",
+      "co-change history",
+      "filename similarity",
+      "same directory",
+      "same package/module",
+      "same package/module with task token",
+      "specific routed test name"
+    ].includes(signal)) || /\b(changed test file|imports affected source|repository learning|co-change history|filename similarity|same directory|same package\/module|specific routed test name)\b/i.test(file.reason);
+  })
     ? "strong"
     : "weak";
 }
@@ -397,10 +416,13 @@ function recommendedScoredTests(scoredTests: ScoredAffectedTest[], evidence: Tes
 }
 
 function candidateTest(item: ScoredAffectedTest, evidence: TestEvidence): CandidateTest {
+  const signalSummary = evidence.positiveSignals.length > 0 ? `; evidence=${evidence.positiveSignals.join("; ")}` : "";
+  const reason = `${evidence.decisionReason}; relationship=${evidence.relationship}${signalSummary}`;
+
   return {
     path: item.path,
-    reason: item.reason,
-    reasons: [item.reason],
+    reason,
+    reasons: [reason, item.reason],
     score: item.score,
     confidence: item.confidence,
     signals: item.signals,

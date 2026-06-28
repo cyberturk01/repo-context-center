@@ -564,6 +564,33 @@ test("impact does not recommend unrelated infrastructure tests for translation t
   });
 });
 
+test("impact does not emit Redis or queue package tests for auth middleware tasks", async () => {
+  await withImpactRepo(async (cwd) => {
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Backend auth middleware work: read `packages/backend-core/src/auth/middleware.ts`, `packages/backend-core/tests/redis/utils.spec.ts`, and `packages/backend-core/tests/queue/queuedProcessor.spec.ts`."
+      ].join("\n")
+    );
+    await writeFixtureFile(cwd, "packages/backend-core/src/auth/middleware.ts", "export function authMiddleware() { return true; }\n");
+    await writeFixtureFile(cwd, "packages/backend-core/tests/redis/utils.spec.ts", "test('redis utils', () => {});\n");
+    await writeFixtureFile(cwd, "packages/backend-core/tests/queue/queuedProcessor.spec.ts", "test('queued processor', () => {});\n");
+
+    const result = runCli(["impact", "improve auth middleware", "--json"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const analysis = JSON.parse(result.stdout);
+    const affectedTests = analysis.affectedTests.map((file) => file.path);
+
+    assert.equal(affectedTests.includes("packages/backend-core/tests/redis/utils.spec.ts"), false);
+    assert.equal(affectedTests.includes("packages/backend-core/tests/queue/queuedProcessor.spec.ts"), false);
+  });
+});
+
 test("impact still recommends Redis cache tests for Redis cache tasks", async () => {
   await withImpactRepo(async (cwd) => {
     await writeFixtureFile(
@@ -587,7 +614,7 @@ test("impact still recommends Redis cache tests for Redis cache tasks", async ()
     const affectedTests = analysis.affectedTests.map((file) => file.path);
 
     assert.deepEqual(affectedTests, ["tests/cache/redis.test.js"]);
-    assert.match(analysis.affectedTests[0].reason, /^strong confidence score /);
+    assert.match(analysis.affectedTests[0].reason, /^recommended: /);
   });
 });
 

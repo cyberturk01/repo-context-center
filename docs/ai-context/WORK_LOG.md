@@ -4480,4 +4480,40 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T15:37:23.301Z
+- Summary: Make impact/work test output evidence-first and add CLI regression for auth middleware excluding Redis/queue tests
+- Changed files: `src/core/task-analysis/scoreRelationships.ts`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Make impact/work test output evidence-first and add CLI regression for auth middleware excluding Redis/queue tests",
+  "files": [
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T15:37:23.301Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T15:37:23.301Z",
+  "summary": "Make impact/work test output evidence-first and add CLI regression for auth middleware excluding Redis/queue tests",
+  "files": [
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
