@@ -317,8 +317,11 @@ test("impact --task-only ignores git context changes in confidence evidence", as
     assert.equal(defaultAnalysis.mode, "working-tree");
     assert.equal(defaultAnalysis.basis, "changed-files-and-task");
     assert.ok(defaultAnalysis.changedFiles.some((file) => file.path === "AGENTS.md"));
+    assert.equal(defaultAnalysis.confidence, "high");
     assert.equal(defaultAnalysis.confidenceExplanation.evidence.contextOnlyChanges, true);
     assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("context-only changes detected"));
+    assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("routing confidence: high"));
+    assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("change confidence: medium"));
 
     assert.equal(taskOnlyAnalysis.mode, "task-only");
     assert.equal(taskOnlyAnalysis.basis, "task");
@@ -329,6 +332,8 @@ test("impact --task-only ignores git context changes in confidence evidence", as
     assert.equal(taskOnlyAnalysis.confidenceExplanation.evidence.contextOnlyChanges, false);
     assert.equal(taskOnlyAnalysis.confidenceExplanation.reasons.includes("context-only changes detected"), false);
     assert.equal(taskOnlyAnalysis.confidenceExplanation.reasons.includes("context changes do not raise confidence to high"), false);
+    assert.ok(taskOnlyAnalysis.confidenceExplanation.reasons.includes("routing confidence: high"));
+    assert.ok(taskOnlyAnalysis.confidenceExplanation.reasons.includes("change confidence: low"));
     assert.ok(taskOnlyAnalysis.affectedFiles.some((file) => file.path === "src/auth/login.ts"));
     assert.ok(taskOnlyAnalysis.affectedTests.some((file) => file.path === "tests/auth/login.test.js"));
     assert.ok(taskOnlyAnalysis.notes.includes("Task-only mode: ignored git working-tree changes."));
@@ -468,7 +473,8 @@ test("impact separates RCC and agent context changes from affected files", async
     assert.equal(analysis.confidenceExplanation.evidence.contextOnlyChanges, true);
     assert.equal(analysis.confidenceExplanation.evidence.nonContextChangedFiles, 0);
     assert.ok(analysis.confidenceExplanation.reasons.includes("context-only changes detected"));
-    assert.ok(analysis.confidenceExplanation.reasons.includes("context changes do not raise confidence to high"));
+    assert.ok(analysis.confidenceExplanation.reasons.includes("change confidence: medium"));
+    assert.ok(analysis.confidenceExplanation.reasons.includes("routing evidence not strong enough for high confidence"));
   });
 });
 
@@ -477,7 +483,7 @@ test("impact text output explains confidence evidence", async () => {
     const result = runCli(["impact", "update login flow"], { cwd });
 
     assert.equal(result.status, 0, result.stderr || result.stdout);
-    assert.match(result.stdout, /Confidence: medium/);
+    assert.match(result.stdout, /Confidence: high/);
     assert.match(result.stdout, /Confidence evidence:\n- task routing matched\n- filename stem matched\n- strong test relationship/);
     assert.doesNotMatch(result.stdout, /verificationHints|Verification hints/i);
   });

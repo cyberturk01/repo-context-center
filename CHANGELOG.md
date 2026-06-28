@@ -1,5 +1,54 @@
 # ChangeLog
 
+## [0.11.1]
+
+Repo Context Center v0.11.1 expands RCC from task routing into practical change-impact guidance, with stronger installation diagnostics and safer agent-instruction updates.
+
+### Impact Analysis
+
+- Added the `impact` command.
+- Added affected files detection.
+- Added confidence-scored affected test recommendations.
+- Added suggested verification commands.
+- Added `contextChanges` separation for RCC and agent-context files.
+- Added task-only mode.
+- Added summary output.
+- Added confidence explanation.
+- Added structured affected-test metadata:
+  - `score`
+  - `confidence`
+  - `signals`
+- Added `verificationHints` placeholder for future Verify Intelligence.
+
+### Work Improvements
+
+- Work and Impact now share the same affected-test scoring.
+- Removed unrelated fallback test recommendations.
+- Work now prefers no tests over weak recommendations.
+- Improved agent guidance when no strong test relationship exists.
+
+### Measure
+
+- Improved excluded-file reporting.
+- Clarified representative ignored, unsupported, and scan-cap paths.
+
+### Doctor
+
+- Improved local/global installation diagnostics.
+- Reduced unnecessary upgrade recommendations.
+- Better distinguished a healthy active CLI from older local installs.
+
+### Init
+
+- Added safer `AGENTS.md` update flow.
+- Added `update-agent-file` support.
+- Improved AI instruction file detection without modifying third-party instruction files.
+
+### Validation
+
+- Validated the release on a large real-world monorepo with approximately 4,300 eligible files.
+- Covered `init`, `map`, `work`, `impact`, `measure`, `doctor`, and `validate`.
+
 ## [0.9.1]
 
 - WORK_INDEX.md compact memory file

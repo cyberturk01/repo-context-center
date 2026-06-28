@@ -4668,4 +4668,74 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T22:26:47.720Z
+- Summary: refined impact confidence calculation
+- Changed files: `src/core/task-analysis/scoreRelationships.ts`, `tests/impact.test.js`
+- Verification: node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "refined impact confidence calculation",
+  "files": [
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T22:26:47.720Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T22:26:47.720Z",
+  "summary": "refined impact confidence calculation",
+  "files": [
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T22:29:04.065Z
+- Summary: updated changelog for v0.11.1
+- Changed files: `CHANGELOG.md`
+- Verification: not run (documentation-only changelog update)
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "updated changelog for v0.11.1",
+  "files": [
+    "CHANGELOG.md"
+  ],
+  "verification": [
+    "not run (documentation-only changelog update)"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T22:29:04.065Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T22:29:04.065Z",
+  "summary": "updated changelog for v0.11.1",
+  "files": [
+    "CHANGELOG.md"
+  ],
+  "verification": "not run (documentation-only changelog update)",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

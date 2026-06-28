@@ -164,6 +164,14 @@ function testRelationship(tests: CandidateFile[]): ConfidenceInfo["evidence"]["t
     : "weak";
 }
 
+type InternalConfidenceLevel = ConfidenceInfo["level"];
+
+function strongerConfidence(left: InternalConfidenceLevel, right: InternalConfidenceLevel): InternalConfidenceLevel {
+  const score = { low: 0, medium: 1, high: 2 };
+
+  return score[left] >= score[right] ? left : right;
+}
+
 function confidenceExplanation(
   changedFiles: string[],
   contextChanges: CandidateFile[],
@@ -180,13 +188,21 @@ function confidenceExplanation(
     && contextChanges.length > 0;
   const relationship = testRelationship(affectedTests);
   const reasons: string[] = [];
-  let level: ConfidenceInfo["level"] = "low";
-
-  if (nonContextChangedFiles.length > 0 && affectedTests.length > 0 && relationship === "strong") {
-    level = "high";
-  } else if (affectedFiles.length > 0 || affectedTests.length > 0 || contextChanges.length > 0 || taskRoutingMatched) {
-    level = "medium";
-  }
+  const routingConfidence: InternalConfidenceLevel = taskRoutingMatched
+    && relationship === "strong"
+    && (affectedFiles.length > 0 || filenameStemMatched)
+    ? "high"
+    : taskRoutingMatched || affectedFiles.length > 0 || affectedTests.length > 0
+      ? "medium"
+      : "low";
+  const changeConfidence: InternalConfidenceLevel = nonContextChangedFiles.length > 0
+    && affectedTests.length > 0
+    && relationship === "strong"
+    ? "high"
+    : nonContextChangedFiles.length > 0 || contextChanges.length > 0
+      ? "medium"
+      : "low";
+  const level = strongerConfidence(routingConfidence, changeConfidence);
 
   if (nonContextChangedFiles.length > 0) {
     reasons.push("changed files detected");
@@ -209,8 +225,10 @@ function confidenceExplanation(
   } else {
     reasons.push("no test relationship");
   }
-  if (level !== "high" && contextOnlyChanges) {
-    reasons.push("context changes do not raise confidence to high");
+  reasons.push(`routing confidence: ${routingConfidence}`);
+  reasons.push(`change confidence: ${changeConfidence}`);
+  if (level !== "high" && contextOnlyChanges && routingConfidence !== "high") {
+    reasons.push("routing evidence not strong enough for high confidence");
   }
 
   return {
