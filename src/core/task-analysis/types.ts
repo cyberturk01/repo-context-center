@@ -1,7 +1,7 @@
 import type { LearnedRoutingSignals } from "../repositoryLearningRouting";
 import type { StartupContext } from "../suggester";
 import type { TaskIntentAnalysis } from "../taskIntent";
-import type { AffectedTestConfidence, ScoredAffectedTest } from "../../cli/shared/affectedTests";
+import type { AffectedTestConfidence, ClassifiedAffectedTest, RelationshipType, ScoredAffectedTest } from "../../cli/shared/affectedTests";
 import type { WorkFileCategorization, WorkMapFreshness, ReadFirstGuidance, TargetedLookupHint, WorkRecommendation } from "../../cli/work/workTypes";
 
 export type ConfidenceLevel = "high" | "medium" | "low";
@@ -18,7 +18,10 @@ export interface CandidateTest extends CandidateFile {
   confidence: AffectedTestConfidence | "high" | "medium" | "low";
   score: number;
   signals: string[];
+  relationshipType: RelationshipType;
 }
+
+export type { RelationshipType };
 
 export interface ContextChange extends CandidateFile {}
 
@@ -61,6 +64,7 @@ export interface TaskAnalysisResult {
   primaryFiles: CandidateFile[];
   affectedFiles: CandidateFile[];
   testCandidates: CandidateTest[];
+  testClassifications: ClassifiedAffectedTest[];
   contextChanges: ContextChange[];
   confidence: ConfidenceInfo;
   verification: VerificationPlan;

@@ -1,5 +1,5 @@
 import { classifyRepoFile } from "../repoFileClassifier";
-import { scoreAffectedTests, type ScoredAffectedTest } from "../../cli/shared/affectedTests";
+import { analyzeAffectedTests, type ClassifiedAffectedTest, type ScoredAffectedTest } from "../../cli/shared/affectedTests";
 import { uniquePaths } from "../../cli/work/taskFileRecommendations";
 import type { LearnedRoutingSignals } from "../repositoryLearningRouting";
 import type { CandidateFile, CandidateTest, ConfidenceInfo, VerificationCommand, VerificationPlan } from "./types";
@@ -223,7 +223,8 @@ function candidateTest(item: ScoredAffectedTest): CandidateTest {
     reasons: [item.reason],
     score: item.score,
     confidence: item.confidence,
-    signals: item.signals
+    signals: item.signals,
+    relationshipType: item.relationshipType
   };
 }
 
@@ -243,12 +244,13 @@ export async function scoreRelationships(input: {
 }): Promise<{
   workAffectedTests: ScoredAffectedTest[];
   testCandidates: CandidateTest[];
+  testClassifications: ClassifiedAffectedTest[];
   filteredLearnedSignals: LearnedRoutingSignals;
   confidence: ConfidenceInfo;
   verification: VerificationPlan;
   docsOnlyImpact: boolean;
 }> {
-  const workAffectedTests = await scoreAffectedTests({
+  const workTestAnalysis = await analyzeAffectedTests({
     cwd: input.cwd,
     task: input.task,
     sourcePaths: input.workSourcePaths,
@@ -257,6 +259,7 @@ export async function scoreRelationships(input: {
     includeRepoTestDiscovery: false,
     maxTests: Math.min(input.maxFiles, 6)
   });
+  const workAffectedTests = workTestAnalysis.scoredTests;
   const affectedTestPaths = workAffectedTests.map((file) => file.path);
   const affectedTestSet = new Set(affectedTestPaths);
   const filteredLearnedTests = input.learnedSignals.learnedTests.filter((file) => affectedTestSet.has(file));
@@ -278,7 +281,7 @@ export async function scoreRelationships(input: {
       .map((file) => file.path)
       .filter((file) => !isDocsOnlyPath(file) && classifyRepoFile(file).role !== "test")
   ]);
-  const scoredImpactTests = input.docsOnlyReadmeTask ? [] : await scoreAffectedTests({
+  const impactTestAnalysis = input.docsOnlyReadmeTask ? { classifications: [], scoredTests: [] } : await analyzeAffectedTests({
     cwd: input.cwd,
     task: input.task,
     changedFiles: input.changedFiles,
@@ -287,7 +290,7 @@ export async function scoreRelationships(input: {
     learnedTests: filteredLearnedSignals.learnedTests,
     maxTests: input.maxFiles
   });
-  const testCandidates = scoredImpactTests.map(candidateTest);
+  const testCandidates = impactTestAnalysis.scoredTests.map(candidateTest);
   const confidence = confidenceExplanation(
     input.changedFiles,
     input.contextChanges,
@@ -304,6 +307,7 @@ export async function scoreRelationships(input: {
   return {
     workAffectedTests,
     testCandidates,
+    testClassifications: impactTestAnalysis.classifications,
     filteredLearnedSignals,
     confidence,
     verification,

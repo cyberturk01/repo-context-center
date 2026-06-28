@@ -33,11 +33,14 @@ async function withTaskAnalysisRepo(callback) {
       [
         "# Task Routing",
         "",
-        "- Redis cache work: read `src/cache/redis.ts` and `tests/cache/redis.test.js`."
+        "- Redis cache work: read `src/cache/redis.ts` and `tests/cache/redis.test.js`.",
+        "- Auth login work: read `src/auth/login.ts` and `tests/auth/auth.spec.ts`."
       ].join("\n")
     );
     await writeFixtureFile(tempDir, "src/cache/redis.ts", "export function redisCache() { return true; }\n");
     await writeFixtureFile(tempDir, "tests/cache/redis.test.js", "test('redis cache', () => {});\n");
+    await writeFixtureFile(tempDir, "src/auth/login.ts", "export function login() { return true; }\n");
+    await writeFixtureFile(tempDir, "tests/auth/auth.spec.ts", "test('auth login', () => {});\n");
     await writeFixtureFile(tempDir, "tests/api/public.test.js", "test('public api', () => {});\n");
 
     return await callback(tempDir);
@@ -58,10 +61,30 @@ test("buildTaskAnalysis exposes the shared task analysis contract", async () => 
     assert.equal(analysis.basis, "task");
     assert.ok(analysis.primaryFiles.some((file) => file.path === "src/cache/redis.ts"));
     assert.ok(analysis.affectedFiles.some((file) => file.path === "src/cache/redis.ts"));
-    assert.ok(analysis.testCandidates.some((file) => file.path === "tests/cache/redis.test.js"));
+    const redisTest = analysis.testCandidates.find((file) => file.path === "tests/cache/redis.test.js");
+    assert.ok(redisTest);
+    assert.equal(redisTest.relationshipType, "direct-test");
+    assert.ok(analysis.testClassifications.some((file) => file.path === "tests/cache/redis.test.js"));
     assert.equal(analysis.confidence.evidence.taskRoutingMatched, true);
     assert.ok(Array.isArray(analysis.contextChanges));
     assert.ok(Array.isArray(analysis.verification.commands));
+  });
+});
+
+test("test candidates are classified before scoring", async () => {
+  await withTaskAnalysisRepo(async (cwd) => {
+    const analysis = await buildTaskAnalysis(cwd, "fix auth login", {
+      taskOnly: true,
+      maxFiles: 20
+    });
+    const authTest = analysis.testCandidates.find((file) => file.path === "tests/auth/auth.spec.ts");
+    const redisClassification = analysis.testClassifications.find((file) => file.path === "tests/cache/redis.test.js");
+
+    assert.ok(authTest);
+    assert.equal(authTest.relationshipType, "direct-test");
+    assert.ok(redisClassification);
+    assert.equal(redisClassification.relationshipType, "unrelated");
+    assert.ok(!analysis.testCandidates.some((file) => file.path === "tests/cache/redis.test.js"));
   });
 });
 

@@ -4150,4 +4150,46 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T14:40:28.640Z
+- Summary: Introduced relationship classification for affected test candidates before scoring and exposed classifications on TaskAnalysisResult.
+- Changed files: `src/cli/shared/affectedTests.ts`, `src/core/task-analysis/buildTaskAnalysis.ts`, `src/core/task-analysis/scoreRelationships.ts`, `src/core/task-analysis/types.ts`, `tests/task-analysis.test.js`
+- Verification: npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Introduced relationship classification for affected test candidates before scoring and exposed classifications on TaskAnalysisResult.",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:40:28.640Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:40:28.640Z",
+  "summary": "Introduced relationship classification for affected test candidates before scoring and exposed classifications on TaskAnalysisResult.",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": "npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
