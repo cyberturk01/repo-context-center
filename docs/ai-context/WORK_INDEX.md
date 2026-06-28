@@ -6,20 +6,20 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema.
+- Created shared task analysis engine and adapted work/impact to render from TaskAnalysisResult without changing outputs.
 - updated README for latest RCC workflow and impact changes
 - Improved work agent no-test guidance
 - Added task-only mode to impact analysis
 - Add structured affected-test metadata to impact JSON
 - Tightened affected-test confidence thresholds
-- Keep work affected-test scoring from broad test discovery
-- Shared affected-test scoring between impact and work
 
 ## Hot Files
 
 | File | Reason | Last touched |
 | ---- | ------ | ------------ |
 | `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
-| `src/cli/impact/buildImpact.ts` | 19 touches; Added task-only mode to impact analysis | 2026-06-26 |
+| `src/cli/impact/buildImpact.ts` | 21 touches; Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema. | 2026-06-28 |
 | `tests/impact.test.js` | 19 touches; Added task-only mode to impact analysis | 2026-06-26 |
 | `tests/work.test.js` | 18 touches; Improved work agent no-test guidance | 2026-06-26 |
 | `src/cli/handoff/buildHandoffBrief.ts` | 15 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
@@ -33,9 +33,9 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Work routing | 26 | updated README for latest RCC workflow and impact changes |
+| Work routing | 27 | Created shared task analysis engine and adapted work/impact to render from TaskAnalysisResult without changing outputs. |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
-| General maintenance | 16 | Added task-only mode to impact analysis |
+| General maintenance | 17 | Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema. |
 | Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
 | Tests | 8 | Add structured affected-test metadata to impact JSON |
@@ -44,12 +44,12 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (67)
+- `npm run build` (68)
 - `npm test` (42)
+- `node --test tests/impact.test.js` (14)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/cli.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
-- `node --test tests/impact.test.js` (13)
 - `npm run benchmark:routing` (11)
 - `npm run release:check` (10)
 

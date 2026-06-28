@@ -3976,4 +3976,108 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T14:18:55.048Z
+- Summary: Created shared task analysis engine and adapted work/impact to render from TaskAnalysisResult without changing outputs.
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/work/buildWorkBrief.ts`, `src/core/task-analysis/buildTaskAnalysis.ts`, `src/core/task-analysis/classifyRelationships.ts`, `src/core/task-analysis/discoverCandidates.ts`, `src/core/task-analysis/index.ts`, `src/core/task-analysis/parseTaskIntent.ts`, `src/core/task-analysis/scoreRelationships.ts`, `src/core/task-analysis/types.ts`, `tests/task-analysis.test.js`
+- Verification: npm run build; node --test tests/task-analysis.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Created shared task analysis engine and adapted work/impact to render from TaskAnalysisResult without changing outputs.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/classifyRelationships.ts",
+    "src/core/task-analysis/discoverCandidates.ts",
+    "src/core/task-analysis/index.ts",
+    "src/core/task-analysis/parseTaskIntent.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/task-analysis.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:18:55.048Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:18:55.048Z",
+  "summary": "Created shared task analysis engine and adapted work/impact to render from TaskAnalysisResult without changing outputs.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/classifyRelationships.ts",
+    "src/core/task-analysis/discoverCandidates.ts",
+    "src/core/task-analysis/index.ts",
+    "src/core/task-analysis/parseTaskIntent.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": "npm run build; node --test tests/task-analysis.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T14:21:51.949Z
+- Summary: Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema.
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/work/buildWorkBrief.ts`, `src/core/task-analysis/buildTaskAnalysis.ts`, `src/core/task-analysis/classifyRelationships.ts`, `src/core/task-analysis/discoverCandidates.ts`, `src/core/task-analysis/index.ts`, `src/core/task-analysis/parseTaskIntent.ts`, `src/core/task-analysis/scoreRelationships.ts`, `src/core/task-analysis/types.ts`, `tests/task-analysis.test.js`
+- Verification: node --test tests/impact.test.js; node --test tests/task-analysis.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/classifyRelationships.ts",
+    "src/core/task-analysis/discoverCandidates.ts",
+    "src/core/task-analysis/index.ts",
+    "src/core/task-analysis/parseTaskIntent.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": [
+    "node --test tests/impact.test.js; node --test tests/task-analysis.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:21:51.949Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:21:51.949Z",
+  "summary": "Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/classifyRelationships.ts",
+    "src/core/task-analysis/discoverCandidates.ts",
+    "src/core/task-analysis/index.ts",
+    "src/core/task-analysis/parseTaskIntent.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": "node --test tests/impact.test.js; node --test tests/task-analysis.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
