@@ -56,7 +56,7 @@ export function renderVerifyText(plan: VerificationPlan): string {
     ...formatCommands(plan.buildCommands),
     "",
     "Smoke checks:",
-    ...formatCommands(plan.smokeChecks),
+    ...formatManualChecks(plan.smokeChecks),
     "",
     "Manual checks:",
     ...formatManualChecks(plan.manualChecks),

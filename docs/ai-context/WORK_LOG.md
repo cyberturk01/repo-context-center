@@ -4970,4 +4970,44 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T23:21:23.138Z
+- Summary: Added safe manual smoke check heuristics to VerificationPlan generation
+- Changed files: `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `src/cli/verify/verifyTypes.ts`, `tests/verify.test.js`
+- Verification: node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added safe manual smoke check heuristics to VerificationPlan generation",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T23:21:23.138Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T23:21:23.138Z",
+  "summary": "Added safe manual smoke check heuristics to VerificationPlan generation",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

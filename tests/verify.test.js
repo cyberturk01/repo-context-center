@@ -144,11 +144,9 @@ test("createVerificationPlan constructs the shared verification plan model", () 
     ],
     smokeChecks: [
       {
-        command: "npm run smoke",
-        type: "verification",
-        scope: "project",
-        confidence: "high",
-        reason: "exercise integrated cache startup"
+        type: "cache-behavior",
+        reason: "Manually check cache behavior and fallback behavior for the affected path.",
+        paths: ["src/cache/redis.ts"]
       }
     ],
     manualChecks: [
@@ -195,7 +193,8 @@ test("createVerificationPlan constructs the shared verification plan model", () 
   assert.equal(plan.targetedTests[0].confidence, "high");
   assert.deepEqual(plan.targetedTestCommands, []);
   assert.equal(plan.buildCommands[0].type, "build");
-  assert.equal(plan.smokeChecks[0].type, "verification");
+  assert.equal(plan.smokeChecks[0].type, "cache-behavior");
+  assert.equal("command" in plan.smokeChecks[0], false);
   assert.equal(plan.manualChecks[0].type, "config");
   assert.deepEqual(plan.validationChecklist, [
     "Focused cache test passes",
@@ -271,7 +270,8 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
     "node --test tests/cache/redis.spec.ts"
   ]);
   assert.deepEqual(plan.buildCommands.map((command) => command.command), ["npm run build"]);
-  assert.deepEqual(plan.smokeChecks.map((command) => command.command), ["npm run smoke"]);
+  assert.deepEqual(plan.smokeChecks.map((check) => check.type), ["cache-behavior"]);
+  assert.equal(plan.smokeChecks.some((check) => "command" in check), false);
   assert.equal(plan.confidence, impact.confidence);
   assert.deepEqual(plan.confidenceExplanation, impact.confidenceExplanation);
   assert.ok(plan.manualChecks.some((check) => (
@@ -292,8 +292,121 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
   assert.ok(plan.validationChecklist.includes("Review context changes for workflow or routing drift."));
 });
 
+test("createVerificationPlanFromImpact suggests a login/auth smoke check for fix login bug", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "fix login bug",
+    affectedFiles: [
+      {
+        path: "src/auth/login.ts",
+        reason: "task routing matched"
+      }
+    ],
+    suggestedCommands: []
+  }));
+
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "auth-flow"
+    && /login\/auth flow/.test(check.reason)
+    && check.paths.includes("src/auth/login.ts")
+  )));
+  assert.equal(plan.smokeChecks.some((check) => "command" in check), false);
+});
+
+test("createVerificationPlanFromImpact suggests a UI text smoke check for update translation", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "update translation",
+    affectedFiles: [
+      {
+        path: "src/i18n/translations.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: []
+  }));
+
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "ui-text"
+    && /affected UI text/.test(check.reason)
+    && check.paths.includes("src/i18n/translations.ts")
+  )));
+  assert.deepEqual(plan.targetedTestCommands, []);
+});
+
+test("createVerificationPlanFromImpact suggests cache and fallback smoke checks for add redis cache", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "add redis cache",
+    affectedFiles: [
+      {
+        path: "src/cache/redis.ts",
+        reason: "task routing matched"
+      }
+    ]
+  }));
+
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "cache-behavior"
+    && /cache behavior and fallback behavior/.test(check.reason)
+    && check.paths.includes("src/cache/redis.ts")
+  )));
+});
+
+test("createVerificationPlanFromImpact suggests a workflow smoke check for improve github action", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "improve github action",
+    affectedFiles: [
+      {
+        path: ".github/workflows/ci.yml",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: []
+  }));
+
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "ci-workflow"
+    && /GitHub Action or CI workflow path/.test(check.reason)
+    && check.paths.includes(".github/workflows/ci.yml")
+  )));
+  assert.deepEqual(plan.targetedTestCommands, []);
+});
+
+test("createVerificationPlanFromImpact suggests rendered docs review for update README wording", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "update README wording",
+    affectedFiles: [
+      {
+        path: "README.md",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: [
+      {
+        command: "npm test",
+        type: "test",
+        scope: "project",
+        confidence: "low",
+        reason: "fallback command"
+      }
+    ],
+    notes: ["Docs-only impact detected; no focused test command suggested."]
+  }));
+
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "docs-rendering"
+    && /rendered Markdown or published docs/.test(check.reason)
+    && check.paths.includes("README.md")
+  )));
+  assert.deepEqual(plan.targetedTests, []);
+  assert.deepEqual(plan.targetedTestCommands, []);
+  assert.equal(plan.smokeChecks.some((check) => "command" in check), false);
+});
+
 test("createVerificationPlanFromImpact does not invent tests when Impact has no affected tests", () => {
   const impact = impactAnalysis({
+    task: "update README wording",
     affectedTests: [],
     affectedFiles: [
       {
@@ -327,7 +440,7 @@ test("createVerificationPlanFromImpact does not invent tests when Impact has no 
   assert.deepEqual(plan.targetedTests, []);
   assert.deepEqual(plan.targetedTestCommands, []);
   assert.deepEqual(plan.buildCommands, []);
-  assert.deepEqual(plan.smokeChecks, []);
+  assert.deepEqual(plan.smokeChecks.map((check) => check.type), ["docs-rendering"]);
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "affected-files"
     && check.paths.includes("README.md")

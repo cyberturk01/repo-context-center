@@ -16,7 +16,7 @@ export interface VerificationPlan {
   targetedTests: ImpactAffectedTest[];
   targetedTestCommands: ImpactCommand[];
   buildCommands: ImpactCommand[];
-  smokeChecks: ImpactCommand[];
+  smokeChecks: ImpactVerificationHint[];
   manualChecks: ImpactVerificationHint[];
   validationChecklist: string[];
   confidence: ImpactAnalysis["confidence"];
@@ -31,7 +31,7 @@ export interface VerificationPlanInput {
   targetedTests?: ImpactAffectedTest[];
   targetedTestCommands?: ImpactCommand[];
   buildCommands?: ImpactCommand[];
-  smokeChecks?: ImpactCommand[];
+  smokeChecks?: ImpactVerificationHint[];
   manualChecks?: ImpactVerificationHint[];
   validationChecklist?: string[];
   confidence: VerificationPlan["confidence"];

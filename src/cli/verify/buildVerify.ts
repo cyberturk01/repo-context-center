@@ -27,6 +27,86 @@ function commandsByType(commands: ImpactCommand[], type: ImpactCommand["type"]):
   return commands.filter((command) => command.type === type);
 }
 
+function textMatches(value: string, pattern: RegExp): boolean {
+  return pattern.test(value);
+}
+
+function impactText(impact: ImpactAnalysis): string {
+  return [
+    impact.task,
+    ...impact.affectedFiles.map((file) => file.path),
+    ...impact.contextChanges.map((file) => file.path)
+  ].join(" ");
+}
+
+function matchingPaths(impact: ImpactAnalysis, pattern: RegExp): string[] {
+  return [
+    ...impact.affectedFiles,
+    ...impact.contextChanges
+  ].map((file) => file.path).filter((filePath) => pattern.test(filePath));
+}
+
+function fallbackPaths(impact: ImpactAnalysis): string[] {
+  return [
+    ...impact.affectedFiles,
+    ...impact.contextChanges
+  ].map((file) => file.path);
+}
+
+function smokeCheck(type: string, reason: string, paths: string[]): ImpactVerificationHint {
+  return paths.length > 0 ? { type, reason, paths } : { type, reason };
+}
+
+function smokeChecksFromImpact(impact: ImpactAnalysis): ImpactVerificationHint[] {
+  const checks: ImpactVerificationHint[] = [];
+  const text = impactText(impact).toLowerCase();
+  const docsOnly = impact.affectedFiles.length > 0 && impact.affectedFiles.every((file) => isDocsPath(file.path));
+
+  if (textMatches(text, /\b(auth|login|sign-?in|session)\b/)) {
+    checks.push(smokeCheck(
+      "auth-flow",
+      "Manually check the affected login/auth flow at the changed entry point.",
+      matchingPaths(impact, /\b(auth|login|session|signin|sign-in)\b/i)
+    ));
+  }
+
+  if (textMatches(text, /\b(workflow|ci|github action|github actions|action)\b/) || matchingPaths(impact, /^\.github\/workflows\//i).length > 0) {
+    const workflowPaths = matchingPaths(impact, /^\.github\/workflows\//i);
+
+    checks.push(smokeCheck(
+      "ci-workflow",
+      "Manually review the relevant GitHub Action or CI workflow path and confirm its trigger/job intent.",
+      workflowPaths.length > 0 ? workflowPaths : fallbackPaths(impact)
+    ));
+  }
+
+  if (textMatches(text, /\b(translation|translate|i18n|locale|localization|copy)\b/)) {
+    checks.push(smokeCheck(
+      "ui-text",
+      "Manually check the affected UI text or location where the translation appears.",
+      matchingPaths(impact, /\b(i18n|locale|translation|translations|copy|ui)\b/i)
+    ));
+  }
+
+  if (textMatches(text, /\b(redis|cache|caching|cached)\b/)) {
+    checks.push(smokeCheck(
+      "cache-behavior",
+      "Manually check cache behavior and fallback behavior for the affected path.",
+      matchingPaths(impact, /\b(redis|cache|caching|cached)\b/i)
+    ));
+  }
+
+  if (docsOnly) {
+    checks.push(smokeCheck(
+      "docs-rendering",
+      "Review rendered Markdown or published docs for formatting, links, and expected wording.",
+      impact.affectedFiles.map((file) => file.path)
+    ));
+  }
+
+  return checks;
+}
+
 function validationChecklistFromImpact(impact: ImpactAnalysis): string[] {
   const checklist: string[] = [];
 
@@ -100,7 +180,7 @@ export function createVerificationPlanFromImpact(impact: ImpactAnalysis): Verifi
     targetedTests: impact.affectedTests,
     targetedTestCommands,
     buildCommands: commandsByType(impact.suggestedCommands, "build"),
-    smokeChecks: commandsByType(impact.suggestedCommands, "verification"),
+    smokeChecks: smokeChecksFromImpact(impact),
     manualChecks: [
       ...impact.verificationHints,
       ...compactChecks([
