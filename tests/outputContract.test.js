@@ -20,6 +20,7 @@ function parseJsonOnlyOutput(result) {
   assert.doesNotMatch(result.stdout, /^#+\s/m);
   assert.doesNotMatch(result.stdout, /^repo-context-center\b/im);
   assert.doesNotMatch(result.stdout, /^Usage:/m);
+  assert.doesNotMatch(result.stdout, /^(?:warning|warn|info|log|note):/im);
   assert.equal(result.stdout.trimStart()[0], "{");
   assert.equal(result.stdout.trimEnd().at(-1), "}");
 
@@ -43,6 +44,42 @@ function assertPathArray(value, label) {
   for (const item of value) {
     assert.equal(typeof item, "string", `${label} should contain compact path strings`);
   }
+}
+
+function assertVerifyJsonContract(plan, task, mode) {
+  assert.deepEqual(Object.keys(plan).sort(), [
+    "buildCommands",
+    "command",
+    "confidence",
+    "confidenceExplanation",
+    "manualChecks",
+    "mode",
+    "notes",
+    "schemaVersion",
+    "smokeChecks",
+    "summary",
+    "targetedTestCommands",
+    "targetedTests",
+    "task",
+    "validationChecklist"
+  ]);
+  assert.equal(plan.schemaVersion, 1);
+  assert.equal(plan.command, "verify");
+  assert.equal(plan.task, task);
+  assert.equal(plan.mode, mode);
+  assert.ok(Array.isArray(plan.targetedTests));
+  assert.ok(Array.isArray(plan.targetedTestCommands));
+  assert.ok(Array.isArray(plan.buildCommands));
+  assert.ok(Array.isArray(plan.smokeChecks));
+  assert.ok(Array.isArray(plan.manualChecks));
+  assert.ok(Array.isArray(plan.validationChecklist));
+  assert.ok(Array.isArray(plan.notes));
+  assert.equal(typeof plan.confidence, "string");
+  assert.equal(typeof plan.confidenceExplanation, "object");
+  assert.equal("affectedFiles" in plan, false);
+  assert.equal("suggestedCommands" in plan, false);
+  assert.equal("changedFiles" in plan, false);
+  assert.equal("contextChanges" in plan, false);
 }
 
 test("work --agent remains compact parseable JSON only", () => {
@@ -251,33 +288,36 @@ test("handoff --json remains parseable shape-tested JSON", () => {
 });
 
 test("verify --json remains parseable recommendation JSON only", () => {
-  const result = runCli(["verify", "change report output contract", "--json", "--task-only"]);
-  const plan = parseJsonOnlyOutput(result);
+  const task = "change report output contract";
+  const plan = parseJsonOnlyOutput(runCli(["verify", task, "--json", "--task-only"]));
 
-  assert.deepEqual(Object.keys(plan).sort(), [
-    "buildCommands",
-    "command",
-    "confidence",
-    "confidenceExplanation",
-    "manualChecks",
-    "mode",
-    "notes",
-    "schemaVersion",
-    "smokeChecks",
-    "summary",
-    "targetedTestCommands",
-    "targetedTests",
-    "task",
-    "validationChecklist"
-  ]);
-  assert.equal(plan.schemaVersion, 1);
-  assert.equal(plan.command, "verify");
-  assert.equal(plan.task, "change report output contract");
-  assert.equal(plan.mode, "task-only");
-  assert.ok(Array.isArray(plan.targetedTests));
-  assert.ok(Array.isArray(plan.targetedTestCommands));
-  assert.ok(Array.isArray(plan.buildCommands));
-  assert.ok(Array.isArray(plan.manualChecks));
-  assert.equal("affectedFiles" in plan, false);
-  assert.equal("suggestedCommands" in plan, false);
+  assertVerifyJsonContract(plan, task, "task-only");
+});
+
+test("verify --json keeps stable JSON contract for fix login bug", () => {
+  const task = "fix login bug";
+  const plan = parseJsonOnlyOutput(runCli(["verify", task, "--json"]));
+
+  assertVerifyJsonContract(plan, task, "working-tree");
+});
+
+test("verify --json keeps stable JSON contract for update translation", () => {
+  const task = "update translation";
+  const plan = parseJsonOnlyOutput(runCli(["verify", task, "--json"]));
+
+  assertVerifyJsonContract(plan, task, "working-tree");
+});
+
+test("verify --json keeps stable JSON contract for add redis cache", () => {
+  const task = "add redis cache";
+  const plan = parseJsonOnlyOutput(runCli(["verify", task, "--json"]));
+
+  assertVerifyJsonContract(plan, task, "working-tree");
+});
+
+test("verify --task-only --json keeps stable JSON contract for fix login bug", () => {
+  const task = "fix login bug";
+  const plan = parseJsonOnlyOutput(runCli(["verify", task, "--task-only", "--json"]));
+
+  assertVerifyJsonContract(plan, task, "task-only");
 });
