@@ -36,7 +36,7 @@
         ".github/workflows/ci.yml",
         "package.json"
       ],
-      "testsContains": [
+      "testsNotContains": [
         "tests/decision.test.js"
       ],
       "firstPrimaryFile": ".github/workflows/ai-project-guardian.yml",
@@ -47,7 +47,7 @@
       ],
       "maxPrimaryFiles": 3,
       "maxSupportingFiles": 0,
-      "maxTests": 2,
+      "maxTests": 0,
       "maxReadFirst": 1,
       "maxBriefTokens": 130
     }

@@ -4556,4 +4556,38 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T19:52:14.258Z
+- Summary: Align workflow routing regression with strict affected-test evidence policy
+- Changed files: `tests/fixtures/routing-cases.json`
+- Verification: npm run build; node --test tests/routingRegression.test.js; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Align workflow routing regression with strict affected-test evidence policy",
+  "files": [
+    "tests/fixtures/routing-cases.json"
+  ],
+  "verification": [
+    "npm run build; node --test tests/routingRegression.test.js; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T19:52:14.258Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T19:52:14.258Z",
+  "summary": "Align workflow routing regression with strict affected-test evidence policy",
+  "files": [
+    "tests/fixtures/routing-cases.json"
+  ],
+  "verification": "npm run build; node --test tests/routingRegression.test.js; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

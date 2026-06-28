@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Align workflow routing regression with strict affected-test evidence policy
 - Tightened affected-test evidence exact policy so generic import/module/routing signals no longer recommend unrelated tests; added Budibase-...
 - Make impact/work test output evidence-first and add CLI regression for auth middleware excluding Redis/queue tests
 - Add evidence-based TaskAnalysis test eligibility
 - Updated routing regression fixture caps to match TaskAnalysis-backed Work test candidates and verified full npm test.
 - Cleaned work renderer so work routes render tests from TaskAnalysisResult.testCandidates and cannot leak Work-only routed tests.
 - Implemented verify command as a renderer over TaskAnalysisResult with JSON and text reports.
-- Added TaskAnalysis fixture repositories and snapshot regression test covering auth, Redis, translations, and monorepo cases.
 
 ## Hot Files
 
@@ -33,7 +33,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Work routing | 33 | Tightened affected-test evidence exact policy so generic import/module/routing signals no longer recommend unrelated tests; added Budibase-shaped auth middlewa... |
+| Work routing | 34 | Align workflow routing regression with strict affected-test evidence policy |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | General maintenance | 17 | Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema. |
 | Tests | 11 | Add evidence-based TaskAnalysis test eligibility |
@@ -44,13 +44,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (77)
+- `npm run build` (78)
 - `npm test` (43)
-- `node --test tests/impact.test.js` (20)
+- `node --test tests/impact.test.js` (21)
 - `node --test tests/cli.test.js` (14)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
-- `node --test tests/work.test.js` (12)
+- `node --test tests/work.test.js` (13)
 - `npm run benchmark:routing` (11)
 
 <!-- repo-context-center:work-index:end -->
