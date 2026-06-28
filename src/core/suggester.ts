@@ -160,7 +160,9 @@ const weakStructuralTokens = new Set([
   "helpers",
   "source",
   "sources",
-  "storage"
+  "storage",
+  "task",
+  "tasks"
 ]);
 const actionTaskTokens = new Set([
   "add",
@@ -1728,7 +1730,7 @@ function isStrongStartReason(reason: string, taskTokens: Set<string>, retainedSo
 
   const filenameStem = /^matched filename stem: (.+)$/.exec(reason);
   if (filenameStem) {
-    return taskTokens.has(filenameStem[1]);
+    return taskTokens.has(filenameStem[1]) && !weakStructuralTokens.has(filenameStem[1]);
   }
 
   const pairedSource = pairedSourceFromReason(reason);

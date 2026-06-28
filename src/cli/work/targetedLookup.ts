@@ -136,6 +136,7 @@ function isOutputContractLookupTask(taskIntent: TaskIntentAnalysis): boolean {
 
 export function shouldSuppressWeakSemanticTaskFiles(taskIntent: TaskIntentAnalysis): boolean {
   return taskIntent.hasCiWorkflowIntent
+    || taskIntent.hasRoutingImplementationIntent
     || taskIntent.hasDocumentationIntent
     || isTokenMeasurementTask(taskIntent)
     || isLocalGlobalDoctorTask(taskIntent);

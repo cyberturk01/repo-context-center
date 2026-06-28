@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Fixed routing regression by demoting generic task/tasks path matches from focused routing primaries.
 - Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema.
 - Created shared task analysis engine and adapted work/impact to render from TaskAnalysisResult without changing outputs.
 - updated README for latest RCC workflow and impact changes
 - Improved work agent no-test guidance
 - Added task-only mode to impact analysis
 - Add structured affected-test metadata to impact JSON
-- Tightened affected-test confidence thresholds
 
 ## Hot Files
 
@@ -33,7 +33,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Work routing | 27 | Created shared task analysis engine and adapted work/impact to render from TaskAnalysisResult without changing outputs. |
+| Work routing | 28 | Fixed routing regression by demoting generic task/tasks path matches from focused routing primaries. |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | General maintenance | 17 | Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema. |
 | Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
@@ -44,7 +44,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (68)
+- `npm run build` (69)
 - `npm test` (42)
 - `node --test tests/impact.test.js` (14)
 - `node --test tests/*.test.js` (13)

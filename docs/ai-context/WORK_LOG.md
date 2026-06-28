@@ -4080,4 +4080,40 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T14:30:41.123Z
+- Summary: Fixed routing regression by demoting generic task/tasks path matches from focused routing primaries.
+- Changed files: `src/cli/work/targetedLookup.ts`, `src/core/suggester.ts`
+- Verification: npm run build; node --test tests/routingRegression.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed routing regression by demoting generic task/tasks path matches from focused routing primaries.",
+  "files": [
+    "src/cli/work/targetedLookup.ts",
+    "src/core/suggester.ts"
+  ],
+  "verification": [
+    "npm run build; node --test tests/routingRegression.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:30:41.123Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:30:41.123Z",
+  "summary": "Fixed routing regression by demoting generic task/tasks path matches from focused routing primaries.",
+  "files": [
+    "src/cli/work/targetedLookup.ts",
+    "src/core/suggester.ts"
+  ],
+  "verification": "npm run build; node --test tests/routingRegression.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
