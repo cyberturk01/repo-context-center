@@ -4116,4 +4116,38 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T14:34:57.594Z
+- Summary: Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches.
+- Changed files: `src/core/suggester.ts`
+- Verification: npm run build; node --test tests/start.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches.",
+  "files": [
+    "src/core/suggester.ts"
+  ],
+  "verification": [
+    "npm run build; node --test tests/start.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:34:57.594Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:34:57.594Z",
+  "summary": "Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches.",
+  "files": [
+    "src/core/suggester.ts"
+  ],
+  "verification": "npm run build; node --test tests/start.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

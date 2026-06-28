@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches.
 - Fixed routing regression by demoting generic task/tasks path matches from focused routing primaries.
 - Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema.
 - Created shared task analysis engine and adapted work/impact to render from TaskAnalysisResult without changing outputs.
 - updated README for latest RCC workflow and impact changes
 - Improved work agent no-test guidance
 - Added task-only mode to impact analysis
-- Add structured affected-test metadata to impact JSON
 
 ## Hot Files
 
@@ -40,11 +40,11 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
 | Tests | 8 | Add structured affected-test metadata to impact JSON |
 | CLI commands | 6 | Fixed suggested command path spacing for concatenated test paths |
-| Work memory | 5 | Implemented learning quality guards for repository memory |
+| Measurement and benchmarks | 5 | Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches. |
 
 ## Verification Patterns
 
-- `npm run build` (69)
+- `npm run build` (70)
 - `npm test` (42)
 - `node --test tests/impact.test.js` (14)
 - `node --test tests/*.test.js` (13)

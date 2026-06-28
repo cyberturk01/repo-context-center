@@ -959,17 +959,23 @@ function discoverLikelyTests(
 
 function firstMatchingTaskToken(filePath: string, taskTokens: string[]): string | undefined {
   const fileTokenSet = new Set(segmentTokens(filePath));
-  return taskTokens.find((token) => !actionTaskTokens.has(token) && fileTokenSet.has(token));
+  const matches = taskTokens.filter((token) => !actionTaskTokens.has(token) && fileTokenSet.has(token));
+
+  return matches.find((token) => !weakStructuralTokens.has(token)) ?? matches[0];
 }
 
 function firstMatchingFilenameStem(filePath: string, tokens: string[]): string | undefined {
   const filenameTokenSet = new Set(filenameTokens(filePath));
-  return tokens.find((token) => !actionTaskTokens.has(token) && filenameTokenSet.has(token));
+  const matches = tokens.filter((token) => !actionTaskTokens.has(token) && filenameTokenSet.has(token));
+
+  return matches.find((token) => !weakStructuralTokens.has(token)) ?? matches[0];
 }
 
 function firstMatchingParentFolder(filePath: string, tokens: string[]): string | undefined {
   const parentTokenSet = new Set(parentTokens(filePath));
-  return tokens.find((token) => !actionTaskTokens.has(token) && parentTokenSet.has(token));
+  const matches = tokens.filter((token) => !actionTaskTokens.has(token) && parentTokenSet.has(token));
+
+  return matches.find((token) => !weakStructuralTokens.has(token)) ?? matches[0];
 }
 
 function reasonsForRecommendedFile(
