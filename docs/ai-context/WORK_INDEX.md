@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Added TaskAnalysis fixture repositories and snapshot regression test covering auth, Redis, translations, and monorepo cases.
+- Required direct relationships before TaskAnalysis recommends tests so work and impact suppress indirect-only test candidates.
 - Introduced relationship classification for affected test candidates before scoring and exposed classifications on TaskAnalysisResult.
 - Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches.
 - Fixed routing regression by demoting generic task/tasks path matches from focused routing primaries.
 - Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema.
 - Created shared task analysis engine and adapted work/impact to render from TaskAnalysisResult without changing outputs.
-- updated README for latest RCC workflow and impact changes
-- Improved work agent no-test guidance
 
 ## Hot Files
 
@@ -33,20 +33,20 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Work routing | 28 | Fixed routing regression by demoting generic task/tasks path matches from focused routing primaries. |
+| Work routing | 29 | Required direct relationships before TaskAnalysis recommends tests so work and impact suppress indirect-only test candidates. |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | General maintenance | 17 | Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema. |
+| Tests | 10 | Added TaskAnalysis fixture repositories and snapshot regression test covering auth, Redis, translations, and monorepo cases. |
 | Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
-| Tests | 9 | Introduced relationship classification for affected test candidates before scoring and exposed classifications on TaskAnalysisResult. |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
 | CLI commands | 6 | Fixed suggested command path spacing for concatenated test paths |
 | Measurement and benchmarks | 5 | Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches. |
 
 ## Verification Patterns
 
-- `npm run build` (71)
+- `npm run build` (72)
 - `npm test` (42)
-- `node --test tests/impact.test.js` (15)
+- `node --test tests/impact.test.js` (17)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/cli.test.js` (13)
 - `node --test tests/handoff.test.js` (13)

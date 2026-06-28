@@ -1,0 +1,16 @@
+{
+  "name": "translations",
+  "cases": [
+    {
+      "task": "update translation",
+      "expected": {
+        "affectedFiles": [
+        ],
+        "tests": [],
+        "verificationCommands": [
+          "npm test"
+        ]
+      }
+    }
+  ]
+}

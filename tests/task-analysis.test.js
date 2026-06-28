@@ -34,13 +34,18 @@ async function withTaskAnalysisRepo(callback) {
         "# Task Routing",
         "",
         "- Redis cache work: read `src/cache/redis.ts` and `tests/cache/redis.test.js`.",
-        "- Auth login work: read `src/auth/login.ts` and `tests/auth/auth.spec.ts`."
+        "- Auth login work: read `src/auth/login.ts` and `tests/auth/auth.spec.ts`.",
+        "- Auth middleware work: read `src/auth/middleware.ts`, `tests/auth/auth.spec.ts`, and `tests/cache/redis.test.js`.",
+        "- Translation work: read `src/i18n/translate.ts`, `tests/cache/redis.test.js`, `tests/queue/worker.test.js`, and `tests/api/public.test.js`."
       ].join("\n")
     );
     await writeFixtureFile(tempDir, "src/cache/redis.ts", "export function redisCache() { return true; }\n");
     await writeFixtureFile(tempDir, "tests/cache/redis.test.js", "test('redis cache', () => {});\n");
     await writeFixtureFile(tempDir, "src/auth/login.ts", "export function login() { return true; }\n");
+    await writeFixtureFile(tempDir, "src/auth/middleware.ts", "export function authMiddleware() { return true; }\n");
     await writeFixtureFile(tempDir, "tests/auth/auth.spec.ts", "test('auth login', () => {});\n");
+    await writeFixtureFile(tempDir, "src/i18n/translate.ts", "export function translate() { return ''; }\n");
+    await writeFixtureFile(tempDir, "tests/queue/worker.test.js", "test('queue worker', () => {});\n");
     await writeFixtureFile(tempDir, "tests/api/public.test.js", "test('public api', () => {});\n");
 
     return await callback(tempDir);
@@ -102,5 +107,23 @@ test("work and impact render the same shared test analysis", async () => {
     assert.ok(workRoute.tests.includes("tests/cache/redis.test.js"));
     assert.ok(impactAnalysis.affectedTests.some((file) => file.path === "tests/cache/redis.test.js"));
     assert.ok(!impactAnalysis.affectedTests.some((file) => file.path === "tests/api/public.test.js"));
+  });
+});
+
+test("task analysis requires direct relationships before recommending tests", async () => {
+  await withTaskAnalysisRepo(async (cwd) => {
+    const translation = await buildTaskAnalysis(cwd, "update translation strings", {
+      taskOnly: true,
+      maxFiles: 20
+    });
+    const auth = await buildTaskAnalysis(cwd, "improve auth middleware", {
+      taskOnly: true,
+      maxFiles: 20
+    });
+
+    assert.deepEqual(translation.testCandidates, []);
+    assert.ok(auth.testCandidates.some((file) => file.path === "tests/auth/auth.spec.ts"));
+    assert.ok(!auth.testCandidates.some((file) => file.path === "tests/cache/redis.test.js"));
+    assert.ok(!auth.testCandidates.some((file) => file.path === "tests/api/public.test.js"));
   });
 });

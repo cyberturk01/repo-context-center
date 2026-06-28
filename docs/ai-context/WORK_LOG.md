@@ -4192,4 +4192,132 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T14:46:16.371Z
+- Summary: Required direct relationships before TaskAnalysis recommends tests so work and impact suppress indirect-only test candidates.
+- Changed files: `src/cli/shared/affectedTests.ts`, `tests/task-analysis.test.js`
+- Verification: node --test tests/impact.test.js; node --test tests/task-analysis.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Required direct relationships before TaskAnalysis recommends tests so work and impact suppress indirect-only test candidates.",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": [
+    "node --test tests/impact.test.js; node --test tests/task-analysis.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:46:16.371Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:46:16.371Z",
+  "summary": "Required direct relationships before TaskAnalysis recommends tests so work and impact suppress indirect-only test candidates.",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": "node --test tests/impact.test.js; node --test tests/task-analysis.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T14:55:19.207Z
+- Summary: Added TaskAnalysis fixture repositories and snapshot regression test covering auth, Redis, translations, and monorepo cases.
+- Changed files: `fixtures/monorepo-large/AGENTS.md`, `fixtures/monorepo-large/docs/ai-context/TASK_ROUTING.md`, `fixtures/monorepo-large/expected.json`, `fixtures/monorepo-large/packages/api/src/auth/middleware.ts`, `fixtures/monorepo-large/packages/api/tests/auth/middleware.spec.ts`, `fixtures/monorepo-large/packages/web/src/profile/ProfileCard.tsx`, `fixtures/monorepo-large/packages/web/tests/profile/ProfileCard.spec.tsx`, `fixtures/monorepo-large/packages/worker/tests/cache/redis.spec.ts`, `fixtures/redis-cache/AGENTS.md`, `fixtures/redis-cache/docs/ai-context/TASK_ROUTING.md`
+- Verification: npm run build; node --test tests/taskAnalysisFixtures.test.js; node --test tests/task-analysis.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added TaskAnalysis fixture repositories and snapshot regression test covering auth, Redis, translations, and monorepo cases.",
+  "files": [
+    "fixtures/monorepo-large/AGENTS.md",
+    "fixtures/monorepo-large/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/monorepo-large/expected.json",
+    "fixtures/monorepo-large/packages/api/src/auth/middleware.ts",
+    "fixtures/monorepo-large/packages/api/tests/auth/middleware.spec.ts",
+    "fixtures/monorepo-large/packages/web/src/profile/ProfileCard.tsx",
+    "fixtures/monorepo-large/packages/web/tests/profile/ProfileCard.spec.tsx",
+    "fixtures/monorepo-large/packages/worker/tests/cache/redis.spec.ts",
+    "fixtures/redis-cache/AGENTS.md",
+    "fixtures/redis-cache/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/redis-cache/expected.json",
+    "fixtures/redis-cache/src/cache/redis.ts",
+    "fixtures/redis-cache/tests/api/public.spec.ts",
+    "fixtures/redis-cache/tests/cache/redis.spec.ts",
+    "fixtures/simple-auth/AGENTS.md",
+    "fixtures/simple-auth/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/simple-auth/expected.json",
+    "fixtures/simple-auth/src/auth/middleware.ts",
+    "fixtures/simple-auth/tests/auth/auth.spec.ts",
+    "fixtures/simple-auth/tests/cache/redis.spec.ts",
+    "fixtures/translations/AGENTS.md",
+    "fixtures/translations/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/translations/expected.json",
+    "fixtures/translations/src/i18n/translate.ts",
+    "fixtures/translations/tests/api/public.spec.ts",
+    "fixtures/translations/tests/cache/redis.spec.ts",
+    "fixtures/translations/tests/queue/worker.spec.ts",
+    "src/cli/shared/affectedTests.ts",
+    "tests/task-analysis.test.js",
+    "tests/taskAnalysisFixtures.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/taskAnalysisFixtures.test.js; node --test tests/task-analysis.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:55:19.207Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:55:19.207Z",
+  "summary": "Added TaskAnalysis fixture repositories and snapshot regression test covering auth, Redis, translations, and monorepo cases.",
+  "files": [
+    "fixtures/monorepo-large/AGENTS.md",
+    "fixtures/monorepo-large/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/monorepo-large/expected.json",
+    "fixtures/monorepo-large/packages/api/src/auth/middleware.ts",
+    "fixtures/monorepo-large/packages/api/tests/auth/middleware.spec.ts",
+    "fixtures/monorepo-large/packages/web/src/profile/ProfileCard.tsx",
+    "fixtures/monorepo-large/packages/web/tests/profile/ProfileCard.spec.tsx",
+    "fixtures/monorepo-large/packages/worker/tests/cache/redis.spec.ts",
+    "fixtures/redis-cache/AGENTS.md",
+    "fixtures/redis-cache/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/redis-cache/expected.json",
+    "fixtures/redis-cache/src/cache/redis.ts",
+    "fixtures/redis-cache/tests/api/public.spec.ts",
+    "fixtures/redis-cache/tests/cache/redis.spec.ts",
+    "fixtures/simple-auth/AGENTS.md",
+    "fixtures/simple-auth/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/simple-auth/expected.json",
+    "fixtures/simple-auth/src/auth/middleware.ts",
+    "fixtures/simple-auth/tests/auth/auth.spec.ts",
+    "fixtures/simple-auth/tests/cache/redis.spec.ts",
+    "fixtures/translations/AGENTS.md",
+    "fixtures/translations/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/translations/expected.json",
+    "fixtures/translations/src/i18n/translate.ts",
+    "fixtures/translations/tests/api/public.spec.ts",
+    "fixtures/translations/tests/cache/redis.spec.ts",
+    "fixtures/translations/tests/queue/worker.spec.ts",
+    "src/cli/shared/affectedTests.ts",
+    "tests/task-analysis.test.js",
+    "tests/taskAnalysisFixtures.test.js"
+  ],
+  "verification": "npm run build; node --test tests/taskAnalysisFixtures.test.js; node --test tests/task-analysis.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

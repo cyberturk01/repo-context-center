@@ -301,13 +301,12 @@ function reasonFromSignals(score: number, confidence: AffectedTestConfidence, si
   return `${confidence} confidence score ${score}: ${signals.join("; ")}`;
 }
 
-function hasMeaningfulRelationshipSignal(signals: string[]): boolean {
+function hasDirectRecommendationSignal(signals: string[]): boolean {
   const directSignals = new Set([
-    "changed test file",
     "imports affected source",
     "same directory",
-    "filename similarity",
-    "same package/module with task token",
+    "task/test name match",
+    "co-change history",
     "specific routed test name"
   ]);
 
@@ -317,7 +316,7 @@ function hasMeaningfulRelationshipSignal(signals: string[]): boolean {
 function confidenceForAffectedTest(score: number, relationshipType: RelationshipType, signals: string[]): AffectedTestConfidence {
   const meaningfulRelationship = !["fallback-test", "unrelated"].includes(relationshipType);
 
-  if (score >= affectedTestScoreThreshold && meaningfulRelationship && hasMeaningfulRelationshipSignal(signals)) {
+  if (score >= affectedTestScoreThreshold && meaningfulRelationship && hasDirectRecommendationSignal(signals)) {
     return "strong";
   }
 
@@ -351,19 +350,25 @@ interface TestRelationshipFeatures {
 }
 
 function relationshipTypeForFeatures(features: Omit<TestRelationshipFeatures, "relationshipType">): RelationshipType {
-  if (features.changedTest || features.importScore > 0 || features.filenameScore > 0 || features.specificRoutedTestName) {
+  if (
+    features.importScore > 0
+    || features.directoryScore > 0
+    || features.taskNameScore > 0
+    || features.specificRoutedTestName
+    || features.coChangedTest
+  ) {
     return "direct-test";
   }
 
-  if (features.taskNameScore > 0 || features.moduleDirect) {
+  if (features.changedTest || features.filenameScore > 0 || features.moduleDirect) {
     return "related-test";
   }
 
-  if (features.directoryScore > 0 || features.moduleScore > 0) {
+  if (features.moduleScore > 0) {
     return "nearby-test";
   }
 
-  if (features.learnedTest || features.coChangedTest) {
+  if (features.learnedTest) {
     return "learned-test";
   }
 
