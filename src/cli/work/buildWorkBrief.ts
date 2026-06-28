@@ -157,7 +157,7 @@ export function pruneWorkBriefForTaskSize(brief: WorkBrief): WorkBrief {
   }
 
   const limits = brief.taskSize === "tiny"
-    ? { primaryFiles: 1, supportingFiles: 1, tests: 1, learnedMemory: 0, recentLogs: 0 }
+    ? { primaryFiles: 1, supportingFiles: 0, tests: 0, learnedMemory: 0, recentLogs: 0 }
     : { primaryFiles: 2, supportingFiles: 2, tests: 2, learnedMemory: 1, recentLogs: 3 };
   const primaryFiles = limitRecommendations(brief.primaryFiles, limits.primaryFiles);
   const supportingFiles = limitRecommendations(brief.supportingFiles, limits.supportingFiles);

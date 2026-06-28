@@ -16,8 +16,16 @@ interface RuleMatch {
 
 const tinyRules: RuleMatch[] = [
   { label: "typo", pattern: /\btypos?\b/ },
+  { label: "spelling", pattern: /\bspell(?:ing)?\b/ },
   { label: "spacing", pattern: /\bspacing\b/ },
   { label: "wording", pattern: /\bwording\b/ },
+  { label: "README", pattern: /\breadme\b/ },
+  { label: "CHANGELOG", pattern: /\bchangelogs?\b/ },
+  { label: "docs", pattern: /\bdocs?\b|\bdocumentation\b/ },
+  { label: "comment", pattern: /\bcomments?\b/ },
+  { label: "label", pattern: /\blabels?\b/ },
+  { label: "copy", pattern: /\bcopy\b/ },
+  { label: "translation wording", pattern: /\btranslation\s+wording\b/ },
   { label: "rename label", pattern: /\brename\s+(?:a\s+|the\s+)?labels?\b/ },
   { label: "fix text", pattern: /\bfix\s+(?:the\s+)?text\b/ },
   { label: "one-line output issue", pattern: /\bone[\s-]line\s+output\s+(?:issue|bug|fix)\b/ }
@@ -49,6 +57,19 @@ const largeRules: RuleMatch[] = [
   { label: "handoff architecture", pattern: /\bhandoff\s+architecture\b/ },
   { label: "repository-wide behavior", pattern: /\brepository[\s-]wide\s+behavior\b/ },
   { label: "performance model", pattern: /\bperformance\s+model\b/ }
+];
+
+const tinyDowngradeBlockers: RuleMatch[] = [
+  { label: "refactor", pattern: /\brefactors?\b|\brefactoring\b/ },
+  { label: "implement", pattern: /\bimplement(?:s|ed|ing)?\b/ },
+  { label: "feature", pattern: /\badd\s+(?:a\s+|an\s+|the\s+)?features?\b|\bfeatures?\b/ },
+  { label: "migrate", pattern: /\bmigrat(?:e|es|ed|ing|ion)\b/ },
+  { label: "auth flow", pattern: /\bauth\s+flow\b/ },
+  { label: "database schema", pattern: /\bdatabase\s+schema\b|\bdb\s+schema\b/ },
+  { label: "workflow behavior", pattern: /\bworkflow\s+behaviou?r\b/ },
+  { label: "API endpoint", pattern: /\bapi\s+endpoints?\b/ },
+  { label: "security", pattern: /\bsecurity\b/ },
+  { label: "middleware", pattern: /\bmiddleware\b/ }
 ];
 
 function normalizeTask(task: string): string {
@@ -89,10 +110,11 @@ export function classifyTaskSize(task: string): TaskSizeClassification {
   }
 
   const tinyReasons = matchingReasons(normalizedTask, tinyRules);
+  const tinyBlockers = matchingReasons(normalizedTask, tinyDowngradeBlockers);
   const mediumReasons = matchingReasons(normalizedTask, mediumRules);
   const smallReasons = matchingReasons(normalizedTask, smallRules);
 
-  if (tinyReasons.length > 0 && mediumReasons.length === 0 && smallReasons.length === 0) {
+  if (tinyReasons.length > 0 && tinyBlockers.length === 0 && mediumReasons.length === 0 && smallReasons.length === 0) {
     return result("tiny", "high", tinyReasons);
   }
 
@@ -104,7 +126,7 @@ export function classifyTaskSize(task: string): TaskSizeClassification {
     return result("small", smallReasons.length > 1 ? "high" : "medium", smallReasons);
   }
 
-  if (tinyReasons.length > 0) {
+  if (tinyReasons.length > 0 && tinyBlockers.length === 0) {
     return result("tiny", "medium", tinyReasons);
   }
 

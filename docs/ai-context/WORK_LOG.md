@@ -4738,4 +4738,46 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T22:34:21.415Z
+- Summary: Add low-overhead routing for tiny obvious tasks
+- Changed files: `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderAgent.ts`, `src/cli/work/renderText.ts`, `src/cli/work/taskSize.ts`, `tests/work.test.js`
+- Verification: node --test tests/work.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add low-overhead routing for tiny obvious tasks",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/taskSize.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "node --test tests/work.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T22:34:21.415Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T22:34:21.415Z",
+  "summary": "Add low-overhead routing for tiny obvious tasks",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/taskSize.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "node --test tests/work.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -40,7 +40,7 @@ function agentReadFirstItems(brief: WorkBrief, verbose: boolean): PublicAgentRou
 function agentNext(brief: WorkBrief): string {
   if (brief.tests.length === 0) {
     if (brief.taskSize === "tiny") {
-      return "Tiny task: open only the primary file and apply the fix. No strongly related tests found; do not add generic tests. Do not rerun rcc work for this task.";
+      return "Tiny obvious task: open only the primary file. No strongly related tests found; do not add generic tests or broad exploration. Use done only if this change is meaningful project memory.";
     }
 
     if (brief.taskSize === "small") {
@@ -51,7 +51,7 @@ function agentNext(brief: WorkBrief): string {
   }
 
   if (brief.taskSize === "tiny") {
-    return "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong. Do not rerun rcc work for this task.";
+    return "Tiny obvious task: open only the primary file, apply the fix, and run only the narrowest directly related test. Do not add generic tests or broad exploration. Use done only if this change is meaningful project memory.";
   }
 
   if (brief.taskSize === "small") {

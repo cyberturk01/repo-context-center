@@ -131,8 +131,14 @@ function targetLookupHintForText(hint: Omit<TargetedLookupHint, "index">): Targe
 
 function renderNextLines(brief: WorkBrief, hasPrimaryFiles: boolean): string[] {
   if (brief.taskSize === "tiny") {
+    if (brief.tests.length === 0) {
+      return [
+        "Tiny obvious task: open only the primary file. No strongly related tests found; do not add generic tests or broad exploration. Use done only if this change is meaningful project memory."
+      ];
+    }
+
     return [
-      "Tiny task: open only the primary file, apply the fix, run the narrowest relevant test, and skip broad exploration unless the primary file is wrong."
+      "Tiny obvious task: open only the primary file, apply the fix, and run only the narrowest directly related test. Do not add generic tests or broad exploration. Use done only if this change is meaningful project memory."
     ];
   }
 
