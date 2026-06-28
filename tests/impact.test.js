@@ -249,6 +249,47 @@ test("impact includes git working-tree changes and paired tests", async () => {
   });
 });
 
+test("impact sorts affected files by confidence without changing JSON shape", async () => {
+  await withBareImpactRepo(async (cwd) => {
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Backend auth session work: read `packages/backend-core/src/auth/session.ts`, `packages/backend-core/src/auth/sessionStore.ts`, `packages/frontend/src/session.ts`, and `packages/backend-core/src/billing/session.ts`."
+      ].join("\n")
+    );
+    await writeFixtureFile(cwd, "packages/backend-core/src/auth/session.ts", "export function session() { return true; }\n");
+    await writeFixtureFile(cwd, "packages/backend-core/src/auth/sessionStore.ts", "export function sessionStore() { return true; }\n");
+    await writeFixtureFile(cwd, "packages/frontend/src/session.ts", "export function sessionView() { return true; }\n");
+    await writeFixtureFile(cwd, "packages/backend-core/src/billing/session.ts", "export function billingSession() { return true; }\n");
+
+    runGit(["init"], cwd);
+    runGit(["config", "user.email", "test@example.com"], cwd);
+    runGit(["config", "user.name", "Test User"], cwd);
+    runGit(["add", "."], cwd);
+    runGit(["commit", "-m", "initial"], cwd);
+
+    await writeFixtureFile(cwd, "packages/backend-core/src/auth/session.ts", "export function session() { return false; }\n");
+
+    const result = runCli(["impact", "fix backend auth session", "--json"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const analysis = JSON.parse(result.stdout);
+    const affectedFiles = analysis.affectedFiles.map((file) => file.path);
+    const sourceIndex = affectedFiles.indexOf("packages/backend-core/src/auth/session.ts");
+    const sameModuleIndex = affectedFiles.indexOf("packages/backend-core/src/auth/sessionStore.ts");
+    const unrelatedPackageIndex = affectedFiles.indexOf("packages/frontend/src/session.ts");
+
+    assert.deepEqual(Object.keys(analysis.affectedFiles[0]).sort(), ["path", "reason"]);
+    assert.equal(sourceIndex, 0);
+    assert.ok(sameModuleIndex > sourceIndex);
+    assert.ok(unrelatedPackageIndex > sameModuleIndex);
+  });
+});
+
 test("impact --task-only ignores git context changes in confidence evidence", async () => {
   await withImpactRepo(async (cwd) => {
     await writeFixtureFile(cwd, "CLAUDE.md", "Old Claude guidance\n");
