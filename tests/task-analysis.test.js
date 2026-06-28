@@ -127,3 +127,21 @@ test("task analysis requires direct relationships before recommending tests", as
     assert.ok(!auth.testCandidates.some((file) => file.path === "tests/api/public.test.js"));
   });
 });
+
+test("work and impact agree when task analysis accepts or rejects tests", async () => {
+  await withTaskAnalysisRepo(async (cwd) => {
+    for (const task of ["update translation strings", "improve auth middleware"]) {
+      const workResult = runCli(["work", task, "--agent"], { cwd });
+      const impactResult = runCli(["impact", task, "--task-only", "--json"], { cwd });
+
+      assert.equal(workResult.status, 0, workResult.stderr || workResult.stdout);
+      assert.equal(impactResult.status, 0, impactResult.stderr || impactResult.stdout);
+
+      const workRoute = JSON.parse(workResult.stdout);
+      const impactAnalysis = JSON.parse(impactResult.stdout);
+      const impactTests = impactAnalysis.affectedTests.map((file) => file.path);
+
+      assert.deepEqual(workRoute.tests, impactTests, task);
+    }
+  });
+});

@@ -4368,4 +4368,42 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T15:06:24.405Z
+- Summary: Cleaned work renderer so work routes render tests from TaskAnalysisResult.testCandidates and cannot leak Work-only routed tests.
+- Changed files: `src/cli/work/buildWorkBrief.ts`, `tests/task-analysis.test.js`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/work.test.js; node --test tests/task-analysis.test.js; node --test tests/taskAnalysisFixtures.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Cleaned work renderer so work routes render tests from TaskAnalysisResult.testCandidates and cannot leak Work-only routed tests.",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "tests/task-analysis.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/work.test.js; node --test tests/task-analysis.test.js; node --test tests/taskAnalysisFixtures.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T15:06:24.405Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T15:06:24.405Z",
+  "summary": "Cleaned work renderer so work routes render tests from TaskAnalysisResult.testCandidates and cannot leak Work-only routed tests.",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "tests/task-analysis.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/work.test.js; node --test tests/task-analysis.test.js; node --test tests/taskAnalysisFixtures.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

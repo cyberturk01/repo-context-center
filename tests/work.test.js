@@ -2108,11 +2108,11 @@ test("work --json promotes role task source and tests ahead of docs", async () =
     assert.equal(brief.nextCheapestCommand, 'rcc find "role"');
     assert.ok(brief.taskFiles.some((file) => file.path === "src/core/repoFileClassifier.ts"), JSON.stringify(brief.taskFiles));
     assert.ok(brief.taskFiles.some((file) => file.path === "src/cli/commands/work.ts"), JSON.stringify(brief.taskFiles));
-    assert.ok(brief.supportingTests.some((file) => file.path === "tests/repoFileClassifier.test.js"), JSON.stringify(brief.supportingTests));
+    assert.deepEqual(brief.supportingTests, []);
     assert.ok(!brief.supportingTests.some((file) => file.path === "tests/estimate.test.js"), JSON.stringify(brief.supportingTests));
     assert.ok(recommendedPaths.includes("src/core/repoFileClassifier.ts"), recommendedPaths.join("\n"));
     assert.ok(recommendedPaths.includes("src/cli/commands/work.ts"), recommendedPaths.join("\n"));
-    assert.ok(recommendedPaths.includes("tests/repoFileClassifier.test.js"), recommendedPaths.join("\n"));
+    assert.ok(!recommendedPaths.includes("tests/repoFileClassifier.test.js"), recommendedPaths.join("\n"));
     assert.ok(!recommendedPaths.includes("tests/estimate.test.js"), recommendedPaths.join("\n"));
     assert.ok(!recommendedPaths.includes("AGENTS.md"), recommendedPaths.join("\n"));
     assert.ok(!recommendedPaths.some((file) => file.startsWith("docs/ai-context/")), recommendedPaths.join("\n"));
@@ -2142,7 +2142,7 @@ test("work human output separates docs for Turkish role investigation", async ()
     assert.doesNotMatch(taskFiles, /AGENTS\.md/);
     assert.doesNotMatch(taskFiles, /docs\/ai-context/);
     assert.match(supportingFiles, /none/);
-    assert.match(supportingTests, /tests\/repoFileClassifier\.test\.js/);
+    assert.match(supportingTests, /none/);
     assert.doesNotMatch(supportingTests, /tests\/estimate\.test\.js/);
     assert.match(workflowDocs, /AGENTS\.md/);
     assert.match(contextDocs, /docs\/ai-context\/TASK_ROUTING\.md/);
@@ -2603,9 +2603,8 @@ test("work --agent routes Turkish workflow task routing fixes to RCC implementat
     ], route.primaryFiles.join("\n"));
     assert.equal(route.primaryFiles.some((file) => file.startsWith(".github/workflows/")), false, route.primaryFiles.join("\n"));
     assert.equal(route.primaryFiles.includes("package.json"), false, route.primaryFiles.join("\n"));
-    assert.ok(route.tests.includes("tests/taskIntent.test.js"), route.tests.join("\n"));
-    assert.ok(route.tests.includes("tests/work.test.js"), route.tests.join("\n"));
-    assert.equal(route.next, "Start with primaryFiles. Do not rerun rcc work for this task. Use rcc find \"routing\" only if needed.");
+    assert.deepEqual(route.tests, []);
+    assert.equal(route.next, "Start with primaryFiles. No strongly related tests found; do not add generic tests. Do not rerun rcc work for this task.");
   });
 });
 

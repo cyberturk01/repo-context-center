@@ -1,7 +1,7 @@
 import type { StartupContext } from "../../core/suggester";
 import type { LearnedRoutingSignals } from "../../core/repositoryLearningRouting";
 import type { TaskIntentAnalysis } from "../../core/taskIntent";
-import { buildTaskAnalysis, type TaskAnalysisResult } from "../../core/task-analysis";
+import { buildTaskAnalysis, type CandidateFile, type CandidateTest, type TaskAnalysisResult } from "../../core/task-analysis";
 import {
   nextCommand
 } from "./workConstants";
@@ -11,10 +11,6 @@ import {
 import { toAgentRoute } from "./renderAgent";
 import { toCompactWorkBrief } from "./renderJson";
 import { renderWorkBriefLines } from "./renderText";
-import {
-  buildTaskFileRecommendations,
-  buildWorkFileCategorization
-} from "./taskFileRecommendations";
 import { classifyTaskSize } from "./taskSize";
 import type {
   CompactWorkBrief,
@@ -29,6 +25,17 @@ import type {
 } from "./workTypes";
 
 export type WorkBriefTokenEstimator = (brief: WorkBrief) => number;
+
+function recommendationFromCandidate(candidate: CandidateFile | CandidateTest): WorkRecommendation {
+  return {
+    path: candidate.path,
+    reasons: candidate.reasons.length > 0 ? candidate.reasons : [candidate.reason].filter(Boolean)
+  };
+}
+
+function recommendationsFromCandidates(candidates: Array<CandidateFile | CandidateTest>): WorkRecommendation[] {
+  return candidates.map(recommendationFromCandidate);
+}
 
 function nextCheapestLookupCommand(taskIntent: TaskIntentAnalysis): string {
   return taskIntent.nextLookupKeyword ? `rcc find "${taskIntent.nextLookupKeyword}"` : 'rcc find "<keyword>"';
@@ -225,22 +232,14 @@ export function buildWorkBrief(
   contextBudget: ContextBudget,
   taskIntent: TaskIntentAnalysis,
   learnedSignals: LearnedRoutingSignals,
-  affectedTestPaths: string[] = [],
-  estimateTokens?: WorkBriefTokenEstimator,
-  precomputed?: {
+  precomputed: {
     categorized: TaskAnalysisResult["work"]["categorized"];
     fileCategories: WorkFileCategorization;
-  }
+  },
+  estimateTokens?: WorkBriefTokenEstimator
 ): WorkBrief {
-  const categorized = precomputed?.categorized ?? buildTaskFileRecommendations(startup, lookupHints, readFirstGuidance, taskIntent);
-  const fileCategories = precomputed?.fileCategories ?? buildWorkFileCategorization(
-    categorized,
-    startup,
-    lookupHints,
-    taskIntent,
-    learnedSignals,
-    affectedTestPaths
-  );
+  const categorized = precomputed.categorized;
+  const fileCategories = precomputed.fileCategories;
   const nextCheapest = nextCheapestLookupCommand(taskIntent);
   const taskSize = classifyTaskSize(startup.task);
   const supportingTier = taskSize.size === "medium"
@@ -336,6 +335,21 @@ export async function buildWorkBriefForTask(
     maxFiles: options.maxFiles ?? 50,
     taskOnly: true
   });
+  const taskAnalysisTests = recommendationsFromCandidates(analysis.testCandidates);
+  const taskAnalysisTestPaths = new Set(taskAnalysisTests.map((file) => file.path));
+  const categorizedFromAnalysis = {
+    ...analysis.work.categorized,
+    supportingTests: taskAnalysisTests,
+    recommendedFiles: analysis.work.categorized.recommendedFiles.filter((file) => (
+      !file.path.match(/\.(test|spec)\.[cm]?[jt]sx?$/i) || taskAnalysisTestPaths.has(file.path)
+    )),
+    relevantTests: taskAnalysisTests
+  };
+  const fileCategoriesFromAnalysis = {
+    ...analysis.work.fileCategories,
+    primaryFiles: recommendationsFromCandidates(analysis.primaryFiles),
+    tests: taskAnalysisTests
+  };
 
   return buildWorkBrief(
     analysis.work.focusedStartupContext,
@@ -347,12 +361,11 @@ export async function buildWorkBriefForTask(
     contextBudget,
     analysis.work.taskIntent,
     analysis.work.filteredLearnedSignals,
-    analysis.work.affectedTests.map((file) => file.path),
-    options.estimateTokens,
     {
-      categorized: analysis.work.categorized,
-      fileCategories: analysis.work.fileCategories
-    }
+      categorized: categorizedFromAnalysis,
+      fileCategories: fileCategoriesFromAnalysis
+    },
+    options.estimateTokens
   );
 }
 
