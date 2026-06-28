@@ -108,23 +108,27 @@ function smokeChecksFromImpact(impact: ImpactAnalysis): ImpactVerificationHint[]
 }
 
 function validationChecklistFromImpact(impact: ImpactAnalysis): string[] {
-  const checklist: string[] = [];
+  const checklist = ["Inspect affected files."];
 
   if (impact.affectedTests.length > 0) {
-    checklist.push("Run targeted tests from Impact affectedTests.");
+    checklist.push("Run targeted tests.");
+  } else {
+    checklist.push("No strongly related tests were found; do not add generic tests.");
   }
 
   if (impact.suggestedCommands.some((command) => command.type === "build")) {
-    checklist.push("Run build commands from Impact suggestedCommands.");
+    checklist.push("Run build command.");
   }
 
-  if (impact.affectedFiles.length > 0) {
-    checklist.push("Review affected files for behavior-specific manual checks.");
+  if (smokeChecksFromImpact(impact).length > 0) {
+    checklist.push("Perform smoke checks.");
   }
 
   if (impact.contextChanges.length > 0) {
-    checklist.push("Review context changes for workflow or routing drift.");
+    checklist.push("Confirm RCC context changes are intentional.");
   }
+
+  checklist.push("Record verification with `rcc done`.");
 
   return checklist;
 }

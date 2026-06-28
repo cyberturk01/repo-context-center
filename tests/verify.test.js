@@ -286,10 +286,14 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
     check.type === "context-changes"
     && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
   )));
-  assert.ok(plan.validationChecklist.includes("Run targeted tests from Impact affectedTests."));
-  assert.ok(plan.validationChecklist.includes("Run build commands from Impact suggestedCommands."));
-  assert.ok(plan.validationChecklist.includes("Review affected files for behavior-specific manual checks."));
-  assert.ok(plan.validationChecklist.includes("Review context changes for workflow or routing drift."));
+  assert.deepEqual(plan.validationChecklist, [
+    "Inspect affected files.",
+    "Run targeted tests.",
+    "Run build command.",
+    "Perform smoke checks.",
+    "Confirm RCC context changes are intentional.",
+    "Record verification with `rcc done`."
+  ]);
 });
 
 test("createVerificationPlanFromImpact suggests a login/auth smoke check for fix login bug", () => {
@@ -441,6 +445,12 @@ test("createVerificationPlanFromImpact does not invent tests when Impact has no 
   assert.deepEqual(plan.targetedTestCommands, []);
   assert.deepEqual(plan.buildCommands, []);
   assert.deepEqual(plan.smokeChecks.map((check) => check.type), ["docs-rendering"]);
+  assert.deepEqual(plan.validationChecklist, [
+    "Inspect affected files.",
+    "No strongly related tests were found; do not add generic tests.",
+    "Perform smoke checks.",
+    "Record verification with `rcc done`."
+  ]);
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "affected-files"
     && check.paths.includes("README.md")
@@ -451,6 +461,7 @@ test("createVerificationPlanFromImpact does not invent tests when Impact has no 
 
 test("createVerificationPlanFromImpact adds context-only notes from Impact evidence", () => {
   const impact = impactAnalysis({
+    task: "refresh agent context",
     affectedFiles: [],
     affectedTests: [],
     contextChanges: [
@@ -478,6 +489,12 @@ test("createVerificationPlanFromImpact adds context-only notes from Impact evide
   const plan = createVerificationPlanFromImpact(impact);
 
   assert.deepEqual(plan.targetedTests, []);
+  assert.deepEqual(plan.validationChecklist, [
+    "Inspect affected files.",
+    "No strongly related tests were found; do not add generic tests.",
+    "Confirm RCC context changes are intentional.",
+    "Record verification with `rcc done`."
+  ]);
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "context-changes"
     && check.paths.includes("AGENTS.md")
@@ -514,6 +531,13 @@ test("verify --json builds recommendations from Impact analysis", () => {
     check.type === "affected-files"
     && check.paths.includes("src/cache/redis.ts")
   )));
+  assert.deepEqual(plan.validationChecklist, [
+    "Inspect affected files.",
+    "Run targeted tests.",
+    "Run build command.",
+    "Perform smoke checks.",
+    "Record verification with `rcc done`."
+  ]);
   assert.equal("affectedFiles" in plan, false);
   assert.equal("suggestedCommands" in plan, false);
 });
@@ -530,6 +554,8 @@ test("verify text output is compact and recommendation-only", () => {
   assert.match(result.stdout, /Targeted tests:\n- none/);
   assert.match(result.stdout, /Targeted test commands:\n- none/);
   assert.match(result.stdout, /Manual checks:/);
+  assert.match(result.stdout, /Validation checklist:\n- Inspect affected files\.\n- No strongly related tests were found; do not add generic tests\./);
+  assert.match(result.stdout, /- Record verification with `rcc done`\./);
   assert.doesNotMatch(result.stdout, /Changed files:|Affected files:|Suggested commands:/);
   assert.doesNotMatch(result.stdout, /redis\.spec\.ts|worker\.spec\.ts|public\.spec\.ts/);
 });

@@ -38,6 +38,14 @@ function formatNotes(notes: string[]): string[] {
   return notes.map((note) => `- ${note}`);
 }
 
+function formatChecklist(checklist: string[]): string[] {
+  if (checklist.length === 0) {
+    return ["- none"];
+  }
+
+  return checklist.map((item) => `- ${item}`);
+}
+
 export function renderVerifyText(plan: VerificationPlan): string {
   return `${[
     "repo-context-center verify",
@@ -60,6 +68,9 @@ export function renderVerifyText(plan: VerificationPlan): string {
     "",
     "Manual checks:",
     ...formatManualChecks(plan.manualChecks),
+    "",
+    "Validation checklist:",
+    ...formatChecklist(plan.validationChecklist),
     "",
     "Notes:",
     ...formatNotes(plan.notes)

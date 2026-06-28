@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Added short validation checklist generation to RCC Verify
 - Added safe manual smoke check heuristics to VerificationPlan generation
 - Added rcc verify CLI backed by ImpactAnalysis recommendations
 - Updated CLI help test to keep verify hidden until CLI command is implemented
 - Built VerificationPlan generation from ImpactAnalysis with focused adapter tests
 - Implemented shared VerificationPlan model and focused construction tests without exposing verify CLI
 - Add low-overhead routing for tiny obvious tasks
-- updated changelog for v0.11.1
 
 ## Hot Files
 
@@ -34,8 +34,8 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
 | Work routing | 35 | Add low-overhead routing for tiny obvious tasks |
+| General maintenance | 24 | Added short validation checklist generation to RCC Verify |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
-| General maintenance | 23 | Added safe manual smoke check heuristics to VerificationPlan generation |
 | Tests | 11 | Add evidence-based TaskAnalysis test eligibility |
 | CLI commands | 10 | Added rcc verify CLI backed by ImpactAnalysis recommendations |
 | Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
