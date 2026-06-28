@@ -1,3 +1,4 @@
+import path from "node:path";
 import { classifyRepoFile } from "../repoFileClassifier";
 import { analyzeAffectedTests, type ClassifiedAffectedTest, type ScoredAffectedTest } from "../../cli/shared/affectedTests";
 import { uniquePaths } from "../../cli/work/taskFileRecommendations";
@@ -299,35 +300,59 @@ function domainsFromTask(task: string): string[] {
   return uniquePaths(domainTokens(task).filter((token) => !genericTaskWords.has(token)));
 }
 
+function filenameStemTokens(filePath: string): string[] {
+  return domainTokens(path.posix.basename(normalizeRepoPath(filePath)));
+}
+
+function testPathContainsSourceStem(testPath: string, sourcePaths: string[]): boolean {
+  const testDomains = new Set(domainsFromPath(testPath));
+  const sourceStemTokens = sourcePaths.flatMap(filenameStemTokens);
+
+  return sourceStemTokens.some((token) => testDomains.has(token));
+}
+
 function sharedDomains(left: string[], right: string[]): string[] {
   const rightSet = new Set(right);
 
   return left.filter((domain) => rightSet.has(domain));
 }
 
-function evidenceRelationship(classification: ClassifiedAffectedTest, hasTaskDomainMatch: boolean, hasSourceDomainMatch: boolean): TestEvidence["relationship"] {
+function evidenceRelationship(input: {
+  classification: ClassifiedAffectedTest;
+  hasTaskDomainMatch: boolean;
+  hasSourceDomainMatch: boolean;
+  hasSourceStemMatch: boolean;
+}): TestEvidence["relationship"] {
+  const {
+    classification,
+    hasTaskDomainMatch,
+    hasSourceDomainMatch,
+    hasSourceStemMatch
+  } = input;
   const signals = new Set(classification.signals);
+  const sameDirectoryExact = signals.has("same directory") && (hasTaskDomainMatch || hasSourceDomainMatch || hasSourceStemMatch);
 
   if (
-    signals.has("changed test file")
-    || signals.has("imports affected source")
-    || signals.has("same directory")
+    hasTaskDomainMatch
+    || hasSourceStemMatch
+    || signals.has("specific routed test name")
+    || sameDirectoryExact
   ) {
     return "exact";
   }
   if (signals.has("co-change history") || signals.has("repository learning")) {
     return "historical";
   }
-  if ((signals.has("filename similarity") || signals.has("specific routed test name")) && (hasTaskDomainMatch || hasSourceDomainMatch)) {
-    return "exact";
-  }
   if (hasTaskDomainMatch || hasSourceDomainMatch) {
     return "domain";
   }
   if (
-    signals.has("filename similarity")
+    signals.has("changed test file")
+    || signals.has("imports affected source")
+    || signals.has("filename similarity")
     || signals.has("specific routed test name")
     || signals.has("task/test name match")
+    || signals.has("same directory")
     || signals.has("same package/module")
     || signals.has("same package/module with task token")
     || signals.has("task routing evidence")
@@ -342,21 +367,32 @@ function testEvidenceForClassification(input: {
   classification: ClassifiedAffectedTest;
   taskDomains: string[];
   sourceDomains: string[];
+  sourcePaths: string[];
 }): TestEvidence {
   const testDomains = domainsFromPath(input.classification.path);
   const taskMatches = sharedDomains(testDomains, input.taskDomains);
   const sourceMatches = sharedDomains(testDomains, input.sourceDomains);
+  const sourceStemMatched = testPathContainsSourceStem(input.classification.path, input.sourcePaths);
   const positiveSignals = input.classification.signals.filter((signal) => signal !== "weak generic route penalty");
   const negativeSignals = input.classification.signals.includes("weak generic route penalty")
     ? ["weak generic route penalty"]
     : [];
-  const relationship = evidenceRelationship(input.classification, taskMatches.length > 0, sourceMatches.length > 0);
+  const relationship = evidenceRelationship({
+    classification: input.classification,
+    hasTaskDomainMatch: taskMatches.length > 0,
+    hasSourceDomainMatch: sourceMatches.length > 0,
+    hasSourceStemMatch: sourceStemMatched
+  });
 
   if (taskMatches.length === 0) {
     negativeSignals.push("no shared task/test domain");
+    negativeSignals.push("task-token-absent");
   }
   if (sourceMatches.length === 0) {
     negativeSignals.push("no shared source/test domain");
+  }
+  if (taskMatches.length === 0 && sourceMatches.length === 0 && !sourceStemMatched) {
+    negativeSignals.push("domain-mismatch");
   }
   if (input.classification.relationshipType === "fallback-test") {
     negativeSignals.push("route-only test candidate");
@@ -371,7 +407,7 @@ function testEvidenceForClassification(input: {
 
   if (relationship === "exact") {
     decision = "recommended";
-    decisionReason = "recommended: exact relationship to affected source or routed test name";
+    decisionReason = "recommended: exact task/source test relationship";
   } else if (relationship === "domain") {
     decision = "recommended";
     decisionReason = "recommended: test domain overlaps the task or affected source domain";
@@ -403,7 +439,8 @@ function testEvidenceForAnalysis(task: string, sourcePaths: string[], classifica
   return classifications.map((classification) => testEvidenceForClassification({
     classification,
     taskDomains,
-    sourceDomains
+    sourceDomains,
+    sourcePaths
   }));
 }
 
@@ -501,7 +538,8 @@ export async function scoreRelationships(input: {
     .map((item) => candidateTest(item, impactEvidenceByPath.get(item.path) ?? testEvidenceForClassification({
       classification: item,
       taskDomains: domainsFromTask(input.task),
-      sourceDomains: uniquePaths(impactSourcePaths.flatMap(domainsFromPath))
+      sourceDomains: uniquePaths(impactSourcePaths.flatMap(domainsFromPath)),
+      sourcePaths: impactSourcePaths
     })));
   const confidence = confidenceExplanation(
     input.changedFiles,

@@ -55,6 +55,19 @@ async function withImpactRepo(callback) {
   }
 }
 
+async function withBareImpactRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-impact-bare-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "package.json", JSON.stringify({ scripts: { test: "node --test tests/*.test.js" } }, null, 2));
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function withDocsOnlyImpactRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-impact-docs-"));
 
@@ -565,19 +578,30 @@ test("impact does not recommend unrelated infrastructure tests for translation t
 });
 
 test("impact does not emit Redis or queue package tests for auth middleware tasks", async () => {
-  await withImpactRepo(async (cwd) => {
+  await withBareImpactRepo(async (cwd) => {
     await writeFixtureFile(
       cwd,
       "docs/ai-context/TASK_ROUTING.md",
       [
         "# Task Routing",
         "",
-        "- Backend auth middleware work: read `packages/backend-core/src/auth/middleware.ts`, `packages/backend-core/tests/redis/utils.spec.ts`, and `packages/backend-core/tests/queue/queuedProcessor.spec.ts`."
+        "- Backend auth middleware work: read `packages/backend-core/src/auth/middleware.ts`, `packages/backend-core/src/auth/tests/auth.spec.ts`, `packages/backend-core/tests/redis/utils.spec.ts`, `packages/backend-core/tests/queue/queuedProcessor.spec.ts`, `packages/builder/src/stores/portal/admin.test.js`, and `packages/builder/src/stores/portal/agents.spec.ts`."
       ].join("\n")
     );
     await writeFixtureFile(cwd, "packages/backend-core/src/auth/middleware.ts", "export function authMiddleware() { return true; }\n");
-    await writeFixtureFile(cwd, "packages/backend-core/tests/redis/utils.spec.ts", "test('redis utils', () => {});\n");
-    await writeFixtureFile(cwd, "packages/backend-core/tests/queue/queuedProcessor.spec.ts", "test('queued processor', () => {});\n");
+    await writeFixtureFile(cwd, "packages/backend-core/src/auth/tests/auth.spec.ts", "test('auth middleware', () => {});\n");
+    await writeFixtureFile(
+      cwd,
+      "packages/backend-core/tests/redis/utils.spec.ts",
+      "import '../../src/auth/middleware';\ntest('redis utils', () => {});\n"
+    );
+    await writeFixtureFile(
+      cwd,
+      "packages/backend-core/tests/queue/queuedProcessor.spec.ts",
+      "import '../../src/auth/middleware';\ntest('queued processor', () => {});\n"
+    );
+    await writeFixtureFile(cwd, "packages/builder/src/stores/portal/admin.test.js", "test('portal admin', () => {});\n");
+    await writeFixtureFile(cwd, "packages/builder/src/stores/portal/agents.spec.ts", "test('portal agents', () => {});\n");
 
     const result = runCli(["impact", "improve auth middleware", "--json"], { cwd });
 
@@ -586,8 +610,18 @@ test("impact does not emit Redis or queue package tests for auth middleware task
     const analysis = JSON.parse(result.stdout);
     const affectedTests = analysis.affectedTests.map((file) => file.path);
 
+    assert.deepEqual(affectedTests, ["packages/backend-core/src/auth/tests/auth.spec.ts"]);
     assert.equal(affectedTests.includes("packages/backend-core/tests/redis/utils.spec.ts"), false);
     assert.equal(affectedTests.includes("packages/backend-core/tests/queue/queuedProcessor.spec.ts"), false);
+    assert.equal(affectedTests.includes("packages/builder/src/stores/portal/admin.test.js"), false);
+    assert.equal(affectedTests.includes("packages/builder/src/stores/portal/agents.spec.ts"), false);
+    assert.ok(analysis.affectedTests.every((file) => {
+      if (!/relationship=exact/.test(file.reason)) {
+        return true;
+      }
+
+      return /\/auth\/|auth\.spec\./.test(file.path);
+    }));
   });
 });
 

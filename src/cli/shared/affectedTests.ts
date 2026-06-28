@@ -167,6 +167,20 @@ function pathTokens(filePath: string): Set<string> {
     .filter((token) => token.length > 1 && !["src", "test", "tests", "spec", "__tests__"].includes(token)));
 }
 
+function scopedPathTokens(filePath: string): Set<string> {
+  const parts = comparableStem(filePath).split("/").filter(Boolean);
+  const scopedParts = (parts[0] === "packages" || parts[0] === "libs") && parts.length > 2
+    ? parts.slice(2)
+    : parts;
+
+  return new Set(scopedParts
+    .join("/")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .toLowerCase()
+    .split(/[\/._\-\s]+/)
+    .filter((token) => token.length > 1 && !["src", "test", "tests", "spec", "__tests__", "util", "utils"].includes(token)));
+}
+
 function taskTokens(task: string): Set<string> {
   const generic = new Set([
     "add",
@@ -191,6 +205,10 @@ function taskTestNameScore(testPath: string, terms: Set<string>): number {
 
   const shared = [...pathTokens(testPath)].filter((token) => terms.has(token)).length;
   return shared > 0 ? Math.min(28, 16 + shared * 6) : 0;
+}
+
+function hasScopedTaskTokenMatch(testPath: string, terms: Set<string>): boolean {
+  return [...scopedPathTokens(testPath)].some((token) => terms.has(token));
 }
 
 function filenameSimilarityScore(testPath: string, sourcePaths: string[]): number {
@@ -219,7 +237,15 @@ function sameDirectoryScore(testPath: string, sourcePaths: string[]): number {
     return 0;
   }
 
-  return sourcePaths.some((sourcePath) => path.posix.dirname(comparableStem(sourcePath)) === testDir) ? 22 : 0;
+  return sourcePaths.some((sourcePath) => {
+    const sourceDir = path.posix.dirname(comparableStem(sourcePath));
+
+    return sourceDir === testDir
+      || testDir === path.posix.join(sourceDir, "tests")
+      || testDir === path.posix.join(sourceDir, "__tests__")
+      || testDir.startsWith(`${path.posix.join(sourceDir, "tests")}/`)
+      || testDir.startsWith(`${path.posix.join(sourceDir, "__tests__")}/`);
+  }) ? 22 : 0;
 }
 
 function moduleScope(filePath: string): string {
@@ -474,6 +500,7 @@ export async function analyzeAffectedTests(options: AffectedTestScoringOptions):
   const terms = taskTokens(options.task);
   const changedTestSet = new Set(changedTestFiles(changedFiles));
   const routeTestSet = new Set(routeTests.map((file) => file.path));
+  const routeTestReasons = new Map(routeTests.map((file) => [file.path, file.reason ?? ""]));
   const learnedRouteTests = routeTests
     .filter((file) => /\blearned|repository learning|work-log\b/i.test(file.reason ?? ""))
     .map((file) => file.path);
@@ -495,7 +522,11 @@ export async function analyzeAffectedTests(options: AffectedTestScoringOptions):
       changedTest: changedTestSet.has(testPath),
       routeTest: routeTestSet.has(testPath),
       taskNameScore,
-      specificRoutedTestName: routeTestSet.has(testPath) && taskNameScore >= 22,
+      specificRoutedTestName: routeTestSet.has(testPath)
+        && (
+          hasScopedTaskTokenMatch(testPath, terms)
+          || /\brouted by RCC token measurement guidance\b/i.test(routeTestReasons.get(testPath) ?? "")
+        ),
       learnedTest: learnedTests.has(testPath),
       coChangedTest: coChangedTests.has(testPath),
       importScore,

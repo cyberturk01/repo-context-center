@@ -155,8 +155,16 @@ test("nearby package signals are debug-only without domain evidence", async () =
       ].join("\n")
     );
     await writeFixtureFile(cwd, "packages/backend-core/src/auth/middleware.ts", "export function authMiddleware() { return true; }\n");
-    await writeFixtureFile(cwd, "packages/backend-core/tests/redis/utils.spec.ts", "test('redis utils', () => {});\n");
-    await writeFixtureFile(cwd, "packages/backend-core/tests/queue/queuedProcessor.spec.ts", "test('queued processor', () => {});\n");
+    await writeFixtureFile(
+      cwd,
+      "packages/backend-core/tests/redis/utils.spec.ts",
+      "import '../../src/auth/middleware';\ntest('redis utils', () => {});\n"
+    );
+    await writeFixtureFile(
+      cwd,
+      "packages/backend-core/tests/queue/queuedProcessor.spec.ts",
+      "import '../../src/auth/middleware';\ntest('queued processor', () => {});\n"
+    );
 
     const analysis = await buildTaskAnalysis(cwd, "improve backend auth middleware", {
       taskOnly: true,
@@ -170,9 +178,12 @@ test("nearby package signals are debug-only without domain evidence", async () =
     assert.ok(redisEvidence);
     assert.equal(redisEvidence.relationship, "nearby");
     assert.equal(redisEvidence.decision, "debug-only");
+    assert.ok(redisEvidence.positiveSignals.includes("imports affected source"));
     assert.ok(redisEvidence.positiveSignals.includes("same package/module with task token"));
     assert.ok(redisEvidence.negativeSignals.includes("no shared task/test domain"));
+    assert.ok(redisEvidence.negativeSignals.includes("domain-mismatch"));
     assert.ok(queueEvidence);
+    assert.notEqual(queueEvidence.relationship, "exact");
     assert.equal(queueEvidence.decision, "debug-only");
   });
 });

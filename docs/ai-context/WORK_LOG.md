@@ -4516,4 +4516,44 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T15:53:26.085Z
+- Summary: Tightened affected-test evidence exact policy so generic import/module/routing signals no longer recommend unrelated tests; added Budibase-shaped auth middleware regression.
+- Changed files: `src/cli/shared/affectedTests.ts`, `src/core/task-analysis/scoreRelationships.ts`, `tests/impact.test.js`, `tests/task-analysis.test.js`
+- Verification: npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Tightened affected-test evidence exact policy so generic import/module/routing signals no longer recommend unrelated tests; added Budibase-shaped auth middleware regression.",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T15:53:26.085Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T15:53:26.085Z",
+  "summary": "Tightened affected-test evidence exact policy so generic import/module/routing signals no longer recommend unrelated tests; added Budibase-shaped auth middleware regression.",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": "npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
