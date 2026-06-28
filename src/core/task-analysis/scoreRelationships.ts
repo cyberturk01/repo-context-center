@@ -2,7 +2,7 @@ import { classifyRepoFile } from "../repoFileClassifier";
 import { analyzeAffectedTests, type ClassifiedAffectedTest, type ScoredAffectedTest } from "../../cli/shared/affectedTests";
 import { uniquePaths } from "../../cli/work/taskFileRecommendations";
 import type { LearnedRoutingSignals } from "../repositoryLearningRouting";
-import type { CandidateFile, CandidateTest, ConfidenceInfo, VerificationCommand, VerificationPlan } from "./types";
+import type { CandidateFile, CandidateTest, ConfidenceInfo, TestEvidence, VerificationCommand, VerificationPlan } from "./types";
 import { isContextScaffoldingPath, isDocsOnlyPath } from "./classifyRelationships";
 
 const runnableNodeTestPattern = /\.(test|spec)\.[cm]?[jt]sx?$/i;
@@ -216,7 +216,187 @@ export function verificationReferencesFilteredTest(command: string, affectedTest
   return testPaths.length > 0 && !testPaths.some((file) => affectedTestSet.has(file));
 }
 
-function candidateTest(item: ScoredAffectedTest): CandidateTest {
+const domainStopWords = new Set([
+  "__tests__",
+  "app",
+  "apps",
+  "backend",
+  "common",
+  "core",
+  "e2e",
+  "frontend",
+  "helper",
+  "helpers",
+  "index",
+  "integration",
+  "lib",
+  "libs",
+  "package",
+  "packages",
+  "shared",
+  "spec",
+  "src",
+  "test",
+  "tests",
+  "unit",
+  "util",
+  "utils"
+]);
+
+function domainTokens(value: string): string[] {
+  return value
+    .replace(/\\/g, "/")
+    .replace(/\.(test|spec)\.[cm]?[jt]sx?$/i, "")
+    .replace(/\.[cm]?[jt]sx?$/i, "")
+    .replace(/\.[^.]+$/i, "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .toLowerCase()
+    .split(/[\/._\-\s]+/)
+    .filter((token) => token.length > 1 && !domainStopWords.has(token));
+}
+
+function domainsFromPath(filePath: string): string[] {
+  const parts = normalizeRepoPath(filePath).split("/").filter(Boolean);
+  const scopedParts = (parts[0] === "packages" || parts[0] === "libs") && parts.length > 2
+    ? parts.slice(2)
+    : parts;
+
+  return uniquePaths(domainTokens(scopedParts.join("/")));
+}
+
+function domainsFromTask(task: string): string[] {
+  const genericTaskWords = new Set([
+    "add",
+    "change",
+    "fix",
+    "improve",
+    "refactor",
+    "test",
+    "tests",
+    "update",
+    "work"
+  ]);
+
+  return uniquePaths(domainTokens(task).filter((token) => !genericTaskWords.has(token)));
+}
+
+function sharedDomains(left: string[], right: string[]): string[] {
+  const rightSet = new Set(right);
+
+  return left.filter((domain) => rightSet.has(domain));
+}
+
+function evidenceRelationship(classification: ClassifiedAffectedTest, hasTaskDomainMatch: boolean, hasSourceDomainMatch: boolean): TestEvidence["relationship"] {
+  const signals = new Set(classification.signals);
+
+  if (
+    signals.has("changed test file")
+    || signals.has("imports affected source")
+    || signals.has("same directory")
+  ) {
+    return "exact";
+  }
+  if (signals.has("co-change history") || signals.has("repository learning")) {
+    return "historical";
+  }
+  if ((signals.has("filename similarity") || signals.has("specific routed test name")) && (hasTaskDomainMatch || hasSourceDomainMatch)) {
+    return "exact";
+  }
+  if (hasTaskDomainMatch || hasSourceDomainMatch) {
+    return "domain";
+  }
+  if (
+    signals.has("filename similarity")
+    || signals.has("specific routed test name")
+    || signals.has("task/test name match")
+    || signals.has("same package/module")
+    || signals.has("same package/module with task token")
+    || signals.has("task routing evidence")
+  ) {
+    return "nearby";
+  }
+
+  return "unknown";
+}
+
+function testEvidenceForClassification(input: {
+  classification: ClassifiedAffectedTest;
+  taskDomains: string[];
+  sourceDomains: string[];
+}): TestEvidence {
+  const testDomains = domainsFromPath(input.classification.path);
+  const taskMatches = sharedDomains(testDomains, input.taskDomains);
+  const sourceMatches = sharedDomains(testDomains, input.sourceDomains);
+  const positiveSignals = input.classification.signals.filter((signal) => signal !== "weak generic route penalty");
+  const negativeSignals = input.classification.signals.includes("weak generic route penalty")
+    ? ["weak generic route penalty"]
+    : [];
+  const relationship = evidenceRelationship(input.classification, taskMatches.length > 0, sourceMatches.length > 0);
+
+  if (taskMatches.length === 0) {
+    negativeSignals.push("no shared task/test domain");
+  }
+  if (sourceMatches.length === 0) {
+    negativeSignals.push("no shared source/test domain");
+  }
+  if (input.classification.relationshipType === "fallback-test") {
+    negativeSignals.push("route-only test candidate");
+  } else if (input.classification.relationshipType === "unrelated") {
+    negativeSignals.push("no affected-test relationship");
+  } else if (relationship === "nearby") {
+    negativeSignals.push("nearby package/module signal without domain evidence");
+  }
+
+  let decision: TestEvidence["decision"] = "excluded";
+  let decisionReason = "excluded: no eligible test relationship to the task domain";
+
+  if (relationship === "exact") {
+    decision = "recommended";
+    decisionReason = "recommended: exact relationship to affected source or routed test name";
+  } else if (relationship === "domain") {
+    decision = "recommended";
+    decisionReason = "recommended: test domain overlaps the task or affected source domain";
+  } else if (relationship === "historical" && (taskMatches.length > 0 || sourceMatches.length > 0)) {
+    decision = "recommended";
+    decisionReason = "recommended: historical signal is backed by domain overlap";
+  } else if (relationship === "historical" || relationship === "nearby") {
+    decision = "debug-only";
+    decisionReason = "debug-only: positive signal lacks task/source domain evidence";
+  }
+
+  return {
+    path: input.classification.path,
+    taskDomains: input.taskDomains,
+    testDomains,
+    sourceDomains: input.sourceDomains,
+    positiveSignals,
+    negativeSignals: uniquePaths(negativeSignals),
+    relationship,
+    decision,
+    decisionReason
+  };
+}
+
+function testEvidenceForAnalysis(task: string, sourcePaths: string[], classifications: ClassifiedAffectedTest[]): TestEvidence[] {
+  const taskDomains = domainsFromTask(task);
+  const sourceDomains = uniquePaths(sourcePaths.flatMap(domainsFromPath));
+
+  return classifications.map((classification) => testEvidenceForClassification({
+    classification,
+    taskDomains,
+    sourceDomains
+  }));
+}
+
+function recommendedScoredTests(scoredTests: ScoredAffectedTest[], evidence: TestEvidence[]): ScoredAffectedTest[] {
+  const recommended = new Set(evidence
+    .filter((item) => item.decision === "recommended")
+    .map((item) => item.path));
+
+  return scoredTests.filter((item) => recommended.has(item.path));
+}
+
+function candidateTest(item: ScoredAffectedTest, evidence: TestEvidence): CandidateTest {
   return {
     path: item.path,
     reason: item.reason,
@@ -224,7 +404,8 @@ function candidateTest(item: ScoredAffectedTest): CandidateTest {
     score: item.score,
     confidence: item.confidence,
     signals: item.signals,
-    relationshipType: item.relationshipType
+    relationshipType: item.relationshipType,
+    evidence
   };
 }
 
@@ -244,6 +425,7 @@ export async function scoreRelationships(input: {
 }): Promise<{
   workAffectedTests: ScoredAffectedTest[];
   testCandidates: CandidateTest[];
+  testEvidence: TestEvidence[];
   testClassifications: ClassifiedAffectedTest[];
   filteredLearnedSignals: LearnedRoutingSignals;
   confidence: ConfidenceInfo;
@@ -259,7 +441,8 @@ export async function scoreRelationships(input: {
     includeRepoTestDiscovery: false,
     maxTests: Math.min(input.maxFiles, 6)
   });
-  const workAffectedTests = workTestAnalysis.scoredTests;
+  const workTestEvidence = testEvidenceForAnalysis(input.task, input.workSourcePaths, workTestAnalysis.classifications);
+  const workAffectedTests = recommendedScoredTests(workTestAnalysis.scoredTests, workTestEvidence);
   const affectedTestPaths = workAffectedTests.map((file) => file.path);
   const affectedTestSet = new Set(affectedTestPaths);
   const filteredLearnedTests = input.learnedSignals.learnedTests.filter((file) => affectedTestSet.has(file));
@@ -290,7 +473,14 @@ export async function scoreRelationships(input: {
     learnedTests: filteredLearnedSignals.learnedTests,
     maxTests: input.maxFiles
   });
-  const testCandidates = impactTestAnalysis.scoredTests.map(candidateTest);
+  const impactTestEvidence = testEvidenceForAnalysis(input.task, impactSourcePaths, impactTestAnalysis.classifications);
+  const impactEvidenceByPath = new Map(impactTestEvidence.map((item) => [item.path, item]));
+  const testCandidates = recommendedScoredTests(impactTestAnalysis.scoredTests, impactTestEvidence)
+    .map((item) => candidateTest(item, impactEvidenceByPath.get(item.path) ?? testEvidenceForClassification({
+      classification: item,
+      taskDomains: domainsFromTask(input.task),
+      sourceDomains: uniquePaths(impactSourcePaths.flatMap(domainsFromPath))
+    })));
   const confidence = confidenceExplanation(
     input.changedFiles,
     input.contextChanges,
@@ -307,6 +497,7 @@ export async function scoreRelationships(input: {
   return {
     workAffectedTests,
     testCandidates,
+    testEvidence: impactTestEvidence,
     testClassifications: impactTestAnalysis.classifications,
     filteredLearnedSignals,
     confidence,

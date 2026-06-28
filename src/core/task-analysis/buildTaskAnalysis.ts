@@ -82,6 +82,7 @@ export async function buildTaskAnalysis(
     primaryFiles,
     affectedFiles: relationships.affectedFiles,
     testCandidates: scored.testCandidates,
+    testEvidence: scored.testEvidence,
     testClassifications: scored.testClassifications,
     contextChanges: relationships.contextChanges,
     confidence: scored.confidence,

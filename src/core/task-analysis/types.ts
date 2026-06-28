@@ -19,9 +19,22 @@ export interface CandidateTest extends CandidateFile {
   score: number;
   signals: string[];
   relationshipType: RelationshipType;
+  evidence: TestEvidence;
 }
 
 export type { RelationshipType };
+
+export interface TestEvidence {
+  path: string;
+  taskDomains: string[];
+  testDomains: string[];
+  sourceDomains: string[];
+  positiveSignals: string[];
+  negativeSignals: string[];
+  relationship: "exact" | "domain" | "nearby" | "historical" | "unknown";
+  decision: "recommended" | "excluded" | "debug-only";
+  decisionReason: string;
+}
 
 export interface ContextChange extends CandidateFile {}
 
@@ -64,6 +77,7 @@ export interface TaskAnalysisResult {
   primaryFiles: CandidateFile[];
   affectedFiles: CandidateFile[];
   testCandidates: CandidateTest[];
+  testEvidence: TestEvidence[];
   testClassifications: ClassifiedAffectedTest[];
   contextChanges: ContextChange[];
   confidence: ConfidenceInfo;

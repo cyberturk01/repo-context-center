@@ -69,7 +69,10 @@ test("buildTaskAnalysis exposes the shared task analysis contract", async () => 
     const redisTest = analysis.testCandidates.find((file) => file.path === "tests/cache/redis.test.js");
     assert.ok(redisTest);
     assert.equal(redisTest.relationshipType, "direct-test");
+    assert.equal(redisTest.evidence.decision, "recommended");
+    assert.equal(redisTest.evidence.relationship, "exact");
     assert.ok(analysis.testClassifications.some((file) => file.path === "tests/cache/redis.test.js"));
+    assert.ok(analysis.testEvidence.some((file) => file.path === "tests/cache/redis.test.js"));
     assert.equal(analysis.confidence.evidence.taskRoutingMatched, true);
     assert.ok(Array.isArray(analysis.contextChanges));
     assert.ok(Array.isArray(analysis.verification.commands));
@@ -125,6 +128,52 @@ test("task analysis requires direct relationships before recommending tests", as
     assert.ok(auth.testCandidates.some((file) => file.path === "tests/auth/auth.spec.ts"));
     assert.ok(!auth.testCandidates.some((file) => file.path === "tests/cache/redis.test.js"));
     assert.ok(!auth.testCandidates.some((file) => file.path === "tests/api/public.test.js"));
+
+    const authEvidence = auth.testEvidence.find((file) => file.path === "tests/auth/auth.spec.ts");
+    const redisEvidence = auth.testEvidence.find((file) => file.path === "tests/cache/redis.test.js");
+
+    assert.ok(authEvidence);
+    assert.equal(authEvidence.decision, "recommended");
+    assert.deepEqual(authEvidence.taskDomains, ["auth", "middleware"]);
+    assert.ok(authEvidence.testDomains.includes("auth"));
+    assert.ok(redisEvidence);
+    assert.equal(redisEvidence.decision, "excluded");
+    assert.equal(redisEvidence.relationship, "unknown");
+    assert.ok(redisEvidence.negativeSignals.includes("no shared task/test domain"));
+  });
+});
+
+test("nearby package signals are debug-only without domain evidence", async () => {
+  await withTaskAnalysisRepo(async (cwd) => {
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Backend auth middleware work: read `packages/backend-core/src/auth/middleware.ts`, `packages/backend-core/tests/redis/utils.spec.ts`, and `packages/backend-core/tests/queue/queuedProcessor.spec.ts`."
+      ].join("\n")
+    );
+    await writeFixtureFile(cwd, "packages/backend-core/src/auth/middleware.ts", "export function authMiddleware() { return true; }\n");
+    await writeFixtureFile(cwd, "packages/backend-core/tests/redis/utils.spec.ts", "test('redis utils', () => {});\n");
+    await writeFixtureFile(cwd, "packages/backend-core/tests/queue/queuedProcessor.spec.ts", "test('queued processor', () => {});\n");
+
+    const analysis = await buildTaskAnalysis(cwd, "improve backend auth middleware", {
+      taskOnly: true,
+      maxFiles: 20
+    });
+    const redisEvidence = analysis.testEvidence.find((file) => file.path === "packages/backend-core/tests/redis/utils.spec.ts");
+    const queueEvidence = analysis.testEvidence.find((file) => file.path === "packages/backend-core/tests/queue/queuedProcessor.spec.ts");
+
+    assert.ok(!analysis.testCandidates.some((file) => file.path === "packages/backend-core/tests/redis/utils.spec.ts"));
+    assert.ok(!analysis.testCandidates.some((file) => file.path === "packages/backend-core/tests/queue/queuedProcessor.spec.ts"));
+    assert.ok(redisEvidence);
+    assert.equal(redisEvidence.relationship, "nearby");
+    assert.equal(redisEvidence.decision, "debug-only");
+    assert.ok(redisEvidence.positiveSignals.includes("same package/module with task token"));
+    assert.ok(redisEvidence.negativeSignals.includes("no shared task/test domain"));
+    assert.ok(queueEvidence);
+    assert.equal(queueEvidence.decision, "debug-only");
   });
 });
 
