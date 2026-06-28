@@ -66,7 +66,8 @@ test("work --agent remains compact parseable JSON only", () => {
   assertPathArray(route.tests, "tests");
   assertPathArray(route.readFirst, "readFirst");
   assert.equal(typeof route.briefTokens, "number");
-  assert.match(route.next, /Do not rerun rcc work/);
+  assert.match(route.next, /do not add generic tests or broad exploration/i);
+  assert.match(route.next, /Use done only if this change is meaningful project memory/);
   assert.ok(route.briefTokens <= 160, `agent output grew to ${route.briefTokens} tokens`);
   assertOmitsKeys(route, [
     "taskFiles",

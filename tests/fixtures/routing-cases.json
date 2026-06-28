@@ -6,15 +6,12 @@
       "primaryContains": [
         "src/cli/work/renderAgent.ts"
       ],
-      "testsContains": [
-        "tests/handoff.test.js"
-      ],
       "firstPrimaryFile": "src/cli/work/renderAgent.ts",
       "requiredTaskSize": "tiny",
       "requiredMode": "fast_fix",
       "maxPrimaryFiles": 1,
       "maxSupportingFiles": 0,
-      "maxTests": 1,
+      "maxTests": 0,
       "maxReadFirst": 1,
       "forbiddenPrimaryPrefixes": [
         ".github/workflows/",

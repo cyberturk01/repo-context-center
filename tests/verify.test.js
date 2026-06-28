@@ -47,7 +47,7 @@ test("verify --json renders TaskAnalysisResult verification fields", () => {
   assert.ok(report.primaryFiles.some((file) => file.path === "src/cache/redis.ts"));
   assert.ok(report.affectedFiles.some((file) => file.path === "src/cache/redis.ts"));
   assert.deepEqual(report.testCandidates.map((file) => file.path), ["tests/cache/redis.spec.ts"]);
-  assert.equal(report.confidence.level, "medium");
+  assert.equal(report.confidence.level, "high");
   assert.ok(Array.isArray(report.confidence.reasons));
   assert.ok(report.verification.commands.some((item) => item.command === "node --test tests/cache/redis.spec.ts"));
   assert.deepEqual(report.verification.hints, []);
