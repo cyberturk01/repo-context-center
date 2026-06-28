@@ -75,8 +75,8 @@ test("CLI help prints usage", () => {
   assert.match(result.stdout, /Options: --update, --dry-run, --force/);
   assert.match(result.stdout, /validate\s+Validate required context files and warnings/);
   assert.match(result.stdout, /Options: --strict/);
-  assert.match(result.stdout, /verify\s+Build a verification report from shared task analysis/);
-  assert.match(result.stdout, /Usage: verify "<task>" \[--json\] \[--task-only\] \[--max-files <number>\]/);
+  assert.doesNotMatch(result.stdout, /verify\s+Build a verification report/);
+  assert.doesNotMatch(result.stdout, /Usage: verify "<task>"/);
   assert.match(result.stdout, /archive\s+Archive older CHANGE_LOG and LESSONS_LEARNED entries/);
   assert.match(result.stdout, /Options: --keep <number>, --dry-run/);
   assert.match(result.stdout, /decision\s+Add a durable project decision to docs\/ai-context\/DECISIONS\.md/);

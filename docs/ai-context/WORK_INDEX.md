@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Updated CLI help test to keep verify hidden until CLI command is implemented
+- Built VerificationPlan generation from ImpactAnalysis with focused adapter tests
+- Implemented shared VerificationPlan model and focused construction tests without exposing verify CLI
 - Add low-overhead routing for tiny obvious tasks
 - updated changelog for v0.11.1
 - refined impact confidence calculation
 - ranked impact affected files by confidence
-- Fix RCC agent-file update mode for AGENTS and CLAUDE
-- Align workflow routing regression with strict affected-test evidence policy
-- Tightened affected-test evidence exact policy so generic import/module/routing signals no longer recommend unrelated tests; added Budibase-...
 
 ## Hot Files
 
@@ -26,8 +26,8 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `src/cli/work/buildWorkBrief.ts` | 14 touches; Add low-overhead routing for tiny obvious tasks | 2026-06-28 |
 | `tests/init.test.js` | 14 touches; Fix RCC agent-file update mode for AGENTS and CLAUDE | 2026-06-28 |
 | `src/cli/commands/done.ts` | 14 touches; Added negative coverage for done handoff file path injection and verbose agent JSON boundaries | 2026-06-24 |
+| `src/cli/index.ts` | 13 touches; Updated CLI help test to keep verify hidden until CLI command is implemented | 2026-06-28 |
 | `README.md` | 13 touches; updated README for latest RCC workflow and impact changes | 2026-06-27 |
-| `tests/done.test.js` | 13 touches; Added negative coverage for done handoff file path injection and verbose agent JSON boundaries | 2026-06-24 |
 
 ## Completed Work Themes
 
@@ -35,19 +35,19 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | ----- | ----: | -------------- |
 | Work routing | 35 | Add low-overhead routing for tiny obvious tasks |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
-| General maintenance | 21 | updated changelog for v0.11.1 |
+| General maintenance | 22 | Built VerificationPlan generation from ImpactAnalysis with focused adapter tests |
 | Tests | 11 | Add evidence-based TaskAnalysis test eligibility |
 | Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
+| CLI commands | 9 | Updated CLI help test to keep verify hidden until CLI command is implemented |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
-| CLI commands | 7 | Implemented verify command as a renderer over TaskAnalysisResult with JSON and text reports. |
 | Measurement and benchmarks | 5 | Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches. |
 
 ## Verification Patterns
 
 - `npm run build` (79)
 - `npm test` (43)
-- `node --test tests/impact.test.js` (23)
-- `node --test tests/cli.test.js` (14)
+- `node --test tests/impact.test.js` (24)
+- `node --test tests/cli.test.js` (15)
 - `node --test tests/work.test.js` (14)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)

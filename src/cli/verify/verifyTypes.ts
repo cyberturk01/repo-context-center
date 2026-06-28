@@ -1,40 +1,40 @@
-import type { ConfidenceInfo, VerificationCommand } from "../../core/task-analysis";
+import type {
+  ImpactAffectedTest,
+  ImpactAnalysis,
+  ImpactCommand,
+  ImpactConfidenceExplanation,
+  ImpactSummary,
+  ImpactVerificationHint
+} from "../impact/impactTypes";
 
-export interface VerifyOptions {
-  json: boolean;
-  maxFiles: number;
-  task: string;
-  taskOnly: boolean;
-}
-
-export interface VerifyFile {
-  path: string;
-  reason: string;
-}
-
-export interface VerifyTest extends VerifyFile {
-  score: number;
-  confidence: string;
-  signals: string[];
-}
-
-export interface VerifyReport {
+export interface VerificationPlan {
   schemaVersion: 1;
   command: "verify";
   task: string;
-  mode: "working-tree" | "task-only";
-  primaryFiles: VerifyFile[];
-  affectedFiles: VerifyFile[];
-  testCandidates: VerifyTest[];
-  confidence: ConfidenceInfo;
-  verification: {
-    commands: VerificationCommand[];
-    hints: Array<{
-      type: string;
-      reason: string;
-      command?: string;
-      paths?: string[];
-    }>;
-  };
+  mode: ImpactAnalysis["mode"];
+  summary: ImpactSummary;
+  targetedTests: ImpactAffectedTest[];
+  targetedTestCommands: ImpactCommand[];
+  buildCommands: ImpactCommand[];
+  smokeChecks: ImpactCommand[];
+  manualChecks: ImpactVerificationHint[];
+  validationChecklist: string[];
+  confidence: ImpactAnalysis["confidence"];
+  confidenceExplanation: ImpactConfidenceExplanation;
   notes: string[];
+}
+
+export interface VerificationPlanInput {
+  task: string;
+  mode: VerificationPlan["mode"];
+  summary: ImpactSummary;
+  targetedTests?: ImpactAffectedTest[];
+  targetedTestCommands?: ImpactCommand[];
+  buildCommands?: ImpactCommand[];
+  smokeChecks?: ImpactCommand[];
+  manualChecks?: ImpactVerificationHint[];
+  validationChecklist?: string[];
+  confidence: VerificationPlan["confidence"];
+  confidenceExplanation: ImpactConfidenceExplanation;
+  notes?: string[];
 }

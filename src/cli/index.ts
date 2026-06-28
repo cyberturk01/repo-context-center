@@ -16,7 +16,6 @@ import { scanCommand } from "./commands/scan";
 import { startCommand } from "./commands/start";
 import { suggestCommand } from "./commands/suggest";
 import { validateCommand } from "./commands/validate";
-import { verifyCommand } from "./commands/verify";
 import { workCommand } from "./commands/work";
 
 export interface CliIO {
@@ -45,7 +44,6 @@ const commands: Record<string, CommandHandler> = {
   scan: scanCommand,
   start: startCommand,
   suggest: suggestCommand,
-  verify: verifyCommand,
   work: workCommand
 };
 
@@ -65,8 +63,6 @@ Commands:
             Options: --update, --dry-run, --force, --github-action
   validate  Validate required context files and warnings
             Options: --strict
-  verify    Build a verification report from shared task analysis
-            Usage: verify "<task>" [--json] [--task-only] [--max-files <number>]
   archive   Archive older CHANGE_LOG and LESSONS_LEARNED entries
             Options: --keep <number>, --dry-run
   decision  Add a durable project decision to docs/ai-context/DECISIONS.md
