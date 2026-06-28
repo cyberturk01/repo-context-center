@@ -4920,4 +4920,54 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T23:17:36.035Z
+- Summary: Added rcc verify CLI backed by ImpactAnalysis recommendations
+- Changed files: `src/cli/commands/verify.ts`, `src/cli/index.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `src/cli/verify/verifyOptions.ts`, `src/cli/verify/verifyTypes.ts`, `tests/cli.test.js`, `tests/outputContract.test.js`, `tests/verify.test.js`
+- Verification: node --test tests/verify.test.js; node --test tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added rcc verify CLI backed by ImpactAnalysis recommendations",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/cli.test.js",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "node --test tests/verify.test.js; node --test tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T23:17:36.035Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T23:17:36.035Z",
+  "summary": "Added rcc verify CLI backed by ImpactAnalysis recommendations",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/cli.test.js",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "node --test tests/verify.test.js; node --test tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

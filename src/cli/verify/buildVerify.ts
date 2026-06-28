@@ -1,4 +1,5 @@
 import type { ImpactAnalysis, ImpactCommand, ImpactVerificationHint } from "../impact/impactTypes";
+import { buildImpactAnalysis } from "../impact/buildImpact";
 import type { VerificationPlan, VerificationPlanInput } from "./verifyTypes";
 
 function isDocsPath(filePath: string): boolean {
@@ -112,4 +113,16 @@ export function createVerificationPlanFromImpact(impact: ImpactAnalysis): Verifi
     confidenceExplanation: impact.confidenceExplanation,
     notes: notesFromImpact(impact)
   });
+}
+
+export async function buildVerificationPlan(
+  cwd: string,
+  task: string,
+  options: { taskOnly?: boolean } = {}
+): Promise<VerificationPlan> {
+  const impact = await buildImpactAnalysis(cwd, task, {
+    taskOnly: options.taskOnly ?? false
+  });
+
+  return createVerificationPlanFromImpact(impact);
 }

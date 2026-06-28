@@ -1,12 +1,25 @@
 const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
 const path = require("node:path");
 const test = require("node:test");
 
 const repoRoot = path.resolve(__dirname, "..");
+const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
 const {
   createVerificationPlan,
   createVerificationPlanFromImpact
 } = require(path.join(repoRoot, "dist", "cli", "verify", "buildVerify.js"));
+
+function runCli(args, options = {}) {
+  return spawnSync(process.execPath, [cliPath, ...args], {
+    cwd: options.cwd ?? repoRoot,
+    encoding: "utf8"
+  });
+}
+
+function fixturePath(name) {
+  return path.join(repoRoot, "fixtures", name);
+}
 
 function confidenceExplanation(overrides = {}) {
   return {
@@ -131,11 +144,11 @@ test("createVerificationPlan constructs the shared verification plan model", () 
     ],
     smokeChecks: [
       {
-        command: "node --test tests/cache/redis.spec.ts",
-        type: "test",
-        scope: "focused",
+        command: "npm run smoke",
+        type: "verification",
+        scope: "project",
         confidence: "high",
-        reason: "exercise changed cache behavior"
+        reason: "exercise integrated cache startup"
       }
     ],
     manualChecks: [
@@ -152,7 +165,7 @@ test("createVerificationPlan constructs the shared verification plan model", () 
     ],
     confidence: "high",
     confidenceExplanation: confidenceExplanation(),
-    notes: ["No CLI command is exposed by this model-only implementation."]
+    notes: ["Model construction test note."]
   });
 
   assert.deepEqual(Object.keys(plan).sort(), [
@@ -182,14 +195,14 @@ test("createVerificationPlan constructs the shared verification plan model", () 
   assert.equal(plan.targetedTests[0].confidence, "high");
   assert.deepEqual(plan.targetedTestCommands, []);
   assert.equal(plan.buildCommands[0].type, "build");
-  assert.equal(plan.smokeChecks[0].scope, "focused");
+  assert.equal(plan.smokeChecks[0].type, "verification");
   assert.equal(plan.manualChecks[0].type, "config");
   assert.deepEqual(plan.validationChecklist, [
     "Focused cache test passes",
     "Build still succeeds",
     "Redis configuration has a documented fallback"
   ]);
-  assert.equal(plan.notes[0], "No CLI command is exposed by this model-only implementation.");
+  assert.equal(plan.notes[0], "Model construction test note.");
 });
 
 test("createVerificationPlan defaults optional collections to empty arrays", () => {
@@ -357,4 +370,61 @@ test("createVerificationPlanFromImpact adds context-only notes from Impact evide
     && check.paths.includes("AGENTS.md")
   )));
   assert.ok(plan.notes.includes("Context-only impact detected; verify context changes manually."));
+});
+
+test("verify --json builds recommendations from Impact analysis", () => {
+  const result = runCli(["verify", "add redis cache", "--task-only", "--json"], {
+    cwd: fixturePath("redis-cache")
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(result.stderr, "");
+  assert.doesNotMatch(result.stdout, /```/);
+
+  const plan = JSON.parse(result.stdout);
+
+  assert.equal(plan.schemaVersion, 1);
+  assert.equal(plan.command, "verify");
+  assert.equal(plan.task, "add redis cache");
+  assert.equal(plan.mode, "task-only");
+  assert.equal(plan.confidence, "high");
+  assert.deepEqual(plan.targetedTests.map((test) => test.path), ["tests/cache/redis.spec.ts"]);
+  assert.ok(plan.targetedTestCommands.some((command) => (
+    command.command === "node --test tests/cache/redis.spec.ts"
+    && command.type === "test"
+  )));
+  assert.ok(plan.buildCommands.some((command) => (
+    command.command === "npm run build"
+    && command.type === "build"
+  )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "affected-files"
+    && check.paths.includes("src/cache/redis.ts")
+  )));
+  assert.equal("affectedFiles" in plan, false);
+  assert.equal("suggestedCommands" in plan, false);
+});
+
+test("verify text output is compact and recommendation-only", () => {
+  const result = runCli(["verify", "update translation", "--task-only"], {
+    cwd: fixturePath("translations")
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(result.stderr, "");
+  assert.match(result.stdout, /^repo-context-center verify/);
+  assert.match(result.stdout, /Task: update translation/);
+  assert.match(result.stdout, /Targeted tests:\n- none/);
+  assert.match(result.stdout, /Targeted test commands:\n- none/);
+  assert.match(result.stdout, /Manual checks:/);
+  assert.doesNotMatch(result.stdout, /Changed files:|Affected files:|Suggested commands:/);
+  assert.doesNotMatch(result.stdout, /redis\.spec\.ts|worker\.spec\.ts|public\.spec\.ts/);
+});
+
+test("verify rejects invalid args", () => {
+  const result = runCli(["verify", "--unknown"]);
+
+  assert.notEqual(result.status, 0);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /^Usage: rcc verify "<task>" \[--json\] \[--task-only\]/);
 });

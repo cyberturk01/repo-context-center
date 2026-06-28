@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Added rcc verify CLI backed by ImpactAnalysis recommendations
 - Updated CLI help test to keep verify hidden until CLI command is implemented
 - Built VerificationPlan generation from ImpactAnalysis with focused adapter tests
 - Implemented shared VerificationPlan model and focused construction tests without exposing verify CLI
 - Add low-overhead routing for tiny obvious tasks
 - updated changelog for v0.11.1
 - refined impact confidence calculation
-- ranked impact affected files by confidence
 
 ## Hot Files
 
@@ -23,10 +23,10 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
 | `tests/work.test.js` | 20 touches; Add low-overhead routing for tiny obvious tasks | 2026-06-28 |
 | `src/cli/handoff/buildHandoffBrief.ts` | 15 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
+| `src/cli/index.ts` | 14 touches; Added rcc verify CLI backed by ImpactAnalysis recommendations | 2026-06-28 |
 | `src/cli/work/buildWorkBrief.ts` | 14 touches; Add low-overhead routing for tiny obvious tasks | 2026-06-28 |
 | `tests/init.test.js` | 14 touches; Fix RCC agent-file update mode for AGENTS and CLAUDE | 2026-06-28 |
 | `src/cli/commands/done.ts` | 14 touches; Added negative coverage for done handoff file path injection and verbose agent JSON boundaries | 2026-06-24 |
-| `src/cli/index.ts` | 13 touches; Updated CLI help test to keep verify hidden until CLI command is implemented | 2026-06-28 |
 | `README.md` | 13 touches; updated README for latest RCC workflow and impact changes | 2026-06-27 |
 
 ## Completed Work Themes
@@ -37,8 +37,8 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | General maintenance | 22 | Built VerificationPlan generation from ImpactAnalysis with focused adapter tests |
 | Tests | 11 | Add evidence-based TaskAnalysis test eligibility |
+| CLI commands | 10 | Added rcc verify CLI backed by ImpactAnalysis recommendations |
 | Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
-| CLI commands | 9 | Updated CLI help test to keep verify hidden until CLI command is implemented |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
 | Measurement and benchmarks | 5 | Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches. |
 

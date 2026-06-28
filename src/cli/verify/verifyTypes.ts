@@ -38,3 +38,9 @@ export interface VerificationPlanInput {
   confidenceExplanation: ImpactConfidenceExplanation;
   notes?: string[];
 }
+
+export interface VerifyOptions {
+  json: boolean;
+  task: string;
+  taskOnly: boolean;
+}

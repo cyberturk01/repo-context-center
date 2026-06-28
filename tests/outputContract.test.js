@@ -249,3 +249,35 @@ test("handoff --json remains parseable shape-tested JSON", () => {
   assert.equal(typeof brief.nextCommand, "string");
   assert.match(brief.nextCommand, /^rcc (?:work|done)\b/);
 });
+
+test("verify --json remains parseable recommendation JSON only", () => {
+  const result = runCli(["verify", "change report output contract", "--json", "--task-only"]);
+  const plan = parseJsonOnlyOutput(result);
+
+  assert.deepEqual(Object.keys(plan).sort(), [
+    "buildCommands",
+    "command",
+    "confidence",
+    "confidenceExplanation",
+    "manualChecks",
+    "mode",
+    "notes",
+    "schemaVersion",
+    "smokeChecks",
+    "summary",
+    "targetedTestCommands",
+    "targetedTests",
+    "task",
+    "validationChecklist"
+  ]);
+  assert.equal(plan.schemaVersion, 1);
+  assert.equal(plan.command, "verify");
+  assert.equal(plan.task, "change report output contract");
+  assert.equal(plan.mode, "task-only");
+  assert.ok(Array.isArray(plan.targetedTests));
+  assert.ok(Array.isArray(plan.targetedTestCommands));
+  assert.ok(Array.isArray(plan.buildCommands));
+  assert.ok(Array.isArray(plan.manualChecks));
+  assert.equal("affectedFiles" in plan, false);
+  assert.equal("suggestedCommands" in plan, false);
+});
