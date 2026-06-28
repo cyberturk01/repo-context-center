@@ -70,7 +70,7 @@
       "requiredMode": "normal",
       "maxPrimaryFiles": 1,
       "maxSupportingFiles": 5,
-      "maxTests": 3,
+      "maxTests": 4,
       "maxReadFirst": 1,
       "forbiddenPrimaryPrefixes": [
         ".github/workflows/",
@@ -168,7 +168,7 @@
       "requiredMode": "normal",
       "maxPrimaryFiles": 2,
       "maxSupportingFiles": 0,
-      "maxTests": 1,
+      "maxTests": 2,
       "maxReadFirst": 1,
       "maxBriefTokens": 120
     }

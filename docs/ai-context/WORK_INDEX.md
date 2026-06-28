@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Updated routing regression fixture caps to match TaskAnalysis-backed Work test candidates and verified full npm test.
 - Cleaned work renderer so work routes render tests from TaskAnalysisResult.testCandidates and cannot leak Work-only routed tests.
 - Implemented verify command as a renderer over TaskAnalysisResult with JSON and text reports.
 - Added TaskAnalysis fixture repositories and snapshot regression test covering auth, Redis, translations, and monorepo cases.
 - Required direct relationships before TaskAnalysis recommends tests so work and impact suppress indirect-only test candidates.
 - Introduced relationship classification for affected test candidates before scoring and exposed classifications on TaskAnalysisResult.
 - Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches.
-- Fixed routing regression by demoting generic task/tasks path matches from focused routing primaries.
 
 ## Hot Files
 
@@ -33,7 +33,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Work routing | 30 | Cleaned work renderer so work routes render tests from TaskAnalysisResult.testCandidates and cannot leak Work-only routed tests. |
+| Work routing | 31 | Updated routing regression fixture caps to match TaskAnalysis-backed Work test candidates and verified full npm test. |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | General maintenance | 17 | Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema. |
 | Tests | 10 | Added TaskAnalysis fixture repositories and snapshot regression test covering auth, Redis, translations, and monorepo cases. |
@@ -45,7 +45,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 ## Verification Patterns
 
 - `npm run build` (74)
-- `npm test` (42)
+- `npm test` (43)
 - `node --test tests/impact.test.js` (18)
 - `node --test tests/cli.test.js` (14)
 - `node --test tests/*.test.js` (13)

@@ -4406,4 +4406,38 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-28T15:11:23.565Z
+- Summary: Updated routing regression fixture caps to match TaskAnalysis-backed Work test candidates and verified full npm test.
+- Changed files: `tests/fixtures/routing-cases.json`
+- Verification: node --test tests/routingRegression.test.js; npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated routing regression fixture caps to match TaskAnalysis-backed Work test candidates and verified full npm test.",
+  "files": [
+    "tests/fixtures/routing-cases.json"
+  ],
+  "verification": [
+    "node --test tests/routingRegression.test.js; npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T15:11:23.565Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T15:11:23.565Z",
+  "summary": "Updated routing regression fixture caps to match TaskAnalysis-backed Work test candidates and verified full npm test.",
+  "files": [
+    "tests/fixtures/routing-cases.json"
+  ],
+  "verification": "node --test tests/routingRegression.test.js; npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
