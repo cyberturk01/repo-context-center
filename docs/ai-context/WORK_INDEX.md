@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Implemented verify command as a renderer over TaskAnalysisResult with JSON and text reports.
 - Added TaskAnalysis fixture repositories and snapshot regression test covering auth, Redis, translations, and monorepo cases.
 - Required direct relationships before TaskAnalysis recommends tests so work and impact suppress indirect-only test candidates.
 - Introduced relationship classification for affected test candidates before scoring and exposed classifications on TaskAnalysisResult.
 - Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches.
 - Fixed routing regression by demoting generic task/tasks path matches from focused routing primaries.
 - Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema.
-- Created shared task analysis engine and adapted work/impact to render from TaskAnalysisResult without changing outputs.
 
 ## Hot Files
 
@@ -39,16 +39,16 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Tests | 10 | Added TaskAnalysis fixture repositories and snapshot regression test covering auth, Redis, translations, and monorepo cases. |
 | Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
-| CLI commands | 6 | Fixed suggested command path spacing for concatenated test paths |
+| CLI commands | 7 | Implemented verify command as a renderer over TaskAnalysisResult with JSON and text reports. |
 | Measurement and benchmarks | 5 | Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches. |
 
 ## Verification Patterns
 
-- `npm run build` (72)
+- `npm run build` (73)
 - `npm test` (42)
 - `node --test tests/impact.test.js` (17)
+- `node --test tests/cli.test.js` (14)
 - `node --test tests/*.test.js` (13)
-- `node --test tests/cli.test.js` (13)
 - `node --test tests/handoff.test.js` (13)
 - `npm run benchmark:routing` (11)
 - `npm run release:check` (10)
