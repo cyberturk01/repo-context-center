@@ -11,6 +11,7 @@ export async function verifyCommand(io: CliIO, args: string[] = []): Promise<num
   }
 
   const plan = await buildVerificationPlan(io.cwd, options.task, {
+    level: options.level,
     planned: options.planned,
     taskOnly: options.taskOnly
   });

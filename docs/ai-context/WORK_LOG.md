@@ -5310,4 +5310,88 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-29T13:21:38.717Z
+- Summary: Normalize rcc verify checks with level caps and CLI level option
+- Changed files: `src/cli/commands/verify.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/verify/verifyOptions.ts`, `src/cli/verify/verifyTypes.ts`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Normalize rcc verify checks with level caps and CLI level option",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T13:21:38.717Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T13:21:38.717Z",
+  "summary": "Normalize rcc verify checks with level caps and CLI level option",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T13:22:16.684Z
+- Summary: Normalize rcc verify checks with level caps and CLI level option
+- Changed files: `src/cli/commands/verify.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/verify/verifyOptions.ts`, `src/cli/verify/verifyTypes.ts`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Normalize rcc verify checks with level caps and CLI level option",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T13:22:16.684Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T13:22:16.684Z",
+  "summary": "Normalize rcc verify checks with level caps and CLI level option",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -1,11 +1,12 @@
 import type { ImpactAnalysis, ImpactCommand, ImpactVerificationHint } from "../impact/impactTypes";
 import { buildImpactAnalysis } from "../impact/buildImpact";
 import { classifyTaskSize, type TaskSize } from "../work/taskSize";
-import type { VerificationPlan, VerificationPlanInput } from "./verifyTypes";
+import type { VerificationLevel, VerificationPlan, VerificationPlanInput } from "./verifyTypes";
 
 const contextOnlyConfidenceReason = "verify confidence reduced because only context files changed";
 const runnableNodeTestPattern = /\.(test|spec)\.[cm]?[jt]sx?$/i;
 const maximumTargetedTestCommandLength = 300;
+const defaultVerificationLevel: VerificationLevel = "balanced";
 
 type VerificationDomain =
   | "auth"
@@ -86,6 +87,193 @@ function compactAllChecks(checks: ImpactVerificationHint[]): ImpactVerificationH
     seen.add(key);
     return true;
   });
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function checkGroup(type: string): string {
+  const groups: Record<string, string> = {
+    "frontend-regression": "frontend-ui",
+    "backend-contract": "backend-behavior",
+    "cache-hit-miss": "cache-behavior",
+    "context-changes": "path-review",
+    "affected-files": "path-review",
+    "context-routing": "path-review"
+  };
+
+  return groups[type] ?? type;
+}
+
+function canonicalCheckType(type: string): string {
+  const canonicalTypes: Record<string, string> = {
+    "frontend-regression": "frontend-ui",
+    "backend-contract": "backend-behavior",
+    "cache-hit-miss": "cache-behavior",
+    "context-changes": "context-routing",
+    "affected-files": "affected-files",
+    "context-routing": "context-routing"
+  };
+
+  return canonicalTypes[type] ?? type;
+}
+
+function canonicalReason(group: string): string | undefined {
+  const reasons: Record<string, string> = {
+    "frontend-ui": "Check the affected UI in a browser for rendering, interaction, responsive layout, loading state, and visible regressions.",
+    "backend-behavior": "Check the affected backend path with a representative request or worker invocation, including contract behavior, errors, and side effects.",
+    "cache-behavior": "Check cache miss and cache hit behavior, plus cache invalidation, for the matched cache surface.",
+    "path-review": "Inspect the affected and context paths for behavior-specific validation and workflow/routing impact."
+  };
+
+  return reasons[group];
+}
+
+function reasonScore(check: ImpactVerificationHint): number {
+  const reason = check.reason.toLowerCase();
+  const strongTerms = [
+    "fallback",
+    "contract",
+    "credentials",
+    "secrets",
+    "rollback",
+    "compatibility",
+    "responsive",
+    "invalidation",
+    "side effects",
+    "workflow",
+    "routing"
+  ];
+  const termScore = strongTerms.filter((term) => reason.includes(term)).length * 10;
+  const commandScore = check.command ? 15 : 0;
+
+  return termScore + commandScore + Math.min(check.reason.length, 140) / 10;
+}
+
+function mergeCheck(left: ImpactVerificationHint, right: ImpactVerificationHint): ImpactVerificationHint {
+  const group = checkGroup(left.type);
+  const stronger = reasonScore(right) > reasonScore(left) ? right : left;
+  const command = left.command ?? right.command;
+  const paths = uniqueStrings([...(left.paths ?? []), ...(right.paths ?? [])]);
+  const reason = canonicalReason(group) ?? stronger.reason;
+  const type = canonicalCheckType(stronger.type);
+
+  return {
+    type,
+    reason,
+    ...(paths.length > 0 ? { paths } : {}),
+    ...(command ? { command } : {})
+  };
+}
+
+function normalizeCheckList(checks: ImpactVerificationHint[]): ImpactVerificationHint[] {
+  const merged = new Map<string, ImpactVerificationHint>();
+
+  for (const check of checks) {
+    const key = check.command ? `${checkGroup(check.type)}:${check.command}` : checkGroup(check.type);
+    const existing = merged.get(key);
+
+    merged.set(key, existing ? mergeCheck(existing, check) : check);
+  }
+
+  return [...merged.values()];
+}
+
+function checkPriority(check: ImpactVerificationHint): number {
+  const priorities: Record<string, number> = {
+    "auth-flow": 10,
+    "cache-behavior": 20,
+    "ci-workflow": 30,
+    "database-behavior": 40,
+    "frontend-ui": 50,
+    "backend-behavior": 60,
+    "ui-text": 70,
+    "docs-rendering": 80,
+    "environment": 5,
+    "invalid-credentials": 10,
+    "cache-fallback": 20,
+    "workflow-lint": 30,
+    "yaml-syntax": 31,
+    "workflow-triggers-secrets": 32,
+    "schema-compatibility": 40,
+    "data-rollback-impact": 41,
+    "config-load": 50,
+    "context-routing": 60,
+    "affected-files": 70
+  };
+
+  return priorities[check.type] ?? 100;
+}
+
+function capChecks(
+  checks: ImpactVerificationHint[],
+  level: VerificationLevel,
+  kind: "smoke" | "manual"
+): ImpactVerificationHint[] {
+  if (level === "deep") {
+    return checks;
+  }
+
+  const limits = {
+    minimal: { smoke: 1, manual: 2 },
+    balanced: { smoke: 2, manual: 4 }
+  };
+  const limit = limits[level][kind];
+
+  return checks
+    .map((check, index) => ({ check, index }))
+    .sort((left, right) => (
+      checkPriority(left.check) - checkPriority(right.check)
+      || (right.check.command ? 1 : 0) - (left.check.command ? 1 : 0)
+      || left.index - right.index
+    ))
+    .slice(0, limit)
+    .sort((left, right) => left.index - right.index)
+    .map((item) => item.check);
+}
+
+function trimCheckPaths(checks: ImpactVerificationHint[], level: VerificationLevel): ImpactVerificationHint[] {
+  if (level === "deep") {
+    return checks;
+  }
+
+  const maxPaths = level === "minimal" ? 3 : 5;
+
+  return checks.map((check) => {
+    if (!check.paths || check.paths.length <= maxPaths) {
+      return check;
+    }
+
+    return {
+      ...check,
+      paths: check.paths.slice(0, maxPaths)
+    };
+  });
+}
+
+function normalizeVerificationPlan(plan: VerificationPlan, level: VerificationLevel): VerificationPlan {
+  let smokeChecks = normalizeCheckList(plan.smokeChecks);
+  let manualChecks = normalizeCheckList(plan.manualChecks);
+  const mergeIntoSmokeGroups = new Set(["frontend-ui", "backend-behavior", "cache-behavior"]);
+
+  manualChecks = manualChecks.filter((manualCheckItem) => {
+    const manualGroup = checkGroup(manualCheckItem.type);
+    const smokeIndex = smokeChecks.findIndex((smokeCheckItem) => checkGroup(smokeCheckItem.type) === manualGroup);
+
+    if (smokeIndex === -1 || !mergeIntoSmokeGroups.has(manualGroup)) {
+      return true;
+    }
+
+    smokeChecks[smokeIndex] = mergeCheck(smokeChecks[smokeIndex], manualCheckItem);
+    return false;
+  });
+
+  return {
+    ...plan,
+    smokeChecks: trimCheckPaths(capChecks(smokeChecks, level, "smoke"), level),
+    manualChecks: trimCheckPaths(capChecks(manualChecks, level, "manual"), level)
+  };
 }
 
 function commandsByType(commands: ImpactCommand[], type: ImpactCommand["type"]): ImpactCommand[] {
@@ -571,7 +759,10 @@ export function createVerificationPlan(input: VerificationPlanInput): Verificati
   };
 }
 
-export function createVerificationPlanFromImpact(impact: ImpactAnalysis): VerificationPlan {
+export function createVerificationPlanFromImpact(
+  impact: ImpactAnalysis,
+  level: VerificationLevel = defaultVerificationLevel
+): VerificationPlan {
   const affectedFilePaths = impact.affectedFiles.map((file) => file.path);
   const contextChangePaths = impact.contextChanges.map((file) => file.path);
   const contextOnly = isContextOnlyVerification(impact);
@@ -579,7 +770,7 @@ export function createVerificationPlanFromImpact(impact: ImpactAnalysis): Verifi
   const targetedTestCommands = targetedTestCommandsFromTests(targetedTests);
 
   if (contextOnly) {
-    return createVerificationPlan({
+    return normalizeVerificationPlan(createVerificationPlan({
       task: impact.task,
       mode: impact.mode,
       summary: impact.summary,
@@ -594,10 +785,10 @@ export function createVerificationPlanFromImpact(impact: ImpactAnalysis): Verifi
       confidence: "medium",
       confidenceExplanation: confidenceExplanationWithDomains(impact, confidenceExplanationForVerify(impact)),
       notes: notesFromImpact(impact)
-    });
+    }), level);
   }
 
-  return createVerificationPlan({
+  return normalizeVerificationPlan(createVerificationPlan({
     task: impact.task,
     mode: impact.mode,
     summary: impact.summary,
@@ -617,10 +808,13 @@ export function createVerificationPlanFromImpact(impact: ImpactAnalysis): Verifi
     confidence: impact.confidence,
     confidenceExplanation: confidenceExplanationWithDomains(impact, impact.confidenceExplanation),
     notes: notesFromImpact(impact)
-  });
+  }), level);
 }
 
-export function createPlannedVerificationPlanFromImpact(impact: ImpactAnalysis): VerificationPlan {
+export function createPlannedVerificationPlanFromImpact(
+  impact: ImpactAnalysis,
+  level: VerificationLevel = defaultVerificationLevel
+): VerificationPlan {
   const plannedImpact: ImpactAnalysis = {
     ...impact,
     mode: "planned-task"
@@ -638,7 +832,7 @@ export function createPlannedVerificationPlanFromImpact(impact: ImpactAnalysis):
     notes.push(plannedNote);
   }
 
-  return createVerificationPlan({
+  return normalizeVerificationPlan(createVerificationPlan({
     task: plannedImpact.task,
     mode: plannedImpact.mode,
     summary: plannedImpact.summary,
@@ -658,21 +852,22 @@ export function createPlannedVerificationPlanFromImpact(impact: ImpactAnalysis):
     confidence: plannedImpact.confidence,
     confidenceExplanation: confidenceExplanationWithDomains(plannedImpact, plannedImpact.confidenceExplanation),
     notes
-  });
+  }), level);
 }
 
 export async function buildVerificationPlan(
   cwd: string,
   task: string,
-  options: { planned?: boolean; taskOnly?: boolean } = {}
+  options: { level?: VerificationLevel; planned?: boolean; taskOnly?: boolean } = {}
 ): Promise<VerificationPlan> {
   const impact = await buildImpactAnalysis(cwd, task, {
     taskOnly: options.taskOnly ?? false
   });
+  const level = options.level ?? defaultVerificationLevel;
 
   if (options.planned) {
-    return createPlannedVerificationPlanFromImpact(impact);
+    return createPlannedVerificationPlanFromImpact(impact, level);
   }
 
-  return createVerificationPlanFromImpact(impact);
+  return createVerificationPlanFromImpact(impact, level);
 }

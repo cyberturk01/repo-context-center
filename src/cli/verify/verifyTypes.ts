@@ -39,8 +39,11 @@ export interface VerificationPlanInput {
   notes?: string[];
 }
 
+export type VerificationLevel = "minimal" | "balanced" | "deep";
+
 export interface VerifyOptions {
   json: boolean;
+  level: VerificationLevel;
   planned: boolean;
   task: string;
   taskOnly: boolean;

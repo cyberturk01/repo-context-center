@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Normalize rcc verify checks with level caps and CLI level option
+- Normalize rcc verify checks with level caps and CLI level option
 - Promote strong Impact affected tests in rcc verify
 - Add domain-aware verification planning
 - Add planned verification mode for rcc verify
 - Refined context-only verify confidence
 - Made rcc verify conservative for context-only working-tree changes
-- Documented RCC v0.12.0 Verify Intelligence in README and CHANGELOG
-- Hardened verify JSON output contract coverage for agent-safe parseable plans
 
 ## Hot Files
 
@@ -24,10 +24,10 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `tests/work.test.js` | 20 touches; Add low-overhead routing for tiny obvious tasks | 2026-06-28 |
 | `src/cli/index.ts` | 15 touches; Add planned verification mode for rcc verify | 2026-06-29 |
 | `src/cli/handoff/buildHandoffBrief.ts` | 15 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
+| `src/cli/verify/buildVerify.ts` | 14 touches; Normalize rcc verify checks with level caps and CLI level option | 2026-06-29 |
+| `tests/verify.test.js` | 14 touches; Normalize rcc verify checks with level caps and CLI level option | 2026-06-29 |
 | `README.md` | 14 touches; Documented RCC v0.12.0 Verify Intelligence in README and CHANGELOG | 2026-06-28 |
 | `src/cli/work/buildWorkBrief.ts` | 14 touches; Add low-overhead routing for tiny obvious tasks | 2026-06-28 |
-| `tests/init.test.js` | 14 touches; Fix RCC agent-file update mode for AGENTS and CLAUDE | 2026-06-28 |
-| `src/cli/commands/done.ts` | 14 touches; Added negative coverage for done handoff file path injection and verbose agent JSON boundaries | 2026-06-24 |
 
 ## Completed Work Themes
 
@@ -36,19 +36,19 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Work routing | 35 | Add low-overhead routing for tiny obvious tasks |
 | General maintenance | 28 | Promote strong Impact affected tests in rcc verify |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
+| CLI commands | 12 | Normalize rcc verify checks with level caps and CLI level option |
 | Repository context | 12 | Refined context-only verify confidence |
 | Tests | 12 | Hardened verify JSON output contract coverage for agent-safe parseable plans |
-| CLI commands | 10 | Added rcc verify CLI backed by ImpactAnalysis recommendations |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
 | Measurement and benchmarks | 5 | Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches. |
 
 ## Verification Patterns
 
-- `npm run build` (84)
+- `npm run build` (86)
 - `npm test` (43)
 - `node --test tests/impact.test.js` (24)
 - `node --test tests/cli.test.js` (18)
-- `node --test tests/verify.test.js` (16)
+- `node --test tests/verify.test.js` (18)
 - `node --test tests/work.test.js` (14)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)

@@ -283,11 +283,8 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
     && check.command === "redis-cli ping"
   )));
   assert.ok(plan.manualChecks.some((check) => (
-    check.type === "affected-files"
+    check.type === "context-routing"
     && check.paths.includes("src/cache/redis.ts")
-  )));
-  assert.ok(plan.manualChecks.some((check) => (
-    check.type === "context-changes"
     && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
   )));
   assert.deepEqual(plan.validationChecklist, [
@@ -464,7 +461,7 @@ test("createVerificationPlanFromImpact suggests a workflow smoke check for impro
     affectedFiles: ["src/cache/store.ts"],
     affectedTests: ["tests/cache/store.spec.ts"],
     expectedReason: "domain matched: cache",
-    expectedManual: "cache-hit-miss"
+    expectedSmoke: "cache-behavior"
   },
   {
     name: "redis",
@@ -512,7 +509,7 @@ test("createVerificationPlanFromImpact suggests a workflow smoke check for impro
     affectedFiles: ["src/ui/ProfileCard.tsx"],
     affectedTests: ["tests/ui/ProfileCard.spec.tsx"],
     expectedReason: "domain matched: frontend",
-    expectedManual: "frontend-regression"
+    expectedSmoke: "frontend-ui"
   },
   {
     name: "backend",
@@ -520,7 +517,7 @@ test("createVerificationPlanFromImpact suggests a workflow smoke check for impro
     affectedFiles: ["src/api/users.ts"],
     affectedTests: ["tests/api/users.spec.ts"],
     expectedReason: "domain matched: backend",
-    expectedManual: "backend-contract"
+    expectedSmoke: "backend-behavior"
   },
   {
     name: "config",
@@ -581,7 +578,12 @@ test("createVerificationPlanFromImpact suggests a workflow smoke check for impro
     }));
 
     assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith(fixture.expectedReason)));
-    assert.ok(plan.manualChecks.some((check) => check.type === fixture.expectedManual));
+    if (fixture.expectedManual) {
+      assert.ok(plan.manualChecks.some((check) => check.type === fixture.expectedManual));
+    }
+    if (fixture.expectedSmoke) {
+      assert.ok(plan.smokeChecks.some((check) => check.type === fixture.expectedSmoke));
+    }
 
     if (fixture.affectedTests.length > 0) {
       assert.deepEqual(plan.targetedTests.map((item) => item.path), fixture.affectedTests);
@@ -889,6 +891,104 @@ test("workflow task keeps workflow and config checks without generic targeted te
   assert.ok(plan.manualChecks.some((check) => check.type === "config-load"));
 });
 
+test("balanced verification normalizes overlapping checks and caps output", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "update frontend backend postgres github action config",
+    affectedFiles: [
+      {
+        path: "src/ui/ProfileCard.tsx",
+        reason: "task routing matched"
+      },
+      {
+        path: "src/api/users.ts",
+        reason: "task routing matched"
+      },
+      {
+        path: "src/db/postgresClient.ts",
+        reason: "task routing matched"
+      },
+      {
+        path: ".github/workflows/ci.yml",
+        reason: "task routing matched"
+      },
+      {
+        path: "src/config/defaults.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: []
+  }));
+
+  assert.equal(plan.smokeChecks.length <= 2, true);
+  assert.equal(plan.manualChecks.length <= 4, true);
+  assert.equal(plan.manualChecks.some((check) => check.type === "frontend-regression"), false);
+  assert.equal(plan.manualChecks.some((check) => check.type === "backend-contract"), false);
+});
+
+test("minimal verification keeps at most one smoke check and two manual checks", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "update auth postgres github action config",
+    affectedFiles: [
+      {
+        path: "src/auth/session.ts",
+        reason: "task routing matched"
+      },
+      {
+        path: "src/db/postgresClient.ts",
+        reason: "task routing matched"
+      },
+      {
+        path: ".github/workflows/ci.yml",
+        reason: "task routing matched"
+      },
+      {
+        path: "src/config/defaults.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: []
+  }), "minimal");
+
+  assert.equal(plan.smokeChecks.length <= 1, true);
+  assert.equal(plan.manualChecks.length <= 2, true);
+});
+
+test("deep verification deduplicates but does not apply balanced caps", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "update frontend backend postgres github action config",
+    affectedFiles: [
+      {
+        path: "src/ui/ProfileCard.tsx",
+        reason: "task routing matched"
+      },
+      {
+        path: "src/api/users.ts",
+        reason: "task routing matched"
+      },
+      {
+        path: "src/db/postgresClient.ts",
+        reason: "task routing matched"
+      },
+      {
+        path: ".github/workflows/ci.yml",
+        reason: "task routing matched"
+      },
+      {
+        path: "src/config/defaults.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: []
+  }), "deep");
+
+  assert.equal(plan.manualChecks.some((check) => check.type === "frontend-regression"), false);
+  assert.equal(plan.manualChecks.some((check) => check.type === "backend-contract"), false);
+  assert.equal(plan.manualChecks.length > 4, true);
+});
+
 test("createVerificationPlanFromImpact is conservative for context-only route estimates", () => {
   const impact = impactAnalysis({
     task: "add redis cache",
@@ -1043,7 +1143,7 @@ test("planned mode promotes login task estimates without source changes", () => 
     && check.paths.includes("src/auth/login.ts")
   )));
   assert.ok(plan.manualChecks.some((check) => (
-    check.type === "affected-files"
+    check.type === "context-routing"
     && check.paths.includes("src/auth/login.ts")
   )));
   assert.ok(plan.notes.includes(
@@ -1136,9 +1236,114 @@ test("planned mode promotes workflow task estimates without source changes", () 
     && check.paths.includes(".github/workflows/ci.yml")
   )));
   assert.ok(plan.manualChecks.some((check) => (
-    check.type === "affected-files"
+    check.type === "context-routing"
     && check.paths.includes(".github/workflows/ci.yml")
   )));
+});
+
+test("planned auth verification output is normalized", () => {
+  const plan = createPlannedVerificationPlanFromImpact(impactAnalysis({
+    task: "update auth middleware",
+    mode: "working-tree",
+    affectedFiles: [
+      {
+        path: "src/auth/middleware.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/auth/middleware.spec.ts",
+        reason: "task route matched auth test",
+        score: 115,
+        confidence: "strong",
+        signals: ["task routing evidence", "filename similarity"]
+      }
+    ],
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ]
+  }));
+
+  assert.equal(plan.mode, "planned-task");
+  assert.ok(plan.smokeChecks.some((check) => check.type === "auth-flow"));
+  assert.ok(plan.manualChecks.some((check) => check.type === "invalid-credentials"));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "context-routing"
+    && check.paths.includes("src/auth/middleware.ts")
+  )));
+  assert.equal(plan.manualChecks.length <= 4, true);
+});
+
+test("planned postgres verification output keeps database checks", () => {
+  const plan = createPlannedVerificationPlanFromImpact(impactAnalysis({
+    task: "fix postgres query timeout",
+    mode: "working-tree",
+    affectedFiles: [
+      {
+        path: "src/db/postgresClient.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/db/postgresClient.spec.ts",
+        reason: "task route matched postgres test",
+        score: 112,
+        confidence: "strong",
+        signals: ["task routing evidence", "filename similarity"]
+      }
+    ],
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ]
+  }));
+
+  assert.equal(plan.mode, "planned-task");
+  assert.ok(plan.smokeChecks.some((check) => check.type === "database-behavior"));
+  assert.ok(plan.manualChecks.some((check) => check.type === "schema-compatibility"));
+  assert.ok(plan.manualChecks.some((check) => check.type === "data-rollback-impact"));
+  assert.equal(plan.manualChecks.length <= 4, true);
+});
+
+test("planned github actions verification output is capped and executable", () => {
+  const plan = createPlannedVerificationPlanFromImpact(impactAnalysis({
+    task: "tighten github actions permissions",
+    mode: "working-tree",
+    affectedFiles: [
+      {
+        path: ".github/workflows/release.yaml",
+        reason: "task routing matched"
+      },
+      {
+        path: "package.json",
+        reason: "workflow config matched"
+      }
+    ],
+    affectedTests: [],
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ],
+    suggestedCommands: []
+  }));
+
+  assert.equal(plan.mode, "planned-task");
+  assert.ok(plan.smokeChecks.some((check) => check.type === "ci-workflow"));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "workflow-lint"
+    && check.command === "actionlint .github/workflows/release.yaml"
+  )));
+  assert.ok(plan.manualChecks.some((check) => check.type === "workflow-triggers-secrets"));
+  assert.equal(plan.manualChecks.length <= 4, true);
 });
 
 test("createVerificationPlanFromImpact does not let context paths trigger source smoke checks", () => {
@@ -1183,11 +1388,11 @@ test("createVerificationPlanFromImpact does not let context paths trigger source
     && check.paths.includes("src/domain/service.ts")
   )));
   assert.ok(plan.manualChecks.some((check) => (
-    check.type === "affected-files"
+    check.type === "context-routing"
     && check.paths.includes("src/domain/service.ts")
   )));
   assert.ok(plan.manualChecks.some((check) => (
-    check.type === "context-changes"
+    check.type === "context-routing"
     && check.paths.includes(".github/workflows/ci.yml")
   )));
 });
@@ -1250,6 +1455,22 @@ test("verify --planned --json selects planned-task mode", () => {
   assert.equal(Array.isArray(plan.buildCommands), true);
   assert.equal(Array.isArray(plan.smokeChecks), true);
   assert.equal(Array.isArray(plan.manualChecks), true);
+});
+
+test("verify --level minimal --json caps planned verification output", () => {
+  const result = runCli(["verify", "fix login bug", "--planned", "--level", "minimal", "--json"], {
+    cwd: fixturePath("simple-auth")
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(result.stderr, "");
+
+  const plan = JSON.parse(result.stdout);
+
+  assert.equal(plan.command, "verify");
+  assert.equal(plan.mode, "planned-task");
+  assert.equal(plan.smokeChecks.length <= 1, true);
+  assert.equal(plan.manualChecks.length <= 2, true);
 });
 
 test("verify text output is compact and recommendation-only", () => {
