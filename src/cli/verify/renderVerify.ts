@@ -48,8 +48,9 @@ function formatExecutionPlan(steps: VerificationExecutionStep[]): string[] {
   return steps.map((step, index) => {
     const command = step.command ? `: ${step.command}` : "";
     const paths = step.paths && step.paths.length > 0 ? ` [${step.paths.join(", ")}]` : "";
+    const refs = step.refs && step.refs.length > 0 ? ` (see ${step.refs.join(", ")})` : "";
 
-    return `${index + 1}. ${step.title} [${step.priority}, ~${step.estimatedMinutes}m]${paths}${command}`;
+    return `${index + 1}. ${step.title} [${step.priority}, ~${step.estimatedMinutes}m]${refs}${paths}${command}`;
   });
 }
 

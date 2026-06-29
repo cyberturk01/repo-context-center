@@ -362,6 +362,10 @@ function executionPlanId(prefix: string, index: number): string {
   return `${prefix}-${index + 1}`;
 }
 
+function sectionRef(section: string, index: number): string {
+  return `${section}[${index}]`;
+}
+
 function targetedTestEstimatedMinutes(paths: string[]): number {
   return Math.max(2, Math.min(15, paths.length * 2));
 }
@@ -379,8 +383,7 @@ function buildExecutionPlan(plan: Omit<VerificationPlan, "executionPlan">): Veri
           id: executionPlanId("targeted-tests", index),
           type: "targeted-tests",
           title: "Run targeted tests",
-          command: command.command,
-          paths: targetedPaths,
+          refs: ["targetedTests", sectionRef("targetedTestCommands", index)],
           priority: highestPriority([targetedPriority, command.priority]),
           estimatedMinutes: targetedTestEstimatedMinutes(targetedPaths)
         });
@@ -390,7 +393,7 @@ function buildExecutionPlan(plan: Omit<VerificationPlan, "executionPlan">): Veri
         id: "targeted-tests-1",
         type: "targeted-tests",
         title: "Run targeted tests",
-        paths: targetedPaths,
+        refs: ["targetedTests"],
         priority: targetedPriority,
         estimatedMinutes: targetedTestEstimatedMinutes(targetedPaths)
       });
@@ -402,7 +405,7 @@ function buildExecutionPlan(plan: Omit<VerificationPlan, "executionPlan">): Veri
       id: executionPlanId("build", index),
       type: "build",
       title: "Run build command",
-      command: command.command,
+      refs: [sectionRef("buildCommands", index)],
       priority: command.priority,
       estimatedMinutes: 3
     });
@@ -413,8 +416,7 @@ function buildExecutionPlan(plan: Omit<VerificationPlan, "executionPlan">): Veri
       id: executionPlanId("smoke", index),
       type: "smoke",
       title: `Run smoke check: ${check.type}`,
-      ...(check.command ? { command: check.command } : {}),
-      ...(check.paths && check.paths.length > 0 ? { paths: check.paths } : {}),
+      refs: [sectionRef("smokeChecks", index)],
       priority: check.priority,
       estimatedMinutes: check.command ? 3 : 5
     });
@@ -425,8 +427,7 @@ function buildExecutionPlan(plan: Omit<VerificationPlan, "executionPlan">): Veri
       id: executionPlanId("manual", index),
       type: "manual",
       title: `Run manual check: ${check.type}`,
-      ...(check.command ? { command: check.command } : {}),
-      ...(check.paths && check.paths.length > 0 ? { paths: check.paths } : {}),
+      refs: [sectionRef("manualChecks", index)],
       priority: check.priority,
       estimatedMinutes: check.command ? 3 : 5
     });
@@ -848,6 +849,13 @@ function domainMatches(impact: ImpactAnalysis): DomainMatch[] {
       }
     }
 
+    if (
+      signals.length > 0
+      && signals.every((signal) => signal.startsWith("test path:"))
+    ) {
+      continue;
+    }
+
     if (signals.length === 0) {
       continue;
     }
@@ -872,7 +880,13 @@ function pathsForDomains(matches: DomainMatch[], domains: VerificationDomain[], 
     .flatMap((match) => match.paths);
   const unique = [...new Set(paths)];
 
-  return unique.length > 0 ? unique : fallback;
+  if (unique.length === 0) {
+    return fallback;
+  }
+
+  const nonTestPaths = unique.filter((filePath) => !runnableNodeTestPattern.test(filePath));
+
+  return nonTestPaths.length > 0 ? nonTestPaths : unique;
 }
 
 function prioritizedDatabasePaths(paths: string[]): string[] {
@@ -1120,6 +1134,59 @@ function contextOnlyValidationChecklist(impact: ImpactAnalysis): string[] {
   return checklist;
 }
 
+function domainValidationChecklistItems(impact: ImpactAnalysis): string[] {
+  const matches = domainMatches(impact);
+  const checklist: string[] = [];
+  const hasAuth = hasDomain(matches, "auth") || hasDomain(matches, "login");
+  const hasCache = hasDomain(matches, "cache") || hasDomain(matches, "redis");
+  const hasWorkflow = hasDomain(matches, "workflow");
+  const hasDatabase = hasDomain(matches, "database") || hasDomain(matches, "postgres");
+
+  if (hasAuth) {
+    checklist.push(
+      "Verify login flow.",
+      "Verify logout flow.",
+      "Verify invalid credentials behavior.",
+      "Verify session expiration behavior."
+    );
+  }
+
+  if (hasCache) {
+    checklist.push(
+      "Verify cache miss behavior.",
+      "Verify cache hit behavior.",
+      "Verify cache invalidation behavior.",
+      "Verify Redis/cache backend unavailable fallback."
+    );
+  }
+
+  if (hasWorkflow) {
+    checklist.push(
+      "Verify workflow syntax.",
+      "Verify workflow trigger conditions.",
+      "Verify workflow permissions.",
+      "Verify required secrets."
+    );
+  }
+
+  if (hasDatabase) {
+    const paths = prioritizedDatabasePaths(pathsForDomains(matches, ["database", "postgres"], fallbackPaths(impact)));
+    const actualPaths = actualDatabasePaths(paths);
+
+    if (actualPaths.length > 0) {
+      checklist.push(
+        "Verify migration compatibility.",
+        "Verify rollback behavior.",
+        "Verify existing data compatibility."
+      );
+    } else {
+      checklist.push("Verify UI-only Postgres reference display/copy behavior.");
+    }
+  }
+
+  return uniqueStrings(checklist);
+}
+
 function validationChecklistFromImpact(
   impact: ImpactAnalysis,
   targetedTests: ImpactAnalysis["affectedTests"] = promotedTargetedTests(impact)
@@ -1128,11 +1195,12 @@ function validationChecklistFromImpact(
     return contextOnlyValidationChecklist(impact);
   }
 
-  const checklist = ["Inspect affected files."];
+  const domainItems = domainValidationChecklistItems(impact);
+  const checklist: string[] = domainItems.length === 0 ? ["Inspect affected files."] : [];
 
   if (targetedTests.length > 0) {
     checklist.push("Run targeted tests.");
-  } else {
+  } else if (domainItems.length === 0) {
     checklist.push("No strongly related tests were found; do not add generic tests.");
   }
 
@@ -1140,7 +1208,9 @@ function validationChecklistFromImpact(
     checklist.push("Run build command.");
   }
 
-  if (smokeChecksFromImpact(impact).length > 0) {
+  if (domainItems.length > 0) {
+    checklist.push(...domainItems);
+  } else if (smokeChecksFromImpact(impact).length > 0) {
     checklist.push("Perform smoke checks.");
   }
 

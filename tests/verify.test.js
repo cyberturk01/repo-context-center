@@ -324,10 +324,12 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
     "record"
   ]);
   assert.deepEqual(plan.validationChecklist, [
-    "Inspect affected files.",
     "Run targeted tests.",
     "Run build command.",
-    "Perform smoke checks.",
+    "Verify cache miss behavior.",
+    "Verify cache hit behavior.",
+    "Verify cache invalidation behavior.",
+    "Verify Redis/cache backend unavailable fallback.",
     "Confirm RCC context changes are intentional.",
     "Record verification with `rcc done`."
   ]);
@@ -379,6 +381,7 @@ test("createVerificationPlanFromImpact suggests a login/auth smoke check for fix
         reason: "task routing matched"
       }
     ],
+    affectedTests: [],
     suggestedCommands: []
   }));
 
@@ -395,6 +398,13 @@ test("createVerificationPlanFromImpact suggests a login/auth smoke check for fix
   assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: auth")));
   assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: login")));
   assert.equal(plan.smokeChecks.some((check) => "command" in check), false);
+  assert.deepEqual(plan.validationChecklist, [
+    "Verify login flow.",
+    "Verify logout flow.",
+    "Verify invalid credentials behavior.",
+    "Verify session expiration behavior.",
+    "Record verification with `rcc done`."
+  ]);
 });
 
 test("createVerificationPlanFromImpact suggests a UI text smoke check for update translation", () => {
@@ -441,6 +451,15 @@ test("createVerificationPlanFromImpact suggests cache and fallback smoke checks 
   )));
   assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: cache")));
   assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: redis")));
+  assert.deepEqual(plan.validationChecklist, [
+    "Run targeted tests.",
+    "Run build command.",
+    "Verify cache miss behavior.",
+    "Verify cache hit behavior.",
+    "Verify cache invalidation behavior.",
+    "Verify Redis/cache backend unavailable fallback.",
+    "Record verification with `rcc done`."
+  ]);
 });
 
 test("createVerificationPlanFromImpact suggests a workflow smoke check for improve github action", () => {
@@ -469,6 +488,13 @@ test("createVerificationPlanFromImpact suggests a workflow smoke check for impro
     check.type === "workflow-triggers-secrets"
     && /required secrets/.test(check.reason)
   )));
+  assert.deepEqual(plan.validationChecklist, [
+    "Verify workflow syntax.",
+    "Verify workflow trigger conditions.",
+    "Verify workflow permissions.",
+    "Verify required secrets.",
+    "Record verification with `rcc done`."
+  ]);
   assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: workflow")));
   assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
     reason.startsWith("domain matched: workflow")
@@ -572,6 +598,12 @@ test("change postgres schema prioritizes backend database paths over UI-only ref
   assert.ok(rollbackCheck);
   assert.deepEqual(schemaCheck.paths, ["src/db/schema/postgres.sql"]);
   assert.deepEqual(rollbackCheck.paths, ["src/db/schema/postgres.sql"]);
+  assert.deepEqual(plan.validationChecklist, [
+    "Verify migration compatibility.",
+    "Verify rollback behavior.",
+    "Verify existing data compatibility.",
+    "Record verification with `rcc done`."
+  ]);
   assert.equal(plan.manualChecks.some((check) => (
     check.type === "postgres-ui-reference"
     && check.paths.includes("src/ui/PostgresIcon.tsx")
@@ -925,7 +957,13 @@ test("login task with no strong tests reports no strongly related tests", () => 
 
   assert.deepEqual(plan.targetedTests, []);
   assert.deepEqual(plan.targetedTestCommands, []);
-  assert.ok(plan.validationChecklist.includes("No strongly related tests were found; do not add generic tests."));
+  assert.deepEqual(plan.validationChecklist, [
+    "Verify login flow.",
+    "Verify logout flow.",
+    "Verify invalid credentials behavior.",
+    "Verify session expiration behavior.",
+    "Record verification with `rcc done`."
+  ]);
   assert.equal(plan.targetedTestCommands.some((command) => command.command === "npm test"), false);
   assert.ok(plan.smokeChecks.some((check) => check.type === "auth-flow"));
 });
@@ -1050,11 +1088,15 @@ test("execution plan orders verification phases and carries priorities", () => {
     id: "targeted-tests-1",
     type: "targeted-tests",
     title: "Run targeted tests",
-    command: "node --test tests/auth/session.spec.ts",
-    paths: ["tests/auth/session.spec.ts"],
+    refs: ["targetedTests", "targetedTestCommands[0]"],
     priority: "critical",
     estimatedMinutes: 2
   });
+  assert.equal("command" in plan.executionPlan[0], false);
+  assert.equal("paths" in plan.executionPlan[0], false);
+  assert.deepEqual(plan.executionPlan[1].refs, ["buildCommands[0]"]);
+  assert.deepEqual(plan.executionPlan[2].refs, ["smokeChecks[0]"]);
+  assert.deepEqual(plan.executionPlan[4].refs, ["manualChecks[0]"]);
   assert.equal(plan.executionPlan.at(-1).command, 'rcc done --summary "<summary>" --files auto --verify "<checks>"');
 });
 
@@ -1210,7 +1252,14 @@ test("workflow task keeps workflow and config checks without generic targeted te
 
   assert.deepEqual(plan.targetedTests, []);
   assert.deepEqual(plan.targetedTestCommands, []);
-  assert.ok(plan.validationChecklist.includes("No strongly related tests were found; do not add generic tests."));
+  assert.deepEqual(plan.validationChecklist, [
+    "Run build command.",
+    "Verify workflow syntax.",
+    "Verify workflow trigger conditions.",
+    "Verify workflow permissions.",
+    "Verify required secrets.",
+    "Record verification with `rcc done`."
+  ]);
   assert.ok(plan.smokeChecks.some((check) => check.type === "ci-workflow"));
   assert.ok(plan.manualChecks.some((check) => check.type === "workflow-lint"));
   assert.ok(plan.manualChecks.some((check) => check.type === "config-load"));
@@ -1754,10 +1803,12 @@ test("verify --json builds recommendations from Impact analysis", () => {
     && check.paths.includes("src/cache/redis.ts")
   )));
   assert.deepEqual(plan.validationChecklist, [
-    "Inspect affected files.",
     "Run targeted tests.",
     "Run build command.",
-    "Perform smoke checks.",
+    "Verify cache miss behavior.",
+    "Verify cache hit behavior.",
+    "Verify cache invalidation behavior.",
+    "Verify Redis/cache backend unavailable fallback.",
     "Record verification with `rcc done`."
   ]);
   assert.equal("affectedFiles" in plan, false);

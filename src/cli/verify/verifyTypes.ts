@@ -25,6 +25,7 @@ export interface VerificationExecutionStep {
   id: string;
   type: "targeted-tests" | "build" | "smoke" | "manual" | "record";
   title: string;
+  refs?: string[];
   command?: string;
   paths?: string[];
   priority: VerificationPriority;

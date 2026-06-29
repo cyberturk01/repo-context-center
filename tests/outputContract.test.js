@@ -85,6 +85,9 @@ function assertVerifyJsonContract(plan, task, mode) {
     assertHasKeys(step, ["id", "type", "title", "priority", "estimatedMinutes"], "verify execution step");
     assert.match(step.priority, /^(critical|high|medium|low)$/);
     assert.equal(typeof step.estimatedMinutes, "number");
+    if ("refs" in step) {
+      assertPathArray(step.refs, "verify execution step refs");
+    }
   }
   assert.equal(typeof plan.confidence, "string");
   assert.equal(typeof plan.confidenceExplanation, "object");
