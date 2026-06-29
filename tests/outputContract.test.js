@@ -1,11 +1,45 @@
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { readFileSync } = require("node:fs");
+const { mkdirSync, mkdtempSync, readFileSync, writeFileSync } = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
+const stableVerifyFields = [
+  "schemaVersion",
+  "command",
+  "task",
+  "mode",
+  "summary",
+  "targetedTests",
+  "targetedTestCommands",
+  "buildCommands",
+  "smokeChecks",
+  "manualChecks",
+  "validationChecklist",
+  "confidence",
+  "confidenceExplanation",
+  "notes"
+];
+const forbiddenVerifyFields = [
+  "executionPlan",
+  "estimatedMinutes",
+  "verificationScore",
+  "score",
+  "coverage",
+  "riskScore",
+  "risk",
+  "executionSteps"
+];
+const compactTargetedTestReasons = [
+  "exact source/test relationship",
+  "task-routed test",
+  "domain-matched test",
+  "same-module test",
+  "learned test relationship"
+];
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [cliPath, ...args], {
@@ -20,6 +54,35 @@ function fixturePath(name) {
 
 function readJson(relativePath) {
   return JSON.parse(readFileSync(path.join(repoRoot, relativePath), "utf8"));
+}
+
+function runGit(cwd, args) {
+  const result = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8"
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+}
+
+function writeFixtureFile(cwd, relativePath, content) {
+  mkdirSync(path.dirname(path.join(cwd, relativePath)), { recursive: true });
+  writeFileSync(path.join(cwd, relativePath), content);
+}
+
+function contextOnlyWorkingTreeFixture() {
+  const cwd = mkdtempSync(path.join(os.tmpdir(), "rcc-verify-context-only-"));
+
+  writeFixtureFile(cwd, "AGENTS.md", "Fixture repo guidance.\n");
+  writeFixtureFile(cwd, "docs/ai-context/TASK_ROUTING.md", "# Task Routing\n\n- RCC context work: read `docs/ai-context/TASK_ROUTING.md`.\n");
+  writeFixtureFile(cwd, "src/cache/redis.ts", "export function redisCache() { return true; }\n");
+  writeFixtureFile(cwd, "tests/cache/redis.spec.ts", "test(\"redis cache\", () => {});\n");
+  runGit(cwd, ["init"]);
+  runGit(cwd, ["add", "."]);
+  runGit(cwd, ["-c", "user.email=rcc@example.test", "-c", "user.name=RCC Test", "commit", "-m", "initial fixture"]);
+  writeFixtureFile(cwd, "docs/ai-context/TASK_ROUTING.md", "# Task Routing\n\n- RCC context work: read `docs/ai-context/TASK_ROUTING.md`.\n- Updated context-only route note.\n");
+
+  return cwd;
 }
 
 function parseJsonOnlyOutput(result) {
@@ -66,8 +129,30 @@ function collectKeys(value, keys = []) {
 function assertNoRemovedVerifyFields(plan) {
   const keys = collectKeys(plan);
 
-  for (const removedKey of ["executionPlan", "estimatedMinutes", "score", "coverage", "risk"]) {
+  for (const removedKey of forbiddenVerifyFields) {
     assert.equal(keys.includes(removedKey), false, `verify JSON should not expose ${removedKey}`);
+  }
+}
+
+function assertCompactTargetedTestReasons(plan) {
+  for (const item of plan.targetedTests) {
+    assert.ok(
+      compactTargetedTestReasons.includes(item.reason),
+      `targeted test reason should be compact: ${item.reason}`
+    );
+  }
+}
+
+function assertCompactConfidenceReasons(plan) {
+  for (const reason of plan.confidenceExplanation.reasons) {
+    assert.equal(typeof reason, "string");
+    assert.ok(reason.length <= 80, `confidence reason should stay compact: ${reason}`);
+    assert.doesNotMatch(reason, /\b(?:src|app|lib|tests?|docs|\.github|fixtures)\//);
+    assert.doesNotMatch(reason, /\([^)]*(?:\/|\\|affected file:|test path:|workflow path:|github integration path:)[^)]*\)/);
+    assert.doesNotMatch(reason, /^(?:routing confidence|change confidence):/i);
+    assert.notEqual(reason, "filename stem matched");
+    assert.notEqual(reason, "weak test relationship");
+    assert.notEqual(reason, "no test relationship");
   }
 }
 
@@ -79,22 +164,7 @@ function assertPathArray(value, label) {
 }
 
 function assertVerifyJsonContract(plan, task, mode) {
-  assert.deepEqual(Object.keys(plan).sort(), [
-    "buildCommands",
-    "command",
-    "confidence",
-    "confidenceExplanation",
-    "manualChecks",
-    "mode",
-    "notes",
-    "schemaVersion",
-    "smokeChecks",
-    "summary",
-    "targetedTestCommands",
-    "targetedTests",
-    "task",
-    "validationChecklist"
-  ]);
+  assert.deepEqual(Object.keys(plan).sort(), [...stableVerifyFields].sort());
   assert.equal(plan.schemaVersion, 1);
   assert.equal(plan.command, "verify");
   assert.equal(plan.task, task);
@@ -125,13 +195,8 @@ function assertVerifyJsonContract(plan, task, mode) {
   assertNoRemovedVerifyFields(plan);
   assert.equal(plan.manualChecks.some((check) => check.type === "affected-files"), false);
 
-  for (const item of plan.targetedTests) {
-    assert.match(item.reason, /^(exact source\/test relationship|task-routed test|domain-matched test|same-module test|learned test relationship)$/);
-  }
-
-  for (const reason of plan.confidenceExplanation.reasons) {
-    assert.doesNotMatch(reason, /\([^)]*(?:\/|\\|affected file:|test path:|workflow path:|github integration path:)[^)]*\)/);
-  }
+  assertCompactTargetedTestReasons(plan);
+  assertCompactConfidenceReasons(plan);
 }
 
 function informationalKeys(value, keys) {
@@ -437,6 +502,86 @@ test("verify --planned --json makes planned mode explicit without changing contr
   ));
 });
 
+test("verify --planned --json freezes login public contract", () => {
+  const task = "fix login bug";
+  const plan = parseJsonOnlyOutput(runCli(["verify", task, "--planned", "--json"], {
+    cwd: fixturePath("simple-auth")
+  }));
+
+  assertVerifyJsonContract(plan, task, "planned-task");
+  assert.ok(plan.smokeChecks.some((check) => check.type === "auth-flow"));
+  assert.ok(plan.manualChecks.some((check) => check.type === "invalid-credentials"));
+  assert.ok(plan.validationChecklist.includes("Verify login flow."));
+  assert.ok(plan.validationChecklist.includes("Verify invalid credentials behavior."));
+});
+
+test("verify --planned --json freezes redis public contract", () => {
+  const task = "add redis cache";
+  const plan = parseJsonOnlyOutput(runCli(["verify", task, "--planned", "--json"], {
+    cwd: fixturePath("redis-cache")
+  }));
+
+  assertVerifyJsonContract(plan, task, "planned-task");
+  assert.ok(plan.targetedTests.every((item) => compactTargetedTestReasons.includes(item.reason)));
+  assert.ok(plan.smokeChecks.some((check) => check.type === "cache-behavior"));
+  assert.ok(plan.manualChecks.some((check) => check.type === "cache-fallback"));
+  assert.ok(plan.validationChecklist.includes("Verify cache miss behavior."));
+  assert.ok(plan.validationChecklist.includes("Verify Redis/cache backend unavailable fallback."));
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: redis"));
+});
+
+test("verify --planned --json freezes GitHub integration public contract", () => {
+  const task = "update github api integration";
+  const plan = parseJsonOnlyOutput(runCli(["verify", task, "--planned", "--json"], {
+    cwd: fixturePath("github-integration")
+  }));
+
+  assertVerifyJsonContract(plan, task, "planned-task");
+  assert.ok(plan.smokeChecks.some((check) => check.type === "github-integration"));
+  assert.ok(plan.manualChecks.some((check) => check.type === "github-api-integration"));
+  assert.equal(plan.manualChecks.some((check) => check.type === "workflow-lint"), false);
+  assert.ok(plan.validationChecklist.includes("Verify GitHub API/webhook contract behavior."));
+  assert.ok(plan.validationChecklist.includes("Verify GitHub integration error handling."));
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: github-integration"));
+});
+
+test("verify --planned --json freezes workflow YAML public contract", () => {
+  const task = "tighten github actions permissions";
+  const plan = parseJsonOnlyOutput(runCli(["verify", task, "--planned", "--json"], {
+    cwd: fixturePath("workflow-yaml")
+  }));
+
+  assertVerifyJsonContract(plan, task, "planned-task");
+  assert.ok(plan.smokeChecks.some((check) => check.type === "ci-workflow"));
+  assert.ok(plan.manualChecks.some((check) => check.type === "workflow-lint"));
+  assert.ok(plan.manualChecks.some((check) => check.type === "workflow-triggers-secrets"));
+  assert.ok(plan.validationChecklist.includes("Verify workflow syntax."));
+  assert.ok(plan.validationChecklist.includes("Verify workflow permissions."));
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: workflow"));
+});
+
+test("verify --json freezes context-only working-tree public contract", () => {
+  const task = "refresh rcc context routing";
+  const plan = parseJsonOnlyOutput(runCli(["verify", task, "--json"], {
+    cwd: contextOnlyWorkingTreeFixture()
+  }));
+
+  assertVerifyJsonContract(plan, task, "working-tree");
+  assert.deepEqual(plan.targetedTests, []);
+  assert.deepEqual(plan.targetedTestCommands, []);
+  assert.deepEqual(plan.buildCommands, []);
+  assert.deepEqual(plan.smokeChecks, []);
+  assert.deepEqual(plan.manualChecks.map((check) => check.type), ["context-changes"]);
+  assert.deepEqual(plan.validationChecklist, [
+    "Inspect context changes.",
+    "Confirm RCC workflow/context changes are intentional.",
+    "Run `rcc validate` if context files changed."
+  ]);
+  assert.equal(plan.confidence, "medium");
+  assert.ok(plan.confidenceExplanation.reasons.includes("context-only changes detected"));
+  assert.ok(plan.confidenceExplanation.reasons.includes("verify confidence reduced because only context files changed"));
+});
+
 test("verify --json stable contract snapshot for task-only fixture", () => {
   const plan = parseJsonOnlyOutput(runCli(["verify", "add redis cache", "--task-only", "--json"], {
     cwd: fixturePath("redis-cache")
@@ -468,6 +613,7 @@ test("README documents verify JSON stable, informational, and internal fields", 
 
   assert.match(readme, /`verify --json` is intended for long-lived integrations/);
   assert.match(readme, /Stable: top-level fields `schemaVersion`, `command`, `task`, `mode`, `summary`/);
-  assert.match(readme, /Experimental\/informational: `reason`, `confidenceExplanation`, and `notes`/);
+  assert.match(readme, /`confidence`, `confidenceExplanation`, and `notes`/);
+  assert.match(readme, /Compact informational wording: `reason`, `confidenceExplanation\.reasons`, and `notes`/);
   assert.match(readme, /Internal and intentionally omitted: execution plans, estimated minutes, coverage percentages, verification scores/);
 });

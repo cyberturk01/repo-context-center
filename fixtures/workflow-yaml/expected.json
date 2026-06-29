@@ -1,0 +1,17 @@
+{
+  "name": "workflow-yaml",
+  "cases": [
+    {
+      "task": "tighten github actions permissions",
+      "expected": {
+        "affectedFiles": [
+          ".github/workflows/release.yaml"
+        ],
+        "tests": [],
+        "verificationCommands": [
+          "npm test"
+        ]
+      }
+    }
+  ]
+}

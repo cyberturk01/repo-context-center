@@ -32,10 +32,12 @@ test("task analysis fixture snapshots stay stable", async () => {
   const suites = await readFixtureSuites();
 
   assert.deepEqual(suites.map((suite) => suite.fixture.name), [
+    "github-integration",
     "monorepo-large",
     "redis-cache",
     "simple-auth",
-    "translations"
+    "translations",
+    "workflow-yaml"
   ]);
 
   for (const { fixtureDir, fixture } of suites) {

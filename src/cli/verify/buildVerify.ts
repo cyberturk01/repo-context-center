@@ -999,6 +999,37 @@ function confidenceExplanationWithDomains(
   };
 }
 
+function compactConfidenceReason(reason: string): string | null {
+  if (/^(routing confidence|change confidence):/i.test(reason)) {
+    return null;
+  }
+
+  if (/^filename stem matched$/i.test(reason)) {
+    return null;
+  }
+
+  if (/^routing evidence not strong enough/i.test(reason)) {
+    return null;
+  }
+
+  if (/^(weak test relationship|no test relationship)$/i.test(reason)) {
+    return "no strong test relationship";
+  }
+
+  return reason;
+}
+
+function compactConfidenceExplanation(
+  explanation: ImpactAnalysis["confidenceExplanation"]
+): ImpactAnalysis["confidenceExplanation"] {
+  return {
+    ...explanation,
+    reasons: uniqueStrings(explanation.reasons
+      .map(compactConfidenceReason)
+      .filter((reason): reason is string => reason !== null))
+  };
+}
+
 function domainSmokeChecks(impact: ImpactAnalysis): ImpactVerificationHint[] {
   const matches = domainMatches(impact);
   const checks: ImpactVerificationHint[] = [];
@@ -1212,6 +1243,7 @@ function domainValidationChecklistItems(impact: ImpactAnalysis): string[] {
   const hasAuth = hasDomain(matches, "auth") || hasDomain(matches, "login");
   const hasCache = hasDomain(matches, "cache") || hasDomain(matches, "redis");
   const hasWorkflow = hasDomain(matches, "workflow");
+  const hasGithubIntegration = hasDomain(matches, "github-integration");
   const hasDatabase = hasDomain(matches, "database") || hasDomain(matches, "postgres");
 
   if (hasAuth) {
@@ -1238,6 +1270,13 @@ function domainValidationChecklistItems(impact: ImpactAnalysis): string[] {
       "Verify workflow trigger conditions.",
       "Verify workflow permissions.",
       "Verify required secrets."
+    );
+  }
+
+  if (hasGithubIntegration) {
+    checklist.push(
+      "Verify GitHub API/webhook contract behavior.",
+      "Verify GitHub integration error handling."
     );
   }
 
@@ -1402,7 +1441,7 @@ export function createVerificationPlanFromImpact(
       ]),
       validationChecklist: validationChecklistFromImpact(impact, []),
       confidence: "medium",
-      confidenceExplanation: confidenceExplanationWithDomains(impact, confidenceExplanationForVerify(impact)),
+      confidenceExplanation: compactConfidenceExplanation(confidenceExplanationWithDomains(impact, confidenceExplanationForVerify(impact))),
       notes: notesFromImpact(impact)
     }), level);
   }
@@ -1424,7 +1463,7 @@ export function createVerificationPlanFromImpact(
     ],
     validationChecklist: validationChecklistFromImpact(impact, targetedTests),
     confidence: impact.confidence,
-    confidenceExplanation: confidenceExplanationWithDomains(impact, impact.confidenceExplanation),
+    confidenceExplanation: compactConfidenceExplanation(confidenceExplanationWithDomains(impact, impact.confidenceExplanation)),
     notes: notesFromImpact(impact)
   }), level);
 }
@@ -1460,7 +1499,7 @@ export function createPlannedVerificationPlanFromImpact(
     ],
     validationChecklist: validationChecklistFromImpact(plannedImpact, targetedTests),
     confidence: plannedImpact.confidence,
-    confidenceExplanation: confidenceExplanationWithDomains(plannedImpact, plannedConfidenceExplanation(plannedImpact)),
+    confidenceExplanation: compactConfidenceExplanation(confidenceExplanationWithDomains(plannedImpact, plannedConfidenceExplanation(plannedImpact))),
     notes
   }), level);
 }

@@ -561,8 +561,8 @@ npx repo-context-center verify "fix login regression" --task-only --json
 
 `verify --json` is intended for long-lived integrations. Treat the contract in layers:
 
-- Stable: top-level fields `schemaVersion`, `command`, `task`, `mode`, `summary`, `targetedTests`, `targetedTestCommands`, `buildCommands`, `smokeChecks`, `manualChecks`, `validationChecklist`, and `confidence`; summary count fields; path, command, type, scope, confidence, and priority fields inside recommendation objects.
-- Experimental/informational: `reason`, `confidenceExplanation`, and `notes`. These fields help humans and agents understand the recommendations, but their wording, detail level, and heuristic evidence may change in minor releases.
+- Stable: top-level fields `schemaVersion`, `command`, `task`, `mode`, `summary`, `targetedTests`, `targetedTestCommands`, `buildCommands`, `smokeChecks`, `manualChecks`, `validationChecklist`, `confidence`, `confidenceExplanation`, and `notes`; summary count fields; path, command, type, scope, confidence, and priority fields inside recommendation objects.
+- Compact informational wording: `reason`, `confidenceExplanation.reasons`, and `notes` help humans and agents understand the recommendations. They stay short and high-level, but integrations should display them rather than parse exact wording.
 - Internal and intentionally omitted: execution plans, estimated minutes, coverage percentages, verification scores, raw Impact collections such as `affectedFiles`, `affectedTests`, `suggestedCommands`, `changedFiles`, `contextChanges`, routing evidence, domain-match internals, and scoring implementation details.
 
 Integrations should execute or display the stable command/path/check data and avoid depending on long reason strings or heuristic explanation text.

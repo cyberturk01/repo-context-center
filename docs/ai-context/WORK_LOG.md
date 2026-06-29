@@ -5790,4 +5790,62 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-29T21:44:59.947Z
+- Summary: Freeze verify JSON public contract for v0.12.x
+- Changed files: `fixtures/github-integration/AGENTS.md`, `fixtures/github-integration/docs/ai-context/TASK_ROUTING.md`, `fixtures/github-integration/expected.json`, `fixtures/github-integration/src/api/githubController.ts`, `fixtures/github-integration/tests/api/githubController.spec.ts`, `fixtures/workflow-yaml/.github/workflows/release.yaml`, `fixtures/workflow-yaml/AGENTS.md`, `fixtures/workflow-yaml/docs/ai-context/TASK_ROUTING.md`, `fixtures/workflow-yaml/expected.json`, `README.md`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Freeze verify JSON public contract for v0.12.x",
+  "files": [
+    "fixtures/github-integration/AGENTS.md",
+    "fixtures/github-integration/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/github-integration/expected.json",
+    "fixtures/github-integration/src/api/githubController.ts",
+    "fixtures/github-integration/tests/api/githubController.spec.ts",
+    "fixtures/workflow-yaml/.github/workflows/release.yaml",
+    "fixtures/workflow-yaml/AGENTS.md",
+    "fixtures/workflow-yaml/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/workflow-yaml/expected.json",
+    "README.md",
+    "src/cli/verify/buildVerify.ts",
+    "tests/outputContract.test.js",
+    "tests/taskAnalysisFixtures.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T21:44:59.947Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T21:44:59.947Z",
+  "summary": "Freeze verify JSON public contract for v0.12.x",
+  "files": [
+    "fixtures/github-integration/AGENTS.md",
+    "fixtures/github-integration/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/github-integration/expected.json",
+    "fixtures/github-integration/src/api/githubController.ts",
+    "fixtures/github-integration/tests/api/githubController.spec.ts",
+    "fixtures/workflow-yaml/.github/workflows/release.yaml",
+    "fixtures/workflow-yaml/AGENTS.md",
+    "fixtures/workflow-yaml/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/workflow-yaml/expected.json",
+    "README.md",
+    "src/cli/verify/buildVerify.ts",
+    "tests/outputContract.test.js",
+    "tests/taskAnalysisFixtures.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
