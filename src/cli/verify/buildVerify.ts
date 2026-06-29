@@ -1,12 +1,27 @@
 import type { ImpactAnalysis, ImpactCommand, ImpactVerificationHint } from "../impact/impactTypes";
 import { buildImpactAnalysis } from "../impact/buildImpact";
 import { classifyTaskSize, type TaskSize } from "../work/taskSize";
-import type { VerificationLevel, VerificationPlan, VerificationPlanInput } from "./verifyTypes";
+import type {
+  VerificationCheck,
+  VerificationCommand,
+  VerificationExecutionStep,
+  VerificationLevel,
+  VerificationPlan,
+  VerificationPlanInput,
+  VerificationPriority,
+  VerificationTargetedTest
+} from "./verifyTypes";
 
 const contextOnlyConfidenceReason = "verify confidence reduced because only context files changed";
 const runnableNodeTestPattern = /\.(test|spec)\.[cm]?[jt]sx?$/i;
 const maximumTargetedTestCommandLength = 300;
 const defaultVerificationLevel: VerificationLevel = "balanced";
+const priorityRank: Record<VerificationPriority, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3
+};
 
 type VerificationDomain =
   | "auth"
@@ -32,6 +47,17 @@ interface DomainMatch {
   paths: string[];
   signals: string[];
 }
+
+type VerificationPlanWithoutExecution = Omit<
+  VerificationPlan,
+  "executionPlan" | "targetedTests" | "targetedTestCommands" | "buildCommands" | "smokeChecks" | "manualChecks"
+> & {
+  targetedTests: ImpactAnalysis["affectedTests"];
+  targetedTestCommands: ImpactCommand[];
+  buildCommands: ImpactCommand[];
+  smokeChecks: ImpactVerificationHint[];
+  manualChecks: ImpactVerificationHint[];
+};
 
 const domainDefinitions: DomainDefinition[] = [
   { domain: "auth", pattern: /\b(auth|authentication|authorization|authorize|oauth|jwt|session|sessions)\b/i },
@@ -206,6 +232,202 @@ function checkPriority(check: ImpactVerificationHint): number {
   return priorities[check.type] ?? 100;
 }
 
+function highestPriority(priorities: VerificationPriority[]): VerificationPriority {
+  return priorities.sort((left, right) => priorityRank[left] - priorityRank[right])[0] ?? "medium";
+}
+
+function priorityFromText(text: string): VerificationPriority | null {
+  if (/\b(auth|authentication|authorization|authorize|oauth|jwt|session|sessions|login|logout|signin|signout|credentials?|secrets?|security|permissions?)\b/i.test(text)) {
+    return "critical";
+  }
+
+  if (/\b(schema|schemas|migration|migrations|sql|database compatibility|backward compatibility)\b/i.test(text)) {
+    return "critical";
+  }
+
+  if (/\b(database|db|postgres|postgresql|query|queries|rollback|data impact)\b/i.test(text)) {
+    return "high";
+  }
+
+  if (/\b(cache|redis|api|backend|worker|frontend|ui|workflow|ci|pipeline)\b/i.test(text)) {
+    return "high";
+  }
+
+  if (/\b(context|repo context|rcc|docs\/ai-context|agents\.md|routing)\b/i.test(text)) {
+    return "low";
+  }
+
+  return null;
+}
+
+function priorityForTargetedTest(test: ImpactAnalysis["affectedTests"][number], task: string): VerificationPriority {
+  return priorityFromText(`${task} ${test.path} ${test.reason} ${test.signals.join(" ")}`) ?? "high";
+}
+
+function priorityForBuildCommand(): VerificationPriority {
+  return "high";
+}
+
+function priorityForSmokeCheck(check: ImpactVerificationHint): VerificationPriority {
+  const text = `${check.type} ${check.reason} ${(check.paths ?? []).join(" ")} ${check.command ?? ""}`;
+
+  if (/\b(auth-flow|security|schema|database|postgres|backend-contract)\b/i.test(text)) {
+    return "high";
+  }
+
+  if (/\b(context-routing|context-changes)\b/i.test(text)) {
+    return "low";
+  }
+
+  return priorityFromText(text) === "high" ? "high" : "medium";
+}
+
+function priorityForManualCheck(check: ImpactVerificationHint, contextOnly: boolean): VerificationPriority {
+  const text = `${check.type} ${check.reason} ${(check.paths ?? []).join(" ")} ${check.command ?? ""}`;
+
+  if (/\b(schema-compatibility)\b/i.test(text)) {
+    return "critical";
+  }
+
+  if (/\b(invalid-credentials|workflow-triggers-secrets|data-rollback-impact|security|secrets?|permissions?)\b/i.test(text)) {
+    return "high";
+  }
+
+  if (/\b(context-routing|context-changes)\b/i.test(text)) {
+    return contextOnly ? "medium" : "low";
+  }
+
+  return priorityFromText(text) ?? "medium";
+}
+
+function prioritizeTargetedTests(
+  tests: ImpactAnalysis["affectedTests"],
+  task: string
+): VerificationTargetedTest[] {
+  return tests.map((test) => ({
+    ...test,
+    priority: priorityForTargetedTest(test, task)
+  }));
+}
+
+function prioritizeBuildCommands(commands: ImpactCommand[]): VerificationCommand[] {
+  return commands.map((command) => ({
+    ...command,
+    priority: priorityForBuildCommand()
+  }));
+}
+
+function prioritizeTargetedTestCommands(
+  commands: ImpactCommand[],
+  targetedTests: VerificationTargetedTest[]
+): VerificationCommand[] {
+  const priority = highestPriority(targetedTests.map((test) => test.priority));
+
+  return commands.map((command) => ({
+    ...command,
+    priority
+  }));
+}
+
+function prioritizeChecks(
+  checks: ImpactVerificationHint[],
+  kind: "smoke" | "manual",
+  contextOnly: boolean
+): VerificationCheck[] {
+  return checks.map((check) => ({
+    ...check,
+    priority: kind === "smoke"
+      ? priorityForSmokeCheck(check)
+      : priorityForManualCheck(check, contextOnly)
+  }));
+}
+
+function executionPlanId(prefix: string, index: number): string {
+  return `${prefix}-${index + 1}`;
+}
+
+function targetedTestEstimatedMinutes(paths: string[]): number {
+  return Math.max(2, Math.min(15, paths.length * 2));
+}
+
+function buildExecutionPlan(plan: Omit<VerificationPlan, "executionPlan">): VerificationExecutionStep[] {
+  const steps: VerificationExecutionStep[] = [];
+
+  if (plan.targetedTests.length > 0) {
+    const targetedPaths = plan.targetedTests.map((test) => test.path);
+    const targetedPriority = highestPriority(plan.targetedTests.map((test) => test.priority));
+
+    if (plan.targetedTestCommands.length > 0) {
+      for (const [index, command] of plan.targetedTestCommands.entries()) {
+        steps.push({
+          id: executionPlanId("targeted-tests", index),
+          type: "targeted-tests",
+          title: "Run targeted tests",
+          command: command.command,
+          paths: targetedPaths,
+          priority: highestPriority([targetedPriority, command.priority]),
+          estimatedMinutes: targetedTestEstimatedMinutes(targetedPaths)
+        });
+      }
+    } else {
+      steps.push({
+        id: "targeted-tests-1",
+        type: "targeted-tests",
+        title: "Run targeted tests",
+        paths: targetedPaths,
+        priority: targetedPriority,
+        estimatedMinutes: targetedTestEstimatedMinutes(targetedPaths)
+      });
+    }
+  }
+
+  for (const [index, command] of plan.buildCommands.entries()) {
+    steps.push({
+      id: executionPlanId("build", index),
+      type: "build",
+      title: "Run build command",
+      command: command.command,
+      priority: command.priority,
+      estimatedMinutes: 3
+    });
+  }
+
+  for (const [index, check] of plan.smokeChecks.entries()) {
+    steps.push({
+      id: executionPlanId("smoke", index),
+      type: "smoke",
+      title: `Run smoke check: ${check.type}`,
+      ...(check.command ? { command: check.command } : {}),
+      ...(check.paths && check.paths.length > 0 ? { paths: check.paths } : {}),
+      priority: check.priority,
+      estimatedMinutes: check.command ? 3 : 5
+    });
+  }
+
+  for (const [index, check] of plan.manualChecks.entries()) {
+    steps.push({
+      id: executionPlanId("manual", index),
+      type: "manual",
+      title: `Run manual check: ${check.type}`,
+      ...(check.command ? { command: check.command } : {}),
+      ...(check.paths && check.paths.length > 0 ? { paths: check.paths } : {}),
+      priority: check.priority,
+      estimatedMinutes: check.command ? 3 : 5
+    });
+  }
+
+  steps.push({
+    id: "record-1",
+    type: "record",
+    title: "Record verification with rcc done",
+    command: 'rcc done --summary "<summary>" --files auto --verify "<checks>"',
+    priority: "low",
+    estimatedMinutes: 1
+  });
+
+  return steps;
+}
+
 function capChecks(
   checks: ImpactVerificationHint[],
   level: VerificationLevel,
@@ -252,6 +474,36 @@ function trimCheckPaths(checks: ImpactVerificationHint[], level: VerificationLev
   });
 }
 
+function isContextOnlyPlan(plan: Pick<VerificationPlan, "mode" | "confidenceExplanation">): boolean {
+  return (
+    plan.mode !== "planned-task"
+    && plan.confidenceExplanation.evidence.contextOnlyChanges
+    && plan.confidenceExplanation.evidence.nonContextChangedFiles === 0
+  );
+}
+
+function finalizeVerificationPlan(plan: VerificationPlanWithoutExecution): VerificationPlan {
+  const contextOnly = isContextOnlyPlan(plan);
+  const targetedTests = prioritizeTargetedTests(plan.targetedTests, plan.task);
+  const targetedTestCommands = prioritizeTargetedTestCommands(plan.targetedTestCommands, targetedTests);
+  const buildCommands = prioritizeBuildCommands(plan.buildCommands);
+  const smokeChecks = prioritizeChecks(plan.smokeChecks, "smoke", contextOnly);
+  const manualChecks = prioritizeChecks(plan.manualChecks, "manual", contextOnly);
+  const finalizedPlan = {
+    ...plan,
+    targetedTests,
+    targetedTestCommands,
+    buildCommands,
+    smokeChecks,
+    manualChecks
+  };
+
+  return {
+    ...finalizedPlan,
+    executionPlan: buildExecutionPlan(finalizedPlan)
+  };
+}
+
 function normalizeVerificationPlan(plan: VerificationPlan, level: VerificationLevel): VerificationPlan {
   let smokeChecks = normalizeCheckList(plan.smokeChecks);
   let manualChecks = normalizeCheckList(plan.manualChecks);
@@ -269,11 +521,11 @@ function normalizeVerificationPlan(plan: VerificationPlan, level: VerificationLe
     return false;
   });
 
-  return {
+  return finalizeVerificationPlan({
     ...plan,
     smokeChecks: trimCheckPaths(capChecks(smokeChecks, level, "smoke"), level),
     manualChecks: trimCheckPaths(capChecks(manualChecks, level, "manual"), level)
-  };
+  });
 }
 
 function commandsByType(commands: ImpactCommand[], type: ImpactCommand["type"]): ImpactCommand[] {
@@ -741,7 +993,7 @@ function notesFromImpact(impact: ImpactAnalysis): string[] {
 }
 
 export function createVerificationPlan(input: VerificationPlanInput): VerificationPlan {
-  return {
+  return finalizeVerificationPlan({
     schemaVersion: 1,
     command: "verify",
     task: input.task,
@@ -756,7 +1008,7 @@ export function createVerificationPlan(input: VerificationPlanInput): Verificati
     confidence: input.confidence,
     confidenceExplanation: input.confidenceExplanation,
     notes: input.notes ?? []
-  };
+  });
 }
 
 export function createVerificationPlanFromImpact(

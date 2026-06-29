@@ -172,6 +172,7 @@ test("createVerificationPlan constructs the shared verification plan model", () 
     "command",
     "confidence",
     "confidenceExplanation",
+    "executionPlan",
     "manualChecks",
     "mode",
     "notes",
@@ -192,11 +193,22 @@ test("createVerificationPlan constructs the shared verification plan model", () 
   assert.equal(plan.summary.suggestedCommands, 3);
   assert.equal(plan.targetedTests[0].path, "tests/cache/redis.spec.ts");
   assert.equal(plan.targetedTests[0].confidence, "strong");
+  assert.equal(plan.targetedTests[0].priority, "high");
   assert.deepEqual(plan.targetedTestCommands, []);
   assert.equal(plan.buildCommands[0].type, "build");
+  assert.equal(plan.buildCommands[0].priority, "high");
   assert.equal(plan.smokeChecks[0].type, "cache-behavior");
+  assert.equal(plan.smokeChecks[0].priority, "high");
   assert.equal("command" in plan.smokeChecks[0], false);
   assert.equal(plan.manualChecks[0].type, "config");
+  assert.equal(plan.manualChecks[0].priority, "high");
+  assert.deepEqual(plan.executionPlan.map((step) => step.type), [
+    "targeted-tests",
+    "build",
+    "smoke",
+    "manual",
+    "record"
+  ]);
   assert.deepEqual(plan.validationChecklist, [
     "Focused cache test passes",
     "Build still succeeds",
@@ -237,6 +249,7 @@ test("createVerificationPlan defaults optional collections to empty arrays", () 
   assert.deepEqual(plan.buildCommands, []);
   assert.deepEqual(plan.smokeChecks, []);
   assert.deepEqual(plan.manualChecks, []);
+  assert.deepEqual(plan.executionPlan.map((step) => step.type), ["record"]);
   assert.deepEqual(plan.validationChecklist, []);
   assert.deepEqual(plan.notes, []);
   assert.equal(plan.confidence, "low");
@@ -266,12 +279,15 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
   assert.equal(plan.task, impact.task);
   assert.equal(plan.mode, impact.mode);
   assert.deepEqual(plan.summary, impact.summary);
-  assert.deepEqual(plan.targetedTests, impact.affectedTests);
+  assert.deepEqual(plan.targetedTests.map(({ priority, ...test }) => test), impact.affectedTests);
   assert.deepEqual(plan.targetedTestCommands.map((command) => command.command), [
     "node --test tests/cache/redis.spec.ts"
   ]);
+  assert.deepEqual(plan.targetedTestCommands.map((command) => command.priority), ["high"]);
   assert.deepEqual(plan.buildCommands.map((command) => command.command), ["npm run build"]);
+  assert.deepEqual(plan.buildCommands.map((command) => command.priority), ["high"]);
   assert.deepEqual(plan.smokeChecks.map((check) => check.type), ["cache-behavior"]);
+  assert.deepEqual(plan.smokeChecks.map((check) => check.priority), ["high"]);
   assert.equal(plan.smokeChecks.some((check) => "command" in check), false);
   assert.equal(plan.confidence, impact.confidence);
   assert.equal(plan.confidenceExplanation.level, impact.confidenceExplanation.level);
@@ -284,9 +300,19 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
   )));
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "context-routing"
+    && check.priority === "low"
     && check.paths.includes("src/cache/redis.ts")
     && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
   )));
+  assert.deepEqual(plan.executionPlan.map((step) => step.type), [
+    "targeted-tests",
+    "build",
+    "smoke",
+    "manual",
+    "manual",
+    "manual",
+    "record"
+  ]);
   assert.deepEqual(plan.validationChecklist, [
     "Inspect affected files.",
     "Run targeted tests.",
@@ -326,7 +352,7 @@ test("createVerificationPlanFromImpact preserves verification for non-context ch
 
   const plan = createVerificationPlanFromImpact(impact);
 
-  assert.deepEqual(plan.targetedTests, impact.affectedTests);
+  assert.deepEqual(plan.targetedTests.map(({ priority, ...test }) => test), impact.affectedTests);
   assert.deepEqual(plan.targetedTestCommands.map((command) => command.command), [
     "node --test tests/cache/redis.spec.ts"
   ]);
@@ -796,6 +822,131 @@ test("redis task promotes only strong Redis and cache tests into runnable target
   assert.ok(plan.smokeChecks.some((check) => check.type === "cache-behavior"));
 });
 
+test("execution plan orders verification phases and carries priorities", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "fix auth database schema compatibility",
+    affectedFiles: [
+      {
+        path: "src/auth/session.ts",
+        reason: "task routing matched"
+      },
+      {
+        path: "src/db/migrations/add-session-index.sql",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/auth/session.spec.ts",
+        reason: "strong auth test",
+        score: 120,
+        confidence: "strong",
+        signals: ["task routing evidence", "filename similarity"]
+      }
+    ],
+    suggestedCommands: [
+      {
+        command: "npm run build",
+        type: "build",
+        scope: "project",
+        confidence: "medium",
+        reason: "verify TypeScript and generated CLI output"
+      }
+    ]
+  }), "deep");
+
+  assert.deepEqual(plan.executionPlan.map((step) => step.type), [
+    "targeted-tests",
+    "build",
+    "smoke",
+    "smoke",
+    "manual",
+    "manual",
+    "manual",
+    "manual",
+    "record"
+  ]);
+  assert.equal(plan.targetedTests[0].priority, "critical");
+  assert.equal(plan.targetedTestCommands[0].priority, "critical");
+  assert.equal(plan.buildCommands[0].priority, "high");
+  assert.equal(plan.smokeChecks.find((check) => check.type === "auth-flow").priority, "high");
+  assert.equal(plan.manualChecks.find((check) => check.type === "schema-compatibility").priority, "critical");
+  assert.equal(plan.manualChecks.find((check) => check.type === "data-rollback-impact").priority, "high");
+  assert.deepEqual(plan.executionPlan[0], {
+    id: "targeted-tests-1",
+    type: "targeted-tests",
+    title: "Run targeted tests",
+    command: "node --test tests/auth/session.spec.ts",
+    paths: ["tests/auth/session.spec.ts"],
+    priority: "critical",
+    estimatedMinutes: 2
+  });
+  assert.equal(plan.executionPlan.at(-1).command, 'rcc done --summary "<summary>" --files auto --verify "<checks>"');
+});
+
+test("context routing review is low priority unless only context files changed", () => {
+  const mixedPlan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "refresh rcc context routing",
+    affectedFiles: [
+      {
+        path: "src/cli/verify/buildVerify.ts",
+        reason: "changed in working tree"
+      }
+    ],
+    affectedTests: [],
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        changedFiles: 2,
+        nonContextChangedFiles: 1,
+        contextChanges: 1,
+        affectedFiles: 1,
+        affectedTests: 0,
+        contextOnlyChanges: false,
+        testRelationship: "none"
+      }
+    })
+  }));
+  const contextOnlyPlan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "refresh rcc context routing",
+    affectedFiles: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        changedFiles: 1,
+        nonContextChangedFiles: 0,
+        contextChanges: 1,
+        affectedFiles: 1,
+        affectedTests: 0,
+        contextOnlyChanges: true,
+        testRelationship: "none"
+      }
+    })
+  }));
+
+  assert.equal(mixedPlan.manualChecks.find((check) => check.type === "context-routing").priority, "low");
+  assert.equal(contextOnlyPlan.manualChecks.find((check) => check.type === "context-changes").priority, "medium");
+  assert.deepEqual(contextOnlyPlan.executionPlan.map((step) => step.type), ["manual", "record"]);
+});
+
 test("auth task caps strong targeted tests for small tasks", () => {
   const impact = impactAnalysis({
     task: "fix auth bug",
@@ -1063,9 +1214,11 @@ test("createVerificationPlanFromImpact is conservative for context-only route es
     {
       type: "context-changes",
       reason: "Manually review context changes for workflow and routing impact.",
-      paths: ["docs/ai-context/TASK_ROUTING.md"]
+      paths: ["docs/ai-context/TASK_ROUTING.md"],
+      priority: "medium"
     }
   ]);
+  assert.deepEqual(plan.executionPlan.map((step) => step.type), ["manual", "record"]);
   assert.deepEqual(plan.validationChecklist, [
     "Inspect context changes.",
     "Confirm RCC workflow/context changes are intentional.",

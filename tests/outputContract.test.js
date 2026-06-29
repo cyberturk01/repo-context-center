@@ -52,6 +52,7 @@ function assertVerifyJsonContract(plan, task, mode) {
     "command",
     "confidence",
     "confidenceExplanation",
+    "executionPlan",
     "manualChecks",
     "mode",
     "notes",
@@ -72,8 +73,19 @@ function assertVerifyJsonContract(plan, task, mode) {
   assert.ok(Array.isArray(plan.buildCommands));
   assert.ok(Array.isArray(plan.smokeChecks));
   assert.ok(Array.isArray(plan.manualChecks));
+  assert.ok(Array.isArray(plan.executionPlan));
   assert.ok(Array.isArray(plan.validationChecklist));
   assert.ok(Array.isArray(plan.notes));
+  for (const collection of [plan.targetedTests, plan.targetedTestCommands, plan.buildCommands, plan.smokeChecks, plan.manualChecks]) {
+    for (const item of collection) {
+      assert.match(item.priority, /^(critical|high|medium|low)$/);
+    }
+  }
+  for (const step of plan.executionPlan) {
+    assertHasKeys(step, ["id", "type", "title", "priority", "estimatedMinutes"], "verify execution step");
+    assert.match(step.priority, /^(critical|high|medium|low)$/);
+    assert.equal(typeof step.estimatedMinutes, "number");
+  }
   assert.equal(typeof plan.confidence, "string");
   assert.equal(typeof plan.confidenceExplanation, "object");
   assert.equal("affectedFiles" in plan, false);

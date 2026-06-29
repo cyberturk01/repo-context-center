@@ -7,17 +7,42 @@ import type {
   ImpactVerificationHint
 } from "../impact/impactTypes";
 
+export type VerificationPriority = "critical" | "high" | "medium" | "low";
+
+export type VerificationTargetedTest = ImpactAffectedTest & {
+  priority: VerificationPriority;
+};
+
+export type VerificationCommand = ImpactCommand & {
+  priority: VerificationPriority;
+};
+
+export type VerificationCheck = ImpactVerificationHint & {
+  priority: VerificationPriority;
+};
+
+export interface VerificationExecutionStep {
+  id: string;
+  type: "targeted-tests" | "build" | "smoke" | "manual" | "record";
+  title: string;
+  command?: string;
+  paths?: string[];
+  priority: VerificationPriority;
+  estimatedMinutes: number;
+}
+
 export interface VerificationPlan {
   schemaVersion: 1;
   command: "verify";
   task: string;
   mode: ImpactAnalysis["mode"];
   summary: ImpactSummary;
-  targetedTests: ImpactAffectedTest[];
-  targetedTestCommands: ImpactCommand[];
-  buildCommands: ImpactCommand[];
-  smokeChecks: ImpactVerificationHint[];
-  manualChecks: ImpactVerificationHint[];
+  targetedTests: VerificationTargetedTest[];
+  targetedTestCommands: VerificationCommand[];
+  buildCommands: VerificationCommand[];
+  smokeChecks: VerificationCheck[];
+  manualChecks: VerificationCheck[];
+  executionPlan: VerificationExecutionStep[];
   validationChecklist: string[];
   confidence: ImpactAnalysis["confidence"];
   confidenceExplanation: ImpactConfidenceExplanation;

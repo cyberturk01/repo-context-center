@@ -1,12 +1,16 @@
 import type { ImpactAffectedTest, ImpactCommand, ImpactVerificationHint } from "../impact/impactTypes";
-import type { VerificationPlan } from "./verifyTypes";
+import type { VerificationExecutionStep, VerificationPlan } from "./verifyTypes";
 
 function formatTests(tests: ImpactAffectedTest[]): string[] {
   if (tests.length === 0) {
     return ["- none"];
   }
 
-  return tests.map((test) => `- ${test.path} (${test.reason})`);
+  return tests.map((test) => {
+    const priority = "priority" in test ? ` [${test.priority}]` : "";
+
+    return `- ${test.path}${priority} (${test.reason})`;
+  });
 }
 
 function formatCommands(commands: ImpactCommand[]): string[] {
@@ -14,7 +18,11 @@ function formatCommands(commands: ImpactCommand[]): string[] {
     return ["- none"];
   }
 
-  return commands.map((command) => `- ${command.command} (${command.reason})`);
+  return commands.map((command) => {
+    const priority = "priority" in command ? ` [${command.priority}]` : "";
+
+    return `- ${command.command}${priority} (${command.reason})`;
+  });
 }
 
 function formatManualChecks(checks: ImpactVerificationHint[]): string[] {
@@ -26,7 +34,22 @@ function formatManualChecks(checks: ImpactVerificationHint[]): string[] {
     const paths = check.paths && check.paths.length > 0 ? ` [${check.paths.join(", ")}]` : "";
     const command = check.command ? `: ${check.command}` : "";
 
-    return `- ${check.type}: ${check.reason}${paths}${command}`;
+    const priority = "priority" in check ? ` [${check.priority}]` : "";
+
+    return `- ${check.type}${priority}: ${check.reason}${paths}${command}`;
+  });
+}
+
+function formatExecutionPlan(steps: VerificationExecutionStep[]): string[] {
+  if (steps.length === 0) {
+    return ["- none"];
+  }
+
+  return steps.map((step, index) => {
+    const command = step.command ? `: ${step.command}` : "";
+    const paths = step.paths && step.paths.length > 0 ? ` [${step.paths.join(", ")}]` : "";
+
+    return `${index + 1}. ${step.title} [${step.priority}, ~${step.estimatedMinutes}m]${paths}${command}`;
   });
 }
 
@@ -68,6 +91,9 @@ export function renderVerifyText(plan: VerificationPlan): string {
     "",
     "Manual checks:",
     ...formatManualChecks(plan.manualChecks),
+    "",
+    "Execution plan:",
+    ...formatExecutionPlan(plan.executionPlan),
     "",
     "Validation checklist:",
     ...formatChecklist(plan.validationChecklist),
