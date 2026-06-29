@@ -1,9 +1,10 @@
 import type { VerifyOptions } from "./verifyTypes";
 
-export const verifyUsage = 'Usage: rcc verify "<task>" [--json] [--task-only]';
+export const verifyUsage = 'Usage: rcc verify "<task>" [--json] [--task-only] [--planned]';
 
 export function parseVerifyOptions(args: string[]): VerifyOptions | undefined {
   let json = false;
+  let planned = false;
   let taskOnly = false;
   const taskParts: string[] = [];
 
@@ -15,6 +16,11 @@ export function parseVerifyOptions(args: string[]): VerifyOptions | undefined {
 
     if (arg === "--task-only") {
       taskOnly = true;
+      continue;
+    }
+
+    if (arg === "--planned") {
+      planned = true;
       continue;
     }
 
@@ -30,5 +36,5 @@ export function parseVerifyOptions(args: string[]): VerifyOptions | undefined {
     return undefined;
   }
 
-  return { json, task, taskOnly };
+  return { json, planned, task, taskOnly };
 }

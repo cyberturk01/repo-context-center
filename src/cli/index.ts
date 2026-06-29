@@ -66,7 +66,7 @@ Commands:
   validate  Validate required context files and warnings
             Options: --strict
   verify    Recommend verification checks from impact analysis
-            Usage: verify "<task>" [--json] [--task-only]
+            Usage: verify "<task>" [--json] [--task-only] [--planned]
   archive   Archive older CHANGE_LOG and LESSONS_LEARNED entries
             Options: --keep <number>, --dry-run
   decision  Add a durable project decision to docs/ai-context/DECISIONS.md

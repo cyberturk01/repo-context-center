@@ -35,6 +35,7 @@ function textMatches(value: string, pattern: RegExp): boolean {
 
 function isContextOnlyVerification(impact: ImpactAnalysis): boolean {
   return (
+    impact.mode !== "planned-task" &&
     impact.confidenceExplanation.evidence.contextOnlyChanges
     && impact.confidenceExplanation.evidence.nonContextChangedFiles === 0
   );
@@ -259,14 +260,59 @@ export function createVerificationPlanFromImpact(impact: ImpactAnalysis): Verifi
   });
 }
 
+export function createPlannedVerificationPlanFromImpact(impact: ImpactAnalysis): VerificationPlan {
+  const plannedImpact: ImpactAnalysis = {
+    ...impact,
+    mode: "planned-task"
+  };
+  const affectedFilePaths = plannedImpact.affectedFiles.map((file) => file.path);
+  const contextChangePaths = plannedImpact.contextChanges.map((file) => file.path);
+  const targetedTestCommands = plannedImpact.affectedTests.length > 0
+    ? commandsByType(plannedImpact.suggestedCommands, "test")
+    : [];
+  const notes = notesFromImpact(plannedImpact).filter((note) => (
+    note !== "Context-only changes detected; verify focuses on RCC/context files and does not promote task-route estimates to targeted tests or smoke checks."
+  ));
+  const plannedNote = "Planned verification mode: promoted task-route estimates even though no non-context changed files were present.";
+
+  if (plannedImpact.confidenceExplanation.evidence.nonContextChangedFiles === 0 && !notes.includes(plannedNote)) {
+    notes.push(plannedNote);
+  }
+
+  return createVerificationPlan({
+    task: plannedImpact.task,
+    mode: plannedImpact.mode,
+    summary: plannedImpact.summary,
+    targetedTests: plannedImpact.affectedTests,
+    targetedTestCommands,
+    buildCommands: commandsByType(plannedImpact.suggestedCommands, "build"),
+    smokeChecks: smokeChecksFromImpact(plannedImpact),
+    manualChecks: [
+      ...plannedImpact.verificationHints,
+      ...compactChecks([
+        manualCheck("affected-files", "Manually inspect planned affected files for behavior-specific validation.", affectedFilePaths),
+        manualCheck("context-changes", "Manually review context changes for workflow and routing impact.", contextChangePaths)
+      ])
+    ],
+    validationChecklist: validationChecklistFromImpact(plannedImpact),
+    confidence: plannedImpact.confidence,
+    confidenceExplanation: plannedImpact.confidenceExplanation,
+    notes
+  });
+}
+
 export async function buildVerificationPlan(
   cwd: string,
   task: string,
-  options: { taskOnly?: boolean } = {}
+  options: { planned?: boolean; taskOnly?: boolean } = {}
 ): Promise<VerificationPlan> {
   const impact = await buildImpactAnalysis(cwd, task, {
     taskOnly: options.taskOnly ?? false
   });
+
+  if (options.planned) {
+    return createPlannedVerificationPlanFromImpact(impact);
+  }
 
   return createVerificationPlanFromImpact(impact);
 }

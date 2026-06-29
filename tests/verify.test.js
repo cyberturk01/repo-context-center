@@ -7,6 +7,7 @@ const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
 const {
   createVerificationPlan,
+  createPlannedVerificationPlanFromImpact,
   createVerificationPlanFromImpact
 } = require(path.join(repoRoot, "dist", "cli", "verify", "buildVerify.js"));
 
@@ -585,6 +586,169 @@ test("createVerificationPlanFromImpact is conservative for context-only route es
   assert.ok(plan.notes.includes("Context-only impact detected; verify context changes manually."));
 });
 
+test("planned mode promotes login task estimates without source changes", () => {
+  const impact = impactAnalysis({
+    task: "fix login bug",
+    mode: "working-tree",
+    affectedFiles: [
+      {
+        path: "src/auth/login.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/auth/login.spec.ts",
+        reason: "task route matched auth test",
+        score: 115,
+        confidence: "high",
+        signals: ["task routing evidence", "filename similarity"]
+      }
+    ],
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ],
+    suggestedCommands: [
+      {
+        command: "node --test tests/auth/login.spec.ts",
+        type: "test",
+        scope: "focused",
+        confidence: "high",
+        reason: "run affected tests directly"
+      },
+      {
+        command: "npm run build",
+        type: "build",
+        scope: "project",
+        confidence: "medium",
+        reason: "verify TypeScript and generated CLI output"
+      }
+    ],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        changedFiles: 1,
+        nonContextChangedFiles: 0,
+        contextChanges: 1,
+        affectedFiles: 1,
+        affectedTests: 1,
+        contextOnlyChanges: true,
+        testRelationship: "strong"
+      }
+    })
+  });
+
+  const plan = createPlannedVerificationPlanFromImpact(impact);
+
+  assert.equal(plan.mode, "planned-task");
+  assert.deepEqual(plan.targetedTests.map((test) => test.path), ["tests/auth/login.spec.ts"]);
+  assert.deepEqual(plan.targetedTestCommands.map((command) => command.command), ["node --test tests/auth/login.spec.ts"]);
+  assert.deepEqual(plan.buildCommands.map((command) => command.command), ["npm run build"]);
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "auth-flow"
+    && check.paths.includes("src/auth/login.ts")
+  )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "affected-files"
+    && check.paths.includes("src/auth/login.ts")
+  )));
+  assert.ok(plan.notes.includes(
+    "Planned verification mode: promoted task-route estimates even though no non-context changed files were present."
+  ));
+});
+
+test("planned mode promotes redis task estimates without source changes", () => {
+  const impact = impactAnalysis({
+    task: "add redis cache",
+    mode: "working-tree",
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        changedFiles: 1,
+        nonContextChangedFiles: 0,
+        contextChanges: 1,
+        affectedFiles: 1,
+        affectedTests: 1,
+        contextOnlyChanges: true,
+        testRelationship: "strong"
+      }
+    })
+  });
+
+  const plan = createPlannedVerificationPlanFromImpact(impact);
+
+  assert.equal(plan.mode, "planned-task");
+  assert.deepEqual(plan.targetedTests.map((test) => test.path), ["tests/cache/redis.spec.ts"]);
+  assert.deepEqual(plan.targetedTestCommands.map((command) => command.command), ["node --test tests/cache/redis.spec.ts"]);
+  assert.deepEqual(plan.buildCommands.map((command) => command.command), ["npm run build"]);
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "cache-behavior"
+    && check.paths.includes("src/cache/redis.ts")
+  )));
+});
+
+test("planned mode promotes workflow task estimates without source changes", () => {
+  const impact = impactAnalysis({
+    task: "improve github action",
+    mode: "working-tree",
+    affectedFiles: [
+      {
+        path: ".github/workflows/ci.yml",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ],
+    suggestedCommands: [
+      {
+        command: "npm run build",
+        type: "build",
+        scope: "project",
+        confidence: "medium",
+        reason: "verify TypeScript and generated CLI output"
+      }
+    ],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        changedFiles: 1,
+        nonContextChangedFiles: 0,
+        contextChanges: 1,
+        affectedFiles: 1,
+        affectedTests: 0,
+        contextOnlyChanges: true,
+        testRelationship: "none"
+      }
+    })
+  });
+
+  const plan = createPlannedVerificationPlanFromImpact(impact);
+
+  assert.equal(plan.mode, "planned-task");
+  assert.deepEqual(plan.targetedTests, []);
+  assert.deepEqual(plan.targetedTestCommands, []);
+  assert.deepEqual(plan.buildCommands.map((command) => command.command), ["npm run build"]);
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "ci-workflow"
+    && check.paths.includes(".github/workflows/ci.yml")
+  )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "affected-files"
+    && check.paths.includes(".github/workflows/ci.yml")
+  )));
+});
+
 test("createVerificationPlanFromImpact does not let context paths trigger source smoke checks", () => {
   const impact = impactAnalysis({
     task: "refresh context",
@@ -672,6 +836,26 @@ test("verify --json builds recommendations from Impact analysis", () => {
   assert.equal("suggestedCommands" in plan, false);
 });
 
+test("verify --planned --json selects planned-task mode", () => {
+  const result = runCli(["verify", "fix login bug", "--planned", "--json"], {
+    cwd: fixturePath("simple-auth")
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(result.stderr, "");
+
+  const plan = JSON.parse(result.stdout);
+
+  assert.equal(plan.command, "verify");
+  assert.equal(plan.task, "fix login bug");
+  assert.equal(plan.mode, "planned-task");
+  assert.equal(Array.isArray(plan.targetedTests), true);
+  assert.equal(Array.isArray(plan.targetedTestCommands), true);
+  assert.equal(Array.isArray(plan.buildCommands), true);
+  assert.equal(Array.isArray(plan.smokeChecks), true);
+  assert.equal(Array.isArray(plan.manualChecks), true);
+});
+
 test("verify text output is compact and recommendation-only", () => {
   const result = runCli(["verify", "update translation", "--task-only"], {
     cwd: fixturePath("translations")
@@ -695,5 +879,5 @@ test("verify rejects invalid args", () => {
 
   assert.notEqual(result.status, 0);
   assert.equal(result.stdout, "");
-  assert.match(result.stderr, /^Usage: rcc verify "<task>" \[--json\] \[--task-only\]/);
+  assert.match(result.stderr, /^Usage: rcc verify "<task>" \[--json\] \[--task-only\] \[--planned\]/);
 });

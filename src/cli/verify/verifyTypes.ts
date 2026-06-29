@@ -41,6 +41,7 @@ export interface VerificationPlanInput {
 
 export interface VerifyOptions {
   json: boolean;
+  planned: boolean;
   task: string;
   taskOnly: boolean;
 }

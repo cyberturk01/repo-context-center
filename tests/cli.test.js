@@ -76,7 +76,7 @@ test("CLI help prints usage", () => {
   assert.match(result.stdout, /validate\s+Validate required context files and warnings/);
   assert.match(result.stdout, /Options: --strict/);
   assert.match(result.stdout, /verify\s+Recommend verification checks from impact analysis/);
-  assert.match(result.stdout, /Usage: verify "<task>" \[--json\] \[--task-only\]/);
+  assert.match(result.stdout, /Usage: verify "<task>" \[--json\] \[--task-only\] \[--planned\]/);
   assert.match(result.stdout, /archive\s+Archive older CHANGE_LOG and LESSONS_LEARNED entries/);
   assert.match(result.stdout, /Options: --keep <number>, --dry-run/);
   assert.match(result.stdout, /decision\s+Add a durable project decision to docs\/ai-context\/DECISIONS\.md/);

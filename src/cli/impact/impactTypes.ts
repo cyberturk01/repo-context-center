@@ -62,7 +62,7 @@ export interface ImpactAnalysis {
   schemaVersion: 1;
   command: "impact";
   task: string;
-  mode: "working-tree" | "task-only";
+  mode: "working-tree" | "task-only" | "planned-task";
   basis: "changed-files-and-task" | "changed-files" | "task";
   summary: ImpactSummary;
   changedFiles: ImpactFile[];
