@@ -559,6 +559,14 @@ npx repo-context-center verify "fix login regression" --json
 npx repo-context-center verify "fix login regression" --task-only --json
 ```
 
+`verify --json` is intended for long-lived integrations. Treat the contract in layers:
+
+- Stable: top-level fields `schemaVersion`, `command`, `task`, `mode`, `summary`, `targetedTests`, `targetedTestCommands`, `buildCommands`, `smokeChecks`, `manualChecks`, `executionPlan`, `validationChecklist`, and `confidence`; summary count fields; path, command, type, scope, confidence, priority, refs, and estimated-minute fields inside recommendation objects.
+- Experimental/informational: `reason`, `score`, `signals`, `title`, `confidenceExplanation`, and `notes`. These fields help humans and agents understand the plan, but their wording, detail level, and heuristic evidence may change in minor releases.
+- Internal and intentionally omitted: raw Impact collections such as `affectedFiles`, `affectedTests`, `suggestedCommands`, `changedFiles`, `contextChanges`, routing evidence, domain-match internals, and scoring implementation details beyond the informational fields above.
+
+Integrations should execute or display the stable command/path/check data and avoid depending on long reason strings or heuristic explanation text.
+
 Use `handoff --json` or `handoff --agent` when a tool needs continuation context:
 
 ```sh

@@ -1,16 +1,25 @@
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
+const { readFileSync } = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
 
-function runCli(args) {
+function runCli(args, options = {}) {
   return spawnSync(process.execPath, [cliPath, ...args], {
-    cwd: repoRoot,
+    cwd: options.cwd ?? repoRoot,
     encoding: "utf8"
   });
+}
+
+function fixturePath(name) {
+  return path.join(repoRoot, "fixtures", name);
+}
+
+function readJson(relativePath) {
+  return JSON.parse(readFileSync(path.join(repoRoot, relativePath), "utf8"));
 }
 
 function parseJsonOnlyOutput(result) {
@@ -95,6 +104,71 @@ function assertVerifyJsonContract(plan, task, mode) {
   assert.equal("suggestedCommands" in plan, false);
   assert.equal("changedFiles" in plan, false);
   assert.equal("contextChanges" in plan, false);
+}
+
+function informationalKeys(value, keys) {
+  return keys.filter((key) => key in value);
+}
+
+function stableTestSnapshot(testItem) {
+  return {
+    path: testItem.path,
+    confidence: testItem.confidence,
+    priority: testItem.priority,
+    informational: informationalKeys(testItem, ["reason", "score", "signals"])
+  };
+}
+
+function stableCommandSnapshot(command) {
+  return {
+    command: command.command,
+    type: command.type,
+    scope: command.scope,
+    confidence: command.confidence,
+    priority: command.priority,
+    informational: informationalKeys(command, ["reason"])
+  };
+}
+
+function stableCheckSnapshot(check) {
+  return {
+    type: check.type,
+    paths: check.paths ?? [],
+    command: check.command ?? null,
+    priority: check.priority,
+    informational: informationalKeys(check, ["reason"])
+  };
+}
+
+function stableExecutionStepSnapshot(step) {
+  return {
+    id: step.id,
+    type: step.type,
+    refs: step.refs ?? [],
+    command: step.command ?? null,
+    priority: step.priority,
+    estimatedMinutes: step.estimatedMinutes,
+    informational: informationalKeys(step, ["title"])
+  };
+}
+
+function verifyStableContractSnapshot(plan) {
+  return {
+    schemaVersion: plan.schemaVersion,
+    command: plan.command,
+    mode: plan.mode,
+    topLevelKeys: Object.keys(plan),
+    summary: plan.summary,
+    targetedTests: plan.targetedTests.map(stableTestSnapshot),
+    targetedTestCommands: plan.targetedTestCommands.map(stableCommandSnapshot),
+    buildCommands: plan.buildCommands.map(stableCommandSnapshot),
+    smokeChecks: plan.smokeChecks.map(stableCheckSnapshot),
+    manualChecks: plan.manualChecks.map(stableCheckSnapshot),
+    executionPlan: plan.executionPlan.map(stableExecutionStepSnapshot),
+    validationChecklist: plan.validationChecklist,
+    confidence: plan.confidence,
+    informationalTopLevel: informationalKeys(plan, ["confidenceExplanation", "notes"])
+  };
 }
 
 test("work --agent remains compact parseable JSON only", () => {
@@ -346,4 +420,39 @@ test("verify --planned --json makes planned mode explicit without changing contr
   assert.ok(plan.notes.includes(
     "Planned verification mode: plan uses task routing, impact analysis, and repository learning without requiring source code changes."
   ));
+});
+
+test("verify --json stable contract snapshot for task-only fixture", () => {
+  const plan = parseJsonOnlyOutput(runCli(["verify", "add redis cache", "--task-only", "--json"], {
+    cwd: fixturePath("redis-cache")
+  }));
+  const snapshots = readJson("tests/fixtures/verify-json-contract-snapshots.json");
+
+  assertVerifyJsonContract(plan, "add redis cache", "task-only");
+  assert.deepEqual(
+    verifyStableContractSnapshot(plan),
+    snapshots["redis-cache task-only"]
+  );
+});
+
+test("verify --planned --task-only --json stable contract snapshot for planned fixture", () => {
+  const plan = parseJsonOnlyOutput(runCli(["verify", "fix login bug", "--planned", "--task-only", "--json"], {
+    cwd: fixturePath("simple-auth")
+  }));
+  const snapshots = readJson("tests/fixtures/verify-json-contract-snapshots.json");
+
+  assertVerifyJsonContract(plan, "fix login bug", "planned-task");
+  assert.deepEqual(
+    verifyStableContractSnapshot(plan),
+    snapshots["simple-auth planned"]
+  );
+});
+
+test("README documents verify JSON stable, informational, and internal fields", () => {
+  const readme = readFileSync(path.join(repoRoot, "README.md"), "utf8");
+
+  assert.match(readme, /`verify --json` is intended for long-lived integrations/);
+  assert.match(readme, /Stable: top-level fields `schemaVersion`, `command`, `task`, `mode`, `summary`/);
+  assert.match(readme, /Experimental\/informational: `reason`, `score`, `signals`, `title`, `confidenceExplanation`, and `notes`/);
+  assert.match(readme, /Internal and intentionally omitted: raw Impact collections/);
 });
