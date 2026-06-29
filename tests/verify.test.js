@@ -292,8 +292,18 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
   assert.equal(plan.confidence, impact.confidence);
   assert.equal(plan.confidenceExplanation.level, impact.confidenceExplanation.level);
   assert.deepEqual(plan.confidenceExplanation.evidence, impact.confidenceExplanation.evidence);
-  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: cache (task, affected files, test paths)"));
-  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: redis (task, affected files, test paths)"));
+  assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
+    reason.includes("domain matched: cache")
+    && reason.includes("task:cache")
+    && reason.includes("affected file:src/cache/redis.ts")
+    && reason.includes("test path:tests/cache/redis.spec.ts")
+  )));
+  assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
+    reason.includes("domain matched: redis")
+    && reason.includes("task:redis")
+    && reason.includes("affected file:src/cache/redis.ts")
+    && reason.includes("test path:tests/cache/redis.spec.ts")
+  )));
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "environment"
     && check.command === "redis-cli ping"
@@ -460,8 +470,169 @@ test("createVerificationPlanFromImpact suggests a workflow smoke check for impro
     && /required secrets/.test(check.reason)
   )));
   assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: workflow")));
-  assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: github-actions")));
+  assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
+    reason.startsWith("domain matched: workflow")
+    && reason.includes("workflow path:.github/workflows/ci.yml")
+  )));
   assert.deepEqual(plan.targetedTestCommands, []);
+});
+
+test("update github workflow uses workflow checks with exact workflow evidence", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "update github workflow",
+    affectedFiles: [
+      {
+        path: ".github/workflows/release.yml",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: []
+  }));
+
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "ci-workflow"
+    && check.paths.includes(".github/workflows/release.yml")
+  )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "workflow-lint"
+    && check.command === "actionlint .github/workflows/release.yml"
+  )));
+  assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
+    reason.startsWith("domain matched: workflow")
+    && reason.includes("task:github workflow")
+    && reason.includes("workflow path:.github/workflows/release.yml")
+  )));
+});
+
+test("github integration files do not get workflow lint without workflow YAML", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "update github workflow",
+    affectedFiles: [
+      {
+        path: "src/api/githubController.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/api/githubController.spec.ts",
+        reason: "task route matched github api test",
+        score: 108,
+        confidence: "strong",
+        signals: ["filename similarity"]
+      }
+    ],
+    suggestedCommands: []
+  }));
+
+  assert.equal(plan.smokeChecks.some((check) => check.type === "ci-workflow"), false);
+  assert.equal(plan.manualChecks.some((check) => check.type === "workflow-lint"), false);
+  assert.equal(plan.manualChecks.some((check) => check.command && check.command.includes("actionlint")), false);
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "github-integration"
+    && check.paths.includes("src/api/githubController.ts")
+  )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "github-api-integration"
+    && /request\/response contracts/.test(check.reason)
+    && check.paths.includes("src/api/githubController.ts")
+  )));
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "backend-behavior"
+    && /contract behavior/.test(check.reason)
+  )));
+  assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
+    reason.startsWith("domain matched: github-integration")
+    && reason.includes("github integration path:src/api/githubController.ts")
+  )));
+});
+
+test("change postgres schema prioritizes backend database paths over UI-only references", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "change postgres schema",
+    affectedFiles: [
+      {
+        path: "src/ui/PostgresIcon.tsx",
+        reason: "task routing matched"
+      },
+      {
+        path: "src/db/schema/postgres.sql",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: []
+  }), "deep");
+
+  const schemaCheck = plan.manualChecks.find((check) => check.type === "schema-compatibility");
+  const rollbackCheck = plan.manualChecks.find((check) => check.type === "data-rollback-impact");
+
+  assert.ok(schemaCheck);
+  assert.ok(rollbackCheck);
+  assert.deepEqual(schemaCheck.paths, ["src/db/schema/postgres.sql"]);
+  assert.deepEqual(rollbackCheck.paths, ["src/db/schema/postgres.sql"]);
+  assert.equal(plan.manualChecks.some((check) => (
+    check.type === "postgres-ui-reference"
+    && check.paths.includes("src/ui/PostgresIcon.tsx")
+  )), false);
+});
+
+test("ui-only postgres paths stay low priority and avoid schema checks", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "change postgres icon",
+    affectedFiles: [
+      {
+        path: "src/ui/PostgresIcon.tsx",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: []
+  }), "deep");
+
+  const uiCheck = plan.manualChecks.find((check) => check.type === "postgres-ui-reference");
+  const uiSmoke = plan.smokeChecks.find((check) => check.type === "postgres-ui-reference");
+
+  assert.ok(uiCheck);
+  assert.ok(uiSmoke);
+  assert.equal(uiCheck.priority, "low");
+  assert.equal(uiSmoke.priority, "low");
+  assert.equal(plan.manualChecks.some((check) => check.type === "schema-compatibility"), false);
+  assert.equal(plan.manualChecks.some((check) => check.type === "data-rollback-impact"), false);
+});
+
+test("improve auth middleware adds session security checks without frontend-only smoke", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "improve auth middleware",
+    affectedFiles: [
+      {
+        path: "src/auth/middleware.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/auth/middleware.spec.ts",
+        reason: "task route matched auth middleware test",
+        score: 120,
+        confidence: "strong",
+        signals: ["filename similarity"]
+      }
+    ],
+    suggestedCommands: []
+  }), "deep");
+
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "security-session"
+    && check.paths.includes("src/auth/middleware.ts")
+  )));
+  assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
+  assert.equal(plan.manualChecks.some((check) => check.type === "frontend-regression"), false);
+  assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
+    reason.startsWith("domain matched: auth")
+    && reason.includes("affected file:src/auth/middleware.ts")
+  )));
 });
 
 [
@@ -522,12 +693,13 @@ test("createVerificationPlanFromImpact suggests a workflow smoke check for impro
     expectedManual: "workflow-triggers-secrets"
   },
   {
-    name: "github-actions",
-    task: "tighten github actions permissions",
-    affectedFiles: [".github/workflows/release.yaml"],
-    affectedTests: [],
-    expectedReason: "domain matched: github-actions",
-    expectedManual: "workflow-lint"
+    name: "github-integration",
+    task: "update github api integration",
+    affectedFiles: ["src/api/githubController.ts"],
+    affectedTests: ["tests/api/githubController.spec.ts"],
+    expectedReason: "domain matched: github-integration",
+    expectedManual: "github-api-integration",
+    expectedSmoke: "github-integration"
   },
   {
     name: "frontend",
@@ -864,12 +1036,14 @@ test("execution plan orders verification phases and carries priorities", () => {
     "manual",
     "manual",
     "manual",
+    "manual",
     "record"
   ]);
   assert.equal(plan.targetedTests[0].priority, "critical");
   assert.equal(plan.targetedTestCommands[0].priority, "critical");
   assert.equal(plan.buildCommands[0].priority, "high");
   assert.equal(plan.smokeChecks.find((check) => check.type === "auth-flow").priority, "high");
+  assert.equal(plan.manualChecks.find((check) => check.type === "security-session").priority, "high");
   assert.equal(plan.manualChecks.find((check) => check.type === "schema-compatibility").priority, "critical");
   assert.equal(plan.manualChecks.find((check) => check.type === "data-rollback-impact").priority, "high");
   assert.deepEqual(plan.executionPlan[0], {

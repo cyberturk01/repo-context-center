@@ -31,7 +31,7 @@ type VerificationDomain =
   | "database"
   | "postgres"
   | "workflow"
-  | "github-actions"
+  | "github-integration"
   | "frontend"
   | "backend"
   | "config"
@@ -66,8 +66,8 @@ const domainDefinitions: DomainDefinition[] = [
   { domain: "redis", pattern: /\b(redis|ioredis|redis-cli)\b/i },
   { domain: "database", pattern: /\b(database|db|schema|schemas|migration|migrations|sql|query|queries|orm)\b/i },
   { domain: "postgres", pattern: /\b(postgres|postgresql|pg|psql)\b/i },
-  { domain: "workflow", pattern: /\b(workflow|workflows|ci|pipeline|pipelines|job|jobs)\b/i },
-  { domain: "github-actions", pattern: /\b(github action|github actions|actionlint|\.github\/workflows)\b/i },
+  { domain: "workflow", pattern: /\b(github workflow|github workflows|github action|github actions|ci|workflow|workflows|pipeline|pipelines)\b/i },
+  { domain: "github-integration", pattern: /\b(github api|github integration|github app|github webhook|github controller|github route|octokit)\b/i },
   { domain: "frontend", pattern: /\b(frontend|front-end|ui|browser|component|components|page|pages|react|vue|svelte|css|tsx|jsx)\b/i },
   { domain: "backend", pattern: /\b(backend|back-end|api|server|service|services|controller|controllers|route|routes|endpoint|endpoints|worker|workers)\b/i },
   { domain: "config", pattern: /\b(config|configuration|settings|env|environment|feature flag|feature flags|package\.json|tsconfig|vite|webpack|eslint)\b/i },
@@ -214,19 +214,23 @@ function checkPriority(check: ImpactVerificationHint): number {
     "database-behavior": 40,
     "frontend-ui": 50,
     "backend-behavior": 60,
+    "github-integration": 61,
     "ui-text": 70,
     "docs-rendering": 80,
     "environment": 5,
     "invalid-credentials": 10,
+    "security-session": 11,
     "cache-fallback": 20,
     "workflow-lint": 30,
     "yaml-syntax": 31,
     "workflow-triggers-secrets": 32,
     "schema-compatibility": 40,
     "data-rollback-impact": 41,
+    "github-api-integration": 42,
     "config-load": 50,
     "context-routing": 60,
-    "affected-files": 70
+    "affected-files": 70,
+    "postgres-ui-reference": 90
   };
 
   return priorities[check.type] ?? 100;
@@ -271,6 +275,10 @@ function priorityForBuildCommand(): VerificationPriority {
 function priorityForSmokeCheck(check: ImpactVerificationHint): VerificationPriority {
   const text = `${check.type} ${check.reason} ${(check.paths ?? []).join(" ")} ${check.command ?? ""}`;
 
+  if (/\b(postgres-ui-reference)\b/i.test(text)) {
+    return "low";
+  }
+
   if (/\b(auth-flow|security|schema|database|postgres|backend-contract)\b/i.test(text)) {
     return "high";
   }
@@ -289,7 +297,15 @@ function priorityForManualCheck(check: ImpactVerificationHint, contextOnly: bool
     return "critical";
   }
 
+  if (/\b(postgres-ui-reference)\b/i.test(text)) {
+    return "low";
+  }
+
   if (/\b(invalid-credentials|workflow-triggers-secrets|data-rollback-impact|security|secrets?|permissions?)\b/i.test(text)) {
+    return "high";
+  }
+
+  if (/\b(github-api-integration|backend-contract)\b/i.test(text)) {
     return "high";
   }
 
@@ -618,6 +634,94 @@ function yamlPaths(paths: string[]): string[] {
   return paths.filter((filePath) => /\.ya?ml$/i.test(filePath));
 }
 
+function normalizedPath(filePath: string): string {
+  return filePath.replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+function isWorkflowPath(filePath: string): boolean {
+  const normalized = normalizedPath(filePath);
+
+  return (
+    /^\.github\/workflows\/.+\.ya?ml$/i.test(normalized)
+    || /^\.github\/actions\//i.test(normalized)
+    || /(^|\/)(ci|workflow|workflows|pipeline|pipelines)[^/]*\.ya?ml$/i.test(normalized)
+  );
+}
+
+function isGithubIntegrationPath(filePath: string): boolean {
+  const normalized = normalizedPath(filePath);
+
+  if (/^\.github\/(workflows|actions)\//i.test(normalized)) {
+    return false;
+  }
+
+  return (
+    /\bgithub\b/i.test(normalized)
+    && /\b(api|app|apps|client|clients|controller|controllers|integration|integrations|route|routes|service|services|webhook|webhooks)\b/i.test(normalized)
+  ) || /(^|\/)(api|controllers?|integrations?|routes?|services?|webhooks?)\/github[^/]*\.[cm]?[jt]sx?$/i.test(normalized);
+}
+
+function isFrontendPath(filePath: string): boolean {
+  const normalized = normalizedPath(filePath);
+
+  return (
+    /(^|\/)(app|builder|browser|components?|frontend|pages?|ui|views?)\//i.test(normalized)
+    || /\.(css|scss|sass|less|tsx|jsx)$/i.test(normalized)
+  );
+}
+
+function isBackendDatabasePath(filePath: string): boolean {
+  const normalized = normalizedPath(filePath);
+
+  if (isFrontendPath(normalized)) {
+    return false;
+  }
+
+  return (
+    /(^|\/)(db|database|migrations?|schema|schemas|sql)\//i.test(normalized)
+    || /(^|\/)(postgres|postgresql|pg|database|schema|migration|query|queries)[^/]*\.(sql|[cm]?[jt]sx?)$/i.test(normalized)
+  );
+}
+
+function isUiOnlyDatabasePath(filePath: string): boolean {
+  return isFrontendPath(filePath) && !isBackendDatabasePath(filePath);
+}
+
+function isAuthSecurityPath(filePath: string): boolean {
+  const normalized = normalizedPath(filePath);
+
+  return /\b(middleware|security|session|sessions|csrf|permission|permissions|policy|policies)\b/i.test(normalized);
+}
+
+function taskEvidence(task: string, pattern: RegExp): string[] {
+  const match = task.match(pattern);
+
+  return match ? [`task:${match[0]}`] : [];
+}
+
+function pathEvidence(label: string, paths: string[]): string[] {
+  return paths.map((filePath) => `${label}:${filePath}`);
+}
+
+function addDomainMatch(
+  matches: DomainMatch[],
+  domain: VerificationDomain,
+  paths: string[],
+  signals: string[]
+): void {
+  const uniqueSignals = uniqueStrings(signals);
+
+  if (uniqueSignals.length === 0) {
+    return;
+  }
+
+  matches.push({
+    domain,
+    paths: uniqueStrings(paths),
+    signals: uniqueSignals
+  });
+}
+
 function commandWithPaths(command: string, paths: string[]): string {
   return paths.length > 0 ? `${command} ${paths.join(" ")}` : command;
 }
@@ -675,21 +779,54 @@ function domainMatches(impact: ImpactAnalysis): DomainMatch[] {
   const task = impact.task;
   const affectedPaths = allAffectedPaths(impact);
   const contextPaths = impact.contextChanges.map((file) => file.path);
+  const matches: DomainMatch[] = [];
 
-  return domainDefinitions.flatMap((definition) => {
+  for (const definition of domainDefinitions) {
+    if (definition.domain === "workflow") {
+      const workflowPaths = affectedPaths.filter(isWorkflowPath);
+      const workflowTaskEvidence = taskEvidence(task, definition.pattern);
+      const integrationOnly = affectedPaths.length > 0 && affectedPaths.every((filePath) => (
+        isGithubIntegrationPath(filePath) || definition.pattern.test(filePath)
+      ));
+
+      addDomainMatch(
+        matches,
+        definition.domain,
+        workflowPaths,
+        [
+          ...pathEvidence("workflow path", workflowPaths),
+          ...(workflowPaths.length > 0 || affectedPaths.length === 0 || !integrationOnly ? workflowTaskEvidence : [])
+        ]
+      );
+      continue;
+    }
+
+    if (definition.domain === "github-integration") {
+      const integrationPaths = affectedPaths.filter(isGithubIntegrationPath);
+
+      addDomainMatch(
+        matches,
+        definition.domain,
+        integrationPaths,
+        [
+          ...taskEvidence(task, definition.pattern),
+          ...pathEvidence("github integration path", integrationPaths)
+        ]
+      );
+      continue;
+    }
+
     const signals: string[] = [];
     const paths = new Set<string>();
 
-    if (definition.pattern.test(task)) {
-      signals.push("task");
-    }
+    signals.push(...taskEvidence(task, definition.pattern));
 
     const affectedFileMatches = impact.affectedFiles
       .map((file) => file.path)
       .filter((filePath) => definition.pattern.test(filePath));
 
     if (affectedFileMatches.length > 0) {
-      signals.push("affected files");
+      signals.push(...pathEvidence("affected file", affectedFileMatches));
       affectedFileMatches.forEach((filePath) => paths.add(filePath));
     }
 
@@ -698,7 +835,7 @@ function domainMatches(impact: ImpactAnalysis): DomainMatch[] {
       .filter((filePath) => definition.pattern.test(filePath));
 
     if (testMatches.length > 0) {
-      signals.push("test paths");
+      signals.push(...pathEvidence("test path", testMatches));
       testMatches.forEach((filePath) => paths.add(filePath));
     }
 
@@ -706,34 +843,23 @@ function domainMatches(impact: ImpactAnalysis): DomainMatch[] {
       const contextMatches = contextPaths.filter((filePath) => definition.pattern.test(filePath));
 
       if (contextMatches.length > 0) {
-        signals.push("context changes");
+        signals.push(...pathEvidence("context change", contextMatches));
         contextMatches.forEach((filePath) => paths.add(filePath));
       }
     }
 
-    if (definition.domain === "github-actions") {
-      const workflowPaths = affectedPaths.filter((filePath) => /^\.github\/workflows\//i.test(filePath));
-
-      if (workflowPaths.length > 0) {
-        signals.push("affected files");
-        workflowPaths.forEach((filePath) => paths.add(filePath));
-      }
-    }
-
     if (signals.length === 0) {
-      return [];
+      continue;
     }
 
     if (paths.size === 0) {
       affectedPaths.forEach((filePath) => paths.add(filePath));
     }
 
-    return [{
-      domain: definition.domain,
-      paths: [...paths],
-      signals: [...new Set(signals)]
-    }];
-  });
+    addDomainMatch(matches, definition.domain, [...paths], signals);
+  }
+
+  return matches;
 }
 
 function hasDomain(matches: DomainMatch[], domain: VerificationDomain): boolean {
@@ -747,6 +873,26 @@ function pathsForDomains(matches: DomainMatch[], domains: VerificationDomain[], 
   const unique = [...new Set(paths)];
 
   return unique.length > 0 ? unique : fallback;
+}
+
+function prioritizedDatabasePaths(paths: string[]): string[] {
+  const actual = paths.filter(isBackendDatabasePath);
+  const other = paths.filter((filePath) => !isBackendDatabasePath(filePath) && !isUiOnlyDatabasePath(filePath));
+  const uiOnly = paths.filter(isUiOnlyDatabasePath);
+
+  return uniqueStrings([...actual, ...other, ...uiOnly]);
+}
+
+function actualDatabasePaths(paths: string[]): string[] {
+  return paths.filter((filePath) => !isUiOnlyDatabasePath(filePath));
+}
+
+function frontendAuthPaths(paths: string[]): string[] {
+  return paths.filter(isFrontendPath);
+}
+
+function securityAuthPaths(paths: string[]): string[] {
+  return paths.filter(isAuthSecurityPath);
 }
 
 function confidenceExplanationWithDomains(
@@ -775,10 +921,13 @@ function domainSmokeChecks(impact: ImpactAnalysis): ImpactVerificationHint[] {
   const fallback = fallbackPaths(impact);
 
   if (hasDomain(matches, "auth") || hasDomain(matches, "login")) {
+    const paths = pathsForDomains(matches, ["auth", "login"], fallback);
+    const frontendPaths = frontendAuthPaths(paths);
+
     checks.push(smokeCheck(
       "auth-flow",
       "Manually check the login/logout flow for the matched auth or login surface.",
-      pathsForDomains(matches, ["auth", "login"], fallback)
+      frontendPaths.length > 0 ? frontendPaths : paths
     ));
   }
 
@@ -790,20 +939,39 @@ function domainSmokeChecks(impact: ImpactAnalysis): ImpactVerificationHint[] {
     ));
   }
 
-  if (hasDomain(matches, "workflow") || hasDomain(matches, "github-actions")) {
+  if (hasDomain(matches, "workflow")) {
     checks.push(smokeCheck(
       "ci-workflow",
       "Manually review the relevant workflow path and confirm its trigger/job intent.",
-      pathsForDomains(matches, ["workflow", "github-actions"], fallback)
+      pathsForDomains(matches, ["workflow"], fallback)
+    ));
+  }
+
+  if (hasDomain(matches, "github-integration")) {
+    checks.push(smokeCheck(
+      "github-integration",
+      "Manually check the affected GitHub integration path with a representative API, webhook, or controller request.",
+      pathsForDomains(matches, ["github-integration"], fallback)
     ));
   }
 
   if (hasDomain(matches, "database") || hasDomain(matches, "postgres")) {
-    checks.push(smokeCheck(
-      "database-behavior",
-      "Manually check the affected database path with representative existing and new data.",
-      pathsForDomains(matches, ["database", "postgres"], fallback)
-    ));
+    const paths = prioritizedDatabasePaths(pathsForDomains(matches, ["database", "postgres"], fallback));
+    const actualPaths = actualDatabasePaths(paths);
+
+    if (actualPaths.length > 0) {
+      checks.push(smokeCheck(
+        "database-behavior",
+        "Manually check the affected database path with representative existing and new data.",
+        actualPaths
+      ));
+    } else {
+      checks.push(smokeCheck(
+        "postgres-ui-reference",
+        "Manually check the UI-only Postgres reference for display or copy regressions.",
+        paths
+      ));
+    }
   }
 
   if (hasDomain(matches, "frontend")) {
@@ -829,13 +997,17 @@ function domainManualChecks(impact: ImpactAnalysis): ImpactVerificationHint[] {
   const matches = domainMatches(impact);
   const checks: ImpactVerificationHint[] = [];
   const fallback = fallbackPaths(impact);
-  const workflowPaths = pathsForDomains(matches, ["workflow", "github-actions"], fallback);
+  const workflowPaths = pathsForDomains(matches, ["workflow"], fallback).filter(isWorkflowPath);
   const yamlWorkflowPaths = yamlPaths(workflowPaths);
 
   if (hasDomain(matches, "auth") || hasDomain(matches, "login")) {
     const paths = pathsForDomains(matches, ["auth", "login"], fallback);
+    const securityPaths = securityAuthPaths(paths);
 
     checks.push(manualHint("invalid-credentials", "Check invalid credentials, logout, and session expiration behavior.", paths));
+    if (securityPaths.length > 0) {
+      checks.push(manualHint("security-session", "Check middleware/security handling for session boundaries, authorization failures, and expired sessions.", securityPaths));
+    }
   }
 
   if (hasDomain(matches, "cache") || hasDomain(matches, "redis")) {
@@ -845,7 +1017,7 @@ function domainManualChecks(impact: ImpactAnalysis): ImpactVerificationHint[] {
     checks.push(manualHint("cache-fallback", "Check fallback behavior when Redis or the cache backend is unavailable.", paths));
   }
 
-  if (hasDomain(matches, "workflow") || hasDomain(matches, "github-actions")) {
+  if (hasDomain(matches, "workflow")) {
     checks.push(manualHint(
       "yaml-syntax",
       "Check workflow YAML syntax if YAML files are affected.",
@@ -861,11 +1033,23 @@ function domainManualChecks(impact: ImpactAnalysis): ImpactVerificationHint[] {
     checks.push(manualHint("workflow-triggers-secrets", "Check workflow trigger conditions, permissions, and required secrets.", workflowPaths));
   }
 
-  if (hasDomain(matches, "database") || hasDomain(matches, "postgres")) {
-    const paths = pathsForDomains(matches, ["database", "postgres"], fallback);
+  if (hasDomain(matches, "github-integration")) {
+    const paths = pathsForDomains(matches, ["github-integration"], fallback);
 
-    checks.push(manualHint("schema-compatibility", "Check migration and schema compatibility for existing deployments.", paths));
-    checks.push(manualHint("data-rollback-impact", "Check rollback behavior and existing data impact.", paths));
+    checks.push(manualHint("github-api-integration", "Check GitHub API, webhook, route, or controller integration behavior, including request/response contracts and error handling.", paths));
+    checks.push(manualHint("backend-contract", "Check API or worker contract behavior, errors, and side effects.", paths));
+  }
+
+  if (hasDomain(matches, "database") || hasDomain(matches, "postgres")) {
+    const paths = prioritizedDatabasePaths(pathsForDomains(matches, ["database", "postgres"], fallback));
+    const actualPaths = actualDatabasePaths(paths);
+
+    if (actualPaths.length > 0) {
+      checks.push(manualHint("schema-compatibility", "Check migration and schema compatibility for existing deployments.", actualPaths));
+      checks.push(manualHint("data-rollback-impact", "Check rollback behavior and existing data impact.", actualPaths));
+    } else {
+      checks.push(manualHint("postgres-ui-reference", "Check the UI-only Postgres reference for display/copy regressions; no schema or database contract check is implied.", paths));
+    }
   }
 
   if (hasDomain(matches, "frontend")) {
