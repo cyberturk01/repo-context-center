@@ -4,7 +4,6 @@ import { classifyTaskSize, type TaskSize } from "../work/taskSize";
 import type {
   VerificationCheck,
   VerificationCommand,
-  VerificationExecutionStep,
   VerificationLevel,
   VerificationPlan,
   VerificationPlanInput,
@@ -50,7 +49,7 @@ interface DomainMatch {
 
 type VerificationPlanWithoutExecution = Omit<
   VerificationPlan,
-  "executionPlan" | "targetedTests" | "targetedTestCommands" | "buildCommands" | "smokeChecks" | "manualChecks"
+  "targetedTests" | "targetedTestCommands" | "buildCommands" | "smokeChecks" | "manualChecks"
 > & {
   targetedTests: ImpactAnalysis["affectedTests"];
   targetedTestCommands: ImpactCommand[];
@@ -318,10 +317,14 @@ function prioritizeTargetedTests(
   tests: ImpactAnalysis["affectedTests"],
   task: string
 ): VerificationTargetedTest[] {
-  return tests.map((test) => ({
-    ...test,
-    priority: priorityForTargetedTest(test, task)
-  }));
+  return tests.map((test) => {
+    const { score: _score, signals: _signals, ...publicTest } = test;
+
+    return {
+      ...publicTest,
+      priority: priorityForTargetedTest(test, task)
+    };
+  });
 }
 
 function prioritizeBuildCommands(commands: ImpactCommand[]): VerificationCommand[] {
@@ -354,93 +357,6 @@ function prioritizeChecks(
       ? priorityForSmokeCheck(check)
       : priorityForManualCheck(check, contextOnly)
   }));
-}
-
-function executionPlanId(prefix: string, index: number): string {
-  return `${prefix}-${index + 1}`;
-}
-
-function sectionRef(section: string, index: number): string {
-  return `${section}[${index}]`;
-}
-
-function targetedTestEstimatedMinutes(paths: string[]): number {
-  return Math.max(2, Math.min(15, paths.length * 2));
-}
-
-function buildExecutionPlan(plan: Omit<VerificationPlan, "executionPlan">): VerificationExecutionStep[] {
-  const steps: VerificationExecutionStep[] = [];
-
-  if (plan.targetedTests.length > 0) {
-    const targetedPaths = plan.targetedTests.map((test) => test.path);
-    const targetedPriority = highestPriority(plan.targetedTests.map((test) => test.priority));
-
-    if (plan.targetedTestCommands.length > 0) {
-      for (const [index, command] of plan.targetedTestCommands.entries()) {
-        steps.push({
-          id: executionPlanId("targeted-tests", index),
-          type: "targeted-tests",
-          title: "Run targeted tests",
-          refs: ["targetedTests", sectionRef("targetedTestCommands", index)],
-          priority: highestPriority([targetedPriority, command.priority]),
-          estimatedMinutes: targetedTestEstimatedMinutes(targetedPaths)
-        });
-      }
-    } else {
-      steps.push({
-        id: "targeted-tests-1",
-        type: "targeted-tests",
-        title: "Run targeted tests",
-        refs: ["targetedTests"],
-        priority: targetedPriority,
-        estimatedMinutes: targetedTestEstimatedMinutes(targetedPaths)
-      });
-    }
-  }
-
-  for (const [index, command] of plan.buildCommands.entries()) {
-    steps.push({
-      id: executionPlanId("build", index),
-      type: "build",
-      title: "Run build command",
-      refs: [sectionRef("buildCommands", index)],
-      priority: command.priority,
-      estimatedMinutes: 3
-    });
-  }
-
-  for (const [index, check] of plan.smokeChecks.entries()) {
-    steps.push({
-      id: executionPlanId("smoke", index),
-      type: "smoke",
-      title: `Run smoke check: ${check.type}`,
-      refs: [sectionRef("smokeChecks", index)],
-      priority: check.priority,
-      estimatedMinutes: check.command ? 3 : 5
-    });
-  }
-
-  for (const [index, check] of plan.manualChecks.entries()) {
-    steps.push({
-      id: executionPlanId("manual", index),
-      type: "manual",
-      title: `Run manual check: ${check.type}`,
-      refs: [sectionRef("manualChecks", index)],
-      priority: check.priority,
-      estimatedMinutes: check.command ? 3 : 5
-    });
-  }
-
-  steps.push({
-    id: "record-1",
-    type: "record",
-    title: "Record verification with rcc done",
-    command: 'rcc done --summary "<summary>" --files auto --verify "<checks>"',
-    priority: "low",
-    estimatedMinutes: 1
-  });
-
-  return steps;
 }
 
 function capChecks(
@@ -517,7 +433,7 @@ function finalizeVerificationPlan(plan: VerificationPlanWithoutExecution): Verif
   const buildCommands = prioritizeBuildCommands(plan.buildCommands);
   const smokeChecks = prioritizeChecks(plan.smokeChecks, "smoke", contextOnly);
   const manualChecks = prioritizeChecks(plan.manualChecks, "manual", contextOnly);
-  const finalizedPlan = {
+  return {
     ...plan,
     targetedTests,
     targetedTestCommands,
@@ -525,17 +441,13 @@ function finalizeVerificationPlan(plan: VerificationPlanWithoutExecution): Verif
     smokeChecks,
     manualChecks
   };
-
-  return {
-    ...finalizedPlan,
-    executionPlan: buildExecutionPlan(finalizedPlan)
-  };
 }
 
 function normalizeVerificationPlan(plan: VerificationPlan, level: VerificationLevel): VerificationPlan {
   let smokeChecks = normalizeCheckList(plan.smokeChecks);
   let manualChecks = normalizeCheckList(plan.manualChecks);
   const mergeIntoSmokeGroups = new Set(["frontend-ui", "backend-behavior", "cache-behavior"]);
+  const contextOnly = isContextOnlyPlan(plan);
 
   manualChecks = manualChecks.filter((manualCheckItem) => {
     const manualGroup = checkGroup(manualCheckItem.type);
@@ -549,14 +461,17 @@ function normalizeVerificationPlan(plan: VerificationPlan, level: VerificationLe
     return false;
   });
 
-  return finalizeVerificationPlan({
+  const trimmedSmokeChecks = trimCheckPaths(capChecks(smokeChecks, level, "smoke"), level);
+  const trimmedManualChecks = retainSecondaryContextReview(
+    trimCheckPaths(capChecks(manualChecks, level, "manual"), level),
+    trimCheckPaths(manualChecks, level)
+  );
+
+  return {
     ...plan,
-    smokeChecks: trimCheckPaths(capChecks(smokeChecks, level, "smoke"), level),
-    manualChecks: retainSecondaryContextReview(
-      trimCheckPaths(capChecks(manualChecks, level, "manual"), level),
-      trimCheckPaths(manualChecks, level)
-    )
-  });
+    smokeChecks: prioritizeChecks(trimmedSmokeChecks, "smoke", contextOnly),
+    manualChecks: prioritizeChecks(trimmedManualChecks, "manual", contextOnly)
+  };
 }
 
 function commandsByType(commands: ImpactCommand[], type: ImpactCommand["type"]): ImpactCommand[] {
@@ -1143,8 +1058,6 @@ function contextOnlyValidationChecklist(impact: ImpactAnalysis): string[] {
     checklist.push("Run `rcc validate` if context files changed.");
   }
 
-  checklist.push("Record verification with `rcc done` only if the context change is meaningful.");
-
   return checklist;
 }
 
@@ -1212,27 +1125,17 @@ function validationChecklistFromImpact(
   const domainItems = domainValidationChecklistItems(impact);
   const checklist: string[] = domainItems.length === 0 ? ["Inspect affected files."] : [];
 
-  if (targetedTests.length > 0) {
-    checklist.push("Run targeted tests.");
-  } else if (domainItems.length === 0) {
+  if (targetedTests.length === 0 && domainItems.length === 0) {
     checklist.push("No strongly related tests were found; do not add generic tests.");
-  }
-
-  if (impact.suggestedCommands.some((command) => command.type === "build")) {
-    checklist.push("Run build command.");
   }
 
   if (domainItems.length > 0) {
     checklist.push(...domainItems);
-  } else if (smokeChecksFromImpact(impact).length > 0) {
-    checklist.push("Perform smoke checks.");
   }
 
   if (impact.contextChanges.length > 0) {
     checklist.push("Confirm RCC context changes are intentional.");
   }
-
-  checklist.push("Record verification with `rcc done`.");
 
   return checklist;
 }

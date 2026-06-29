@@ -17,8 +17,7 @@
       "validationChecklist",
       "confidence",
       "confidenceExplanation",
-      "notes",
-      "executionPlan"
+      "notes"
     ],
     "summary": {
       "changedFiles": 0,
@@ -33,9 +32,7 @@
         "confidence": "strong",
         "priority": "high",
         "informational": [
-          "reason",
-          "score",
-          "signals"
+          "reason"
         ]
       }
     ],
@@ -100,93 +97,11 @@
         ]
       }
     ],
-    "executionPlan": [
-      {
-        "id": "targeted-tests-1",
-        "type": "targeted-tests",
-        "refs": [
-          "targetedTests",
-          "targetedTestCommands[0]"
-        ],
-        "command": null,
-        "priority": "high",
-        "estimatedMinutes": 2,
-        "informational": [
-          "title"
-        ]
-      },
-      {
-        "id": "build-1",
-        "type": "build",
-        "refs": [
-          "buildCommands[0]"
-        ],
-        "command": null,
-        "priority": "high",
-        "estimatedMinutes": 3,
-        "informational": [
-          "title"
-        ]
-      },
-      {
-        "id": "smoke-1",
-        "type": "smoke",
-        "refs": [
-          "smokeChecks[0]"
-        ],
-        "command": null,
-        "priority": "high",
-        "estimatedMinutes": 5,
-        "informational": [
-          "title"
-        ]
-      },
-      {
-        "id": "manual-1",
-        "type": "manual",
-        "refs": [
-          "manualChecks[0]"
-        ],
-        "command": null,
-        "priority": "high",
-        "estimatedMinutes": 5,
-        "informational": [
-          "title"
-        ]
-      },
-      {
-        "id": "manual-2",
-        "type": "manual",
-        "refs": [
-          "manualChecks[1]"
-        ],
-        "command": null,
-        "priority": "high",
-        "estimatedMinutes": 5,
-        "informational": [
-          "title"
-        ]
-      },
-      {
-        "id": "record-1",
-        "type": "record",
-        "refs": [],
-        "command": "rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"",
-        "priority": "low",
-        "estimatedMinutes": 1,
-        "informational": [
-          "title"
-        ]
-      }
-    ],
     "validationChecklist": [
-      "Run targeted tests.",
-      "Run build command.",
       "Verify cache miss behavior.",
       "Verify cache hit behavior.",
       "Verify cache invalidation behavior.",
-      "Verify Redis/cache backend unavailable fallback.",
-      "Record verification with `rcc done`."
+      "Verify Redis/cache backend unavailable fallback."
     ],
     "confidence": "high",
     "informationalTopLevel": [
@@ -212,8 +127,7 @@
       "validationChecklist",
       "confidence",
       "confidenceExplanation",
-      "notes",
-      "executionPlan"
+      "notes"
     ],
     "summary": {
       "changedFiles": 0,
@@ -247,51 +161,11 @@
         ]
       }
     ],
-    "executionPlan": [
-      {
-        "id": "smoke-1",
-        "type": "smoke",
-        "refs": [
-          "smokeChecks[0]"
-        ],
-        "command": null,
-        "priority": "high",
-        "estimatedMinutes": 5,
-        "informational": [
-          "title"
-        ]
-      },
-      {
-        "id": "manual-1",
-        "type": "manual",
-        "refs": [
-          "manualChecks[0]"
-        ],
-        "command": null,
-        "priority": "high",
-        "estimatedMinutes": 5,
-        "informational": [
-          "title"
-        ]
-      },
-      {
-        "id": "record-1",
-        "type": "record",
-        "refs": [],
-        "command": "rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"",
-        "priority": "low",
-        "estimatedMinutes": 1,
-        "informational": [
-          "title"
-        ]
-      }
-    ],
     "validationChecklist": [
       "Verify login flow.",
       "Verify logout flow.",
       "Verify invalid credentials behavior.",
-      "Verify session expiration behavior.",
-      "Record verification with `rcc done`."
+      "Verify session expiration behavior."
     ],
     "confidence": "low",
     "informationalTopLevel": [

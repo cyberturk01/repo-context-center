@@ -5632,4 +5632,50 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-29T14:41:08.473Z
+- Summary: Simplified verify output contract to recommendation-only fields
+- Changed files: `README.md`, `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `src/cli/verify/verifyTypes.ts`, `tests/fixtures/verify-json-contract-snapshots.json`, `tests/outputContract.test.js`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Simplified verify output contract to recommendation-only fields",
+  "files": [
+    "README.md",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/fixtures/verify-json-contract-snapshots.json",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T14:41:08.473Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T14:41:08.473Z",
+  "summary": "Simplified verify output contract to recommendation-only fields",
+  "files": [
+    "README.md",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/fixtures/verify-json-contract-snapshots.json",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

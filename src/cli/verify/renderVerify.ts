@@ -1,7 +1,7 @@
-import type { ImpactAffectedTest, ImpactCommand, ImpactVerificationHint } from "../impact/impactTypes";
-import type { VerificationExecutionStep, VerificationPlan } from "./verifyTypes";
+import type { ImpactCommand, ImpactVerificationHint } from "../impact/impactTypes";
+import type { VerificationPlan } from "./verifyTypes";
 
-function formatTests(tests: ImpactAffectedTest[]): string[] {
+function formatTests(tests: VerificationPlan["targetedTests"]): string[] {
   if (tests.length === 0) {
     return ["- none"];
   }
@@ -37,20 +37,6 @@ function formatManualChecks(checks: ImpactVerificationHint[]): string[] {
     const priority = "priority" in check ? ` [${check.priority}]` : "";
 
     return `- ${check.type}${priority}: ${check.reason}${paths}${command}`;
-  });
-}
-
-function formatExecutionPlan(steps: VerificationExecutionStep[]): string[] {
-  if (steps.length === 0) {
-    return ["- none"];
-  }
-
-  return steps.map((step, index) => {
-    const command = step.command ? `: ${step.command}` : "";
-    const paths = step.paths && step.paths.length > 0 ? ` [${step.paths.join(", ")}]` : "";
-    const refs = step.refs && step.refs.length > 0 ? ` (see ${step.refs.join(", ")})` : "";
-
-    return `${index + 1}. ${step.title} [${step.priority}, ~${step.estimatedMinutes}m]${refs}${paths}${command}`;
   });
 }
 
@@ -92,9 +78,6 @@ export function renderVerifyText(plan: VerificationPlan): string {
     "",
     "Manual checks:",
     ...formatManualChecks(plan.manualChecks),
-    "",
-    "Execution plan:",
-    ...formatExecutionPlan(plan.executionPlan),
     "",
     "Validation checklist:",
     ...formatChecklist(plan.validationChecklist),

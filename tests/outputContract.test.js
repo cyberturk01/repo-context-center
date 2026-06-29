@@ -61,7 +61,6 @@ function assertVerifyJsonContract(plan, task, mode) {
     "command",
     "confidence",
     "confidenceExplanation",
-    "executionPlan",
     "manualChecks",
     "mode",
     "notes",
@@ -82,7 +81,6 @@ function assertVerifyJsonContract(plan, task, mode) {
   assert.ok(Array.isArray(plan.buildCommands));
   assert.ok(Array.isArray(plan.smokeChecks));
   assert.ok(Array.isArray(plan.manualChecks));
-  assert.ok(Array.isArray(plan.executionPlan));
   assert.ok(Array.isArray(plan.validationChecklist));
   assert.ok(Array.isArray(plan.notes));
   for (const collection of [plan.targetedTests, plan.targetedTestCommands, plan.buildCommands, plan.smokeChecks, plan.manualChecks]) {
@@ -90,13 +88,9 @@ function assertVerifyJsonContract(plan, task, mode) {
       assert.match(item.priority, /^(critical|high|medium|low)$/);
     }
   }
-  for (const step of plan.executionPlan) {
-    assertHasKeys(step, ["id", "type", "title", "priority", "estimatedMinutes"], "verify execution step");
-    assert.match(step.priority, /^(critical|high|medium|low)$/);
-    assert.equal(typeof step.estimatedMinutes, "number");
-    if ("refs" in step) {
-      assertPathArray(step.refs, "verify execution step refs");
-    }
+  for (const item of plan.targetedTests) {
+    assert.equal("score" in item, false);
+    assert.equal("signals" in item, false);
   }
   assert.equal(typeof plan.confidence, "string");
   assert.equal(typeof plan.confidenceExplanation, "object");
@@ -104,6 +98,7 @@ function assertVerifyJsonContract(plan, task, mode) {
   assert.equal("suggestedCommands" in plan, false);
   assert.equal("changedFiles" in plan, false);
   assert.equal("contextChanges" in plan, false);
+  assert.equal("executionPlan" in plan, false);
 }
 
 function informationalKeys(value, keys) {
@@ -115,7 +110,7 @@ function stableTestSnapshot(testItem) {
     path: testItem.path,
     confidence: testItem.confidence,
     priority: testItem.priority,
-    informational: informationalKeys(testItem, ["reason", "score", "signals"])
+    informational: informationalKeys(testItem, ["reason"])
   };
 }
 
@@ -140,18 +135,6 @@ function stableCheckSnapshot(check) {
   };
 }
 
-function stableExecutionStepSnapshot(step) {
-  return {
-    id: step.id,
-    type: step.type,
-    refs: step.refs ?? [],
-    command: step.command ?? null,
-    priority: step.priority,
-    estimatedMinutes: step.estimatedMinutes,
-    informational: informationalKeys(step, ["title"])
-  };
-}
-
 function verifyStableContractSnapshot(plan) {
   return {
     schemaVersion: plan.schemaVersion,
@@ -164,7 +147,6 @@ function verifyStableContractSnapshot(plan) {
     buildCommands: plan.buildCommands.map(stableCommandSnapshot),
     smokeChecks: plan.smokeChecks.map(stableCheckSnapshot),
     manualChecks: plan.manualChecks.map(stableCheckSnapshot),
-    executionPlan: plan.executionPlan.map(stableExecutionStepSnapshot),
     validationChecklist: plan.validationChecklist,
     confidence: plan.confidence,
     informationalTopLevel: informationalKeys(plan, ["confidenceExplanation", "notes"])
@@ -453,6 +435,6 @@ test("README documents verify JSON stable, informational, and internal fields", 
 
   assert.match(readme, /`verify --json` is intended for long-lived integrations/);
   assert.match(readme, /Stable: top-level fields `schemaVersion`, `command`, `task`, `mode`, `summary`/);
-  assert.match(readme, /Experimental\/informational: `reason`, `score`, `signals`, `title`, `confidenceExplanation`, and `notes`/);
-  assert.match(readme, /Internal and intentionally omitted: raw Impact collections/);
+  assert.match(readme, /Experimental\/informational: `reason`, `confidenceExplanation`, and `notes`/);
+  assert.match(readme, /Internal and intentionally omitted: execution plans, estimated minutes, coverage percentages, verification scores/);
 });

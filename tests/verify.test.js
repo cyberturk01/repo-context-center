@@ -114,6 +114,10 @@ function impactAnalysis(overrides = {}) {
   };
 }
 
+function publicTargetedTests(tests) {
+  return tests.map(({ score, signals, ...test }) => test);
+}
+
 test("createVerificationPlan constructs the shared verification plan model", () => {
   const plan = createVerificationPlan({
     task: "add redis cache",
@@ -172,7 +176,6 @@ test("createVerificationPlan constructs the shared verification plan model", () 
     "command",
     "confidence",
     "confidenceExplanation",
-    "executionPlan",
     "manualChecks",
     "mode",
     "notes",
@@ -194,6 +197,8 @@ test("createVerificationPlan constructs the shared verification plan model", () 
   assert.equal(plan.targetedTests[0].path, "tests/cache/redis.spec.ts");
   assert.equal(plan.targetedTests[0].confidence, "strong");
   assert.equal(plan.targetedTests[0].priority, "high");
+  assert.equal("score" in plan.targetedTests[0], false);
+  assert.equal("signals" in plan.targetedTests[0], false);
   assert.deepEqual(plan.targetedTestCommands, []);
   assert.equal(plan.buildCommands[0].type, "build");
   assert.equal(plan.buildCommands[0].priority, "high");
@@ -202,13 +207,6 @@ test("createVerificationPlan constructs the shared verification plan model", () 
   assert.equal("command" in plan.smokeChecks[0], false);
   assert.equal(plan.manualChecks[0].type, "config");
   assert.equal(plan.manualChecks[0].priority, "high");
-  assert.deepEqual(plan.executionPlan.map((step) => step.type), [
-    "targeted-tests",
-    "build",
-    "smoke",
-    "manual",
-    "record"
-  ]);
   assert.deepEqual(plan.validationChecklist, [
     "Focused cache test passes",
     "Build still succeeds",
@@ -249,7 +247,6 @@ test("createVerificationPlan defaults optional collections to empty arrays", () 
   assert.deepEqual(plan.buildCommands, []);
   assert.deepEqual(plan.smokeChecks, []);
   assert.deepEqual(plan.manualChecks, []);
-  assert.deepEqual(plan.executionPlan.map((step) => step.type), ["record"]);
   assert.deepEqual(plan.validationChecklist, []);
   assert.deepEqual(plan.notes, []);
   assert.equal(plan.confidence, "low");
@@ -279,7 +276,7 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
   assert.equal(plan.task, impact.task);
   assert.equal(plan.mode, impact.mode);
   assert.deepEqual(plan.summary, impact.summary);
-  assert.deepEqual(plan.targetedTests.map(({ priority, ...test }) => test), impact.affectedTests);
+  assert.deepEqual(plan.targetedTests.map(({ priority, ...test }) => test), publicTargetedTests(impact.affectedTests));
   assert.deepEqual(plan.targetedTestCommands.map((command) => command.command), [
     "node --test tests/cache/redis.spec.ts"
   ]);
@@ -317,25 +314,12 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
     check.type === "affected-files"
     && check.paths.includes("src/cache/redis.ts")
   )));
-  assert.deepEqual(plan.executionPlan.map((step) => step.type), [
-    "targeted-tests",
-    "build",
-    "smoke",
-    "manual",
-    "manual",
-    "manual",
-    "manual",
-    "record"
-  ]);
   assert.deepEqual(plan.validationChecklist, [
-    "Run targeted tests.",
-    "Run build command.",
     "Verify cache miss behavior.",
     "Verify cache hit behavior.",
     "Verify cache invalidation behavior.",
     "Verify Redis/cache backend unavailable fallback.",
-    "Confirm RCC context changes are intentional.",
-    "Record verification with `rcc done`."
+    "Confirm RCC context changes are intentional."
   ]);
 });
 
@@ -368,7 +352,7 @@ test("createVerificationPlanFromImpact preserves verification for non-context ch
 
   const plan = createVerificationPlanFromImpact(impact);
 
-  assert.deepEqual(plan.targetedTests.map(({ priority, ...test }) => test), impact.affectedTests);
+  assert.deepEqual(plan.targetedTests.map(({ priority, ...test }) => test), publicTargetedTests(impact.affectedTests));
   assert.deepEqual(plan.targetedTestCommands.map((command) => command.command), [
     "node --test tests/cache/redis.spec.ts"
   ]);
@@ -406,8 +390,7 @@ test("createVerificationPlanFromImpact suggests a login/auth smoke check for fix
     "Verify login flow.",
     "Verify logout flow.",
     "Verify invalid credentials behavior.",
-    "Verify session expiration behavior.",
-    "Record verification with `rcc done`."
+    "Verify session expiration behavior."
   ]);
 });
 
@@ -456,13 +439,10 @@ test("createVerificationPlanFromImpact suggests cache and fallback smoke checks 
   assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: cache")));
   assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: redis")));
   assert.deepEqual(plan.validationChecklist, [
-    "Run targeted tests.",
-    "Run build command.",
     "Verify cache miss behavior.",
     "Verify cache hit behavior.",
     "Verify cache invalidation behavior.",
-    "Verify Redis/cache backend unavailable fallback.",
-    "Record verification with `rcc done`."
+    "Verify Redis/cache backend unavailable fallback."
   ]);
 });
 
@@ -496,8 +476,7 @@ test("createVerificationPlanFromImpact suggests a workflow smoke check for impro
     "Verify workflow syntax.",
     "Verify workflow trigger conditions.",
     "Verify workflow permissions.",
-    "Verify required secrets.",
-    "Record verification with `rcc done`."
+    "Verify required secrets."
   ]);
   assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: workflow")));
   assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
@@ -605,8 +584,7 @@ test("change postgres schema prioritizes backend database paths over UI-only ref
   assert.deepEqual(plan.validationChecklist, [
     "Verify migration compatibility.",
     "Verify rollback behavior.",
-    "Verify existing data compatibility.",
-    "Record verification with `rcc done`."
+    "Verify existing data compatibility."
   ]);
   assert.equal(plan.manualChecks.some((check) => (
     check.type === "postgres-ui-reference"
@@ -901,9 +879,7 @@ test("createVerificationPlanFromImpact does not invent tests when Impact has no 
   assert.deepEqual(plan.smokeChecks.map((check) => check.type), ["docs-rendering"]);
   assert.deepEqual(plan.validationChecklist, [
     "Inspect affected files.",
-    "No strongly related tests were found; do not add generic tests.",
-    "Perform smoke checks.",
-    "Record verification with `rcc done`."
+    "No strongly related tests were found; do not add generic tests."
   ]);
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "affected-files"
@@ -965,8 +941,7 @@ test("login task with no strong tests reports no strongly related tests", () => 
     "Verify login flow.",
     "Verify logout flow.",
     "Verify invalid credentials behavior.",
-    "Verify session expiration behavior.",
-    "Record verification with `rcc done`."
+    "Verify session expiration behavior."
   ]);
   assert.equal(plan.targetedTestCommands.some((command) => command.command === "npm test"), false);
   assert.ok(plan.smokeChecks.some((check) => check.type === "auth-flow"));
@@ -1036,7 +1011,7 @@ test("redis task promotes only strong Redis and cache tests into runnable target
   assert.ok(plan.smokeChecks.some((check) => check.type === "cache-behavior"));
 });
 
-test("execution plan orders verification phases and carries priorities", () => {
+test("verification recommendations carry priorities without planner output", () => {
   const plan = createVerificationPlanFromImpact(impactAnalysis({
     task: "fix auth database schema compatibility",
     affectedFiles: [
@@ -1069,39 +1044,16 @@ test("execution plan orders verification phases and carries priorities", () => {
     ]
   }), "deep");
 
-  assert.deepEqual(plan.executionPlan.map((step) => step.type), [
-    "targeted-tests",
-    "build",
-    "smoke",
-    "smoke",
-    "manual",
-    "manual",
-    "manual",
-    "manual",
-    "manual",
-    "record"
-  ]);
   assert.equal(plan.targetedTests[0].priority, "critical");
+  assert.equal("score" in plan.targetedTests[0], false);
+  assert.equal("signals" in plan.targetedTests[0], false);
   assert.equal(plan.targetedTestCommands[0].priority, "critical");
   assert.equal(plan.buildCommands[0].priority, "high");
   assert.equal(plan.smokeChecks.find((check) => check.type === "auth-flow").priority, "high");
   assert.equal(plan.manualChecks.find((check) => check.type === "security-session").priority, "high");
   assert.equal(plan.manualChecks.find((check) => check.type === "schema-compatibility").priority, "critical");
   assert.equal(plan.manualChecks.find((check) => check.type === "data-rollback-impact").priority, "high");
-  assert.deepEqual(plan.executionPlan[0], {
-    id: "targeted-tests-1",
-    type: "targeted-tests",
-    title: "Run targeted tests",
-    refs: ["targetedTests", "targetedTestCommands[0]"],
-    priority: "critical",
-    estimatedMinutes: 2
-  });
-  assert.equal("command" in plan.executionPlan[0], false);
-  assert.equal("paths" in plan.executionPlan[0], false);
-  assert.deepEqual(plan.executionPlan[1].refs, ["buildCommands[0]"]);
-  assert.deepEqual(plan.executionPlan[2].refs, ["smokeChecks[0]"]);
-  assert.deepEqual(plan.executionPlan[4].refs, ["manualChecks[0]"]);
-  assert.equal(plan.executionPlan.at(-1).command, 'rcc done --summary "<summary>" --files auto --verify "<checks>"');
+  assert.equal("executionPlan" in plan, false);
 });
 
 test("context routing review is low priority unless only context files changed", () => {
@@ -1164,7 +1116,7 @@ test("context routing review is low priority unless only context files changed",
 
   assert.equal(mixedPlan.manualChecks.find((check) => check.type === "context-routing").priority, "low");
   assert.equal(contextOnlyPlan.manualChecks.find((check) => check.type === "context-changes").priority, "medium");
-  assert.deepEqual(contextOnlyPlan.executionPlan.map((step) => step.type), ["manual", "record"]);
+  assert.equal("executionPlan" in contextOnlyPlan, false);
 });
 
 test("auth task caps strong targeted tests for small tasks", () => {
@@ -1257,12 +1209,10 @@ test("workflow task keeps workflow and config checks without generic targeted te
   assert.deepEqual(plan.targetedTests, []);
   assert.deepEqual(plan.targetedTestCommands, []);
   assert.deepEqual(plan.validationChecklist, [
-    "Run build command.",
     "Verify workflow syntax.",
     "Verify workflow trigger conditions.",
     "Verify workflow permissions.",
-    "Verify required secrets.",
-    "Record verification with `rcc done`."
+    "Verify required secrets."
   ]);
   assert.ok(plan.smokeChecks.some((check) => check.type === "ci-workflow"));
   assert.ok(plan.manualChecks.some((check) => check.type === "workflow-lint"));
@@ -1445,12 +1395,10 @@ test("createVerificationPlanFromImpact is conservative for context-only route es
       priority: "medium"
     }
   ]);
-  assert.deepEqual(plan.executionPlan.map((step) => step.type), ["manual", "record"]);
   assert.deepEqual(plan.validationChecklist, [
     "Inspect context changes.",
     "Confirm RCC workflow/context changes are intentional.",
-    "Run `rcc validate` if context files changed.",
-    "Record verification with `rcc done` only if the context change is meaningful."
+    "Run `rcc validate` if context files changed."
   ]);
   assert.ok(plan.notes.includes(
     "Context-only changes detected; verify focuses on RCC/context files and does not promote task-route estimates to targeted tests or smoke checks."
@@ -1826,13 +1774,10 @@ test("verify --json builds recommendations from Impact analysis", () => {
     && check.paths.includes("src/cache/redis.ts")
   )));
   assert.deepEqual(plan.validationChecklist, [
-    "Run targeted tests.",
-    "Run build command.",
     "Verify cache miss behavior.",
     "Verify cache hit behavior.",
     "Verify cache invalidation behavior.",
-    "Verify Redis/cache backend unavailable fallback.",
-    "Record verification with `rcc done`."
+    "Verify Redis/cache backend unavailable fallback."
   ]);
   assert.equal("affectedFiles" in plan, false);
   assert.equal("suggestedCommands" in plan, false);
@@ -1887,7 +1832,8 @@ test("verify text output is compact and recommendation-only", () => {
   assert.match(result.stdout, /Targeted test commands:\n- none/);
   assert.match(result.stdout, /Manual checks:/);
   assert.match(result.stdout, /Validation checklist:\n- Inspect affected files\.\n- No strongly related tests were found; do not add generic tests\./);
-  assert.match(result.stdout, /- Record verification with `rcc done`\./);
+  assert.doesNotMatch(result.stdout, /Execution plan:/);
+  assert.doesNotMatch(result.stdout, /estimatedMinutes|~\d+m/);
   assert.doesNotMatch(result.stdout, /Changed files:|Affected files:|Suggested commands:/);
   assert.doesNotMatch(result.stdout, /redis\.spec\.ts|worker\.spec\.ts|public\.spec\.ts/);
 });

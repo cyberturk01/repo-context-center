@@ -9,7 +9,7 @@ import type {
 
 export type VerificationPriority = "critical" | "high" | "medium" | "low";
 
-export type VerificationTargetedTest = ImpactAffectedTest & {
+export type VerificationTargetedTest = Omit<ImpactAffectedTest, "score" | "signals"> & {
   priority: VerificationPriority;
 };
 
@@ -20,17 +20,6 @@ export type VerificationCommand = ImpactCommand & {
 export type VerificationCheck = ImpactVerificationHint & {
   priority: VerificationPriority;
 };
-
-export interface VerificationExecutionStep {
-  id: string;
-  type: "targeted-tests" | "build" | "smoke" | "manual" | "record";
-  title: string;
-  refs?: string[];
-  command?: string;
-  paths?: string[];
-  priority: VerificationPriority;
-  estimatedMinutes: number;
-}
 
 export interface VerificationPlan {
   schemaVersion: 1;
@@ -43,7 +32,6 @@ export interface VerificationPlan {
   buildCommands: VerificationCommand[];
   smokeChecks: VerificationCheck[];
   manualChecks: VerificationCheck[];
-  executionPlan: VerificationExecutionStep[];
   validationChecklist: string[];
   confidence: ImpactAnalysis["confidence"];
   confidenceExplanation: ImpactConfidenceExplanation;
