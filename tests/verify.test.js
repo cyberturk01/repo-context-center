@@ -573,6 +573,70 @@ test("github integration files do not get workflow lint without workflow YAML", 
   assert.equal(plan.confidenceExplanation.reasons.some((reason) => reason.includes("src/api/githubController.ts")), false);
 });
 
+test("update github workflow routed to API files stays GitHub integration only", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "update github workflow",
+    affectedFiles: [
+      {
+        path: "src/controllers/githubWebhookController.ts",
+        reason: "task routing matched"
+      },
+      {
+        path: "src/integrations/githubClient.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/integrations/githubClient.spec.ts",
+        reason: "task route matched github integration test",
+        score: 110,
+        confidence: "strong",
+        signals: ["filename similarity"]
+      }
+    ],
+    suggestedCommands: []
+  }), "deep");
+
+  assert.equal(plan.smokeChecks.some((check) => check.type === "ci-workflow"), false);
+  assert.equal(plan.manualChecks.some((check) => check.type === "workflow-lint"), false);
+  assert.equal(plan.manualChecks.some((check) => check.type === "workflow-triggers-secrets"), false);
+  assert.ok(plan.smokeChecks.some((check) => check.type === "github-integration"));
+  assert.ok(plan.manualChecks.some((check) => check.type === "github-api-integration"));
+  assert.ok(plan.smokeChecks.some((check) => check.type === "backend-behavior"));
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: github-integration"));
+  assert.equal(plan.confidenceExplanation.reasons.includes("domain matched: workflow"), false);
+});
+
+test("actual workflow yaml keeps workflow lint and trigger checks", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "tighten ci workflow yaml",
+    affectedFiles: [
+      {
+        path: ".github/workflows/deploy.yml",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: []
+  }), "deep");
+
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "ci-workflow"
+    && check.paths.includes(".github/workflows/deploy.yml")
+  )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "yaml-syntax"
+    && check.command === "yamllint .github/workflows/deploy.yml"
+  )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "workflow-lint"
+    && check.command === "actionlint .github/workflows/deploy.yml"
+  )));
+  assert.ok(plan.manualChecks.some((check) => check.type === "workflow-triggers-secrets"));
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: workflow"));
+});
+
 test("change postgres schema prioritizes backend database paths over UI-only references", () => {
   const plan = createVerificationPlanFromImpact(impactAnalysis({
     task: "change postgres schema",
@@ -606,6 +670,30 @@ test("change postgres schema prioritizes backend database paths over UI-only ref
     check.type === "postgres-ui-reference"
     && check.paths.includes("src/ui/PostgresIcon.tsx")
   )), false);
+});
+
+test("postgres schema task with UI helper paths avoids database and UI smoke checks", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "change postgres schema",
+    affectedFiles: [
+      {
+        path: "src/ui/PostgresIcon.tsx",
+        reason: "task routing matched"
+      },
+      {
+        path: "src/frontend/postgresLabelHelper.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: []
+  }), "deep");
+
+  assert.equal(plan.manualChecks.some((check) => check.type === "schema-compatibility"), false);
+  assert.equal(plan.manualChecks.some((check) => check.type === "data-rollback-impact"), false);
+  assert.equal(plan.smokeChecks.some((check) => check.type === "database-behavior"), false);
+  assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
+  assert.ok(plan.manualChecks.some((check) => check.type === "postgres-ui-reference"));
 });
 
 test("ui-only postgres paths stay low priority and avoid schema checks", () => {
@@ -661,6 +749,64 @@ test("improve auth middleware adds session security checks without frontend-only
   assert.equal(plan.manualChecks.some((check) => check.type === "frontend-regression"), false);
   assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: auth"));
   assert.equal(plan.confidenceExplanation.reasons.some((reason) => reason.includes("src/auth/middleware.ts")), false);
+});
+
+test("redis cache task with frontend utility avoids visible UI smoke", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "add redis cache",
+    affectedFiles: [
+      {
+        path: "src/frontend/cacheKeyUtils.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/frontend/cacheKeyUtils.spec.ts",
+        reason: "task route matched cache utility test",
+        score: 92,
+        confidence: "strong",
+        signals: ["filename similarity"]
+      }
+    ],
+    suggestedCommands: []
+  }), "deep");
+
+  assert.ok(plan.smokeChecks.some((check) => check.type === "cache-behavior"));
+  assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
+  assert.equal(plan.manualChecks.some((check) => check.type === "frontend-regression"), false);
+});
+
+test("auth middleware task with UI and backend files keeps both domain checks precise", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "improve auth middleware",
+    affectedFiles: [
+      {
+        path: "src/auth/middleware.ts",
+        reason: "task routing matched"
+      },
+      {
+        path: "src/components/LoginPanel.tsx",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: []
+  }), "deep");
+
+  assert.ok(plan.smokeChecks.some((check) => check.type === "auth-flow"));
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "frontend-ui"
+    && check.paths.includes("src/components/LoginPanel.tsx")
+  )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "security-session"
+    && check.paths.includes("src/auth/middleware.ts")
+  )));
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "backend-behavior"
+    && check.paths.includes("src/auth/middleware.ts")
+  )));
 });
 
 [
@@ -1481,17 +1627,16 @@ test("planned mode promotes login task estimates without source changes", () => 
     check.type === "auth-flow"
     && check.paths.includes("src/auth/login.ts")
   )));
-  assert.ok(plan.manualChecks.some((check) => (
-    check.type === "context-routing"
-    && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
-  )));
+  assert.equal(plan.manualChecks.some((check) => check.type === "context-routing"), false);
   assert.equal(plan.manualChecks.some((check) => check.type === "affected-files"), false);
+  assert.equal(plan.confidenceExplanation.evidence.contextOnlyChanges, false);
+  assert.equal(plan.confidenceExplanation.reasons[0], "task routing matched");
+  assert.equal(plan.confidenceExplanation.reasons.includes("context-only changes detected"), false);
   assert.ok(plan.notes.includes(
     "Planned verification mode: plan uses task routing, impact analysis, and repository learning without requiring source code changes."
   ));
-  assert.ok(plan.notes.includes(
-    "Planned verification mode: promoted task-route estimates even though no non-context changed files were present."
-  ));
+  assert.equal(plan.notes.some((note) => /context-only/i.test(note)), false);
+  assert.equal(plan.notes.some((note) => /promoted task-route estimates/i.test(note)), false);
 });
 
 test("planned mode promotes redis task estimates without source changes", () => {
@@ -1527,6 +1672,8 @@ test("planned mode promotes redis task estimates without source changes", () => 
     check.type === "cache-behavior"
     && check.paths.includes("src/cache/redis.ts")
   )));
+  assert.equal(plan.manualChecks.some((check) => check.type === "context-routing"), false);
+  assert.equal(plan.confidenceExplanation.reasons.includes("domain matched: context"), false);
 });
 
 test("planned mode omits context-routing when no context changes exist", () => {
@@ -1609,10 +1756,7 @@ test("planned mode promotes workflow task estimates without source changes", () 
     check.type === "ci-workflow"
     && check.paths.includes(".github/workflows/ci.yml")
   )));
-  assert.ok(plan.manualChecks.some((check) => (
-    check.type === "context-routing"
-    && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
-  )));
+  assert.equal(plan.manualChecks.some((check) => check.type === "context-routing"), false);
   assert.equal(plan.manualChecks.some((check) => check.type === "affected-files"), false);
 });
 
@@ -1646,10 +1790,7 @@ test("planned auth verification output is normalized", () => {
   assert.equal(plan.mode, "planned-task");
   assert.ok(plan.smokeChecks.some((check) => check.type === "auth-flow"));
   assert.ok(plan.manualChecks.some((check) => check.type === "invalid-credentials"));
-  assert.ok(plan.manualChecks.some((check) => (
-    check.type === "context-routing"
-    && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
-  )));
+  assert.equal(plan.manualChecks.some((check) => check.type === "context-routing"), false);
   assert.equal(plan.manualChecks.some((check) => check.type === "affected-files"), false);
   assert.equal(plan.manualChecks.length <= 4, true);
 });
@@ -1719,11 +1860,57 @@ test("planned github actions verification output is capped and executable", () =
     && check.command === "actionlint .github/workflows/release.yaml"
   )));
   assert.ok(plan.manualChecks.some((check) => check.type === "workflow-triggers-secrets"));
+  assert.equal(plan.manualChecks.some((check) => check.type === "context-routing"), false);
+  assert.equal(plan.manualChecks.length <= 5, true);
+});
+
+test("planned mode keeps explicit context tasks secondary with context-only working tree", () => {
+  const plan = createPlannedVerificationPlanFromImpact(impactAnalysis({
+    task: "refresh rcc context routing",
+    mode: "working-tree",
+    affectedFiles: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      reasons: [
+        "context-only changes detected",
+        "task routing matched"
+      ],
+      evidence: {
+        changedFiles: 1,
+        nonContextChangedFiles: 0,
+        contextChanges: 1,
+        affectedFiles: 1,
+        affectedTests: 0,
+        contextOnlyChanges: true,
+        testRelationship: "none"
+      }
+    })
+  }));
+
+  assert.equal(plan.mode, "planned-task");
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "context-routing"
+    && check.priority === "low"
     && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
   )));
-  assert.equal(plan.manualChecks.length <= 5, true);
+  assert.equal(plan.confidenceExplanation.reasons.includes("domain matched: context"), true);
+  assert.equal(plan.confidenceExplanation.reasons.includes("context-only changes detected"), false);
+  assert.equal(
+    plan.validationChecklist[plan.validationChecklist.length - 1],
+    "Confirm RCC context changes are intentional."
+  );
 });
 
 test("createVerificationPlanFromImpact does not let context paths trigger source smoke checks", () => {

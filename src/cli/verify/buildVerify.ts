@@ -12,6 +12,9 @@ import type {
 } from "./verifyTypes";
 
 const contextOnlyConfidenceReason = "verify confidence reduced because only context files changed";
+const contextOnlyVerificationNote = "Context-only changes detected; verify focuses on RCC/context files and does not promote task-route estimates to targeted tests or smoke checks.";
+const contextOnlyImpactNote = "Context-only impact detected; verify context changes manually.";
+const plannedModeNote = "Planned verification mode: plan uses task routing, impact analysis, and repository learning without requiring source code changes.";
 const runnableNodeTestPattern = /\.(test|spec)\.[cm]?[jt]sx?$/i;
 const maximumTargetedTestCommandLength = 300;
 const defaultVerificationLevel: VerificationLevel = "balanced";
@@ -79,6 +82,15 @@ function isDocsPath(filePath: string): boolean {
     || filePath.startsWith("docs/")
     || filePath.endsWith(".md")
     || filePath.endsWith(".mdx")
+  );
+}
+
+function isContextPath(filePath: string): boolean {
+  return (
+    /^agents\.md$/i.test(filePath)
+    || /^docs\/ai-context\//i.test(filePath)
+    || /^\.agents\//i.test(filePath)
+    || /^\.codex\//i.test(filePath)
   );
 }
 
@@ -539,6 +551,30 @@ function textMatches(value: string, pattern: RegExp): boolean {
   return pattern.test(value);
 }
 
+function taskMentionsContext(task: string): boolean {
+  return domainDefinitions.some((definition) => (
+    definition.domain === "context" && definition.pattern.test(task)
+  ));
+}
+
+function shouldIncludeContextReview(impact: ImpactAnalysis): boolean {
+  if (impact.contextChanges.length === 0) {
+    return false;
+  }
+
+  if (impact.mode !== "planned-task") {
+    return true;
+  }
+
+  const contextChangePaths = new Set(impact.contextChanges.map((file) => file.path));
+
+  return (
+    taskMentionsContext(impact.task)
+    || impact.affectedFiles.some((file) => isContextPath(file.path) || contextChangePaths.has(file.path))
+    || impact.verificationHints.some((hint) => checkGroup(hint.type) === "context-review")
+  );
+}
+
 function isContextOnlyVerification(impact: ImpactAnalysis): boolean {
   return (
     impact.mode !== "planned-task" &&
@@ -611,6 +647,10 @@ function isWorkflowPath(filePath: string): boolean {
   );
 }
 
+function hasStrongWorkflowTaskWording(task: string): boolean {
+  return /\b(github actions?|ci workflow|ci workflows|workflow ya?ml|pipeline|pipelines|ci pipeline|release pipeline)\b/i.test(task);
+}
+
 function isGithubIntegrationPath(filePath: string): boolean {
   const normalized = normalizedPath(filePath);
 
@@ -619,8 +659,8 @@ function isGithubIntegrationPath(filePath: string): boolean {
   }
 
   return (
-    /\bgithub\b/i.test(normalized)
-    && /\b(api|app|apps|client|clients|controller|controllers|integration|integrations|route|routes|service|services|webhook|webhooks)\b/i.test(normalized)
+    /github/i.test(normalized)
+    && /(api|app|apps|client|clients|controller|controllers|integration|integrations|route|routes|service|services|webhook|webhooks)/i.test(normalized)
   ) || /(^|\/)(api|controllers?|integrations?|routes?|services?|webhooks?)\/github[^/]*\.[cm]?[jt]sx?$/i.test(normalized);
 }
 
@@ -630,6 +670,37 @@ function isFrontendPath(filePath: string): boolean {
   return (
     /(^|\/)(app|builder|browser|components?|frontend|pages?|ui|views?)\//i.test(normalized)
     || /\.(css|scss|sass|less|tsx|jsx)$/i.test(normalized)
+  );
+}
+
+function isFrontendVisiblePath(filePath: string): boolean {
+  const normalized = normalizedPath(filePath);
+  const basename = normalized.split("/").pop() ?? "";
+
+  if (/\b(icon|icons?|helper|helpers?|util|utils?|adapter|adapters?|client|clients?|store|stores?|state|constants?|types?)\b/i.test(basename)) {
+    return false;
+  }
+
+  return (
+    /(^|\/)(components?|pages?|views?)\//i.test(normalized)
+    || /(^|\/)(app|ui|frontend|browser)\//i.test(normalized)
+      && /(card|panel|page|screen|view|modal|dialog|form|button|menu|nav|layout|widget|component)/i.test(basename)
+    || /\.(css|scss|sass|less)$/i.test(normalized)
+      && /(^|\/)(components?|pages?|views?|app|ui|frontend|browser)\//i.test(normalized)
+  );
+}
+
+function isBackendBehaviorPath(filePath: string): boolean {
+  const normalized = normalizedPath(filePath);
+  const basename = normalized.split("/").pop() ?? "";
+
+  if (isFrontendPath(normalized) || isWorkflowPath(normalized) || isContextPath(normalized)) {
+    return false;
+  }
+
+  return (
+    /(^|\/)(api|controllers?|routes?|endpoints?|workers?|integrations?|middleware|services?|webhooks?)\//i.test(normalized)
+    || /(api|controller|route|endpoint|worker|integration|middleware|service|webhook)/i.test(basename)
   );
 }
 
@@ -741,11 +812,16 @@ function targetedTestCommandsFromTests(tests: ImpactAnalysis["affectedTests"]): 
 function domainMatches(impact: ImpactAnalysis): DomainMatch[] {
   const task = impact.task;
   const affectedPaths = allAffectedPaths(impact);
+  const affectedFilePaths = impact.affectedFiles.map((file) => file.path);
   const contextPaths = impact.contextChanges.map((file) => file.path);
   const matches: DomainMatch[] = [];
 
   for (const definition of domainDefinitions) {
     if (definition.domain === "context") {
+      if (!shouldIncludeContextReview(impact)) {
+        continue;
+      }
+
       const contextMatches = contextPaths.filter((filePath) => definition.pattern.test(filePath));
 
       addDomainMatch(
@@ -758,11 +834,8 @@ function domainMatches(impact: ImpactAnalysis): DomainMatch[] {
     }
 
     if (definition.domain === "workflow") {
-      const workflowPaths = affectedPaths.filter(isWorkflowPath);
-      const workflowTaskEvidence = taskEvidence(task, definition.pattern);
-      const integrationOnly = affectedPaths.length > 0 && affectedPaths.every((filePath) => (
-        isGithubIntegrationPath(filePath) || definition.pattern.test(filePath)
-      ));
+      const workflowPaths = affectedFilePaths.filter(isWorkflowPath);
+      const workflowTaskEvidence = hasStrongWorkflowTaskWording(task) ? taskEvidence(task, definition.pattern) : [];
 
       addDomainMatch(
         matches,
@@ -770,14 +843,14 @@ function domainMatches(impact: ImpactAnalysis): DomainMatch[] {
         workflowPaths,
         [
           ...pathEvidence("workflow path", workflowPaths),
-          ...(workflowPaths.length > 0 || affectedPaths.length === 0 || !integrationOnly ? workflowTaskEvidence : [])
+          ...(workflowPaths.length > 0 || affectedFilePaths.length === 0 ? workflowTaskEvidence : [])
         ]
       );
       continue;
     }
 
     if (definition.domain === "github-integration") {
-      const integrationPaths = affectedPaths.filter(isGithubIntegrationPath);
+      const integrationPaths = affectedFilePaths.filter(isGithubIntegrationPath);
 
       addDomainMatch(
         matches,
@@ -786,6 +859,36 @@ function domainMatches(impact: ImpactAnalysis): DomainMatch[] {
         [
           ...taskEvidence(task, definition.pattern),
           ...pathEvidence("github integration path", integrationPaths)
+        ]
+      );
+      continue;
+    }
+
+    if (definition.domain === "frontend") {
+      const frontendPaths = affectedFilePaths.filter(isFrontendVisiblePath);
+
+      addDomainMatch(
+        matches,
+        definition.domain,
+        frontendPaths,
+        [
+          ...pathEvidence("visible frontend path", frontendPaths),
+          ...(frontendPaths.length > 0 ? taskEvidence(task, definition.pattern) : [])
+        ]
+      );
+      continue;
+    }
+
+    if (definition.domain === "backend") {
+      const backendPaths = affectedFilePaths.filter(isBackendBehaviorPath);
+
+      addDomainMatch(
+        matches,
+        definition.domain,
+        backendPaths,
+        [
+          ...pathEvidence("backend behavior path", backendPaths),
+          ...(backendPaths.length > 0 ? taskEvidence(task, definition.pattern) : [])
         ]
       );
       continue;
@@ -867,7 +970,7 @@ function actualDatabasePaths(paths: string[]): string[] {
 }
 
 function frontendAuthPaths(paths: string[]): string[] {
-  return paths.filter(isFrontendPath);
+  return paths.filter(isFrontendVisiblePath);
 }
 
 function securityAuthPaths(paths: string[]): string[] {
@@ -921,11 +1024,15 @@ function domainSmokeChecks(impact: ImpactAnalysis): ImpactVerificationHint[] {
   }
 
   if (hasDomain(matches, "workflow")) {
-    checks.push(smokeCheck(
-      "ci-workflow",
-      "Manually review the relevant workflow path and confirm its trigger/job intent.",
-      pathsForDomains(matches, ["workflow"], fallback)
-    ));
+    const workflowPaths = pathsForDomains(matches, ["workflow"], fallback).filter(isWorkflowPath);
+
+    if (workflowPaths.length > 0) {
+      checks.push(smokeCheck(
+        "ci-workflow",
+        "Manually review the relevant workflow path and confirm its trigger/job intent.",
+        workflowPaths
+      ));
+    }
   }
 
   if (hasDomain(matches, "github-integration")) {
@@ -998,7 +1105,7 @@ function domainManualChecks(impact: ImpactAnalysis): ImpactVerificationHint[] {
     checks.push(manualHint("cache-fallback", "Check fallback behavior when Redis or the cache backend is unavailable.", paths));
   }
 
-  if (hasDomain(matches, "workflow")) {
+  if (hasDomain(matches, "workflow") && workflowPaths.length > 0) {
     checks.push(manualHint(
       "yaml-syntax",
       "Check workflow YAML syntax if YAML files are affected.",
@@ -1171,7 +1278,7 @@ function validationChecklistFromImpact(
     checklist.push(...domainItems);
   }
 
-  if (impact.contextChanges.length > 0) {
+  if (shouldIncludeContextReview(impact)) {
     checklist.push("Confirm RCC context changes are intentional.");
   }
 
@@ -1181,9 +1288,7 @@ function validationChecklistFromImpact(
 function notesFromImpact(impact: ImpactAnalysis): string[] {
   const notes = [...impact.notes];
   const docsOnly = impact.affectedFiles.length > 0 && impact.affectedFiles.every((file) => isDocsPath(file.path));
-  const contextOnlyNote = "Context-only changes detected; verify focuses on RCC/context files and does not promote task-route estimates to targeted tests or smoke checks.";
   const workingTreeNote = "Working-tree verification mode: plan is based on actual repository changes.";
-  const plannedModeNote = "Planned verification mode: plan uses task routing, impact analysis, and repository learning without requiring source code changes.";
 
   if (impact.mode === "working-tree" && !notes.includes(workingTreeNote)) {
     notes.push(workingTreeNote);
@@ -1197,18 +1302,62 @@ function notesFromImpact(impact: ImpactAnalysis): string[] {
     notes.push("Docs-only impact detected; verify documentation changes manually.");
   }
 
-  if (isContextOnlyVerification(impact) && !notes.includes(contextOnlyNote)) {
-    notes.push(contextOnlyNote);
+  if (isContextOnlyVerification(impact) && !notes.includes(contextOnlyVerificationNote)) {
+    notes.push(contextOnlyVerificationNote);
   }
 
   if (
     impact.confidenceExplanation.evidence.contextOnlyChanges
-    && !notes.includes("Context-only impact detected; verify context changes manually.")
+    && !notes.includes(contextOnlyImpactNote)
   ) {
-    notes.push("Context-only impact detected; verify context changes manually.");
+    notes.push(contextOnlyImpactNote);
   }
 
   return notes;
+}
+
+function plannedNotesFromImpact(impact: ImpactAnalysis): string[] {
+  const notes = notesFromImpact(impact).filter((note) => (
+    note !== contextOnlyVerificationNote
+    && note !== contextOnlyImpactNote
+    && !/^Planned verification mode: promoted task-route estimates/i.test(note)
+  ));
+
+  return notes.includes(plannedModeNote) ? notes : [...notes, plannedModeNote];
+}
+
+function plannedConfidenceExplanation(impact: ImpactAnalysis): ImpactAnalysis["confidenceExplanation"] {
+  const evidence = {
+    ...impact.confidenceExplanation.evidence,
+    contextOnlyChanges: false
+  };
+  const reasons = impact.confidenceExplanation.reasons.filter((reason) => (
+    reason !== "context-only changes detected"
+    && reason !== contextOnlyConfidenceReason
+    && !/^context changes do not raise confidence/i.test(reason)
+  ));
+  const taskReasons: string[] = [];
+
+  if (evidence.taskRoutingMatched || impact.affectedFiles.some((file) => /\btask routing matched\b/i.test(file.reason))) {
+    taskReasons.push("task routing matched");
+  }
+
+  if (evidence.testRelationship === "strong" || impact.affectedTests.some((test) => test.confidence === "strong")) {
+    taskReasons.push("strong test relationship");
+  }
+
+  const contextReasons = reasons.filter((reason) => /\bcontext\b/i.test(reason));
+  const nonContextReasons = reasons.filter((reason) => !/\bcontext\b/i.test(reason));
+
+  return {
+    ...impact.confidenceExplanation,
+    reasons: uniqueStrings([
+      ...taskReasons,
+      ...nonContextReasons,
+      ...contextReasons
+    ]),
+    evidence
+  };
 }
 
 export function createVerificationPlan(input: VerificationPlanInput): VerificationPlan {
@@ -1288,17 +1437,11 @@ export function createPlannedVerificationPlanFromImpact(
     ...impact,
     mode: "planned-task"
   };
-  const contextChangePaths = plannedImpact.contextChanges.map((file) => file.path);
+  const includeContextReview = shouldIncludeContextReview(plannedImpact);
+  const contextChangePaths = includeContextReview ? plannedImpact.contextChanges.map((file) => file.path) : [];
   const targetedTests = promotedTargetedTests(plannedImpact);
   const targetedTestCommands = targetedTestCommandsFromTests(targetedTests);
-  const notes = notesFromImpact(plannedImpact).filter((note) => (
-    note !== "Context-only changes detected; verify focuses on RCC/context files and does not promote task-route estimates to targeted tests or smoke checks."
-  ));
-  const plannedNote = "Planned verification mode: promoted task-route estimates even though no non-context changed files were present.";
-
-  if (plannedImpact.confidenceExplanation.evidence.nonContextChangedFiles === 0 && !notes.includes(plannedNote)) {
-    notes.push(plannedNote);
-  }
+  const notes = plannedNotesFromImpact(plannedImpact);
 
   return normalizeVerificationPlan(createVerificationPlan({
     task: plannedImpact.task,
@@ -1317,7 +1460,7 @@ export function createPlannedVerificationPlanFromImpact(
     ],
     validationChecklist: validationChecklistFromImpact(plannedImpact, targetedTests),
     confidence: plannedImpact.confidence,
-    confidenceExplanation: confidenceExplanationWithDomains(plannedImpact, plannedImpact.confidenceExplanation),
+    confidenceExplanation: confidenceExplanationWithDomains(plannedImpact, plannedConfidenceExplanation(plannedImpact)),
     notes
   }), level);
 }
