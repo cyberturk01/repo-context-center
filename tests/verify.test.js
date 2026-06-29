@@ -536,9 +536,14 @@ test("createVerificationPlanFromImpact is conservative for context-only route es
         reason: "verify TypeScript and generated CLI output"
       }
     ],
-    confidence: "medium",
+    confidence: "high",
     confidenceExplanation: confidenceExplanation({
-      level: "medium",
+      level: "high",
+      reasons: [
+        "context-only changes detected",
+        "task routing matched",
+        "strong test relationship"
+      ],
       evidence: {
         changedFiles: 1,
         nonContextChangedFiles: 0,
@@ -553,6 +558,10 @@ test("createVerificationPlanFromImpact is conservative for context-only route es
 
   const plan = createVerificationPlanFromImpact(impact);
 
+  assert.equal(plan.confidence, "medium");
+  assert.equal(plan.confidenceExplanation.level, "medium");
+  assert.ok(plan.confidenceExplanation.reasons.includes("verify confidence reduced because only context files changed"));
+  assert.deepEqual(plan.confidenceExplanation.evidence, impact.confidenceExplanation.evidence);
   assert.deepEqual(plan.targetedTests, []);
   assert.deepEqual(plan.targetedTestCommands, []);
   assert.deepEqual(plan.buildCommands, []);

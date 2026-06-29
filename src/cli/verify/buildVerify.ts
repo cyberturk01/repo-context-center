@@ -2,6 +2,8 @@ import type { ImpactAnalysis, ImpactCommand, ImpactVerificationHint } from "../i
 import { buildImpactAnalysis } from "../impact/buildImpact";
 import type { VerificationPlan, VerificationPlanInput } from "./verifyTypes";
 
+const contextOnlyConfidenceReason = "verify confidence reduced because only context files changed";
+
 function isDocsPath(filePath: string): boolean {
   return (
     filePath === "README.md"
@@ -36,6 +38,20 @@ function isContextOnlyVerification(impact: ImpactAnalysis): boolean {
     impact.confidenceExplanation.evidence.contextOnlyChanges
     && impact.confidenceExplanation.evidence.nonContextChangedFiles === 0
   );
+}
+
+function confidenceExplanationForVerify(impact: ImpactAnalysis): ImpactAnalysis["confidenceExplanation"] {
+  if (!isContextOnlyVerification(impact)) {
+    return impact.confidenceExplanation;
+  }
+
+  return {
+    ...impact.confidenceExplanation,
+    level: "medium",
+    reasons: impact.confidenceExplanation.reasons.includes(contextOnlyConfidenceReason)
+      ? impact.confidenceExplanation.reasons
+      : [...impact.confidenceExplanation.reasons, contextOnlyConfidenceReason]
+  };
 }
 
 function impactText(impact: ImpactAnalysis): string {
@@ -211,8 +227,8 @@ export function createVerificationPlanFromImpact(impact: ImpactAnalysis): Verifi
         manualCheck("context-changes", "Manually review context changes for workflow and routing impact.", contextChangePaths)
       ]),
       validationChecklist: validationChecklistFromImpact(impact),
-      confidence: impact.confidence,
-      confidenceExplanation: impact.confidenceExplanation,
+      confidence: "medium",
+      confidenceExplanation: confidenceExplanationForVerify(impact),
       notes: notesFromImpact(impact)
     });
   }
