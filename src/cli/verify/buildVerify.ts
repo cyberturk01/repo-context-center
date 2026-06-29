@@ -265,6 +265,38 @@ function priorityForTargetedTest(test: ImpactAnalysis["affectedTests"][number], 
   return priorityFromText(`${task} ${test.path} ${test.reason} ${test.signals.join(" ")}`) ?? "high";
 }
 
+function compactTargetedTestReason(test: ImpactAnalysis["affectedTests"][number]): string {
+  const signals = new Set(test.signals.map((signal) => signal.toLowerCase()));
+  const reason = test.reason.toLowerCase();
+
+  if (
+    signals.has("imports affected source")
+    || signals.has("same directory")
+    || signals.has("task/test name match")
+  ) {
+    return "exact source/test relationship";
+  }
+
+  if (signals.has("specific routed test name") || signals.has("task routing evidence") || /\btask[- ]routed|task routing\b/i.test(reason)) {
+    return "task-routed test";
+  }
+
+  if (signals.has("repository learning") || signals.has("co-change history") || /\blearned|repository learning|co-change\b/i.test(reason)) {
+    return "learned test relationship";
+  }
+
+  if (
+    signals.has("same module")
+    || signals.has("same package/module")
+    || signals.has("same package/module with task token")
+    || signals.has("filename similarity")
+  ) {
+    return "same-module test";
+  }
+
+  return "domain-matched test";
+}
+
 function priorityForBuildCommand(): VerificationPriority {
   return "high";
 }
@@ -322,6 +354,7 @@ function prioritizeTargetedTests(
 
     return {
       ...publicTest,
+      reason: compactTargetedTestReason(test),
       priority: priorityForTargetedTest(test, task)
     };
   });
@@ -712,6 +745,18 @@ function domainMatches(impact: ImpactAnalysis): DomainMatch[] {
   const matches: DomainMatch[] = [];
 
   for (const definition of domainDefinitions) {
+    if (definition.domain === "context") {
+      const contextMatches = contextPaths.filter((filePath) => definition.pattern.test(filePath));
+
+      addDomainMatch(
+        matches,
+        definition.domain,
+        contextMatches,
+        pathEvidence("context change", contextMatches)
+      );
+      continue;
+    }
+
     if (definition.domain === "workflow") {
       const workflowPaths = affectedPaths.filter(isWorkflowPath);
       const workflowTaskEvidence = taskEvidence(task, definition.pattern);
@@ -767,15 +812,6 @@ function domainMatches(impact: ImpactAnalysis): DomainMatch[] {
     if (testMatches.length > 0) {
       signals.push(...pathEvidence("test path", testMatches));
       testMatches.forEach((filePath) => paths.add(filePath));
-    }
-
-    if (definition.domain === "context") {
-      const contextMatches = contextPaths.filter((filePath) => definition.pattern.test(filePath));
-
-      if (contextMatches.length > 0) {
-        signals.push(...pathEvidence("context change", contextMatches));
-        contextMatches.forEach((filePath) => paths.add(filePath));
-      }
     }
 
     if (
@@ -842,10 +878,12 @@ function confidenceExplanationWithDomains(
   impact: ImpactAnalysis,
   explanation: ImpactAnalysis["confidenceExplanation"]
 ): ImpactAnalysis["confidenceExplanation"] {
-  const reasons = [...explanation.reasons];
+  const reasons = uniqueStrings(explanation.reasons.map((reason) => (
+    reason.replace(/^domain matched: ([^(]+)\s+\(.+\)$/i, "domain matched: $1").trim()
+  )));
 
   for (const match of domainMatches(impact)) {
-    const reason = `domain matched: ${match.domain} (${match.signals.join(", ")})`;
+    const reason = `domain matched: ${match.domain}`;
 
     if (!reasons.includes(reason)) {
       reasons.push(reason);
@@ -1196,7 +1234,6 @@ export function createVerificationPlanFromImpact(
   impact: ImpactAnalysis,
   level: VerificationLevel = defaultVerificationLevel
 ): VerificationPlan {
-  const affectedFilePaths = impact.affectedFiles.map((file) => file.path);
   const contextChangePaths = impact.contextChanges.map((file) => file.path);
   const contextOnly = isContextOnlyVerification(impact);
   const targetedTests = promotedTargetedTests(impact);
@@ -1230,9 +1267,6 @@ export function createVerificationPlanFromImpact(
     buildCommands: commandsByType(impact.suggestedCommands, "build"),
     smokeChecks: smokeChecksFromImpact(impact),
     manualChecks: [
-      ...compactChecks([
-        manualCheck("affected-files", "Manually inspect changed/affected files before secondary verification.", affectedFilePaths)
-      ]),
       ...impact.verificationHints,
       ...domainManualChecks(impact),
       ...compactChecks([
@@ -1254,7 +1288,6 @@ export function createPlannedVerificationPlanFromImpact(
     ...impact,
     mode: "planned-task"
   };
-  const affectedFilePaths = plannedImpact.affectedFiles.map((file) => file.path);
   const contextChangePaths = plannedImpact.contextChanges.map((file) => file.path);
   const targetedTests = promotedTargetedTests(plannedImpact);
   const targetedTestCommands = targetedTestCommandsFromTests(targetedTests);
@@ -1276,9 +1309,6 @@ export function createPlannedVerificationPlanFromImpact(
     buildCommands: commandsByType(plannedImpact.suggestedCommands, "build"),
     smokeChecks: smokeChecksFromImpact(plannedImpact),
     manualChecks: [
-      ...compactChecks([
-        manualCheck("affected-files", "Manually inspect planned affected files for behavior-specific validation.", affectedFilePaths)
-      ]),
       ...plannedImpact.verificationHints,
       ...domainManualChecks(plannedImpact),
       ...compactChecks([

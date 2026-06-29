@@ -48,6 +48,29 @@ function assertOmitsKeys(value, keys, label) {
   }
 }
 
+function collectKeys(value, keys = []) {
+  if (!value || typeof value !== "object") {
+    return keys;
+  }
+
+  for (const [key, child] of Object.entries(value)) {
+    keys.push(key);
+    if (child && typeof child === "object") {
+      collectKeys(child, keys);
+    }
+  }
+
+  return keys;
+}
+
+function assertNoRemovedVerifyFields(plan) {
+  const keys = collectKeys(plan);
+
+  for (const removedKey of ["executionPlan", "estimatedMinutes", "score", "coverage", "risk"]) {
+    assert.equal(keys.includes(removedKey), false, `verify JSON should not expose ${removedKey}`);
+  }
+}
+
 function assertPathArray(value, label) {
   assert.ok(Array.isArray(value), `${label} should be an array`);
   for (const item of value) {
@@ -99,6 +122,16 @@ function assertVerifyJsonContract(plan, task, mode) {
   assert.equal("changedFiles" in plan, false);
   assert.equal("contextChanges" in plan, false);
   assert.equal("executionPlan" in plan, false);
+  assertNoRemovedVerifyFields(plan);
+  assert.equal(plan.manualChecks.some((check) => check.type === "affected-files"), false);
+
+  for (const item of plan.targetedTests) {
+    assert.match(item.reason, /^(exact source\/test relationship|task-routed test|domain-matched test|same-module test|learned test relationship)$/);
+  }
+
+  for (const reason of plan.confidenceExplanation.reasons) {
+    assert.doesNotMatch(reason, /\([^)]*(?:\/|\\|affected file:|test path:|workflow path:|github integration path:)[^)]*\)/);
+  }
 }
 
 function informationalKeys(value, keys) {

@@ -115,7 +115,42 @@ function impactAnalysis(overrides = {}) {
 }
 
 function publicTargetedTests(tests) {
-  return tests.map(({ score, signals, ...test }) => test);
+  return tests.map(({ score, signals, ...test }) => ({
+    ...test,
+    reason: compactPublicTestReason(test.reason, signals)
+  }));
+}
+
+function compactPublicTestReason(reason, signals) {
+  const signalSet = new Set(signals.map((signal) => signal.toLowerCase()));
+  const lowerReason = reason.toLowerCase();
+
+  if (
+    signalSet.has("imports affected source")
+    || signalSet.has("same directory")
+    || signalSet.has("task/test name match")
+  ) {
+    return "exact source/test relationship";
+  }
+
+  if (signalSet.has("specific routed test name") || signalSet.has("task routing evidence") || /\btask[- ]routed|task routing\b/i.test(lowerReason)) {
+    return "task-routed test";
+  }
+
+  if (signalSet.has("repository learning") || signalSet.has("co-change history") || /\blearned|repository learning|co-change\b/i.test(lowerReason)) {
+    return "learned test relationship";
+  }
+
+  if (
+    signalSet.has("same module")
+    || signalSet.has("same package/module")
+    || signalSet.has("same package/module with task token")
+    || signalSet.has("filename similarity")
+  ) {
+    return "same-module test";
+  }
+
+  return "domain-matched test";
 }
 
 test("createVerificationPlan constructs the shared verification plan model", () => {
@@ -289,18 +324,10 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
   assert.equal(plan.confidence, impact.confidence);
   assert.equal(plan.confidenceExplanation.level, impact.confidenceExplanation.level);
   assert.deepEqual(plan.confidenceExplanation.evidence, impact.confidenceExplanation.evidence);
-  assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
-    reason.includes("domain matched: cache")
-    && reason.includes("task:cache")
-    && reason.includes("affected file:src/cache/redis.ts")
-    && reason.includes("test path:tests/cache/redis.spec.ts")
-  )));
-  assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
-    reason.includes("domain matched: redis")
-    && reason.includes("task:redis")
-    && reason.includes("affected file:src/cache/redis.ts")
-    && reason.includes("test path:tests/cache/redis.spec.ts")
-  )));
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: cache"));
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: redis"));
+  assert.equal(plan.confidenceExplanation.reasons.some((reason) => reason.includes("src/cache/redis.ts")), false);
+  assert.equal(plan.targetedTests[0].reason, "same-module test");
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "environment"
     && check.command === "redis-cli ping"
@@ -310,10 +337,7 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
     && check.priority === "low"
     && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
   )));
-  assert.ok(plan.manualChecks.some((check) => (
-    check.type === "affected-files"
-    && check.paths.includes("src/cache/redis.ts")
-  )));
+  assert.equal(plan.manualChecks.some((check) => check.type === "affected-files"), false);
   assert.deepEqual(plan.validationChecklist, [
     "Verify cache miss behavior.",
     "Verify cache hit behavior.",
@@ -479,10 +503,7 @@ test("createVerificationPlanFromImpact suggests a workflow smoke check for impro
     "Verify required secrets."
   ]);
   assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: workflow")));
-  assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
-    reason.startsWith("domain matched: workflow")
-    && reason.includes("workflow path:.github/workflows/ci.yml")
-  )));
+  assert.equal(plan.confidenceExplanation.reasons.some((reason) => reason.includes(".github/workflows/ci.yml")), false);
   assert.deepEqual(plan.targetedTestCommands, []);
 });
 
@@ -507,11 +528,8 @@ test("update github workflow uses workflow checks with exact workflow evidence",
     check.type === "workflow-lint"
     && check.command === "actionlint .github/workflows/release.yml"
   )));
-  assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
-    reason.startsWith("domain matched: workflow")
-    && reason.includes("task:github workflow")
-    && reason.includes("workflow path:.github/workflows/release.yml")
-  )));
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: workflow"));
+  assert.equal(plan.confidenceExplanation.reasons.some((reason) => reason.includes(".github/workflows/release.yml")), false);
 });
 
 test("github integration files do not get workflow lint without workflow YAML", () => {
@@ -551,10 +569,8 @@ test("github integration files do not get workflow lint without workflow YAML", 
     check.type === "backend-behavior"
     && /contract behavior/.test(check.reason)
   )));
-  assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
-    reason.startsWith("domain matched: github-integration")
-    && reason.includes("github integration path:src/api/githubController.ts")
-  )));
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: github-integration"));
+  assert.equal(plan.confidenceExplanation.reasons.some((reason) => reason.includes("src/api/githubController.ts")), false);
 });
 
 test("change postgres schema prioritizes backend database paths over UI-only references", () => {
@@ -643,10 +659,8 @@ test("improve auth middleware adds session security checks without frontend-only
   )));
   assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
   assert.equal(plan.manualChecks.some((check) => check.type === "frontend-regression"), false);
-  assert.ok(plan.confidenceExplanation.reasons.some((reason) => (
-    reason.startsWith("domain matched: auth")
-    && reason.includes("affected file:src/auth/middleware.ts")
-  )));
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: auth"));
+  assert.equal(plan.confidenceExplanation.reasons.some((reason) => reason.includes("src/auth/middleware.ts")), false);
 });
 
 [
@@ -881,10 +895,7 @@ test("createVerificationPlanFromImpact does not invent tests when Impact has no 
     "Inspect affected files.",
     "No strongly related tests were found; do not add generic tests."
   ]);
-  assert.ok(plan.manualChecks.some((check) => (
-    check.type === "affected-files"
-    && check.paths.includes("README.md")
-  )));
+  assert.equal(plan.manualChecks.some((check) => check.type === "affected-files"), false);
   assert.ok(plan.notes.includes("Docs-only impact detected; no focused test command suggested."));
   assert.ok(plan.notes.includes("Docs-only impact detected; verify documentation changes manually."));
 });
@@ -1474,10 +1485,7 @@ test("planned mode promotes login task estimates without source changes", () => 
     check.type === "context-routing"
     && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
   )));
-  assert.ok(plan.manualChecks.some((check) => (
-    check.type === "affected-files"
-    && check.paths.includes("src/auth/login.ts")
-  )));
+  assert.equal(plan.manualChecks.some((check) => check.type === "affected-files"), false);
   assert.ok(plan.notes.includes(
     "Planned verification mode: plan uses task routing, impact analysis, and repository learning without requiring source code changes."
   ));
@@ -1519,6 +1527,37 @@ test("planned mode promotes redis task estimates without source changes", () => 
     check.type === "cache-behavior"
     && check.paths.includes("src/cache/redis.ts")
   )));
+});
+
+test("planned mode omits context-routing when no context changes exist", () => {
+  const plan = createPlannedVerificationPlanFromImpact(impactAnalysis({
+    task: "refresh rcc context routing",
+    mode: "working-tree",
+    affectedFiles: [
+      {
+        path: "src/cache/redis.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    contextChanges: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        changedFiles: 0,
+        nonContextChangedFiles: 0,
+        contextChanges: 0,
+        affectedFiles: 1,
+        affectedTests: 0,
+        contextOnlyChanges: false,
+        testRelationship: "none"
+      }
+    })
+  }));
+
+  assert.equal(plan.mode, "planned-task");
+  assert.equal(plan.manualChecks.some((check) => check.type === "context-routing"), false);
+  assert.equal(plan.confidenceExplanation.reasons.includes("domain matched: context"), false);
 });
 
 test("planned mode promotes workflow task estimates without source changes", () => {
@@ -1574,10 +1613,7 @@ test("planned mode promotes workflow task estimates without source changes", () 
     check.type === "context-routing"
     && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
   )));
-  assert.ok(plan.manualChecks.some((check) => (
-    check.type === "affected-files"
-    && check.paths.includes(".github/workflows/ci.yml")
-  )));
+  assert.equal(plan.manualChecks.some((check) => check.type === "affected-files"), false);
 });
 
 test("planned auth verification output is normalized", () => {
@@ -1614,10 +1650,7 @@ test("planned auth verification output is normalized", () => {
     check.type === "context-routing"
     && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
   )));
-  assert.ok(plan.manualChecks.some((check) => (
-    check.type === "affected-files"
-    && check.paths.includes("src/auth/middleware.ts")
-  )));
+  assert.equal(plan.manualChecks.some((check) => check.type === "affected-files"), false);
   assert.equal(plan.manualChecks.length <= 4, true);
 });
 
@@ -1738,10 +1771,7 @@ test("createVerificationPlanFromImpact does not let context paths trigger source
     check.type === "context-routing"
     && check.paths.includes(".github/workflows/ci.yml")
   )));
-  assert.ok(plan.manualChecks.some((check) => (
-    check.type === "affected-files"
-    && check.paths.includes("src/domain/service.ts")
-  )));
+  assert.equal(plan.manualChecks.some((check) => check.type === "affected-files"), false);
 });
 
 test("verify --json builds recommendations from Impact analysis", () => {
@@ -1769,10 +1799,7 @@ test("verify --json builds recommendations from Impact analysis", () => {
     command.command === "npm run build"
     && command.type === "build"
   )));
-  assert.ok(plan.manualChecks.some((check) => (
-    check.type === "affected-files"
-    && check.paths.includes("src/cache/redis.ts")
-  )));
+  assert.equal(plan.manualChecks.some((check) => check.type === "affected-files"), false);
   assert.deepEqual(plan.validationChecklist, [
     "Verify cache miss behavior.",
     "Verify cache hit behavior.",

@@ -75,17 +75,6 @@
     ],
     "manualChecks": [
       {
-        "type": "affected-files",
-        "paths": [
-          "src/cache/redis.ts"
-        ],
-        "command": null,
-        "priority": "high",
-        "informational": [
-          "reason"
-        ]
-      },
-      {
         "type": "cache-fallback",
         "paths": [
           "src/cache/redis.ts"
