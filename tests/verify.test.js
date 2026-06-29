@@ -47,7 +47,7 @@ function impactAnalysis(overrides = {}) {
       path: "tests/cache/redis.spec.ts",
       reason: "matches cache module",
       score: 96,
-      confidence: "high",
+      confidence: "strong",
       signals: ["same module", "filename match"]
     }
   ];
@@ -130,7 +130,7 @@ test("createVerificationPlan constructs the shared verification plan model", () 
         path: "tests/cache/redis.spec.ts",
         reason: "matches cache module",
         score: 96,
-        confidence: "high",
+        confidence: "strong",
         signals: ["same module", "filename match"]
       }
     ],
@@ -191,7 +191,7 @@ test("createVerificationPlan constructs the shared verification plan model", () 
   assert.equal(plan.confidenceExplanation.level, "high");
   assert.equal(plan.summary.suggestedCommands, 3);
   assert.equal(plan.targetedTests[0].path, "tests/cache/redis.spec.ts");
-  assert.equal(plan.targetedTests[0].confidence, "high");
+  assert.equal(plan.targetedTests[0].confidence, "strong");
   assert.deepEqual(plan.targetedTestCommands, []);
   assert.equal(plan.buildCommands[0].type, "build");
   assert.equal(plan.smokeChecks[0].type, "cache-behavior");
@@ -266,7 +266,7 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
   assert.equal(plan.task, impact.task);
   assert.equal(plan.mode, impact.mode);
   assert.deepEqual(plan.summary, impact.summary);
-  assert.strictEqual(plan.targetedTests, impact.affectedTests);
+  assert.deepEqual(plan.targetedTests, impact.affectedTests);
   assert.deepEqual(plan.targetedTestCommands.map((command) => command.command), [
     "node --test tests/cache/redis.spec.ts"
   ]);
@@ -329,7 +329,7 @@ test("createVerificationPlanFromImpact preserves verification for non-context ch
 
   const plan = createVerificationPlanFromImpact(impact);
 
-  assert.strictEqual(plan.targetedTests, impact.affectedTests);
+  assert.deepEqual(plan.targetedTests, impact.affectedTests);
   assert.deepEqual(plan.targetedTestCommands.map((command) => command.command), [
     "node --test tests/cache/redis.spec.ts"
   ]);
@@ -551,7 +551,7 @@ test("createVerificationPlanFromImpact suggests a workflow smoke check for impro
         path: filePath,
         reason: "task route matched domain test",
         score: 92,
-        confidence: "high",
+        confidence: "strong",
         signals: ["filename similarity"]
       })),
       contextChanges: (fixture.contextChanges ?? []).map((filePath) => ({
@@ -677,6 +677,218 @@ test("createVerificationPlanFromImpact does not invent tests when Impact has no 
   assert.ok(plan.notes.includes("Docs-only impact detected; verify documentation changes manually."));
 });
 
+test("login task with no strong tests reports no strongly related tests", () => {
+  const impact = impactAnalysis({
+    task: "fix login bug",
+    affectedFiles: [
+      {
+        path: "src/auth/login.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/auth/login.spec.ts",
+        reason: "weak domain-only auth match",
+        score: 54,
+        confidence: "medium",
+        signals: ["domain match"]
+      },
+      {
+        path: "tests/auth/session.spec.ts",
+        reason: "weak nearby auth match",
+        score: 32,
+        confidence: "weak",
+        signals: ["nearby test"]
+      }
+    ],
+    suggestedCommands: [
+      {
+        command: "npm test",
+        type: "test",
+        scope: "project",
+        confidence: "medium",
+        reason: "fallback full verification for broad or package-level impact"
+      }
+    ],
+    confidenceExplanation: confidenceExplanation({
+      level: "medium",
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 2,
+        testRelationship: "weak"
+      }
+    })
+  });
+
+  const plan = createVerificationPlanFromImpact(impact);
+
+  assert.deepEqual(plan.targetedTests, []);
+  assert.deepEqual(plan.targetedTestCommands, []);
+  assert.ok(plan.validationChecklist.includes("No strongly related tests were found; do not add generic tests."));
+  assert.equal(plan.targetedTestCommands.some((command) => command.command === "npm test"), false);
+  assert.ok(plan.smokeChecks.some((check) => check.type === "auth-flow"));
+});
+
+test("redis task promotes only strong Redis and cache tests into runnable targeted commands", () => {
+  const impact = impactAnalysis({
+    task: "add redis cache",
+    affectedFiles: [
+      {
+        path: "src/cache/redis.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/cache/redis.spec.ts",
+        reason: "direct redis cache test",
+        score: 120,
+        confidence: "strong",
+        signals: ["task routing evidence", "filename similarity"]
+      },
+      {
+        path: "tests/cache/fallback.test.ts",
+        reason: "direct cache fallback test",
+        score: 110,
+        confidence: "strong",
+        signals: ["same module"]
+      },
+      {
+        path: "tests/api/public.spec.ts",
+        reason: "weak generic API test",
+        score: 20,
+        confidence: "weak",
+        signals: ["weak generic route penalty"]
+      }
+    ],
+    suggestedCommands: [
+      {
+        command: "npm test",
+        type: "test",
+        scope: "project",
+        confidence: "medium",
+        reason: "fallback full verification for broad or package-level impact"
+      },
+      {
+        command: "npm run build",
+        type: "build",
+        scope: "project",
+        confidence: "medium",
+        reason: "verify TypeScript and generated CLI output"
+      }
+    ]
+  });
+
+  const plan = createVerificationPlanFromImpact(impact);
+
+  assert.deepEqual(plan.targetedTests.map((test) => test.path), [
+    "tests/cache/redis.spec.ts",
+    "tests/cache/fallback.test.ts"
+  ]);
+  assert.deepEqual(plan.targetedTests.map((test) => test.confidence), ["strong", "strong"]);
+  assert.deepEqual(plan.targetedTestCommands.map((command) => command.command), [
+    "node --test tests/cache/redis.spec.ts tests/cache/fallback.test.ts"
+  ]);
+  assert.equal(plan.targetedTestCommands.some((command) => command.command === "npm test"), false);
+  assert.ok(plan.smokeChecks.some((check) => check.type === "cache-behavior"));
+});
+
+test("auth task caps strong targeted tests for small tasks", () => {
+  const impact = impactAnalysis({
+    task: "fix auth bug",
+    affectedFiles: [
+      {
+        path: "src/auth/middleware.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      "tests/auth/middleware.spec.ts",
+      "tests/auth/session.spec.ts",
+      "tests/auth/login.spec.ts",
+      "tests/auth/logout.spec.ts"
+    ].map((filePath, index) => ({
+      path: filePath,
+      reason: "strong auth test",
+      score: 120 - index,
+      confidence: "strong",
+      signals: ["task routing evidence", "filename similarity"]
+    })),
+    suggestedCommands: []
+  });
+
+  const plan = createVerificationPlanFromImpact(impact);
+
+  assert.deepEqual(plan.targetedTests.map((test) => test.path), [
+    "tests/auth/middleware.spec.ts",
+    "tests/auth/session.spec.ts",
+    "tests/auth/login.spec.ts"
+  ]);
+  assert.deepEqual(plan.targetedTestCommands.map((command) => command.command), [
+    "node --test tests/auth/middleware.spec.ts tests/auth/session.spec.ts tests/auth/login.spec.ts"
+  ]);
+  assert.ok(plan.smokeChecks.some((check) => check.type === "auth-flow"));
+});
+
+test("workflow task keeps workflow and config checks without generic targeted tests", () => {
+  const impact = impactAnalysis({
+    task: "improve github action config",
+    affectedFiles: [
+      {
+        path: ".github/workflows/ci.yml",
+        reason: "task routing matched"
+      },
+      {
+        path: "package.json",
+        reason: "workflow config matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/api/public.spec.ts",
+        reason: "weak generic route match",
+        score: 18,
+        confidence: "weak",
+        signals: ["weak generic route penalty"]
+      }
+    ],
+    suggestedCommands: [
+      {
+        command: "npm test",
+        type: "test",
+        scope: "project",
+        confidence: "medium",
+        reason: "fallback full verification for broad or package-level impact"
+      },
+      {
+        command: "npm run build",
+        type: "build",
+        scope: "project",
+        confidence: "medium",
+        reason: "verify TypeScript and generated CLI output"
+      }
+    ],
+    confidenceExplanation: confidenceExplanation({
+      level: "medium",
+      evidence: {
+        affectedFiles: 2,
+        affectedTests: 1,
+        testRelationship: "weak"
+      }
+    })
+  });
+
+  const plan = createVerificationPlanFromImpact(impact);
+
+  assert.deepEqual(plan.targetedTests, []);
+  assert.deepEqual(plan.targetedTestCommands, []);
+  assert.ok(plan.validationChecklist.includes("No strongly related tests were found; do not add generic tests."));
+  assert.ok(plan.smokeChecks.some((check) => check.type === "ci-workflow"));
+  assert.ok(plan.manualChecks.some((check) => check.type === "workflow-lint"));
+  assert.ok(plan.manualChecks.some((check) => check.type === "config-load"));
+});
+
 test("createVerificationPlanFromImpact is conservative for context-only route estimates", () => {
   const impact = impactAnalysis({
     task: "add redis cache",
@@ -781,7 +993,7 @@ test("planned mode promotes login task estimates without source changes", () => 
         path: "tests/auth/login.spec.ts",
         reason: "task route matched auth test",
         score: 115,
-        confidence: "high",
+        confidence: "strong",
         signals: ["task routing evidence", "filename similarity"]
       }
     ],

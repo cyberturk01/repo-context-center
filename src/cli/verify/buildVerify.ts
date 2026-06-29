@@ -1,8 +1,11 @@
 import type { ImpactAnalysis, ImpactCommand, ImpactVerificationHint } from "../impact/impactTypes";
 import { buildImpactAnalysis } from "../impact/buildImpact";
+import { classifyTaskSize, type TaskSize } from "../work/taskSize";
 import type { VerificationPlan, VerificationPlanInput } from "./verifyTypes";
 
 const contextOnlyConfidenceReason = "verify confidence reduced because only context files changed";
+const runnableNodeTestPattern = /\.(test|spec)\.[cm]?[jt]sx?$/i;
+const maximumTargetedTestCommandLength = 300;
 
 type VerificationDomain =
   | "auth"
@@ -89,6 +92,30 @@ function commandsByType(commands: ImpactCommand[], type: ImpactCommand["type"]):
   return commands.filter((command) => command.type === type);
 }
 
+function targetedTestLimit(task: string): number {
+  const limits: Record<TaskSize, number> = {
+    tiny: 3,
+    small: 3,
+    medium: 5,
+    large: 8
+  };
+
+  return limits[classifyTaskSize(task).size];
+}
+
+function isStrongAffectedTest(test: ImpactAnalysis["affectedTests"][number]): boolean {
+  return test.confidence === "strong";
+}
+
+function promotedTargetedTests(impact: ImpactAnalysis): ImpactAnalysis["affectedTests"] {
+  return impact.affectedTests
+    .map((test, index) => ({ test, index }))
+    .filter((item) => isStrongAffectedTest(item.test))
+    .sort((left, right) => right.test.score - left.test.score || left.index - right.index)
+    .slice(0, targetedTestLimit(impact.task))
+    .map((item) => item.test);
+}
+
 function textMatches(value: string, pattern: RegExp): boolean {
   return pattern.test(value);
 }
@@ -153,6 +180,55 @@ function yamlPaths(paths: string[]): string[] {
 
 function commandWithPaths(command: string, paths: string[]): string {
   return paths.length > 0 ? `${command} ${paths.join(" ")}` : command;
+}
+
+function commandPathArgs(filePaths: string[]): string {
+  return filePaths
+    .flatMap(splitConcatenatedCommandPaths)
+    .filter(Boolean)
+    .join(" ");
+}
+
+function splitConcatenatedCommandPaths(filePath: string): string[] {
+  return filePath
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "")
+    .replace(/\/+$/g, "")
+    .replace(
+      /(\.(?:test|spec)\.(?:tsx|jsx|mjs|cjs|ts|js)|\.(?:tsx|jsx|mjs|cjs|ts|js))(?=(?:[A-Za-z0-9_.-]+\/|[A-Za-z0-9_.-]+\.(?:test|spec)\.|[A-Za-z0-9_.-]+\.(?:tsx|jsx|mjs|cjs|ts|js)))/g,
+      "$1 "
+    )
+    .split(/\s+/)
+    .map((item) => item.trim());
+}
+
+function targetedTestCommandsFromTests(tests: ImpactAnalysis["affectedTests"]): ImpactCommand[] {
+  const runnablePaths: string[] = [];
+
+  for (const test of tests) {
+    if (!runnableNodeTestPattern.test(test.path)) {
+      continue;
+    }
+
+    const candidatePaths = [...runnablePaths, test.path];
+    const candidateCommand = `node --test ${commandPathArgs(candidatePaths)}`;
+
+    if (candidateCommand.length <= maximumTargetedTestCommandLength) {
+      runnablePaths.push(test.path);
+    }
+  }
+
+  if (runnablePaths.length === 0) {
+    return [];
+  }
+
+  return [{
+    command: `node --test ${commandPathArgs(runnablePaths)}`,
+    type: "test",
+    scope: "focused",
+    confidence: "high",
+    reason: "run strong affected tests directly"
+  }];
 }
 
 function domainMatches(impact: ImpactAnalysis): DomainMatch[] {
@@ -420,14 +496,17 @@ function contextOnlyValidationChecklist(impact: ImpactAnalysis): string[] {
   return checklist;
 }
 
-function validationChecklistFromImpact(impact: ImpactAnalysis): string[] {
+function validationChecklistFromImpact(
+  impact: ImpactAnalysis,
+  targetedTests: ImpactAnalysis["affectedTests"] = promotedTargetedTests(impact)
+): string[] {
   if (isContextOnlyVerification(impact)) {
     return contextOnlyValidationChecklist(impact);
   }
 
   const checklist = ["Inspect affected files."];
 
-  if (impact.affectedTests.length > 0) {
+  if (targetedTests.length > 0) {
     checklist.push("Run targeted tests.");
   } else {
     checklist.push("No strongly related tests were found; do not add generic tests.");
@@ -496,6 +575,8 @@ export function createVerificationPlanFromImpact(impact: ImpactAnalysis): Verifi
   const affectedFilePaths = impact.affectedFiles.map((file) => file.path);
   const contextChangePaths = impact.contextChanges.map((file) => file.path);
   const contextOnly = isContextOnlyVerification(impact);
+  const targetedTests = promotedTargetedTests(impact);
+  const targetedTestCommands = targetedTestCommandsFromTests(targetedTests);
 
   if (contextOnly) {
     return createVerificationPlan({
@@ -509,22 +590,18 @@ export function createVerificationPlanFromImpact(impact: ImpactAnalysis): Verifi
       manualChecks: compactChecks([
         manualCheck("context-changes", "Manually review context changes for workflow and routing impact.", contextChangePaths)
       ]),
-      validationChecklist: validationChecklistFromImpact(impact),
+      validationChecklist: validationChecklistFromImpact(impact, []),
       confidence: "medium",
       confidenceExplanation: confidenceExplanationWithDomains(impact, confidenceExplanationForVerify(impact)),
       notes: notesFromImpact(impact)
     });
   }
 
-  const targetedTestCommands = impact.affectedTests.length > 0
-    ? commandsByType(impact.suggestedCommands, "test")
-    : [];
-
   return createVerificationPlan({
     task: impact.task,
     mode: impact.mode,
     summary: impact.summary,
-    targetedTests: impact.affectedTests,
+    targetedTests,
     targetedTestCommands,
     buildCommands: commandsByType(impact.suggestedCommands, "build"),
     smokeChecks: smokeChecksFromImpact(impact),
@@ -536,7 +613,7 @@ export function createVerificationPlanFromImpact(impact: ImpactAnalysis): Verifi
         manualCheck("context-changes", "Manually review context changes for workflow and routing impact.", contextChangePaths)
       ])
     ],
-    validationChecklist: validationChecklistFromImpact(impact),
+    validationChecklist: validationChecklistFromImpact(impact, targetedTests),
     confidence: impact.confidence,
     confidenceExplanation: confidenceExplanationWithDomains(impact, impact.confidenceExplanation),
     notes: notesFromImpact(impact)
@@ -550,9 +627,8 @@ export function createPlannedVerificationPlanFromImpact(impact: ImpactAnalysis):
   };
   const affectedFilePaths = plannedImpact.affectedFiles.map((file) => file.path);
   const contextChangePaths = plannedImpact.contextChanges.map((file) => file.path);
-  const targetedTestCommands = plannedImpact.affectedTests.length > 0
-    ? commandsByType(plannedImpact.suggestedCommands, "test")
-    : [];
+  const targetedTests = promotedTargetedTests(plannedImpact);
+  const targetedTestCommands = targetedTestCommandsFromTests(targetedTests);
   const notes = notesFromImpact(plannedImpact).filter((note) => (
     note !== "Context-only changes detected; verify focuses on RCC/context files and does not promote task-route estimates to targeted tests or smoke checks."
   ));
@@ -566,7 +642,7 @@ export function createPlannedVerificationPlanFromImpact(impact: ImpactAnalysis):
     task: plannedImpact.task,
     mode: plannedImpact.mode,
     summary: plannedImpact.summary,
-    targetedTests: plannedImpact.affectedTests,
+    targetedTests,
     targetedTestCommands,
     buildCommands: commandsByType(plannedImpact.suggestedCommands, "build"),
     smokeChecks: smokeChecksFromImpact(plannedImpact),
@@ -578,7 +654,7 @@ export function createPlannedVerificationPlanFromImpact(impact: ImpactAnalysis):
         manualCheck("context-changes", "Manually review context changes for workflow and routing impact.", contextChangePaths)
       ])
     ],
-    validationChecklist: validationChecklistFromImpact(plannedImpact),
+    validationChecklist: validationChecklistFromImpact(plannedImpact, targetedTests),
     confidence: plannedImpact.confidence,
     confidenceExplanation: confidenceExplanationWithDomains(plannedImpact, plannedImpact.confidenceExplanation),
     notes
