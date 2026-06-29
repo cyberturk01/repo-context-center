@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Add domain-aware verification planning
 - Add planned verification mode for rcc verify
 - Refined context-only verify confidence
 - Made rcc verify conservative for context-only working-tree changes
 - Documented RCC v0.12.0 Verify Intelligence in README and CHANGELOG
 - Hardened verify JSON output contract coverage for agent-safe parseable plans
 - Added short validation checklist generation to RCC Verify
-- Added safe manual smoke check heuristics to VerificationPlan generation
 
 ## Hot Files
 
@@ -34,7 +34,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
 | Work routing | 35 | Add low-overhead routing for tiny obvious tasks |
-| General maintenance | 26 | Add planned verification mode for rcc verify |
+| General maintenance | 27 | Add domain-aware verification planning |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Repository context | 12 | Refined context-only verify confidence |
 | Tests | 12 | Hardened verify JSON output contract coverage for agent-safe parseable plans |
@@ -44,11 +44,11 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (82)
+- `npm run build` (83)
 - `npm test` (43)
 - `node --test tests/impact.test.js` (24)
-- `node --test tests/cli.test.js` (16)
-- `node --test tests/verify.test.js` (14)
+- `node --test tests/cli.test.js` (17)
+- `node --test tests/verify.test.js` (15)
 - `node --test tests/work.test.js` (14)
 - `node --test tests/*.test.js` (13)
 - `node --test tests/handoff.test.js` (13)

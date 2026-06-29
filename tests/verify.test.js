@@ -274,7 +274,10 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
   assert.deepEqual(plan.smokeChecks.map((check) => check.type), ["cache-behavior"]);
   assert.equal(plan.smokeChecks.some((check) => "command" in check), false);
   assert.equal(plan.confidence, impact.confidence);
-  assert.deepEqual(plan.confidenceExplanation, impact.confidenceExplanation);
+  assert.equal(plan.confidenceExplanation.level, impact.confidenceExplanation.level);
+  assert.deepEqual(plan.confidenceExplanation.evidence, impact.confidenceExplanation.evidence);
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: cache (task, affected files, test paths)"));
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: redis (task, affected files, test paths)"));
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "environment"
     && check.command === "redis-cli ping"
@@ -348,9 +351,16 @@ test("createVerificationPlanFromImpact suggests a login/auth smoke check for fix
 
   assert.ok(plan.smokeChecks.some((check) => (
     check.type === "auth-flow"
-    && /login\/auth flow/.test(check.reason)
+    && /login\/logout flow/.test(check.reason)
     && check.paths.includes("src/auth/login.ts")
   )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "invalid-credentials"
+    && /invalid credentials/.test(check.reason)
+    && check.paths.includes("src/auth/login.ts")
+  )));
+  assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: auth")));
+  assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: login")));
   assert.equal(plan.smokeChecks.some((check) => "command" in check), false);
 });
 
@@ -388,9 +398,16 @@ test("createVerificationPlanFromImpact suggests cache and fallback smoke checks 
 
   assert.ok(plan.smokeChecks.some((check) => (
     check.type === "cache-behavior"
-    && /cache behavior and fallback behavior/.test(check.reason)
+    && /cache miss and cache hit behavior/.test(check.reason)
     && check.paths.includes("src/cache/redis.ts")
   )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "cache-fallback"
+    && /Redis or the cache backend is unavailable/.test(check.reason)
+    && check.paths.includes("src/cache/redis.ts")
+  )));
+  assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: cache")));
+  assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: redis")));
 });
 
 test("createVerificationPlanFromImpact suggests a workflow smoke check for improve github action", () => {
@@ -408,10 +425,173 @@ test("createVerificationPlanFromImpact suggests a workflow smoke check for impro
 
   assert.ok(plan.smokeChecks.some((check) => (
     check.type === "ci-workflow"
-    && /GitHub Action or CI workflow path/.test(check.reason)
+    && /workflow path/.test(check.reason)
     && check.paths.includes(".github/workflows/ci.yml")
   )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "yaml-syntax"
+    && check.command === "yamllint .github/workflows/ci.yml"
+  )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "workflow-triggers-secrets"
+    && /required secrets/.test(check.reason)
+  )));
+  assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: workflow")));
+  assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith("domain matched: github-actions")));
   assert.deepEqual(plan.targetedTestCommands, []);
+});
+
+[
+  {
+    name: "auth",
+    task: "update auth middleware",
+    affectedFiles: ["src/auth/middleware.ts"],
+    affectedTests: ["tests/auth/middleware.spec.ts"],
+    expectedReason: "domain matched: auth",
+    expectedManual: "invalid-credentials"
+  },
+  {
+    name: "login",
+    task: "fix login redirect",
+    affectedFiles: ["src/session/login.ts"],
+    affectedTests: ["tests/session/login.spec.ts"],
+    expectedReason: "domain matched: login",
+    expectedManual: "invalid-credentials"
+  },
+  {
+    name: "cache",
+    task: "adjust cache invalidation",
+    affectedFiles: ["src/cache/store.ts"],
+    affectedTests: ["tests/cache/store.spec.ts"],
+    expectedReason: "domain matched: cache",
+    expectedManual: "cache-hit-miss"
+  },
+  {
+    name: "redis",
+    task: "handle redis reconnect",
+    affectedFiles: ["src/adapters/redis.ts"],
+    affectedTests: ["tests/adapters/redis.spec.ts"],
+    expectedReason: "domain matched: redis",
+    expectedManual: "cache-fallback"
+  },
+  {
+    name: "database",
+    task: "add database migration",
+    affectedFiles: ["src/db/migrations/add-users.sql"],
+    affectedTests: ["tests/db/migrations.spec.ts"],
+    expectedReason: "domain matched: database",
+    expectedManual: "schema-compatibility"
+  },
+  {
+    name: "postgres",
+    task: "fix postgres query timeout",
+    affectedFiles: ["src/db/postgresClient.ts"],
+    affectedTests: ["tests/db/postgresClient.spec.ts"],
+    expectedReason: "domain matched: postgres",
+    expectedManual: "data-rollback-impact"
+  },
+  {
+    name: "workflow",
+    task: "update ci workflow",
+    affectedFiles: [".github/workflows/ci.yml"],
+    affectedTests: [],
+    expectedReason: "domain matched: workflow",
+    expectedManual: "workflow-triggers-secrets"
+  },
+  {
+    name: "github-actions",
+    task: "tighten github actions permissions",
+    affectedFiles: [".github/workflows/release.yaml"],
+    affectedTests: [],
+    expectedReason: "domain matched: github-actions",
+    expectedManual: "workflow-lint"
+  },
+  {
+    name: "frontend",
+    task: "fix frontend profile card",
+    affectedFiles: ["src/ui/ProfileCard.tsx"],
+    affectedTests: ["tests/ui/ProfileCard.spec.tsx"],
+    expectedReason: "domain matched: frontend",
+    expectedManual: "frontend-regression"
+  },
+  {
+    name: "backend",
+    task: "update backend api route",
+    affectedFiles: ["src/api/users.ts"],
+    affectedTests: ["tests/api/users.spec.ts"],
+    expectedReason: "domain matched: backend",
+    expectedManual: "backend-contract"
+  },
+  {
+    name: "config",
+    task: "change config defaults",
+    affectedFiles: ["src/config/defaults.ts"],
+    affectedTests: ["tests/config/defaults.spec.ts"],
+    expectedReason: "domain matched: config",
+    expectedManual: "config-load"
+  },
+  {
+    name: "context",
+    task: "refresh rcc context routing",
+    affectedFiles: ["docs/ai-context/TASK_ROUTING.md"],
+    affectedTests: [],
+    contextChanges: ["docs/ai-context/TASK_ROUTING.md"],
+    expectedReason: "domain matched: context",
+    expectedManual: "context-routing"
+  }
+].forEach((fixture) => {
+  test(`createVerificationPlanFromImpact adds ${fixture.name} domain verification hints`, () => {
+    const plan = createVerificationPlanFromImpact(impactAnalysis({
+      task: fixture.task,
+      affectedFiles: fixture.affectedFiles.map((filePath) => ({
+        path: filePath,
+        reason: "task routing matched"
+      })),
+      affectedTests: fixture.affectedTests.map((filePath) => ({
+        path: filePath,
+        reason: "task route matched domain test",
+        score: 92,
+        confidence: "high",
+        signals: ["filename similarity"]
+      })),
+      contextChanges: (fixture.contextChanges ?? []).map((filePath) => ({
+        path: filePath,
+        reason: "changed in working tree"
+      })),
+      suggestedCommands: fixture.affectedTests.length > 0
+        ? [{
+          command: `node --test ${fixture.affectedTests.join(" ")}`,
+          type: "test",
+          scope: "focused",
+          confidence: "high",
+          reason: "run affected tests directly"
+        }]
+        : [],
+      confidenceExplanation: confidenceExplanation({
+        evidence: {
+          changedFiles: fixture.contextChanges ? fixture.contextChanges.length : fixture.affectedFiles.length,
+          nonContextChangedFiles: fixture.contextChanges ? 0 : fixture.affectedFiles.length,
+          contextChanges: fixture.contextChanges ? fixture.contextChanges.length : 0,
+          affectedFiles: fixture.affectedFiles.length,
+          affectedTests: fixture.affectedTests.length,
+          contextOnlyChanges: false,
+          testRelationship: fixture.affectedTests.length > 0 ? "strong" : "none"
+        }
+      })
+    }));
+
+    assert.ok(plan.confidenceExplanation.reasons.some((reason) => reason.startsWith(fixture.expectedReason)));
+    assert.ok(plan.manualChecks.some((check) => check.type === fixture.expectedManual));
+
+    if (fixture.affectedTests.length > 0) {
+      assert.deepEqual(plan.targetedTests.map((item) => item.path), fixture.affectedTests);
+      assert.deepEqual(plan.targetedTestCommands.map((command) => command.command), [
+        `node --test ${fixture.affectedTests.join(" ")}`
+      ]);
+    } else {
+      assert.deepEqual(plan.targetedTestCommands, []);
+    }
+  });
 });
 
 test("createVerificationPlanFromImpact suggests rendered docs review for update README wording", () => {
@@ -785,7 +965,11 @@ test("createVerificationPlanFromImpact does not let context paths trigger source
 
   const plan = createVerificationPlanFromImpact(impact);
 
-  assert.deepEqual(plan.smokeChecks, []);
+  assert.equal(plan.smokeChecks.some((check) => check.type === "ci-workflow"), false);
+  assert.ok(plan.smokeChecks.some((check) => (
+    check.type === "backend-behavior"
+    && check.paths.includes("src/domain/service.ts")
+  )));
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "affected-files"
     && check.paths.includes("src/domain/service.ts")
