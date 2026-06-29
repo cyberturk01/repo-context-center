@@ -311,13 +311,17 @@ test("createVerificationPlanFromImpact maps Impact affected tests and commands",
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "context-routing"
     && check.priority === "low"
-    && check.paths.includes("src/cache/redis.ts")
     && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
+  )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "affected-files"
+    && check.paths.includes("src/cache/redis.ts")
   )));
   assert.deepEqual(plan.executionPlan.map((step) => step.type), [
     "targeted-tests",
     "build",
     "smoke",
+    "manual",
     "manual",
     "manual",
     "manual",
@@ -1520,8 +1524,15 @@ test("planned mode promotes login task estimates without source changes", () => 
   )));
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "context-routing"
+    && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
+  )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "affected-files"
     && check.paths.includes("src/auth/login.ts")
   )));
+  assert.ok(plan.notes.includes(
+    "Planned verification mode: plan uses task routing, impact analysis, and repository learning without requiring source code changes."
+  ));
   assert.ok(plan.notes.includes(
     "Planned verification mode: promoted task-route estimates even though no non-context changed files were present."
   ));
@@ -1613,6 +1624,10 @@ test("planned mode promotes workflow task estimates without source changes", () 
   )));
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "context-routing"
+    && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
+  )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "affected-files"
     && check.paths.includes(".github/workflows/ci.yml")
   )));
 });
@@ -1649,6 +1664,10 @@ test("planned auth verification output is normalized", () => {
   assert.ok(plan.manualChecks.some((check) => check.type === "invalid-credentials"));
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "context-routing"
+    && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
+  )));
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "affected-files"
     && check.paths.includes("src/auth/middleware.ts")
   )));
   assert.equal(plan.manualChecks.length <= 4, true);
@@ -1719,7 +1738,11 @@ test("planned github actions verification output is capped and executable", () =
     && check.command === "actionlint .github/workflows/release.yaml"
   )));
   assert.ok(plan.manualChecks.some((check) => check.type === "workflow-triggers-secrets"));
-  assert.equal(plan.manualChecks.length <= 4, true);
+  assert.ok(plan.manualChecks.some((check) => (
+    check.type === "context-routing"
+    && check.paths.includes("docs/ai-context/TASK_ROUTING.md")
+  )));
+  assert.equal(plan.manualChecks.length <= 5, true);
 });
 
 test("createVerificationPlanFromImpact does not let context paths trigger source smoke checks", () => {
@@ -1765,11 +1788,11 @@ test("createVerificationPlanFromImpact does not let context paths trigger source
   )));
   assert.ok(plan.manualChecks.some((check) => (
     check.type === "context-routing"
-    && check.paths.includes("src/domain/service.ts")
+    && check.paths.includes(".github/workflows/ci.yml")
   )));
   assert.ok(plan.manualChecks.some((check) => (
-    check.type === "context-routing"
-    && check.paths.includes(".github/workflows/ci.yml")
+    check.type === "affected-files"
+    && check.paths.includes("src/domain/service.ts")
   )));
 });
 

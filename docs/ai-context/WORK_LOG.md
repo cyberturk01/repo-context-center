@@ -5556,4 +5556,42 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-29T14:23:06.812Z
+- Summary: Refined verify mode behavior so working-tree plans keep changed-file review separate and planned plans keep context review secondary
+- Changed files: `src/cli/verify/buildVerify.ts`, `tests/outputContract.test.js`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/cli.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Refined verify mode behavior so working-tree plans keep changed-file review separate and planned plans keep context review secondary",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/cli.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T14:23:06.812Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T14:23:06.812Z",
+  "summary": "Refined verify mode behavior so working-tree plans keep changed-file review separate and planned plans keep context review secondary",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/cli.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

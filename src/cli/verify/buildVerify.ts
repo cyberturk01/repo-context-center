@@ -124,9 +124,8 @@ function checkGroup(type: string): string {
     "frontend-regression": "frontend-ui",
     "backend-contract": "backend-behavior",
     "cache-hit-miss": "cache-behavior",
-    "context-changes": "path-review",
-    "affected-files": "path-review",
-    "context-routing": "path-review"
+    "context-changes": "context-review",
+    "context-routing": "context-review"
   };
 
   return groups[type] ?? type;
@@ -138,7 +137,6 @@ function canonicalCheckType(type: string): string {
     "backend-contract": "backend-behavior",
     "cache-hit-miss": "cache-behavior",
     "context-changes": "context-routing",
-    "affected-files": "affected-files",
     "context-routing": "context-routing"
   };
 
@@ -150,7 +148,7 @@ function canonicalReason(group: string): string | undefined {
     "frontend-ui": "Check the affected UI in a browser for rendering, interaction, responsive layout, loading state, and visible regressions.",
     "backend-behavior": "Check the affected backend path with a representative request or worker invocation, including contract behavior, errors, and side effects.",
     "cache-behavior": "Check cache miss and cache hit behavior, plus cache invalidation, for the matched cache surface.",
-    "path-review": "Inspect the affected and context paths for behavior-specific validation and workflow/routing impact."
+    "context-review": "Review RCC context changes for workflow and routing impact after primary verification."
   };
 
   return reasons[group];
@@ -228,8 +226,8 @@ function checkPriority(check: ImpactVerificationHint): number {
     "data-rollback-impact": 41,
     "github-api-integration": 42,
     "config-load": 50,
-    "context-routing": 60,
     "affected-files": 70,
+    "context-routing": 95,
     "postgres-ui-reference": 90
   };
 
@@ -491,6 +489,19 @@ function trimCheckPaths(checks: ImpactVerificationHint[], level: VerificationLev
   });
 }
 
+function retainSecondaryContextReview(
+  checks: ImpactVerificationHint[],
+  sourceChecks: ImpactVerificationHint[]
+): ImpactVerificationHint[] {
+  if (checks.some((check) => checkGroup(check.type) === "context-review")) {
+    return checks;
+  }
+
+  const contextReview = sourceChecks.find((check) => checkGroup(check.type) === "context-review");
+
+  return contextReview ? [...checks, contextReview] : checks;
+}
+
 function isContextOnlyPlan(plan: Pick<VerificationPlan, "mode" | "confidenceExplanation">): boolean {
   return (
     plan.mode !== "planned-task"
@@ -541,7 +552,10 @@ function normalizeVerificationPlan(plan: VerificationPlan, level: VerificationLe
   return finalizeVerificationPlan({
     ...plan,
     smokeChecks: trimCheckPaths(capChecks(smokeChecks, level, "smoke"), level),
-    manualChecks: trimCheckPaths(capChecks(manualChecks, level, "manual"), level)
+    manualChecks: retainSecondaryContextReview(
+      trimCheckPaths(capChecks(manualChecks, level, "manual"), level),
+      trimCheckPaths(manualChecks, level)
+    )
   });
 }
 
@@ -1227,6 +1241,16 @@ function notesFromImpact(impact: ImpactAnalysis): string[] {
   const notes = [...impact.notes];
   const docsOnly = impact.affectedFiles.length > 0 && impact.affectedFiles.every((file) => isDocsPath(file.path));
   const contextOnlyNote = "Context-only changes detected; verify focuses on RCC/context files and does not promote task-route estimates to targeted tests or smoke checks.";
+  const workingTreeNote = "Working-tree verification mode: plan is based on actual repository changes.";
+  const plannedModeNote = "Planned verification mode: plan uses task routing, impact analysis, and repository learning without requiring source code changes.";
+
+  if (impact.mode === "working-tree" && !notes.includes(workingTreeNote)) {
+    notes.push(workingTreeNote);
+  }
+
+  if (impact.mode === "planned-task" && !notes.includes(plannedModeNote)) {
+    notes.push(plannedModeNote);
+  }
 
   if (docsOnly && !notes.includes("Docs-only impact detected; verify documentation changes manually.")) {
     notes.push("Docs-only impact detected; verify documentation changes manually.");
@@ -1303,11 +1327,13 @@ export function createVerificationPlanFromImpact(
     buildCommands: commandsByType(impact.suggestedCommands, "build"),
     smokeChecks: smokeChecksFromImpact(impact),
     manualChecks: [
+      ...compactChecks([
+        manualCheck("affected-files", "Manually inspect changed/affected files before secondary verification.", affectedFilePaths)
+      ]),
       ...impact.verificationHints,
       ...domainManualChecks(impact),
       ...compactChecks([
-        manualCheck("affected-files", "Manually inspect affected files for behavior-specific validation.", affectedFilePaths),
-        manualCheck("context-changes", "Manually review context changes for workflow and routing impact.", contextChangePaths)
+        manualCheck("context-changes", "Secondarily review RCC context changes for workflow and routing impact.", contextChangePaths)
       ])
     ],
     validationChecklist: validationChecklistFromImpact(impact, targetedTests),
@@ -1347,11 +1373,13 @@ export function createPlannedVerificationPlanFromImpact(
     buildCommands: commandsByType(plannedImpact.suggestedCommands, "build"),
     smokeChecks: smokeChecksFromImpact(plannedImpact),
     manualChecks: [
+      ...compactChecks([
+        manualCheck("affected-files", "Manually inspect planned affected files for behavior-specific validation.", affectedFilePaths)
+      ]),
       ...plannedImpact.verificationHints,
       ...domainManualChecks(plannedImpact),
       ...compactChecks([
-        manualCheck("affected-files", "Manually inspect planned affected files for behavior-specific validation.", affectedFilePaths),
-        manualCheck("context-changes", "Manually review context changes for workflow and routing impact.", contextChangePaths)
+        manualCheck("context-changes", "Secondarily review RCC context changes for workflow and routing impact.", contextChangePaths)
       ])
     ],
     validationChecklist: validationChecklistFromImpact(plannedImpact, targetedTests),

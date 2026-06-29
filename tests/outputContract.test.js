@@ -314,6 +314,7 @@ test("verify --json keeps stable JSON contract for fix login bug", () => {
   const plan = parseJsonOnlyOutput(runCli(["verify", task, "--json"]));
 
   assertVerifyJsonContract(plan, task, "working-tree");
+  assert.ok(plan.notes.includes("Working-tree verification mode: plan is based on actual repository changes."));
 });
 
 test("verify --json keeps stable JSON contract for update translation", () => {
@@ -335,4 +336,14 @@ test("verify --task-only --json keeps stable JSON contract for fix login bug", (
   const plan = parseJsonOnlyOutput(runCli(["verify", task, "--task-only", "--json"]));
 
   assertVerifyJsonContract(plan, task, "task-only");
+});
+
+test("verify --planned --json makes planned mode explicit without changing contract", () => {
+  const task = "fix login bug";
+  const plan = parseJsonOnlyOutput(runCli(["verify", task, "--planned", "--json"]));
+
+  assertVerifyJsonContract(plan, task, "planned-task");
+  assert.ok(plan.notes.includes(
+    "Planned verification mode: plan uses task routing, impact analysis, and repository learning without requiring source code changes."
+  ));
 });
