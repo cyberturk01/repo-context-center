@@ -75,6 +75,10 @@ test("metrics collector summarizes existing RCC builder outputs", async () => {
       signals: 0,
       roots: 0,
       monorepo: false,
+      workspaceDetected: false,
+      workspaceType: "none",
+      packageScope: null,
+      workspacePackages: 0,
       packageRoot: null,
       ids: ""
     });
@@ -169,9 +173,29 @@ test("metrics collector exposes compact ecosystem detection without changing rou
     assert.equal(metrics.ecosystem.primary, "node");
     assert.equal(metrics.ecosystem.confidence, "high");
     assert.equal(metrics.ecosystem.monorepo, false);
+    assert.equal(metrics.ecosystem.workspaceDetected, false);
+    assert.equal(metrics.ecosystem.workspaceType, "none");
+    assert.equal(metrics.ecosystem.packageScope, null);
     assert.equal(metrics.ecosystem.packageRoot, ".");
     assert.equal(metrics.ecosystem.ids, "node");
     assert.equal(typeof metrics.routing.primaryFiles, "number");
     assert.equal(typeof metrics.verification.targetedTests, "number");
+  });
+});
+
+test("metrics collector exposes compact monorepo workspace metadata", async () => {
+  await withMetricsRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "package.json", JSON.stringify({
+      private: true,
+      workspaces: ["packages/*"]
+    }, null, 2));
+    await writeFixtureFile(tempDir, "packages/auth/package.json", JSON.stringify({ name: "auth" }, null, 2));
+    const { buildRepositoryMetrics } = require("../dist/analytics/metricsCollector");
+    const metrics = await buildRepositoryMetrics(tempDir, "update auth package");
+
+    assert.equal(metrics.ecosystem.monorepo, true);
+    assert.equal(metrics.ecosystem.workspaceDetected, true);
+    assert.equal(metrics.ecosystem.workspaceType, "npm");
+    assert.equal(metrics.ecosystem.workspacePackages, 1);
   });
 });

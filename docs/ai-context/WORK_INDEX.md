@@ -6,26 +6,26 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Add v0.14.4 monorepo intelligence
 - Polish Go ecosystem adoption docs and regression coverage
 - Polish Python ecosystem adoption docs and regressions
 - Polish Java ecosystem adoption docs and verify regressions
 - Add ecosystem-aware verify defaults and adoption docs
 - Add compact ecosystem detection foundation
 - Tighten auth middleware routing, context-only impact confidence, and verify domain reasons
-- Polish verify build alignment and translation domain calibration
 
 ## Hot Files
 
 | File | Reason | Last touched |
 | ---- | ------ | ------------ |
-| `src/cli/verify/buildVerify.ts` | 32 touches; Polish Python ecosystem adoption docs and regressions | 2026-06-30 |
-| `tests/verify.test.js` | 31 touches; Polish Go ecosystem adoption docs and regression coverage | 2026-06-30 |
-| `tests/impact.test.js` | 26 touches; Tighten auth middleware routing, context-only impact confidence, and verify domain reasons | 2026-06-30 |
-| `src/cli/impact/buildImpact.ts` | 26 touches; Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. | 2026-06-30 |
-| `README.md` | 24 touches; Polish Go ecosystem adoption docs and regression coverage | 2026-06-30 |
+| `src/cli/verify/buildVerify.ts` | 33 touches; Add v0.14.4 monorepo intelligence | 2026-06-30 |
+| `tests/verify.test.js` | 32 touches; Add v0.14.4 monorepo intelligence | 2026-06-30 |
+| `src/cli/impact/buildImpact.ts` | 27 touches; Add v0.14.4 monorepo intelligence | 2026-06-30 |
+| `tests/impact.test.js` | 27 touches; Add v0.14.4 monorepo intelligence | 2026-06-30 |
+| `README.md` | 25 touches; Add v0.14.4 monorepo intelligence | 2026-06-30 |
+| `tests/work.test.js` | 22 touches; Add v0.14.4 monorepo intelligence | 2026-06-30 |
 | `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
-| `tests/work.test.js` | 21 touches; Tighten auth middleware routing, context-only impact confidence, and verify domain reasons | 2026-06-30 |
-| `tests/outputContract.test.js` | 19 touches; Add ecosystem-aware verify defaults and adoption docs | 2026-06-30 |
+| `tests/outputContract.test.js` | 20 touches; Add v0.14.4 monorepo intelligence | 2026-06-30 |
 | `src/cli/index.ts` | 17 touches; Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes. | 2026-06-30 |
 | `src/cli/work/buildWorkBrief.ts` | 16 touches; Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of rediscoveri... | 2026-06-30 |
 
@@ -33,7 +33,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| General maintenance | 46 | Polish Python ecosystem adoption docs and regressions |
+| General maintenance | 47 | Add v0.14.4 monorepo intelligence |
 | Work routing | 43 | Tighten auth middleware routing, context-only impact confidence, and verify domain reasons |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Repository context | 19 | Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments. |
@@ -44,8 +44,8 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (116)
-- `npm test` (53)
+- `npm run build` (117)
+- `npm test` (54)
 - `node --test tests/impact.test.js` (27)
 - `node --test tests/verify.test.js` (27)
 - `node --test tests/cli.test.js` (22)

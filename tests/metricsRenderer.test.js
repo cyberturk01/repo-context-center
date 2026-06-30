@@ -13,6 +13,10 @@ function sampleMetrics() {
       signals: 2,
       roots: 1,
       monorepo: false,
+      workspaceDetected: false,
+      workspaceType: "none",
+      packageScope: null,
+      workspacePackages: 0,
       packageRoot: ".",
       ids: "node"
     },
@@ -90,6 +94,7 @@ test("metrics text renderer shows metric sections only", () => {
   assert.match(output, /^repo-context-center metrics\n/);
   assert.match(output, /Task: fix login bug/);
   assert.match(output, /Ecosystem:\n- Primary: node/);
+  assert.match(output, /- Workspace: none/);
   assert.match(output, /Routing:\n- Task size: small/);
   assert.match(output, /Token savings:\n- Naive tokens: 12,345/);
   assert.match(output, /- Estimated saving: 11,667 tokens \(94\.5%\)/);

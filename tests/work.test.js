@@ -3036,3 +3036,34 @@ test("work output is concise and agent-oriented", async () => {
     assert.doesNotMatch(result.stdout, /Fast lookup:/);
   });
 });
+
+test("work prefers files in the explicitly named workspace package", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-monorepo-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "package.json", JSON.stringify({
+      private: true,
+      workspaces: ["packages/*"]
+    }, null, 2));
+    await writeFixtureFile(tempDir, "packages/auth/src/session.ts", "export function session() { return true; }\n");
+    await writeFixtureFile(tempDir, "packages/auth/tests/session.test.ts", "test('auth session', () => {});\n");
+    await writeFixtureFile(tempDir, "packages/frontend/src/session.ts", "export function sessionView() { return true; }\n");
+    await writeFixtureFile(tempDir, "packages/mobile/src/session.ts", "export function sessionMobile() { return true; }\n");
+
+    const result = runCli(["work", "update auth session", "--json"], { cwd: tempDir });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const route = JSON.parse(result.stdout);
+    const primaryPaths = route.primaryFiles.map((file) => file.path);
+    const authIndex = primaryPaths.indexOf("packages/auth/src/session.ts");
+    const frontendIndex = primaryPaths.indexOf("packages/frontend/src/session.ts");
+    const mobileIndex = primaryPaths.indexOf("packages/mobile/src/session.ts");
+
+    assert.notEqual(authIndex, -1, primaryPaths.join("\n"));
+    assert.ok(frontendIndex === -1 || authIndex < frontendIndex, primaryPaths.join("\n"));
+    assert.ok(mobileIndex === -1 || authIndex < mobileIndex, primaryPaths.join("\n"));
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});

@@ -62,6 +62,10 @@ export interface RepositoryEcosystemMetrics {
   signals: number;
   roots: number;
   monorepo: boolean;
+  workspaceDetected: boolean;
+  workspaceType: string;
+  packageScope: string | null;
+  workspacePackages: number;
   packageRoot: string | null;
   ids: string;
 }

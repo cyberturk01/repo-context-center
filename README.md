@@ -105,6 +105,12 @@ Examples:
 
 RCC prints suggested commands but does not execute them. See [Java](docs/ecosystems/java.md), [Python](docs/ecosystems/python.md), [Go](docs/ecosystems/go.md), and [monorepo](docs/ecosystems/monorepo.md) adoption notes.
 
+## Monorepo Intelligence
+
+RCC recognizes common workspace layouts such as `apps/`, `packages/`, `services/`, `libs/`, `modules/`, npm/yarn/pnpm workspaces, Turborepo, Nx, and Lerna. In monorepos, Work and Impact prefer files in the same package when task wording or affected paths make the package clear, while Verify can suggest package-aware commands such as workspace test filters, Maven `-pl`, Gradle project paths, or package-scoped pytest when confidence is sufficient.
+
+RCC understands repository structure; it does not replace the build system, run commands, score package health, or create execution plans.
+
 Preview installation without writing files:
 
 ```sh

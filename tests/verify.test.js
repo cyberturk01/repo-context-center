@@ -2498,6 +2498,59 @@ test("verify keeps Node behavior unchanged when no stronger command exists", asy
   });
 });
 
+test("verify recommends package-specific pnpm workspace commands when nearest Node package is clear", () => {
+  const impact = impactAnalysis({
+    task: "update auth package",
+    affectedFiles: [{ path: "packages/auth/src/session.ts", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "node",
+        confidence: "high",
+        matchedSignals: ["package.json"],
+        rootPath: ".",
+        packageName: "root"
+      },
+      detections: [
+        {
+          id: "node",
+          confidence: "high",
+          matchedSignals: ["package.json"],
+          rootPath: ".",
+          packageName: "root"
+        },
+        {
+          id: "node",
+          confidence: "high",
+          matchedSignals: ["packages/auth/package.json"],
+          rootPath: "packages/auth",
+          packageName: "auth"
+        }
+      ],
+      workspace: {
+        detected: true,
+        type: "pnpm",
+        rootPath: ".",
+        packageCount: 1,
+        packages: [{ rootPath: "packages/auth", name: "auth", ecosystemIds: ["node"] }],
+        matchedSignals: ["pnpm-workspace.yaml"]
+      }
+    }
+  });
+
+  assert.deepEqual(commandNames(plan.targetedTestCommands), ["pnpm --filter auth test"]);
+});
+
 test("verify prefers affected monorepo package ecosystem over root task wording", () => {
   const impact = impactAnalysis({
     task: "update package service",
@@ -2543,8 +2596,8 @@ test("verify prefers affected monorepo package ecosystem over root task wording"
     }
   });
 
-  assert.ok(commandNames(plan.targetedTestCommands).includes("mvn test"));
-  assert.ok(commandNames(plan.buildCommands).includes("mvn verify"));
+  assert.ok(commandNames(plan.targetedTestCommands).includes("mvn -pl api test"));
+  assert.ok(commandNames(plan.buildCommands).includes("mvn -pl api verify"));
 });
 
 test("verify does not suggest generic frontend smoke checks for Spring Boot backend tasks", () => {

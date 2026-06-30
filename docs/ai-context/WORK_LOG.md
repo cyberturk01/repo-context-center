@@ -7010,4 +7010,68 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-30T15:05:01.464Z
+- Summary: Add v0.14.4 monorepo intelligence
+- Changed files: `docs/ecosystems/monorepo.md`, `README.md`, `src/analytics/metricsCollector.ts`, `src/analytics/metricsTypes.ts`, `src/analytics/renderMetrics.ts`, `src/cli/impact/buildImpact.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/work/targetedLookup.ts`, `src/core/ecosystemDetector.ts`, `tests/ecosystemDetector.test.js`
+- Verification: npm run build; node --test tests/ecosystemDetector.test.js tests/work.test.js tests/impact.test.js tests/verify.test.js tests/metricsCollector.test.js tests/outputContract.test.js; npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add v0.14.4 monorepo intelligence",
+  "files": [
+    "docs/ecosystems/monorepo.md",
+    "README.md",
+    "src/analytics/metricsCollector.ts",
+    "src/analytics/metricsTypes.ts",
+    "src/analytics/renderMetrics.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/work/targetedLookup.ts",
+    "src/core/ecosystemDetector.ts",
+    "tests/ecosystemDetector.test.js",
+    "tests/impact.test.js",
+    "tests/metricsCollector.test.js",
+    "tests/metricsRenderer.test.js",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/ecosystemDetector.test.js tests/work.test.js tests/impact.test.js tests/verify.test.js tests/metricsCollector.test.js tests/outputContract.test.js; npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T15:05:01.464Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T15:05:01.464Z",
+  "summary": "Add v0.14.4 monorepo intelligence",
+  "files": [
+    "docs/ecosystems/monorepo.md",
+    "README.md",
+    "src/analytics/metricsCollector.ts",
+    "src/analytics/metricsTypes.ts",
+    "src/analytics/renderMetrics.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/work/targetedLookup.ts",
+    "src/core/ecosystemDetector.ts",
+    "tests/ecosystemDetector.test.js",
+    "tests/impact.test.js",
+    "tests/metricsCollector.test.js",
+    "tests/metricsRenderer.test.js",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/ecosystemDetector.test.js tests/work.test.js tests/impact.test.js tests/verify.test.js tests/metricsCollector.test.js tests/outputContract.test.js; npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -304,6 +304,55 @@ function applyLookupPenalty(hint: TargetedLookupHint, taskIntent: TaskIntentAnal
   };
 }
 
+const workspaceRootNames = new Set(["apps", "packages", "services", "libs", "modules"]);
+
+function workspacePackageRoot(filePath: string): string | null {
+  const parts = filePath.replace(/\\/g, "/").split("/").filter(Boolean);
+
+  if (workspaceRootNames.has(parts[0] ?? "") && parts.length >= 2) {
+    return `${parts[0]}/${parts[1]}`;
+  }
+
+  return null;
+}
+
+function taskWorkspaceTerms(taskIntent: TaskIntentAnalysis, files: string[]): Set<string> {
+  const packageNames = new Set(files
+    .map(workspacePackageRoot)
+    .filter((root): root is string => root !== null)
+    .map((root) => root.split("/")[1]));
+  return new Set(taskIntent.lookupTerms.filter((term) => packageNames.has(term)));
+}
+
+function applyWorkspaceScopeScore(
+  hint: TargetedLookupHint,
+  taskIntent: TaskIntentAnalysis,
+  workspaceTerms: Set<string>
+): TargetedLookupHint {
+  if (workspaceTerms.size === 0) {
+    return hint;
+  }
+
+  const root = workspacePackageRoot(hint.path);
+  if (!root) {
+    return hint;
+  }
+
+  const packageName = root.split("/")[1];
+  const score = workspaceTerms.has(packageName)
+    ? hint.score + 28
+    : Math.max(0, hint.score - 12);
+
+  return {
+    ...hint,
+    score,
+    confidence: hintConfidence(score),
+    reason: workspaceTerms.has(packageName)
+      ? `${hint.reason}; same workspace package`
+      : hint.reason
+  };
+}
+
 function isPromotableLookupHint(hint: TargetedLookupHint, taskIntent: TaskIntentAnalysis): boolean {
   const info = classifyRepoFile(hint.path);
   const promotableRoles = new Set(["source", "test", "config", "workflow", "package"]);
@@ -570,6 +619,7 @@ export async function targetedLookupHints(cwd: string, taskIntent: TaskIntentAna
   }
 
   const repoFiles = (await listFilesRecursive(cwd)).filter((file) => shouldScanForTargetedLookup(file, taskIntent));
+  const workspaceTerms = taskWorkspaceTerms(taskIntent, repoFiles);
   const startupReferenced = routingReferencedPaths(startup);
   const pairedTestStems = sourceToPairedTestStems(repoFiles);
   const memorySignals = await lookupMemorySignals(cwd, terms, { extractRepoPaths, termPattern });
@@ -720,7 +770,7 @@ export async function targetedLookupHints(cwd: string, taskIntent: TaskIntentAna
       continue;
     }
 
-    candidates.push(hint);
+    candidates.push(applyWorkspaceScopeScore(hint, taskIntent, workspaceTerms));
   }
 
   const deduped = new Map<string, TargetedLookupHint>();

@@ -367,6 +367,10 @@ function assertMetricsJsonContract(metrics, task) {
     "signals",
     "roots",
     "monorepo",
+    "workspaceDetected",
+    "workspaceType",
+    "packageScope",
+    "workspacePackages",
     "packageRoot",
     "ids"
   ], "metrics ecosystem");
@@ -420,11 +424,15 @@ function assertMetricsJsonContract(metrics, task) {
   assertNumberFields(metrics.ecosystem, [
     "detected",
     "signals",
-    "roots"
+    "roots",
+    "workspacePackages"
   ], "metrics.ecosystem");
   assert.equal(typeof metrics.ecosystem.primary, "string");
   assert.equal(typeof metrics.ecosystem.confidence, "string");
   assert.equal(typeof metrics.ecosystem.monorepo, "boolean");
+  assert.equal(typeof metrics.ecosystem.workspaceDetected, "boolean");
+  assert.equal(typeof metrics.ecosystem.workspaceType, "string");
+  assert.ok(metrics.ecosystem.packageScope === null || typeof metrics.ecosystem.packageScope === "string");
   assert.equal(typeof metrics.ecosystem.ids, "string");
   assert.ok(metrics.ecosystem.packageRoot === null || typeof metrics.ecosystem.packageRoot === "string");
   assertNumberFields(metrics.tokens, metricsNumericFields.tokens, "metrics.tokens");

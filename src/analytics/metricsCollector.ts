@@ -19,6 +19,10 @@ function compactEcosystemMetrics(report: EcosystemDetectionReport): RepositoryEc
     signals: report.detections.reduce((total, detection) => total + detection.matchedSignals.length, 0),
     roots: uniqueRoots.size,
     monorepo: report.detections.some((detection) => detection.id === "monorepo"),
+    workspaceDetected: report.workspace.detected,
+    workspaceType: report.workspace.type,
+    packageScope: primary?.rootPath && primary.rootPath !== "." ? primary.rootPath : null,
+    workspacePackages: report.workspace.packageCount,
     packageRoot: primary?.rootPath ?? null,
     ids: uniqueIds.join(",")
   };
@@ -31,7 +35,18 @@ export function repositoryMetricsFromSources(sources: RepositoryMetricsSources, 
     schemaVersion: 1,
     command: "metrics",
     task: work.task,
-    ecosystem: compactEcosystemMetrics(ecosystem ?? { primary: null, detections: [] }),
+    ecosystem: compactEcosystemMetrics(ecosystem ?? {
+      primary: null,
+      detections: [],
+      workspace: {
+        detected: false,
+        type: "none",
+        rootPath: ".",
+        packageCount: 0,
+        packages: [],
+        matchedSignals: []
+      }
+    }),
     routing: {
       taskSize: work.taskSize,
       taskMode: work.taskMode,

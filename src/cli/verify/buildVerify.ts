@@ -555,7 +555,83 @@ function gradleCommand(detection: EcosystemDetection, task: "test" | "build"): s
     : `gradle ${task}`;
 }
 
-function ecosystemTestCommand(detection: EcosystemDetection): ImpactCommand | null {
+function packageScopeName(detection: EcosystemDetection): string {
+  return detection.packageName ?? detection.rootPath.split("/").filter(Boolean).at(-1) ?? "";
+}
+
+function rootGradlePrefix(report: EcosystemDetectionReport | undefined, detection: EcosystemDetection): "./gradlew" | "gradle" {
+  const rootGradle = report?.detections.find((item) => item.id === "gradle" && item.rootPath === ".");
+  return [...detection.matchedSignals, ...(rootGradle?.matchedSignals ?? [])].some((signal) => signal.endsWith("gradlew"))
+    ? "./gradlew"
+    : "gradle";
+}
+
+function packageScopedTestCommand(detection: EcosystemDetection, report?: EcosystemDetectionReport): ImpactCommand | null {
+  if (detection.rootPath === ".") {
+    return null;
+  }
+
+  const scopeName = packageScopeName(detection);
+  if (!scopeName) {
+    return null;
+  }
+
+  if (detection.id === "node") {
+    const workspaceType = report?.workspace?.type;
+    const command = workspaceType === "pnpm"
+      ? `pnpm --filter ${scopeName} test`
+      : workspaceType === "yarn"
+        ? `yarn workspace ${scopeName} test`
+        : `npm test --workspace ${scopeName}`;
+
+    return {
+      command,
+      type: "test",
+      scope: "focused",
+      confidence: "medium",
+      reason: "workspace package test default for nearest package"
+    };
+  }
+
+  if (detection.id === "maven") {
+    return {
+      command: `mvn -pl ${scopeName} test`,
+      type: "test",
+      scope: "focused",
+      confidence: "medium",
+      reason: "maven module test default for nearest module"
+    };
+  }
+
+  if (detection.id === "gradle") {
+    return {
+      command: `${rootGradlePrefix(report, detection)} :${scopeName}:test`,
+      type: "test",
+      scope: "focused",
+      confidence: "medium",
+      reason: "gradle project test default for nearest project"
+    };
+  }
+
+  if (detection.id === "python") {
+    return {
+      command: `pytest ${detection.rootPath}`,
+      type: "test",
+      scope: "focused",
+      confidence: "medium",
+      reason: "python package pytest default for nearest package"
+    };
+  }
+
+  return null;
+}
+
+function ecosystemTestCommand(detection: EcosystemDetection, report?: EcosystemDetectionReport): ImpactCommand | null {
+  const scoped = packageScopedTestCommand(detection, report);
+  if (scoped) {
+    return scoped;
+  }
+
   const id = detection.id as VerifyEcosystemId;
   const commands: Partial<Record<VerifyEcosystemId, string>> = {
     maven: "mvn test",
@@ -581,26 +657,27 @@ function ecosystemTestCommand(detection: EcosystemDetection): ImpactCommand | nu
   };
 }
 
-function ecosystemBuildCommand(detection: EcosystemDetection): ImpactCommand | null {
+function ecosystemBuildCommand(detection: EcosystemDetection, report?: EcosystemDetectionReport): ImpactCommand | null {
   const id = detection.id as VerifyEcosystemId;
+  const scopeName = detection.rootPath !== "." ? packageScopeName(detection) : "";
 
   if (id === "maven") {
     return {
-      command: "mvn verify",
+      command: scopeName ? `mvn -pl ${scopeName} verify` : "mvn verify",
       type: "verification",
-      scope: "project",
+      scope: scopeName ? "focused" : "project",
       confidence: "medium",
-      reason: "maven ecosystem broader verification default"
+      reason: scopeName ? "maven module broader verification default" : "maven ecosystem broader verification default"
     };
   }
 
   if (id === "gradle") {
     return {
-      command: gradleCommand(detection, "build"),
+      command: scopeName ? `${rootGradlePrefix(report, detection)} :${scopeName}:build` : gradleCommand(detection, "build"),
       type: "build",
-      scope: "project",
+      scope: scopeName ? "focused" : "project",
       confidence: "medium",
-      reason: "gradle ecosystem build default"
+      reason: scopeName ? "gradle project build default for nearest project" : "gradle ecosystem build default"
     };
   }
 
@@ -615,12 +692,12 @@ function ecosystemFallbackCommands(
 ): { targetedTestCommands: ImpactCommand[]; buildCommands: ImpactCommand[] } {
   const detection = ecosystemForImpact(impact, ecosystem);
 
-  if (!detection || detection.id === "node" || detection.id === "monorepo") {
+  if (!detection || detection.id === "monorepo" || (detection.id === "node" && detection.rootPath === ".")) {
     return { targetedTestCommands, buildCommands };
   }
 
-  const fallbackTest = targetedTestCommands.length === 0 ? ecosystemTestCommand(detection) : null;
-  const fallbackBuild = buildCommands.length === 0 ? ecosystemBuildCommand(detection) : null;
+  const fallbackTest = targetedTestCommands.length === 0 ? ecosystemTestCommand(detection, ecosystem) : null;
+  const fallbackBuild = buildCommands.length === 0 ? ecosystemBuildCommand(detection, ecosystem) : null;
 
   return {
     targetedTestCommands: fallbackTest ? [...targetedTestCommands, fallbackTest] : targetedTestCommands,

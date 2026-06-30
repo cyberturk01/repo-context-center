@@ -1,45 +1,117 @@
 # Monorepos
 
-RCC supports workspace-style repositories without becoming a project manager or execution engine. It detects common workspace signals and still keeps the core workflow focused on repository intelligence for AI coding agents.
+RCC supports workspace-style repositories without becoming a project manager, dependency graph engine, or build executor. It understands enough repository structure to keep AI coding agents focused on the right package.
 
-## Detection
+## Supported Signals
 
-RCC recognizes monorepo-style signals such as:
+RCC recognizes common monorepo signals:
 
-- `workspaces` in root `package.json`
 - `apps/`
 - `packages/`
 - `services/`
 - `libs/`
 - `modules/`
+- npm `workspaces` in `package.json`
+- pnpm `pnpm-workspace.yaml`
+- Yarn workspaces
+- Turborepo via `turbo.json` or `turbo` dependency
+- Nx via `nx.json` or Nx dependencies
+- Lerna via `lerna.json` or `lerna` dependency
 
-It also detects common ecosystem roots one package level below those directories, such as `services/api/pom.xml`, `packages/web/package.json`, or `services/worker/go.mod`.
+It also detects package ecosystem roots one package level below workspace directories, such as:
 
-## Verify Behavior
+```text
+packages/auth/package.json
+services/auth/pom.xml
+services/billing/build.gradle.kts
+packages/api/pyproject.toml
+services/worker/go.mod
+```
 
-`rcc verify` prefers affected files and the nearest detected package ecosystem over task wording alone. For example:
+## Package-Aware Routing
 
-- Changes under `services/api/` with `pom.xml` can receive Maven defaults.
-- Changes under `services/worker/` with `go.mod` can receive `go test ./...`.
-- Changes in a root Node workspace keep existing Node behavior.
+When a task or affected path clearly points at a package, RCC prefers files from that package first:
 
-RCC does not create an execution plan, estimate runtime, report coverage, or run commands.
+```text
+packages/auth/src/session.ts
+packages/auth/tests/session.test.ts
+```
+
+before unrelated packages such as:
+
+```text
+packages/frontend/
+packages/mobile/
+packages/docs/
+```
+
+RCC expands across package boundaries only when task wording, learned relationships, or existing routing evidence already supports it.
+
+## Package-Aware Verify
+
+`rcc verify` keeps repository-level fallbacks, but can recommend package-aware commands when the nearest package is clear:
+
+- npm workspaces: `npm test --workspace auth`
+- pnpm: `pnpm --filter auth test`
+- Yarn workspaces: `yarn workspace auth test`
+- Java Maven module: `mvn -pl auth-service test`
+- Java Gradle project: `./gradlew :auth:test`
+- Python package: `pytest packages/auth`
+- Go module: nearest detected `go.mod`, with safe fallback to `go test ./...`
+
+RCC prints recommendations. It does not execute commands, infer coverage, estimate runtime, or score package health.
+
+## Ecosystem Examples
+
+Java multi-module:
+
+```text
+services/auth/pom.xml
+services/auth/src/main/java/example/AuthService.java
+services/billing/pom.xml
+```
+
+Python monorepo:
+
+```text
+packages/api/pyproject.toml
+packages/api/src/api/
+packages/jobs/pyproject.toml
+```
+
+Go multi-module:
+
+```text
+services/accounts/go.mod
+services/accounts/internal/account/service.go
+services/billing/go.mod
+services/billing/internal/invoice/service.go
+```
+
+Node workspace:
+
+```text
+package.json
+pnpm-workspace.yaml
+packages/auth/package.json
+apps/web/package.json
+```
 
 ## Local Adoption
 
 ```sh
 npx repo-context-center@latest init
 npx repo-context-center@latest map --write --max-files 500
-rcc work "update workspace service" --agent
-rcc impact "update workspace service" --json
-rcc verify "update workspace service"
-rcc metrics "update workspace service" --json
+rcc work "update auth package" --agent
+rcc impact "update auth package" --json
+rcc verify "update auth package"
+rcc metrics "update auth package" --json
 ```
 
 After running the checks you choose, record the actual result:
 
 ```sh
-rcc done --summary "updated workspace service" --files auto --verify "service test command"
+rcc done --summary "updated auth package" --files auto --verify "pnpm --filter auth test"
 ```
 
 ## GitHub Actions

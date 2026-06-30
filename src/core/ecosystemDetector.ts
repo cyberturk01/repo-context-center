@@ -10,11 +10,30 @@ export interface EcosystemDetection {
   confidence: EcosystemConfidence;
   matchedSignals: string[];
   rootPath: string;
+  packageName?: string;
+}
+
+export type WorkspaceType = "directory" | "npm" | "pnpm" | "yarn" | "turborepo" | "nx" | "lerna" | "mixed";
+
+export interface WorkspacePackage {
+  rootPath: string;
+  name: string;
+  ecosystemIds: EcosystemId[];
+}
+
+export interface WorkspaceDetection {
+  detected: boolean;
+  type: WorkspaceType | "none";
+  rootPath: string;
+  packageCount: number;
+  packages: WorkspacePackage[];
+  matchedSignals: string[];
 }
 
 export interface EcosystemDetectionReport {
   primary: EcosystemDetection | null;
   detections: EcosystemDetection[];
+  workspace: WorkspaceDetection;
 }
 
 interface CandidateRoot {
@@ -87,6 +106,21 @@ async function safeReadText(filePath: string): Promise<string> {
   }
 }
 
+async function packageName(cwd: string, rootPath: string): Promise<string | undefined> {
+  const packagePath = path.join(cwd, rootPath === "." ? "" : rootPath, "package.json");
+  const content = await safeReadText(packagePath);
+  if (!content) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(content) as { name?: unknown };
+    return typeof parsed.name === "string" && parsed.name.trim() ? parsed.name.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function candidateRoots(cwd: string): Promise<{ roots: CandidateRoot[]; topLevelDirs: string[] }> {
   const rootEntries = await safeReadDir(cwd);
   const topLevelDirs = rootEntries
@@ -140,7 +174,8 @@ function addDetection(
   id: EcosystemId,
   rootPath: string,
   matchedSignals: string[],
-  confidence: EcosystemConfidence
+  confidence: EcosystemConfidence,
+  packageNameValue?: string
 ): void {
   if (matchedSignals.length === 0) {
     return;
@@ -150,7 +185,8 @@ function addDetection(
     id,
     confidence,
     matchedSignals,
-    rootPath
+    rootPath,
+    ...(packageNameValue ? { packageName: packageNameValue } : {})
   });
 }
 
@@ -175,6 +211,7 @@ async function pythonPytestSignals(cwd: string, root: CandidateRoot): Promise<st
 
 async function detectRootEcosystems(cwd: string, root: CandidateRoot): Promise<EcosystemDetection[]> {
   const detections: EcosystemDetection[] = [];
+  const packageNameValue = await packageName(cwd, root.rootPath);
   const nodeSignals = exactSignals(root, ["package.json", "pnpm-lock.yaml", "yarn.lock", "package-lock.json"]);
   const mavenSignals = exactSignals(root, ["pom.xml"]);
   const gradleSignals = exactSignals(root, ["build.gradle", "build.gradle.kts", "gradlew"]);
@@ -188,48 +225,148 @@ async function detectRootEcosystems(cwd: string, root: CandidateRoot): Promise<E
     ...suffixSignals(root, [".sln"])
   ];
 
-  addDetection(detections, "node", root.rootPath, nodeSignals, nodeSignals.includes(signalPath(root.rootPath, "package.json")) ? "high" : "medium");
-  addDetection(detections, "maven", root.rootPath, mavenSignals, "high");
-  addDetection(detections, "gradle", root.rootPath, gradleSignals, gradleSignals.length >= 2 ? "high" : "medium");
-  addDetection(detections, "python", root.rootPath, pythonSignals, pythonSignals.some((signal) => /(?:^|\/)(pyproject\.toml|setup\.py)$/.test(signal)) ? "high" : "medium");
-  addDetection(detections, "go", root.rootPath, goSignals, "high");
-  addDetection(detections, "dotnet", root.rootPath, dotnetSignals, "high");
+  addDetection(detections, "node", root.rootPath, nodeSignals, nodeSignals.includes(signalPath(root.rootPath, "package.json")) ? "high" : "medium", packageNameValue);
+  addDetection(detections, "maven", root.rootPath, mavenSignals, "high", path.posix.basename(root.rootPath));
+  addDetection(detections, "gradle", root.rootPath, gradleSignals, gradleSignals.length >= 2 ? "high" : "medium", path.posix.basename(root.rootPath));
+  addDetection(detections, "python", root.rootPath, pythonSignals, pythonSignals.some((signal) => /(?:^|\/)(pyproject\.toml|setup\.py)$/.test(signal)) ? "high" : "medium", packageNameValue ?? path.posix.basename(root.rootPath));
+  addDetection(detections, "go", root.rootPath, goSignals, "high", path.posix.basename(root.rootPath));
+  addDetection(detections, "dotnet", root.rootPath, dotnetSignals, "high", path.posix.basename(root.rootPath));
 
   return detections;
 }
 
-async function packageJsonWorkspaceSignals(cwd: string): Promise<string[]> {
+async function packageJsonWorkspaceSignals(cwd: string): Promise<{ signals: string[]; type: WorkspaceType | null }> {
   const content = await safeReadText(path.join(cwd, "package.json"));
   if (!content) {
-    return [];
+    return { signals: [], type: null };
   }
 
   try {
-    const parsed = JSON.parse(content) as { workspaces?: unknown };
+    const parsed = JSON.parse(content) as { workspaces?: unknown; packageManager?: unknown; devDependencies?: Record<string, unknown>; dependencies?: Record<string, unknown> };
+    const dependencies = { ...(parsed.dependencies ?? {}), ...(parsed.devDependencies ?? {}) };
+    const signals: string[] = [];
+    let type: WorkspaceType | null = null;
     if (Array.isArray(parsed.workspaces) || Boolean((parsed.workspaces as { packages?: unknown } | undefined)?.packages)) {
-      return ["package.json#workspaces"];
+      signals.push("package.json#workspaces");
+      type = typeof parsed.packageManager === "string" && parsed.packageManager.startsWith("yarn@") ? "yarn" : "npm";
     }
+    if ("turbo" in dependencies) {
+      signals.push("package.json#turbo");
+      type = combineWorkspaceType(type, "turborepo");
+    }
+    if ("nx" in dependencies || "@nx/workspace" in dependencies) {
+      signals.push("package.json#nx");
+      type = combineWorkspaceType(type, "nx");
+    }
+    if ("lerna" in dependencies) {
+      signals.push("package.json#lerna");
+      type = combineWorkspaceType(type, "lerna");
+    }
+    return { signals, type };
   } catch {
-    return [];
+    return { signals: [], type: null };
   }
-
-  return [];
 }
 
-async function detectMonorepo(cwd: string, topLevelDirs: string[], ecosystemRoots: string[]): Promise<EcosystemDetection | null> {
+function combineWorkspaceType(current: WorkspaceType | null, next: WorkspaceType): WorkspaceType {
+  return current === null || current === next ? next : "mixed";
+}
+
+async function workspaceFileSignals(cwd: string, topLevelDirs: string[]): Promise<{ signals: string[]; type: WorkspaceType | null }> {
+  const rootFiles = new Set((await safeReadDir(cwd)).filter((entry) => entry.isFile()).map((entry) => entry.name));
+  const signals: string[] = [];
+  let type: WorkspaceType | null = null;
+
+  if (rootFiles.has("pnpm-workspace.yaml")) {
+    signals.push("pnpm-workspace.yaml");
+    type = "pnpm";
+  }
+  if (rootFiles.has("turbo.json")) {
+    signals.push("turbo.json");
+    type = combineWorkspaceType(type, "turborepo");
+  }
+  if (rootFiles.has("nx.json")) {
+    signals.push("nx.json");
+    type = combineWorkspaceType(type, "nx");
+  }
+  if (rootFiles.has("lerna.json")) {
+    signals.push("lerna.json");
+    type = combineWorkspaceType(type, "lerna");
+  }
+  if (rootFiles.has("yarn.lock") && topLevelDirs.some((dir) => workspaceDirectorySignals.includes(dir))) {
+    signals.push("yarn.lock#workspaces");
+    type = type ?? "yarn";
+  }
+
+  return { signals, type };
+}
+
+function mergeWorkspaceType(types: Array<WorkspaceType | null>): WorkspaceType | null {
+  const unique = [...new Set(types.filter((type): type is WorkspaceType => type !== null))];
+  if (unique.length === 0) {
+    return null;
+  }
+  if (unique.length === 1) {
+    return unique[0];
+  }
+  return "mixed";
+}
+
+function workspacePackages(detections: EcosystemDetection[]): WorkspacePackage[] {
+  const byRoot = new Map<string, WorkspacePackage>();
+
+  for (const detection of detections) {
+    if (detection.id === "monorepo" || detection.rootPath === ".") {
+      continue;
+    }
+
+    const existing = byRoot.get(detection.rootPath);
+    const name = detection.packageName ?? path.posix.basename(detection.rootPath);
+    if (existing) {
+      existing.ecosystemIds = [...new Set([...existing.ecosystemIds, detection.id])];
+      continue;
+    }
+
+    byRoot.set(detection.rootPath, {
+      rootPath: detection.rootPath,
+      name,
+      ecosystemIds: [detection.id]
+    });
+  }
+
+  return [...byRoot.values()].sort((left, right) => left.rootPath.localeCompare(right.rootPath));
+}
+
+async function detectWorkspace(cwd: string, topLevelDirs: string[], ecosystemDetections: EcosystemDetection[]): Promise<WorkspaceDetection> {
   const directorySignals = workspaceDirectorySignals
     .filter((directory) => topLevelDirs.includes(directory))
     .map((directory) => `${directory}/`);
-  const workspaceSignals = await packageJsonWorkspaceSignals(cwd);
-  const matchedSignals = [...workspaceSignals, ...directorySignals];
+  const packageJsonSignals = await packageJsonWorkspaceSignals(cwd);
+  const fileSignals = await workspaceFileSignals(cwd, topLevelDirs);
+  const matchedSignals = [...packageJsonSignals.signals, ...fileSignals.signals, ...directorySignals];
+  const packages = workspacePackages(ecosystemDetections);
+  const type = mergeWorkspaceType([packageJsonSignals.type, fileSignals.type]) ?? (directorySignals.length > 0 ? "directory" : "none");
 
-  if (matchedSignals.length === 0 && new Set(ecosystemRoots.filter((rootPath) => rootPath !== ".")).size < 2) {
+  return {
+    detected: matchedSignals.length > 0 || packages.length >= 2,
+    type,
+    rootPath: ".",
+    packageCount: packages.length,
+    packages,
+    matchedSignals
+  };
+}
+
+async function detectMonorepo(cwd: string, topLevelDirs: string[], workspace: WorkspaceDetection): Promise<EcosystemDetection | null> {
+  const matchedSignals = workspace.matchedSignals;
+
+  if (!workspace.detected) {
     return null;
   }
 
-  const confidence: EcosystemConfidence = workspaceSignals.length > 0
+  const confidence: EcosystemConfidence = matchedSignals.some((signal) => /workspaces|pnpm-workspace|turbo|nx|lerna/i.test(signal))
     ? "high"
-    : matchedSignals.length >= 2 || new Set(ecosystemRoots.filter((rootPath) => rootPath !== ".")).size >= 2
+    : matchedSignals.length >= 2 || workspace.packageCount >= 2
       ? "medium"
       : "low";
 
@@ -244,11 +381,13 @@ async function detectMonorepo(cwd: string, topLevelDirs: string[], ecosystemRoot
 export async function detectRepositoryEcosystems(cwd: string): Promise<EcosystemDetectionReport> {
   const { roots, topLevelDirs } = await candidateRoots(cwd);
   const ecosystemDetections = (await Promise.all(roots.map((root) => detectRootEcosystems(cwd, root)))).flat();
-  const monorepo = await detectMonorepo(cwd, topLevelDirs, ecosystemDetections.map((detection) => detection.rootPath));
+  const workspace = await detectWorkspace(cwd, topLevelDirs, ecosystemDetections);
+  const monorepo = await detectMonorepo(cwd, topLevelDirs, workspace);
   const detections = sortDetections(monorepo ? [...ecosystemDetections, monorepo] : ecosystemDetections);
 
   return {
     primary: detections.find((detection) => detection.id !== "monorepo") ?? detections[0] ?? null,
-    detections
+    detections,
+    workspace
   };
 }

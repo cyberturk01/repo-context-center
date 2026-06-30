@@ -122,6 +122,36 @@ test("ecosystem detector recognizes Go modules inside service monorepos", async 
       && detection.rootPath === "services/billing"
       && detection.matchedSignals.includes("services/billing/go.mod")
     )));
+    assert.equal(report.workspace.detected, true);
+    assert.equal(report.workspace.type, "directory");
+    assert.equal(report.workspace.packageCount, 2);
+  });
+});
+
+test("ecosystem detector recognizes workspace tool signals", async () => {
+  await withFixtureRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "package.json", JSON.stringify({
+      private: true,
+      workspaces: ["packages/*"],
+      devDependencies: {
+        turbo: "^2.0.0"
+      }
+    }, null, 2));
+    await writeFixtureFile(tempDir, "pnpm-workspace.yaml", "packages:\n  - packages/*\n");
+    await writeFixtureFile(tempDir, "nx.json", "{}\n");
+    await writeFixtureFile(tempDir, "lerna.json", "{}\n");
+    await writeFixtureFile(tempDir, "packages/auth/package.json", JSON.stringify({ name: "auth" }, null, 2));
+    const { detectRepositoryEcosystems } = require("../dist/core/ecosystemDetector");
+    const report = await detectRepositoryEcosystems(tempDir);
+
+    assert.equal(report.workspace.detected, true);
+    assert.equal(report.workspace.type, "mixed");
+    assert.ok(report.workspace.matchedSignals.includes("package.json#workspaces"));
+    assert.ok(report.workspace.matchedSignals.includes("pnpm-workspace.yaml"));
+    assert.ok(report.workspace.matchedSignals.includes("package.json#turbo"));
+    assert.ok(report.workspace.matchedSignals.includes("nx.json"));
+    assert.ok(report.workspace.matchedSignals.includes("lerna.json"));
+    assert.ok(report.workspace.packages.some((workspacePackage) => workspacePackage.rootPath === "packages/auth"));
   });
 });
 
