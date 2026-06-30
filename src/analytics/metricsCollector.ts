@@ -1,6 +1,6 @@
 import { buildImpactAnalysis } from "../cli/impact/buildImpact";
 import { buildMeasureReport } from "../cli/measure/buildMeasure";
-import { buildVerificationPlan } from "../cli/verify/buildVerify";
+import { buildVerificationPlanFromImpact } from "../cli/verify/buildVerify";
 import { buildWorkBriefForTask } from "../cli/work/buildWorkBrief";
 import type { RepositoryMetrics, RepositoryMetricsSources } from "./metricsTypes";
 
@@ -54,12 +54,12 @@ export function repositoryMetricsFromSources(sources: RepositoryMetricsSources):
 }
 
 export async function buildRepositoryMetrics(cwd: string, task: string): Promise<RepositoryMetrics> {
-  const [work, measure, impact, verify] = await Promise.all([
+  const [work, measure, impact] = await Promise.all([
     buildWorkBriefForTask(cwd, task),
     buildMeasureReport(cwd, task),
-    buildImpactAnalysis(cwd, task),
-    buildVerificationPlan(cwd, task)
+    buildImpactAnalysis(cwd, task)
   ]);
+  const verify = buildVerificationPlanFromImpact(impact);
 
   return repositoryMetricsFromSources({
     work,

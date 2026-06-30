@@ -53,17 +53,17 @@ test("metrics collector summarizes existing RCC builder outputs", async () => {
     const { buildRepositoryMetrics } = require("../dist/analytics/metricsCollector");
     const { buildWorkBriefForTask } = require("../dist/cli/work/buildWorkBrief");
     const { buildImpactAnalysis } = require("../dist/cli/impact/buildImpact");
-    const { buildVerificationPlan } = require("../dist/cli/verify/buildVerify");
+    const { buildVerificationPlanFromImpact } = require("../dist/cli/verify/buildVerify");
     const { buildMeasureReport } = require("../dist/cli/measure/buildMeasure");
     const task = "fix login bug";
 
-    const [metrics, work, impact, verify, measure] = await Promise.all([
+    const [metrics, work, impact, measure] = await Promise.all([
       buildRepositoryMetrics(tempDir, task),
       buildWorkBriefForTask(tempDir, task),
       buildImpactAnalysis(tempDir, task),
-      buildVerificationPlan(tempDir, task),
       buildMeasureReport(tempDir, task)
     ]);
+    const verify = buildVerificationPlanFromImpact(impact);
 
     assert.equal(metrics.schemaVersion, 1);
     assert.equal(metrics.command, "metrics");
@@ -115,7 +115,7 @@ test("metrics collector depends on command builders instead of repository scanne
 
   assert.match(source, /buildWorkBriefForTask/);
   assert.match(source, /buildImpactAnalysis/);
-  assert.match(source, /buildVerificationPlan/);
+  assert.match(source, /buildVerificationPlanFromImpact/);
   assert.match(source, /buildMeasureReport/);
   assert.doesNotMatch(source, /from "\.\.\/core\/(?:scanner|repoMapper|tokenEstimator|task-analysis|fileSystem)"/);
   assert.doesNotMatch(source, /from "node:fs/);

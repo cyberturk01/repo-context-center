@@ -226,6 +226,7 @@ function assertNoArrayValues(value, label) {
 
 function assertImpactJsonContract(analysis, task, mode) {
   assert.deepEqual(Object.keys(analysis).sort(), [...stableImpactFields].sort());
+  assertOmitsKeys(analysis, ["taskContext", "domainMatches", "taskMentionsContext"], "impact --json");
   assert.equal(analysis.schemaVersion, 1);
   assert.equal(analysis.command, "impact");
   assert.equal(analysis.task, task);
@@ -366,6 +367,7 @@ function assertMetricsJsonContract(metrics, task) {
 
 function assertVerifyJsonContract(plan, task, mode) {
   assert.deepEqual(Object.keys(plan).sort(), [...stableVerifyFields].sort());
+  assertOmitsKeys(plan, ["taskContext", "domainMatches", "taskMentionsContext"], "verify --json");
   assert.equal(plan.schemaVersion, 1);
   assert.equal(plan.command, "verify");
   assert.equal(plan.task, task);

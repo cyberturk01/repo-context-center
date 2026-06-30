@@ -6,10 +6,15 @@ const test = require("node:test");
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
 const {
+  buildVerificationPlan,
+  buildVerificationPlanFromImpact,
   createVerificationPlan,
   createPlannedVerificationPlanFromImpact,
   createVerificationPlanFromImpact
 } = require(path.join(repoRoot, "dist", "cli", "verify", "buildVerify.js"));
+const {
+  buildImpactAnalysis
+} = require(path.join(repoRoot, "dist", "cli", "impact", "buildImpact.js"));
 const {
   detectDomains,
   taskMentionsDomain
@@ -2021,6 +2026,33 @@ test("verify --json builds recommendations from Impact analysis", () => {
   ]);
   assert.equal("affectedFiles" in plan, false);
   assert.equal("suggestedCommands" in plan, false);
+});
+
+test("buildVerificationPlanFromImpact matches buildVerificationPlan", async () => {
+  const cwd = fixturePath("redis-cache");
+  const task = "add redis cache";
+  const impact = await buildImpactAnalysis(cwd, task, { taskOnly: true });
+  const fromImpact = buildVerificationPlanFromImpact(impact);
+  const fromCwdAndTask = await buildVerificationPlan(cwd, task, { taskOnly: true });
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(fromImpact)),
+    JSON.parse(JSON.stringify(fromCwdAndTask))
+  );
+});
+
+test("buildVerificationPlanFromImpact preserves planned mode", async () => {
+  const cwd = fixturePath("simple-auth");
+  const task = "fix login bug";
+  const impact = await buildImpactAnalysis(cwd, task, { taskOnly: true });
+  const fromImpact = buildVerificationPlanFromImpact(impact, { planned: true });
+  const fromCwdAndTask = await buildVerificationPlan(cwd, task, { planned: true, taskOnly: true });
+
+  assert.equal(fromImpact.mode, "planned-task");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(fromImpact)),
+    JSON.parse(JSON.stringify(fromCwdAndTask))
+  );
 });
 
 test("verify --planned --json selects planned-task mode", () => {

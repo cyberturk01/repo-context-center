@@ -7,7 +7,12 @@ const test = require("node:test");
 
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
-const { normalizeImpactPath } = require("../dist/cli/impact/buildImpact");
+const {
+  buildImpactAnalysis,
+  buildImpactAnalysisFromTaskContext,
+  normalizeImpactPath
+} = require("../dist/cli/impact/buildImpact");
+const { buildTaskAnalysis } = require("../dist/core/task-analysis");
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [cliPath, ...args], {
@@ -213,6 +218,32 @@ test("impact --json returns task-based affected files and commands", async () =>
     assert.equal(testCommand.type, "test");
     assert.equal(testCommand.scope, "focused");
     assert.equal(testCommand.confidence, "high");
+  });
+});
+
+test("buildImpactAnalysisFromTaskContext matches buildImpactAnalysis", async () => {
+  await withImpactRepo(async (cwd) => {
+    const task = "update login flow";
+    const options = { maxFiles: 12, taskOnly: true };
+    const taskContext = await buildTaskAnalysis(cwd, task, options);
+    const fromTaskContext = buildImpactAnalysisFromTaskContext(taskContext, { maxFiles: options.maxFiles });
+    const fromCwdAndTask = await buildImpactAnalysis(cwd, task, options);
+
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(fromTaskContext)),
+      JSON.parse(JSON.stringify(fromCwdAndTask))
+    );
+    assert.equal(fromTaskContext.taskContext, taskContext);
+    assert.deepEqual(fromTaskContext.domainMatches, taskContext.domains);
+    assert.equal(fromTaskContext.taskMentionsContext, taskContext.taskMentionsContext);
+
+    for (const key of ["taskContext", "domainMatches", "taskMentionsContext"]) {
+      const descriptor = Object.getOwnPropertyDescriptor(fromTaskContext, key);
+
+      assert.ok(descriptor, `${key} should be attached`);
+      assert.equal(descriptor.enumerable, false, `${key} should be non-enumerable`);
+      assert.equal(Object.keys(fromTaskContext).includes(key), false, `${key} should not appear in public keys`);
+    }
   });
 });
 

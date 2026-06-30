@@ -1276,6 +1276,19 @@ export function createPlannedVerificationPlanFromImpact(
   }), level);
 }
 
+export function buildVerificationPlanFromImpact(
+  impact: ImpactAnalysis,
+  options: { level?: VerificationLevel; planned?: boolean } = {}
+): VerificationPlan {
+  const level = options.level ?? defaultVerificationLevel;
+
+  if (options.planned) {
+    return createPlannedVerificationPlanFromImpact(impact, level);
+  }
+
+  return createVerificationPlanFromImpact(impact, level);
+}
+
 export async function buildVerificationPlan(
   cwd: string,
   task: string,
@@ -1284,11 +1297,6 @@ export async function buildVerificationPlan(
   const impact = await buildImpactAnalysis(cwd, task, {
     taskOnly: options.taskOnly ?? false
   });
-  const level = options.level ?? defaultVerificationLevel;
 
-  if (options.planned) {
-    return createPlannedVerificationPlanFromImpact(impact, level);
-  }
-
-  return createVerificationPlanFromImpact(impact, level);
+  return buildVerificationPlanFromImpact(impact, options);
 }

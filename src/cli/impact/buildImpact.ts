@@ -180,6 +180,16 @@ export async function buildImpactAnalysis(
     maxFiles,
     taskOnly: options.taskOnly ?? false
   });
+
+  return buildImpactAnalysisFromTaskContext(analysis, { maxFiles });
+}
+
+export function buildImpactAnalysisFromTaskContext(
+  taskContext: TaskAnalysisResult,
+  options: { maxFiles?: number } = {}
+): ImpactAnalysis {
+  const maxFiles = options.maxFiles ?? 50;
+  const analysis = taskContext;
   const changedFiles = impactFiles(analysis.changedFiles).slice(0, maxFiles);
   const contextChanges = impactFiles(analysis.contextChanges);
   const affectedFiles = rankedAffectedFiles(analysis);
@@ -189,7 +199,7 @@ export async function buildImpactAnalysis(
   return attachTaskContext({
     schemaVersion: 1,
     command: "impact",
-    task,
+    task: analysis.task,
     mode: analysis.mode,
     basis: analysis.basis,
     summary: {
