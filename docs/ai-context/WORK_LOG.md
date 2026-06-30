@@ -6666,4 +6666,50 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-30T14:03:19.257Z
+- Summary: Tighten auth middleware routing, context-only impact confidence, and verify domain reasons
+- Changed files: `src/cli/verify/buildVerify.ts`, `src/cli/work/targetedLookup.ts`, `src/cli/work/taskFileRecommendations.ts`, `src/core/task-analysis/scoreRelationships.ts`, `tests/impact.test.js`, `tests/verify.test.js`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/impact.test.js; node --test tests/verify.test.js; node --test tests/work.test.js; node --test tests/outputContract.test.js; node --test tests/metricsCollector.test.js tests/metricsRenderer.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Tighten auth middleware routing, context-only impact confidence, and verify domain reasons",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/work/targetedLookup.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js",
+    "tests/verify.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js; node --test tests/verify.test.js; node --test tests/work.test.js; node --test tests/outputContract.test.js; node --test tests/metricsCollector.test.js tests/metricsRenderer.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T14:03:19.257Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T14:03:19.257Z",
+  "summary": "Tighten auth middleware routing, context-only impact confidence, and verify domain reasons",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/work/targetedLookup.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js",
+    "tests/verify.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js; node --test tests/verify.test.js; node --test tests/work.test.js; node --test tests/outputContract.test.js; node --test tests/metricsCollector.test.js tests/metricsRenderer.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

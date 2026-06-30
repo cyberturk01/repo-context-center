@@ -775,21 +775,33 @@ function preferredDomainMatches(impact: ImpactAnalysis): DomainMatch[] {
   const matches = domainMatches(impact);
   const domains = new Set(matches.map((match) => match.domain));
 
-  if (!domains.has("translation")) {
-    return matches;
+  const specificMatches = matches.filter((match) => !["frontend", "backend", "config", "context"].includes(match.domain));
+
+  if (specificMatches.length === 0) {
+    return matches.slice(0, 3);
   }
 
-  return matches.filter((match) => {
-    if (match.domain === "config") {
-      return false;
+  return uniqueDomainMatches([
+    ...specificMatches,
+    ...(domains.has("context") ? matches.filter((match) => match.domain === "context") : []),
+    ...matches.filter((match) => match.domain === "backend" && specificMatches.length < 2)
+  ]).slice(0, 3);
+}
+
+function uniqueDomainMatches(matches: DomainMatch[]): DomainMatch[] {
+  const seen = new Set<VerificationDomain>();
+  const unique: DomainMatch[] = [];
+
+  for (const match of matches) {
+    if (seen.has(match.domain)) {
+      continue;
     }
 
-    if (match.domain === "frontend") {
-      return match.paths.some(isFrontendVisiblePath);
-    }
+    seen.add(match.domain);
+    unique.push(match);
+  }
 
-    return true;
-  });
+  return unique;
 }
 
 function compactConfidenceReason(reason: string): string | null {

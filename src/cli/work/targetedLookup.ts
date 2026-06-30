@@ -37,6 +37,24 @@ function pathParts(filePath: string): string[] {
     .filter(Boolean);
 }
 
+function isAuthMiddlewareTask(taskIntent: TaskIntentAnalysis): boolean {
+  const terms = new Set(taskIntent.lookupTerms);
+
+  return terms.has("auth") && terms.has("middleware");
+}
+
+function isStrongAuthMiddlewareLookupPath(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, "/").toLowerCase();
+
+  return (
+    /(^|\/)packages\/backend-core\/src\/auth\//i.test(normalized)
+    || /(^|\/)packages\/backend-core\/src\/middleware\//i.test(normalized)
+    || /(^|\/)packages\/server\/src\/api\/routes\/.+\/middleware\//i.test(normalized)
+    || /(^|\/)src\/auth\/middleware\.[cm]?[jt]sx?$/i.test(normalized)
+    || /(^|\/)src\/middleware\//i.test(normalized)
+  );
+}
+
 export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -442,6 +460,10 @@ function bestPathMatch(
     }
 
     if (score > 0 && signal) {
+      if (isAuthMiddlewareTask(taskIntent) && isStrongAuthMiddlewareLookupPath(filePath)) {
+        score += 80;
+      }
+
       best = chooseBetterHint(best, applyLookupPenalty(
         makeLookupHint(filePath, term, weightedScore(score, term), reason, signal, index),
         taskIntent

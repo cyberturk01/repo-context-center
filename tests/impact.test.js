@@ -348,11 +348,12 @@ test("impact --task-only ignores git context changes in confidence evidence", as
     assert.equal(defaultAnalysis.mode, "working-tree");
     assert.equal(defaultAnalysis.basis, "changed-files-and-task");
     assert.ok(defaultAnalysis.changedFiles.some((file) => file.path === "AGENTS.md"));
-    assert.equal(defaultAnalysis.confidence, "high");
+    assert.equal(defaultAnalysis.confidence, "medium");
     assert.equal(defaultAnalysis.confidenceExplanation.evidence.contextOnlyChanges, true);
     assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("context-only changes detected"));
     assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("routing confidence: high"));
     assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("change confidence: medium"));
+    assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("context-only changes cap confidence at medium"));
 
     assert.equal(taskOnlyAnalysis.mode, "task-only");
     assert.equal(taskOnlyAnalysis.basis, "task");

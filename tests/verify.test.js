@@ -1043,6 +1043,54 @@ test("createVerificationPlanFromImpact prefers translation domain over generic c
   assert.equal(plan.confidenceExplanation.reasons.includes("domain matched: config"), false);
 });
 
+test("createVerificationPlanFromImpact keeps confidence domain reasons focused on specific domains", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "improve auth middleware",
+    affectedFiles: [
+      {
+        path: "packages/backend-core/src/auth/auth.ts",
+        reason: "matched filename stem"
+      },
+      {
+        path: "packages/builder/src/settings/pages/auth/index.svelte",
+        reason: "matched task token"
+      },
+      {
+        path: "packages/backend-core/src/config/auth.ts",
+        reason: "matched task token"
+      }
+    ],
+    affectedTests: [],
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      level: "medium",
+      reasons: [
+        "context-only changes detected",
+        "task routing matched",
+        "no test relationship"
+      ],
+      evidence: {
+        changedFiles: 1,
+        nonContextChangedFiles: 0,
+        contextChanges: 1,
+        affectedFiles: 3,
+        affectedTests: 0,
+        contextOnlyChanges: true,
+        testRelationship: "none"
+      }
+    })
+  }));
+  const domainReasons = plan.confidenceExplanation.reasons.filter((reason) => reason.startsWith("domain matched:"));
+
+  assert.deepEqual(domainReasons, ["domain matched: auth", "domain matched: context"]);
+});
+
 test("createVerificationPlanFromImpact suggests rendered docs review for update README wording", () => {
   const plan = createVerificationPlanFromImpact(impactAnalysis({
     task: "update README wording",

@@ -2618,12 +2618,31 @@ test("work --agent keeps README wording tasks tiny without unrelated tests", asy
 
 test("work --agent does not downgrade auth middleware tasks to tiny", async () => {
   await withWorkRepo(async (tempDir) => {
+    for (const filePath of [
+      "packages/backend-core/src/events/publishers/auth.ts",
+      "packages/builder/src/stores/portal/auth.ts",
+      "packages/frontend-core/src/api/auth.ts",
+      "packages/worker/src/api/controllers/global/auth.ts",
+      "packages/worker/src/api/routes/global/auth.ts",
+      "packages/backend-core/src/auth/auth.ts",
+      "packages/server/src/api/routes/public/middleware/mapper.ts",
+      "packages/backend-core/src/auth/index.ts",
+      "packages/backend-core/src/middleware/joi-validator.ts",
+      "packages/builder/src/settings/pages/auth/index.svelte"
+    ]) {
+      await writeFixtureFile(tempDir, filePath, "export const value = true;\n");
+    }
+
     const result = runCli(["work", "improve auth middleware", "--agent"], { cwd: tempDir });
     const route = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
     assert.notEqual(route.taskSize, "tiny");
     assert.notEqual(route.next.startsWith("Tiny obvious task:"), true);
+    assert.ok(route.primaryFiles.includes("packages/server/src/api/routes/public/middleware/mapper.ts"), route.primaryFiles.join("\n"));
+    assert.ok(route.primaryFiles.includes("packages/backend-core/src/middleware/joi-validator.ts"), route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.includes("packages/frontend-core/src/api/auth.ts"), false, route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.includes("packages/builder/src/settings/pages/auth/index.svelte"), false, route.primaryFiles.join("\n"));
   });
 });
 

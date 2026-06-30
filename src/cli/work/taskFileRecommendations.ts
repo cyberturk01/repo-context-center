@@ -90,6 +90,37 @@ function recommendationItemsWithLearning(
   });
 }
 
+function isAuthMiddlewareTask(taskIntent: TaskIntentAnalysis): boolean {
+  const terms = new Set(taskIntent.lookupTerms);
+
+  return terms.has("auth") && terms.has("middleware");
+}
+
+function isStrongAuthMiddlewarePrimaryPath(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, "/").toLowerCase();
+
+  return (
+    /(^|\/)packages\/backend-core\/src\/auth\//i.test(normalized)
+    || /(^|\/)packages\/backend-core\/src\/middleware\//i.test(normalized)
+    || /(^|\/)packages\/server\/src\/api\/routes\/.+\/middleware\//i.test(normalized)
+    || /(^|\/)src\/auth\/middleware\.[cm]?[jt]sx?$/i.test(normalized)
+    || /(^|\/)src\/middleware\//i.test(normalized)
+  );
+}
+
+function calibrateAuthMiddlewarePrimaryPaths(
+  primaryPaths: string[],
+  taskIntent: TaskIntentAnalysis
+): string[] {
+  if (!isAuthMiddlewareTask(taskIntent)) {
+    return primaryPaths;
+  }
+
+  const focused = primaryPaths.filter(isStrongAuthMiddlewarePrimaryPath);
+
+  return focused.length > 0 ? focused : primaryPaths;
+}
+
 function contextDocPaths(startup: StartupContext, guidance: ReadFirstGuidance): string[] {
   return uniquePaths([
     ...guidance.taskSpecific.map((item) => item.path),
@@ -347,9 +378,16 @@ export function buildWorkFileCategorization(
     .filter((hint) => isDirectTaskTargetHint(hint, startup.task, taskIntent))
     .map((hint) => hint.path);
   const legacyTaskPaths = categorized.taskFiles.map((file) => file.path);
-  const primaryPaths = directPrimaryPaths.length > 0
+  const rawPrimaryPaths = directPrimaryPaths.length > 0
     ? directPrimaryPaths
     : legacyTaskPaths;
+  const primaryCandidatePaths = isAuthMiddlewareTask(taskIntent)
+    ? uniquePaths([
+      ...rawPrimaryPaths,
+      ...categorized.recommendedFiles.map((file) => file.path)
+    ])
+    : rawPrimaryPaths;
+  const primaryPaths = calibrateAuthMiddlewarePrimaryPaths(primaryCandidatePaths, taskIntent);
   const primarySet = new Set(primaryPaths);
   const testPaths = sortTestsByPrimaryRelevance(uniquePaths([
     ...categorized.supportingTests.map((file) => file.path),
@@ -359,6 +397,7 @@ export function buildWorkFileCategorization(
   const supportingPaths = uniquePaths([
     ...(directPrimaryPaths.length > 0
       ? [
+      ...rawPrimaryPaths,
       ...legacyTaskPaths,
       ...categorized.recommendedFiles
         .map((file) => file.path)
