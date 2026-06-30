@@ -6372,4 +6372,42 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-30T10:09:41.091Z
+- Summary: Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract.
+- Changed files: `src/cli/measure/buildMeasure.ts`, `tests/estimate.test.js`, `tests/outputContract.test.js`
+- Verification: npm run build; node --test tests/estimate.test.js tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract.",
+  "files": [
+    "src/cli/measure/buildMeasure.ts",
+    "tests/estimate.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/estimate.test.js tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T10:09:41.091Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T10:09:41.091Z",
+  "summary": "Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract.",
+  "files": [
+    "src/cli/measure/buildMeasure.ts",
+    "tests/estimate.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": "npm run build; node --test tests/estimate.test.js tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

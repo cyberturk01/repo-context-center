@@ -251,6 +251,7 @@ function assertImpactJsonContract(analysis, task, mode) {
 
 function assertMeasureJsonContract(report, task) {
   assert.deepEqual(Object.keys(report), stableMeasureFields);
+  assertOmitsKeys(report, ["route", "agentRoute", "briefTokens", "readFirst", "next"], "measure --json");
   assert.equal(report.schemaVersion, 1);
   assert.equal(report.command, "measure");
   assert.equal(report.task, task);

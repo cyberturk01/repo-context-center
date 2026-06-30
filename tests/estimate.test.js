@@ -339,6 +339,43 @@ test("measure reusable builder preserves CLI JSON contract", async () => {
   });
 });
 
+test("measure builder can reuse an existing agent route for route-derived fields", async () => {
+  await withTempRepo(async (tempDir) => {
+    const {
+      buildMeasureReport,
+      buildMeasureReportFromRoute
+    } = require("../dist/cli/measure/buildMeasure");
+    const { buildAgentWorkRoute } = require("../dist/cli/work/buildWorkBrief");
+    const task = "fix workflow bug";
+
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/workflow.ts", "w".repeat(4000));
+
+    const route = await buildAgentWorkRoute(tempDir, task);
+    const fromRoute = await buildMeasureReportFromRoute(tempDir, task, route);
+    const regular = await buildMeasureReport(tempDir, task);
+
+    assert.deepEqual(
+      {
+        rccTokens: fromRoute.rccTokens,
+        primaryFiles: fromRoute.primaryFiles,
+        supportingFiles: fromRoute.supportingFiles,
+        tests: fromRoute.tests
+      },
+      {
+        rccTokens: regular.rccTokens,
+        primaryFiles: regular.primaryFiles,
+        supportingFiles: regular.supportingFiles,
+        tests: regular.tests
+      }
+    );
+    assert.equal(fromRoute.rccTokens, route.briefTokens);
+    assert.equal(fromRoute.primaryFiles, route.primaryFiles.length);
+    assert.equal(fromRoute.supportingFiles, route.supportingFiles.length);
+    assert.equal(fromRoute.tests, route.tests.length);
+  });
+});
+
 test("measure calculates saving percentage from naive and RCC token estimates", async () => {
   await withTempRepo(async (tempDir) => {
     await writeContextRepo(tempDir);

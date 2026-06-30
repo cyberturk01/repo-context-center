@@ -14,6 +14,25 @@ export async function buildMeasureReport(cwd: string, task: string): Promise<Mea
     estimateNaiveScan(cwd, naiveMaxFiles),
     buildAgentWorkRoute(cwd, task)
   ]);
+
+  return measureReportFromRoute(task, route, naive);
+}
+
+export async function buildMeasureReportFromRoute(
+  cwd: string,
+  task: string,
+  route: PublicAgentRoute
+): Promise<MeasureReport> {
+  const naive = await estimateNaiveScan(cwd, naiveMaxFiles);
+
+  return measureReportFromRoute(task, route, naive);
+}
+
+function measureReportFromRoute(
+  task: string,
+  route: PublicAgentRoute,
+  naive: Awaited<ReturnType<typeof estimateNaiveScan>>
+): MeasureReport {
   const rccTokens = route.briefTokens;
   const estimatedSavingTokens = Math.max(0, naive.tokens - rccTokens);
   const warnings = naive.tokens > 5_000_000

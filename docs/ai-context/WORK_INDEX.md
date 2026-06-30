@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract.
 - Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it.
 - Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments.
 - Repositioned metrics as optional diagnostic insight instead of a core workflow step.
 - Updated README and CHANGELOG for recent metrics and verify contract work.
 - Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes.
 - Added rcc metrics command as a thin wrapper over repository metrics collector and renderer.
-- Added RepositoryMetrics human and JSON renderers with focused renderer contract tests.
 
 ## Hot Files
 
@@ -25,15 +25,15 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
 | `tests/work.test.js` | 20 touches; Add low-overhead routing for tiny obvious tasks | 2026-06-28 |
 | `README.md` | 19 touches; Repositioned metrics as optional diagnostic insight instead of a core workflow step. | 2026-06-30 |
+| `tests/outputContract.test.js` | 17 touches; Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract. | 2026-06-30 |
 | `src/cli/index.ts` | 17 touches; Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes. | 2026-06-30 |
-| `tests/outputContract.test.js` | 16 touches; Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. | 2026-06-30 |
 | `src/cli/work/buildWorkBrief.ts` | 16 touches; Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of rediscoveri... | 2026-06-30 |
 
 ## Completed Work Themes
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Work routing | 39 | Updated README and CHANGELOG for recent metrics and verify contract work. |
+| Work routing | 40 | Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract. |
 | General maintenance | 38 | Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Repository context | 19 | Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments. |
@@ -44,7 +44,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (103)
+- `npm run build` (104)
 - `npm test` (49)
 - `node --test tests/impact.test.js` (26)
 - `node --test tests/verify.test.js` (25)
