@@ -1,6 +1,6 @@
 # ChangeLog
 
-## [Unreleased]
+## [0.13.0]
 
 Recent development since v0.12.0 extends Verification Intelligence with Repository Metrics and stronger JSON contracts.
 
