@@ -324,6 +324,21 @@ test("measure --json returns parseable measurement output", async () => {
   });
 });
 
+test("measure reusable builder preserves CLI JSON contract", async () => {
+  await withTempRepo(async (tempDir) => {
+    const { buildMeasureReport } = require("../dist/cli/measure/buildMeasure");
+    await writeContextRepo(tempDir);
+    await writeText(tempDir, "src/workflow.ts", "w".repeat(4000));
+
+    const result = runCli(["measure", "fix workflow bug", "--json"], { cwd: tempDir });
+    const cliReport = JSON.parse(result.stdout);
+    const builderReport = await buildMeasureReport(tempDir, "fix workflow bug");
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(builderReport, cliReport);
+  });
+});
+
 test("measure calculates saving percentage from naive and RCC token estimates", async () => {
   await withTempRepo(async (tempDir) => {
     await writeContextRepo(tempDir);

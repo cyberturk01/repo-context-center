@@ -3,11 +3,18 @@
 ![npm](https://img.shields.io/npm/dm/repo-context-center)
 ![npm](https://img.shields.io/npm/v/repo-context-center)
 
-Repo Context Center (RCC) is a lightweight context-routing layer for AI coding agents.
+Repo Context Center (RCC) is a repository intelligence layer for AI coding agents.
 
-Instead of broadly scanning repositories, RCC identifies the most relevant files, tests, and supporting context for a task and provides a compact agent route. RCC can also estimate the difference between a naive repository scan and the RCC route.
+Instead of broadly scanning repositories, RCC helps agents find the right files, understand change impact, and determine what should be verified using compact, deterministic repository context. This minimizes unnecessary repository exploration while preserving the agent's ability to make implementation decisions.
 
-RCC works with Codex, Claude Code, Cursor, Copilot-style agents, and other coding assistants that can read repository instructions or call local CLI tools. It is not an AI coding agent, code generator, code reviewer, or security scanner.
+RCC works with Codex, Claude Code, Cursor, Copilot-style agents, and other coding assistants that can read repository instructions or invoke local CLI tools. It is not an AI coding agent, code generator, code reviewer, or security scanner.
+
+Core workflow:
+
+```
+init → map → work → impact → verify → done → handoff
+```
+
 
 ## Local-First
 

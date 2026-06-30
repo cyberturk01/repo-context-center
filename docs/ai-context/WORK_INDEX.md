@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Added shared RepositoryMetrics type model for future metrics collector outputs.
+- Refactored measure report building into reusable build/render modules while preserving CLI JSON contract.
 - Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of red...
 - Extended TaskAnalysisResult into the internal TaskContext and projected it through Work, Impact, and Verify without changing public CLI con...
 - Added shared DomainEngine and moved Verify domain detection to it while preserving verify output
 - Freeze verify JSON public contract for v0.12.x
 - Calibrate rcc verify domain detection for workflow GitHub frontend backend and database suggestions
-- Finalize verify planned vs working-tree context boundaries
-- Stabilized verify output by removing generic affected-file manual checks, compacting targeted test and confidence reasons, and gating conte...
 
 ## Hot Files
 
@@ -36,15 +36,15 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Work routing | 37 | Extended TaskAnalysisResult into the internal TaskContext and projected it through Work, Impact, and Verify without changing public CLI contracts |
 | General maintenance | 36 | Added shared DomainEngine and moved Verify domain detection to it while preserving verify output |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
-| Repository context | 15 | Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of rediscovering domains |
+| Repository context | 16 | Added shared RepositoryMetrics type model for future metrics collector outputs. |
 | CLI commands | 13 | Stabilized verify output by replacing duplicated execution-plan command/path payloads with section refs and compacting domain check paths |
 | Tests | 12 | Hardened verify JSON output contract coverage for agent-safe parseable plans |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
-| Measurement and benchmarks | 5 | Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches. |
+| Measurement and benchmarks | 6 | Refactored measure report building into reusable build/render modules while preserving CLI JSON contract. |
 
 ## Verification Patterns
 
-- `npm run build` (94)
+- `npm run build` (96)
 - `npm test` (49)
 - `node --test tests/impact.test.js` (26)
 - `node --test tests/verify.test.js` (25)
