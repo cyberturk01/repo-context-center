@@ -6,37 +6,37 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of red...
+- Extended TaskAnalysisResult into the internal TaskContext and projected it through Work, Impact, and Verify without changing public CLI con...
+- Added shared DomainEngine and moved Verify domain detection to it while preserving verify output
 - Freeze verify JSON public contract for v0.12.x
 - Calibrate rcc verify domain detection for workflow GitHub frontend backend and database suggestions
 - Finalize verify planned vs working-tree context boundaries
 - Stabilized verify output by removing generic affected-file manual checks, compacting targeted test and confidence reasons, and gating conte...
-- Simplified verify output contract to recommendation-only fields
-- Documented verify JSON contract stability layers and added normalized fixture snapshot tests for stable integration fields
-- Refined verify mode behavior so working-tree plans keep changed-file review separate and planned plans keep context review secondary
 
 ## Hot Files
 
 | File | Reason | Last touched |
 | ---- | ------ | ------------ |
-| `src/cli/verify/buildVerify.ts` | 24 touches; Freeze verify JSON public contract for v0.12.x | 2026-06-29 |
-| `tests/verify.test.js` | 23 touches; Calibrate rcc verify domain detection for workflow GitHub frontend backend and database suggestions | 2026-06-29 |
+| `src/cli/verify/buildVerify.ts` | 27 touches; Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of rediscoveri... | 2026-06-30 |
+| `src/cli/impact/buildImpact.ts` | 24 touches; Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of rediscoveri... | 2026-06-30 |
+| `tests/verify.test.js` | 24 touches; Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of rediscoveri... | 2026-06-30 |
 | `tests/impact.test.js` | 23 touches; refined impact confidence calculation | 2026-06-28 |
-| `src/cli/impact/buildImpact.ts` | 22 touches; ranked impact affected files by confidence | 2026-06-28 |
 | `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
 | `tests/work.test.js` | 20 touches; Add low-overhead routing for tiny obvious tasks | 2026-06-28 |
 | `README.md` | 17 touches; Freeze verify JSON public contract for v0.12.x | 2026-06-29 |
+| `src/cli/work/buildWorkBrief.ts` | 16 touches; Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of rediscoveri... | 2026-06-30 |
 | `src/cli/index.ts` | 15 touches; Add planned verification mode for rcc verify | 2026-06-29 |
 | `src/cli/handoff/buildHandoffBrief.ts` | 15 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
-| `src/cli/work/buildWorkBrief.ts` | 14 touches; Add low-overhead routing for tiny obvious tasks | 2026-06-28 |
 
 ## Completed Work Themes
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Work routing | 36 | Stabilized verify output by removing generic affected-file manual checks, compacting targeted test and confidence reasons, and gating context-routing checks on... |
-| General maintenance | 35 | Freeze verify JSON public contract for v0.12.x |
+| Work routing | 37 | Extended TaskAnalysisResult into the internal TaskContext and projected it through Work, Impact, and Verify without changing public CLI contracts |
+| General maintenance | 36 | Added shared DomainEngine and moved Verify domain detection to it while preserving verify output |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
-| Repository context | 14 | Finalize verify planned vs working-tree context boundaries |
+| Repository context | 15 | Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of rediscovering domains |
 | CLI commands | 13 | Stabilized verify output by replacing duplicated execution-plan command/path payloads with section refs and compacting domain check paths |
 | Tests | 12 | Hardened verify JSON output contract coverage for agent-safe parseable plans |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
@@ -44,13 +44,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (91)
+- `npm run build` (94)
 - `npm test` (49)
-- `node --test tests/impact.test.js` (24)
+- `node --test tests/impact.test.js` (26)
+- `node --test tests/verify.test.js` (25)
 - `node --test tests/cli.test.js` (22)
-- `node --test tests/verify.test.js` (22)
-- `node --test tests/outputContract.test.js` (14)
-- `node --test tests/work.test.js` (14)
+- `node --test tests/outputContract.test.js` (17)
+- `node --test tests/work.test.js` (15)
 - `node --test tests/*.test.js` (13)
 
 <!-- repo-context-center:work-index:end -->

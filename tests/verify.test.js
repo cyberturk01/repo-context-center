@@ -10,6 +10,10 @@ const {
   createPlannedVerificationPlanFromImpact,
   createVerificationPlanFromImpact
 } = require(path.join(repoRoot, "dist", "cli", "verify", "buildVerify.js"));
+const {
+  detectDomains,
+  taskMentionsDomain
+} = require(path.join(repoRoot, "dist", "core", "domainEngine.js"));
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [cliPath, ...args], {
@@ -82,7 +86,7 @@ function impactAnalysis(overrides = {}) {
     }
   ];
 
-  return {
+  const impact = {
     schemaVersion: 1,
     command: "impact",
     task: overrides.task ?? "add redis cache",
@@ -112,6 +116,28 @@ function impactAnalysis(overrides = {}) {
     verificationHints: overrides.verificationHints ?? [],
     notes: overrides.notes ?? []
   };
+  const domainMatches = overrides.domainMatches ?? detectDomains({
+    task: impact.task,
+    affectedFilePaths: affectedFiles.map((file) => file.path),
+    affectedTestPaths: affectedTests.map((test) => test.path),
+    contextPaths: contextChanges.map((file) => file.path),
+    includeContext: true
+  });
+
+  Object.defineProperties(impact, {
+    domainMatches: {
+      value: domainMatches,
+      enumerable: false,
+      configurable: true
+    },
+    taskMentionsContext: {
+      value: overrides.taskMentionsContext ?? taskMentionsDomain(impact.task, "context"),
+      enumerable: false,
+      configurable: true
+    }
+  });
+
+  return impact;
 }
 
 function publicTargetedTests(tests) {

@@ -3,7 +3,9 @@ import { parseTaskIntent } from "./parseTaskIntent";
 import { discoverCandidates } from "./discoverCandidates";
 import { classifyRelationships } from "./classifyRelationships";
 import { scoreRelationships } from "./scoreRelationships";
+import { detectDomains, taskMentionsDomain } from "../domainEngine";
 import { buildWorkFileCategorization } from "../../cli/work/taskFileRecommendations";
+import { classifyTaskSize } from "../../cli/work/taskSize";
 import type { CandidateFile, TaskAnalysisOptions, TaskAnalysisResult } from "./types";
 
 function candidateFromRecommendation(item: { path: string; reasons: string[] }, fallback: string): CandidateFile {
@@ -68,6 +70,14 @@ export async function buildTaskAnalysis(
     scored.filteredLearnedSignals,
     scored.workAffectedTests.map((file) => file.path)
   );
+  const taskSize = classifyTaskSize(task);
+  const domains = detectDomains({
+    task,
+    affectedFilePaths: relationships.affectedFiles.map((file) => file.path),
+    affectedTestPaths: scored.testCandidates.map((test) => test.path),
+    contextPaths: relationships.contextChanges.map((file) => file.path),
+    includeContext: true
+  });
   const notes = [
     "Heuristic MVP: combines git working-tree changes, RCC task routing, learned test signals, and scored affected test candidates.",
     ...(discovered.taskOnly ? ["Task-only mode: ignored git working-tree changes."] : []),
@@ -79,8 +89,20 @@ export async function buildTaskAnalysis(
 
   return {
     task,
+    taskIntent,
+    normalizedTaskKeywords: taskIntent.lookupTerms,
+    domains,
+    taskMentionsContext: taskMentionsDomain(task, "context"),
+    routingConfidence: scored.confidence,
+    taskSize: taskSize.size,
+    taskMode: taskSize.mode,
+    taskSizeConfidence: taskSize.confidence,
+    taskSizeReasons: taskSize.reasons,
     primaryFiles,
+    supportingFiles: finalFileCategories.supportingFiles,
     affectedFiles: relationships.affectedFiles,
+    affectedTests: scored.testCandidates,
+    suggestedCommands: scored.verification.commands,
     testCandidates: scored.testCandidates,
     testEvidence: scored.testEvidence,
     testClassifications: scored.testClassifications,

@@ -1,6 +1,16 @@
 import type { ImpactAnalysis, ImpactCommand, ImpactVerificationHint } from "../impact/impactTypes";
 import { buildImpactAnalysis } from "../impact/buildImpact";
 import { classifyTaskSize, type TaskSize } from "../work/taskSize";
+import {
+  isBackendDatabasePath,
+  isContextPath,
+  isFrontendPath,
+  isFrontendVisiblePath,
+  isWorkflowPath,
+  normalizedPath,
+  type Domain as VerificationDomain,
+  type DomainMatch as CoreDomainMatch
+} from "../../core/domainEngine";
 import type {
   VerificationCheck,
   VerificationCommand,
@@ -25,25 +35,6 @@ const priorityRank: Record<VerificationPriority, number> = {
   low: 3
 };
 
-type VerificationDomain =
-  | "auth"
-  | "login"
-  | "cache"
-  | "redis"
-  | "database"
-  | "postgres"
-  | "workflow"
-  | "github-integration"
-  | "frontend"
-  | "backend"
-  | "config"
-  | "context";
-
-interface DomainDefinition {
-  domain: VerificationDomain;
-  pattern: RegExp;
-}
-
 interface DomainMatch {
   domain: VerificationDomain;
   paths: string[];
@@ -61,36 +52,12 @@ type VerificationPlanWithoutExecution = Omit<
   manualChecks: ImpactVerificationHint[];
 };
 
-const domainDefinitions: DomainDefinition[] = [
-  { domain: "auth", pattern: /\b(auth|authentication|authorization|authorize|oauth|jwt|session|sessions)\b/i },
-  { domain: "login", pattern: /\b(log-?in|log-?out|signin|sign-in|signout|sign-out|credentials?)\b/i },
-  { domain: "cache", pattern: /\b(cache|caches|cached|caching|cacheable)\b/i },
-  { domain: "redis", pattern: /\b(redis|ioredis|redis-cli)\b/i },
-  { domain: "database", pattern: /\b(database|db|schema|schemas|migration|migrations|sql|query|queries|orm)\b/i },
-  { domain: "postgres", pattern: /\b(postgres|postgresql|pg|psql)\b/i },
-  { domain: "workflow", pattern: /\b(github workflow|github workflows|github action|github actions|ci|workflow|workflows|pipeline|pipelines)\b/i },
-  { domain: "github-integration", pattern: /\b(github api|github integration|github app|github webhook|github controller|github route|octokit)\b/i },
-  { domain: "frontend", pattern: /\b(frontend|front-end|ui|browser|component|components|page|pages|react|vue|svelte|css|tsx|jsx)\b/i },
-  { domain: "backend", pattern: /\b(backend|back-end|api|server|service|services|controller|controllers|route|routes|endpoint|endpoints|worker|workers)\b/i },
-  { domain: "config", pattern: /\b(config|configuration|settings|env|environment|feature flag|feature flags|package\.json|tsconfig|vite|webpack|eslint)\b/i },
-  { domain: "context", pattern: /\b(context|repo context|rcc|agents\.md|docs\/ai-context)\b/i }
-];
-
 function isDocsPath(filePath: string): boolean {
   return (
     filePath === "README.md"
     || filePath.startsWith("docs/")
     || filePath.endsWith(".md")
     || filePath.endsWith(".mdx")
-  );
-}
-
-function isContextPath(filePath: string): boolean {
-  return (
-    /^agents\.md$/i.test(filePath)
-    || /^docs\/ai-context\//i.test(filePath)
-    || /^\.agents\//i.test(filePath)
-    || /^\.codex\//i.test(filePath)
   );
 }
 
@@ -551,10 +518,8 @@ function textMatches(value: string, pattern: RegExp): boolean {
   return pattern.test(value);
 }
 
-function taskMentionsContext(task: string): boolean {
-  return domainDefinitions.some((definition) => (
-    definition.domain === "context" && definition.pattern.test(task)
-  ));
+function taskMentionsContext(impact: ImpactAnalysis): boolean {
+  return impact.taskMentionsContext ?? impact.taskContext?.taskMentionsContext ?? false;
 }
 
 function shouldIncludeContextReview(impact: ImpactAnalysis): boolean {
@@ -569,7 +534,7 @@ function shouldIncludeContextReview(impact: ImpactAnalysis): boolean {
   const contextChangePaths = new Set(impact.contextChanges.map((file) => file.path));
 
   return (
-    taskMentionsContext(impact.task)
+    taskMentionsContext(impact)
     || impact.affectedFiles.some((file) => isContextPath(file.path) || contextChangePaths.has(file.path))
     || impact.verificationHints.some((hint) => checkGroup(hint.type) === "context-review")
   );
@@ -601,13 +566,6 @@ function impactText(impact: ImpactAnalysis): string {
   return impact.affectedFiles.map((file) => file.path).join(" ");
 }
 
-function allAffectedPaths(impact: ImpactAnalysis): string[] {
-  return [
-    ...impact.affectedFiles.map((file) => file.path),
-    ...impact.affectedTests.map((test) => test.path)
-  ];
-}
-
 function matchingPaths(impact: ImpactAnalysis, pattern: RegExp): string[] {
   return impact.affectedFiles.map((file) => file.path).filter((filePath) => pattern.test(filePath));
 }
@@ -633,90 +591,6 @@ function yamlPaths(paths: string[]): string[] {
   return paths.filter((filePath) => /\.ya?ml$/i.test(filePath));
 }
 
-function normalizedPath(filePath: string): string {
-  return filePath.replace(/\\/g, "/").replace(/^\.\//, "");
-}
-
-function isWorkflowPath(filePath: string): boolean {
-  const normalized = normalizedPath(filePath);
-
-  return (
-    /^\.github\/workflows\/.+\.ya?ml$/i.test(normalized)
-    || /^\.github\/actions\//i.test(normalized)
-    || /(^|\/)(ci|workflow|workflows|pipeline|pipelines)[^/]*\.ya?ml$/i.test(normalized)
-  );
-}
-
-function hasStrongWorkflowTaskWording(task: string): boolean {
-  return /\b(github actions?|ci workflow|ci workflows|workflow ya?ml|pipeline|pipelines|ci pipeline|release pipeline)\b/i.test(task);
-}
-
-function isGithubIntegrationPath(filePath: string): boolean {
-  const normalized = normalizedPath(filePath);
-
-  if (/^\.github\/(workflows|actions)\//i.test(normalized)) {
-    return false;
-  }
-
-  return (
-    /github/i.test(normalized)
-    && /(api|app|apps|client|clients|controller|controllers|integration|integrations|route|routes|service|services|webhook|webhooks)/i.test(normalized)
-  ) || /(^|\/)(api|controllers?|integrations?|routes?|services?|webhooks?)\/github[^/]*\.[cm]?[jt]sx?$/i.test(normalized);
-}
-
-function isFrontendPath(filePath: string): boolean {
-  const normalized = normalizedPath(filePath);
-
-  return (
-    /(^|\/)(app|builder|browser|components?|frontend|pages?|ui|views?)\//i.test(normalized)
-    || /\.(css|scss|sass|less|tsx|jsx)$/i.test(normalized)
-  );
-}
-
-function isFrontendVisiblePath(filePath: string): boolean {
-  const normalized = normalizedPath(filePath);
-  const basename = normalized.split("/").pop() ?? "";
-
-  if (/\b(icon|icons?|helper|helpers?|util|utils?|adapter|adapters?|client|clients?|store|stores?|state|constants?|types?)\b/i.test(basename)) {
-    return false;
-  }
-
-  return (
-    /(^|\/)(components?|pages?|views?)\//i.test(normalized)
-    || /(^|\/)(app|ui|frontend|browser)\//i.test(normalized)
-      && /(card|panel|page|screen|view|modal|dialog|form|button|menu|nav|layout|widget|component)/i.test(basename)
-    || /\.(css|scss|sass|less)$/i.test(normalized)
-      && /(^|\/)(components?|pages?|views?|app|ui|frontend|browser)\//i.test(normalized)
-  );
-}
-
-function isBackendBehaviorPath(filePath: string): boolean {
-  const normalized = normalizedPath(filePath);
-  const basename = normalized.split("/").pop() ?? "";
-
-  if (isFrontendPath(normalized) || isWorkflowPath(normalized) || isContextPath(normalized)) {
-    return false;
-  }
-
-  return (
-    /(^|\/)(api|controllers?|routes?|endpoints?|workers?|integrations?|middleware|services?|webhooks?)\//i.test(normalized)
-    || /(api|controller|route|endpoint|worker|integration|middleware|service|webhook)/i.test(basename)
-  );
-}
-
-function isBackendDatabasePath(filePath: string): boolean {
-  const normalized = normalizedPath(filePath);
-
-  if (isFrontendPath(normalized)) {
-    return false;
-  }
-
-  return (
-    /(^|\/)(db|database|migrations?|schema|schemas|sql)\//i.test(normalized)
-    || /(^|\/)(postgres|postgresql|pg|database|schema|migration|query|queries)[^/]*\.(sql|[cm]?[jt]sx?)$/i.test(normalized)
-  );
-}
-
 function isUiOnlyDatabasePath(filePath: string): boolean {
   return isFrontendPath(filePath) && !isBackendDatabasePath(filePath);
 }
@@ -725,35 +599,6 @@ function isAuthSecurityPath(filePath: string): boolean {
   const normalized = normalizedPath(filePath);
 
   return /\b(middleware|security|session|sessions|csrf|permission|permissions|policy|policies)\b/i.test(normalized);
-}
-
-function taskEvidence(task: string, pattern: RegExp): string[] {
-  const match = task.match(pattern);
-
-  return match ? [`task:${match[0]}`] : [];
-}
-
-function pathEvidence(label: string, paths: string[]): string[] {
-  return paths.map((filePath) => `${label}:${filePath}`);
-}
-
-function addDomainMatch(
-  matches: DomainMatch[],
-  domain: VerificationDomain,
-  paths: string[],
-  signals: string[]
-): void {
-  const uniqueSignals = uniqueStrings(signals);
-
-  if (uniqueSignals.length === 0) {
-    return;
-  }
-
-  matches.push({
-    domain,
-    paths: uniqueStrings(paths),
-    signals: uniqueSignals
-  });
 }
 
 function commandWithPaths(command: string, paths: string[]): string {
@@ -810,132 +655,58 @@ function targetedTestCommandsFromTests(tests: ImpactAnalysis["affectedTests"]): 
 }
 
 function domainMatches(impact: ImpactAnalysis): DomainMatch[] {
-  const task = impact.task;
-  const affectedPaths = allAffectedPaths(impact);
-  const affectedFilePaths = impact.affectedFiles.map((file) => file.path);
-  const contextPaths = impact.contextChanges.map((file) => file.path);
-  const matches: DomainMatch[] = [];
+  const matches = impact.domainMatches ?? impact.taskContext?.domains ?? [];
 
-  for (const definition of domainDefinitions) {
-    if (definition.domain === "context") {
-      if (!shouldIncludeContextReview(impact)) {
-        continue;
-      }
+  return matches
+    .filter((match) => match.domain !== "context" || shouldIncludeContextReview(impact))
+    .filter((match) => match.domain !== "api")
+    .map(verificationDomainMatch);
+}
 
-      const contextMatches = contextPaths.filter((filePath) => definition.pattern.test(filePath));
+function verificationDomainMatch(match: CoreDomainMatch): DomainMatch {
+  return {
+    domain: match.domain,
+    paths: match.matchedPaths,
+    signals: match.signals.map((signal) => (
+      signal.path
+        ? `${signal.source}:${signal.path}`
+        : `${signal.source}:${signal.value}`
+    ))
+  };
+}
 
-      addDomainMatch(
-        matches,
-        definition.domain,
-        contextMatches,
-        pathEvidence("context change", contextMatches)
-      );
-      continue;
-    }
+function copyImpactInternalContext(source: ImpactAnalysis, target: ImpactAnalysis): ImpactAnalysis {
+  const descriptors: PropertyDescriptorMap = {};
 
-    if (definition.domain === "workflow") {
-      const workflowPaths = affectedFilePaths.filter(isWorkflowPath);
-      const workflowTaskEvidence = hasStrongWorkflowTaskWording(task) ? taskEvidence(task, definition.pattern) : [];
-
-      addDomainMatch(
-        matches,
-        definition.domain,
-        workflowPaths,
-        [
-          ...pathEvidence("workflow path", workflowPaths),
-          ...(workflowPaths.length > 0 || affectedFilePaths.length === 0 ? workflowTaskEvidence : [])
-        ]
-      );
-      continue;
-    }
-
-    if (definition.domain === "github-integration") {
-      const integrationPaths = affectedFilePaths.filter(isGithubIntegrationPath);
-
-      addDomainMatch(
-        matches,
-        definition.domain,
-        integrationPaths,
-        [
-          ...taskEvidence(task, definition.pattern),
-          ...pathEvidence("github integration path", integrationPaths)
-        ]
-      );
-      continue;
-    }
-
-    if (definition.domain === "frontend") {
-      const frontendPaths = affectedFilePaths.filter(isFrontendVisiblePath);
-
-      addDomainMatch(
-        matches,
-        definition.domain,
-        frontendPaths,
-        [
-          ...pathEvidence("visible frontend path", frontendPaths),
-          ...(frontendPaths.length > 0 ? taskEvidence(task, definition.pattern) : [])
-        ]
-      );
-      continue;
-    }
-
-    if (definition.domain === "backend") {
-      const backendPaths = affectedFilePaths.filter(isBackendBehaviorPath);
-
-      addDomainMatch(
-        matches,
-        definition.domain,
-        backendPaths,
-        [
-          ...pathEvidence("backend behavior path", backendPaths),
-          ...(backendPaths.length > 0 ? taskEvidence(task, definition.pattern) : [])
-        ]
-      );
-      continue;
-    }
-
-    const signals: string[] = [];
-    const paths = new Set<string>();
-
-    signals.push(...taskEvidence(task, definition.pattern));
-
-    const affectedFileMatches = impact.affectedFiles
-      .map((file) => file.path)
-      .filter((filePath) => definition.pattern.test(filePath));
-
-    if (affectedFileMatches.length > 0) {
-      signals.push(...pathEvidence("affected file", affectedFileMatches));
-      affectedFileMatches.forEach((filePath) => paths.add(filePath));
-    }
-
-    const testMatches = impact.affectedTests
-      .map((test) => test.path)
-      .filter((filePath) => definition.pattern.test(filePath));
-
-    if (testMatches.length > 0) {
-      signals.push(...pathEvidence("test path", testMatches));
-      testMatches.forEach((filePath) => paths.add(filePath));
-    }
-
-    if (
-      signals.length > 0
-      && signals.every((signal) => signal.startsWith("test path:"))
-    ) {
-      continue;
-    }
-
-    if (signals.length === 0) {
-      continue;
-    }
-
-    if (paths.size === 0) {
-      affectedPaths.forEach((filePath) => paths.add(filePath));
-    }
-
-    addDomainMatch(matches, definition.domain, [...paths], signals);
+  if (source.taskContext) {
+    descriptors.taskContext = {
+      value: source.taskContext,
+      enumerable: false,
+      configurable: true
+    };
   }
 
-  return matches;
+  if (source.domainMatches) {
+    descriptors.domainMatches = {
+      value: source.domainMatches,
+      enumerable: false,
+      configurable: true
+    };
+  }
+
+  if (source.taskMentionsContext !== undefined) {
+    descriptors.taskMentionsContext = {
+      value: source.taskMentionsContext,
+      enumerable: false,
+      configurable: true
+    };
+  }
+
+  if (Object.keys(descriptors).length > 0) {
+    Object.defineProperties(target, descriptors);
+  }
+
+  return target;
 }
 
 function hasDomain(matches: DomainMatch[], domain: VerificationDomain): boolean {
@@ -1476,6 +1247,7 @@ export function createPlannedVerificationPlanFromImpact(
     ...impact,
     mode: "planned-task"
   };
+  copyImpactInternalContext(impact, plannedImpact);
   const includeContextReview = shouldIncludeContextReview(plannedImpact);
   const contextChangePaths = includeContextReview ? plannedImpact.contextChanges.map((file) => file.path) : [];
   const targetedTests = promotedTargetedTests(plannedImpact);

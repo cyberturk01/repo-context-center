@@ -64,6 +64,15 @@ test("buildTaskAnalysis exposes the shared task analysis contract", async () => 
     assert.equal(analysis.task, "update Redis cache behavior");
     assert.equal(analysis.mode, "task-only");
     assert.equal(analysis.basis, "task");
+    assert.equal(analysis.taskIntent.normalizedTask, "update redis cache behavior");
+    assert.deepEqual(analysis.normalizedTaskKeywords, analysis.taskIntent.lookupTerms);
+    assert.ok(analysis.domains.some((match) => match.domain === "redis"));
+    assert.equal(analysis.routingConfidence, analysis.confidence);
+    assert.equal(analysis.taskSize, "medium");
+    assert.equal(analysis.taskMode, "normal");
+    assert.deepEqual(analysis.affectedTests, analysis.testCandidates);
+    assert.deepEqual(analysis.suggestedCommands, analysis.verification.commands);
+    assert.ok(Array.isArray(analysis.supportingFiles));
     assert.ok(analysis.primaryFiles.some((file) => file.path === "src/cache/redis.ts"));
     assert.ok(analysis.affectedFiles.some((file) => file.path === "src/cache/redis.ts"));
     const redisTest = analysis.testCandidates.find((file) => file.path === "tests/cache/redis.test.js");

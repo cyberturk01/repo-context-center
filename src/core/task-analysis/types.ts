@@ -1,7 +1,9 @@
 import type { LearnedRoutingSignals } from "../repositoryLearningRouting";
 import type { StartupContext } from "../suggester";
 import type { TaskIntentAnalysis } from "../taskIntent";
+import type { DomainMatch } from "../domainEngine";
 import type { AffectedTestConfidence, ClassifiedAffectedTest, RelationshipType, ScoredAffectedTest } from "../../cli/shared/affectedTests";
+import type { TaskSize, TaskMode, TaskSizeClassification } from "../../cli/work/taskSize";
 import type { WorkFileCategorization, WorkMapFreshness, ReadFirstGuidance, TargetedLookupHint, WorkRecommendation } from "../../cli/work/workTypes";
 
 export type ConfidenceLevel = "high" | "medium" | "low";
@@ -74,8 +76,20 @@ export interface VerificationPlan {
 
 export interface TaskAnalysisResult {
   task: string;
+  taskIntent: TaskIntentAnalysis;
+  normalizedTaskKeywords: string[];
+  domains: DomainMatch[];
+  taskMentionsContext: boolean;
+  routingConfidence: ConfidenceInfo;
+  taskSize: TaskSize;
+  taskMode: TaskMode;
+  taskSizeConfidence: TaskSizeClassification["confidence"];
+  taskSizeReasons: string[];
   primaryFiles: CandidateFile[];
+  supportingFiles: WorkRecommendation[];
   affectedFiles: CandidateFile[];
+  affectedTests: CandidateTest[];
+  suggestedCommands: VerificationCommand[];
   testCandidates: CandidateTest[];
   testEvidence: TestEvidence[];
   testClassifications: ClassifiedAffectedTest[];

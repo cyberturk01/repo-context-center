@@ -148,6 +148,28 @@ function impactTests(tests: CandidateTest[]): ImpactAffectedTest[] {
   }));
 }
 
+function attachTaskContext(impact: ImpactAnalysis, taskContext: TaskAnalysisResult): ImpactAnalysis {
+  Object.defineProperties(impact, {
+    taskContext: {
+      value: taskContext,
+      enumerable: false,
+      configurable: true
+    },
+    domainMatches: {
+      value: taskContext.domains,
+      enumerable: false,
+      configurable: true
+    },
+    taskMentionsContext: {
+      value: taskContext.taskMentionsContext,
+      enumerable: false,
+      configurable: true
+    }
+  });
+
+  return impact;
+}
+
 export async function buildImpactAnalysis(
   cwd: string,
   task: string,
@@ -161,10 +183,10 @@ export async function buildImpactAnalysis(
   const changedFiles = impactFiles(analysis.changedFiles).slice(0, maxFiles);
   const contextChanges = impactFiles(analysis.contextChanges);
   const affectedFiles = rankedAffectedFiles(analysis);
-  const affectedTests = impactTests(analysis.testCandidates);
-  const suggestedCommands = analysis.verification.commands as ImpactCommand[];
+  const affectedTests = impactTests(analysis.affectedTests);
+  const suggestedCommands = analysis.suggestedCommands as ImpactCommand[];
 
-  return {
+  return attachTaskContext({
     schemaVersion: 1,
     command: "impact",
     task,
@@ -182,9 +204,9 @@ export async function buildImpactAnalysis(
     affectedFiles,
     affectedTests,
     suggestedCommands,
-    confidence: analysis.confidence.level,
-    confidenceExplanation: analysis.confidence,
+    confidence: analysis.routingConfidence.level,
+    confidenceExplanation: analysis.routingConfidence,
     verificationHints: analysis.verification.hints,
     notes: analysis.notes
-  };
+  }, analysis);
 }

@@ -11,7 +11,7 @@ import {
 import { toAgentRoute } from "./renderAgent";
 import { toCompactWorkBrief } from "./renderJson";
 import { renderWorkBriefLines } from "./renderText";
-import { classifyTaskSize } from "./taskSize";
+import { classifyTaskSize, type TaskSizeClassification } from "./taskSize";
 import type {
   CompactWorkBrief,
   ContextBudget,
@@ -235,13 +235,14 @@ export function buildWorkBrief(
   precomputed: {
     categorized: TaskAnalysisResult["work"]["categorized"];
     fileCategories: WorkFileCategorization;
+    taskSize?: TaskSizeClassification;
   },
   estimateTokens?: WorkBriefTokenEstimator
 ): WorkBrief {
   const categorized = precomputed.categorized;
   const fileCategories = precomputed.fileCategories;
   const nextCheapest = nextCheapestLookupCommand(taskIntent);
-  const taskSize = classifyTaskSize(startup.task);
+  const taskSize = precomputed.taskSize ?? classifyTaskSize(startup.task);
   const supportingTier = taskSize.size === "medium"
     ? compactMediumSupportingFiles(
       startup.task,
@@ -335,6 +336,15 @@ export async function buildWorkBriefForTask(
     maxFiles: options.maxFiles ?? 50,
     taskOnly: true
   });
+
+  return buildWorkBriefFromTaskContext(analysis, contextBudget, options.estimateTokens);
+}
+
+export function buildWorkBriefFromTaskContext(
+  analysis: TaskAnalysisResult,
+  contextBudget: ContextBudget,
+  estimateTokens?: WorkBriefTokenEstimator
+): WorkBrief {
   const taskAnalysisTests = recommendationsFromCandidates(analysis.testCandidates);
   const taskAnalysisTestPaths = new Set(taskAnalysisTests.map((file) => file.path));
   const categorizedFromAnalysis = {
@@ -359,13 +369,19 @@ export async function buildWorkBriefForTask(
     analysis.work.lookupHints,
     analysis.work.readFirstGuidance,
     contextBudget,
-    analysis.work.taskIntent,
+    analysis.taskIntent,
     analysis.work.filteredLearnedSignals,
     {
       categorized: categorizedFromAnalysis,
-      fileCategories: fileCategoriesFromAnalysis
+      fileCategories: fileCategoriesFromAnalysis,
+      taskSize: {
+        size: analysis.taskSize,
+        mode: analysis.taskMode,
+        confidence: analysis.taskSizeConfidence,
+        reasons: analysis.taskSizeReasons
+      }
     },
-    options.estimateTokens
+    estimateTokens
   );
 }
 
