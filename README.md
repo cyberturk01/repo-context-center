@@ -15,7 +15,7 @@ Core workflow:
 init → map → work → impact → verify → done → handoff
 ```
 
-Optional insight:
+Optional diagnostic:
 
 ```
 metrics
@@ -130,7 +130,7 @@ npm run release:check
 Recommended workflow:
 
 ```text
-init -> map --write -> work -> impact -> verify -> done -> handoff
+init -> map -> work -> impact -> verify -> done -> handoff
 ```
 
 | Step | Command | When to run it | What it produces | Who uses the output |
@@ -141,10 +141,14 @@ init -> map --write -> work -> impact -> verify -> done -> handoff
 | `work` | `rcc work "implement feature" --agent` | Once at task start | Compact route with primary files, tests, supporting files, and read-first rules | The active coding agent |
 | `impact` | `rcc impact "update README wording" --json` | Before or after a change when estimating affected files and checks | Affected files, affected tests, suggested commands, confidence, and notes | Humans, agents, and reviewers |
 | `verify` | `rcc verify "implement feature"` | Before final verification or review | Verification plan with targeted tests, build commands, smoke checks, manual checks, and a validation checklist | Humans, agents, and reviewers |
-| `metrics` | `rcc metrics "implement feature"` | Optional diagnostic snapshot of RCC routing, token saving, freshness, impact, and verification signals for one task | RepositoryMetrics text or JSON | Humans, agents, and integrations |
 | `done` | `rcc done --summary "implemented feature" --files auto --verify "npm test"` | After meaningful completed work | Lightweight work memory in `docs/ai-context/WORK_LOG.md` and learned repository patterns in `docs/ai-context/REPOSITORY_LEARNING.md` | Future agents and humans |
 | `learn` | `rcc learn --write` | When repository learning should be regenerated on demand | Refreshed learned focus areas, file relationships, verification patterns, and repository habits | Agents, humans, and routing commands |
 | `handoff` | `rcc handoff` or `rcc handoff --agent` | When work continues in another session or agent | Continuation brief from recent work, decisions, and task-aware files | The next agent or human |
+
+Optional diagnostics:
+
+- Use `rcc metrics "<task>" --json` when you need a compact repository intelligence snapshot for one task. It is not a required workflow step.
+- `metrics` summarizes existing Work, Measure, Impact, Verify, and freshness outputs. It does not run a second independent repository analysis engine.
 
 Agent guidance:
 
@@ -155,7 +159,6 @@ Agent guidance:
 - Use `rcc find "<keyword>"` only if the route is insufficient.
 - Use `rcc impact "<task>" --json` when you need a compact estimate of affected files, tests, and verification commands.
 - Use `rcc verify "<task>"` when you need a concrete verification plan from Impact results.
-- Use `rcc metrics "<task>" --json` when you need compact repository intelligence metrics without raw route, impact, or verify payloads.
 - Use `rcc done` after meaningful work.
 - Use `rcc learn --write` when learned repository patterns need to be regenerated manually.
 - Use `rcc handoff` when another session or agent needs to continue.
@@ -174,7 +177,7 @@ RCC does not run in the background, automatically edit source code, run commands
 | `work` | Run once at task start and follow the route | Reads context and repo metadata to produce a compact task route |
 | `impact` | Run when estimating change impact | Combines working-tree changes, task routing, learned test signals, and scored affected-test candidates |
 | `verify` | Run when planning final checks | Builds a verification plan from Impact results; RCC prints commands and checks but does not execute them |
-| `metrics` | Run when diagnosing RCC task intelligence | Optionally summarizes existing Work, Measure, Impact, Verify, and freshness outputs without running a second analysis engine |
+| `metrics` | Run only when diagnosing RCC task intelligence | Optionally summarizes existing Work, Measure, Impact, Verify, and freshness outputs without running a second independent repository analysis engine |
 | `find` | Run only when the route is insufficient | Returns focused fallback file candidates with reasons |
 | `done` | Record summary, changed files, and verification after meaningful work | Appends lightweight work memory for future handoff and routing |
 | `learn` | Regenerate learned repository patterns on demand | Reads work memory, work index, and decisions to refresh `REPOSITORY_LEARNING.md` |
@@ -230,9 +233,9 @@ Use `rcc handoff` for:
 
 ## Token Saving Expectations
 
-RCC is designed to reduce initial repository discovery context. In measured examples, RCC can reduce startup discovery context by roughly 70-99%, depending on repository size and task specificity. Full-task savings are usually lower because the agent still needs to read source files, make changes, and verify behavior.
+RCC is designed to reduce initial repository discovery context. In measured examples, RCC can reduce startup discovery context by roughly 70-99%, depending on repository size, context freshness, routing scope, and task specificity. Full-task savings are usually lower because the agent still needs to read source files, make changes, and verify behavior.
 
-Measured examples can show large reductions, sometimes from hundreds of thousands of estimated naive-scan tokens to compact routes under a few hundred tokens. Actual savings depend on repository size, task wording, and whether the agent follows the route.
+Measured examples can show large reductions, sometimes from hundreds of thousands of estimated naive-scan tokens to compact routes under a few hundred tokens. These are discovery and context-scope estimates, not guaranteed real model billing savings. Actual savings depend on repository size, context freshness, routing scope, task wording, and whether the agent follows the route.
 
 ## Measurement
 
@@ -293,7 +296,7 @@ Estimated saving:
 195,536 tokens (99.9%)
 ```
 
-Token estimates are based on repository size, available context, and routing scope. Reported savings are estimates, not guarantees.
+Token estimates are based on repository size, context freshness, and routing scope. Reported savings are discovery/context-scope estimates, not guarantees of real model billing savings.
 
 JSON output is available for integrations:
 
@@ -303,17 +306,17 @@ rcc measure "fix workflow risk detection" --json
 
 ## Repository Metrics
 
-Use `metrics` when you want an optional compact task-level quality snapshot of RCC's own repository intelligence signals:
+Use `metrics` when you want an optional compact task-level quality snapshot of RCC's repository intelligence signals. It is a diagnostic command, not part of the required RCC workflow:
 
 ```sh
 rcc metrics "fix workflow risk detection"
 rcc metrics "fix workflow risk detection" --json
 ```
 
-Metrics reuses existing RCC outputs instead of running a second repository analysis engine. It summarizes:
+Metrics reuses existing RCC outputs instead of running a second independent repository analysis engine. It summarizes:
 
 - `work` routing counts and task metadata
-- `measure` token savings
+- `measure` discovery/context-scope token savings estimates
 - map freshness from the work brief
 - `impact` summary and confidence
 - `verify` recommendation counts and confidence
@@ -340,10 +343,10 @@ That saves context, time, and attention while still leaving the agent in control
 The primary workflow is:
 
 ```text
-init -> map --write -> work -> impact -> verify -> done -> handoff
+init -> map -> work -> impact -> verify -> done -> handoff
 ```
 
-Optional insight command:
+Optional diagnostic command:
 
 ```text
 metrics
@@ -572,7 +575,7 @@ npx repo-context-center estimate --json
 
 ### Inspect Repository Metrics
 
-`metrics` is an optional diagnostic command. It summarizes RCC's existing task route, token saving, freshness, impact, and verification signals without duplicating high-level analysis work:
+`metrics` is an optional diagnostic command, not a required workflow step. It summarizes RCC's existing Work, Measure, Impact, Verify, and freshness outputs without running a second independent repository analysis engine:
 
 ```sh
 npx repo-context-center metrics "fix login bug"
@@ -618,13 +621,13 @@ npx repo-context-center verify "fix login regression" --task-only --json
 
 Integrations should execute or display the stable command/path/check data and avoid depending on long reason strings or heuristic explanation text.
 
-Use `metrics --json` when a tool needs compact RepositoryMetrics:
+Use `metrics --json` when a tool needs compact RepositoryMetrics for optional diagnostics:
 
 ```sh
 npx repo-context-center metrics "fix login regression" --json
 ```
 
-`metrics --json` is a summary contract, not a raw data export. Stable top-level fields are `schemaVersion`, `command`, `task`, `routing`, `tokens`, `freshness`, `impact`, and `verification`. The nested objects contain counts, confidence values, freshness status, and token-saving estimates. Raw arrays from Work, Impact, and Verify are intentionally omitted.
+`metrics --json` is a summary contract, not a raw data export. Stable top-level fields are `schemaVersion`, `command`, `task`, `routing`, `tokens`, `freshness`, `impact`, and `verification`. The nested objects contain counts, confidence values, freshness status, and discovery/context-scope token-saving estimates. Raw arrays from Work, Impact, and Verify are intentionally omitted.
 
 Use `handoff --json` or `handoff --agent` when a tool needs continuation context:
 
@@ -712,7 +715,7 @@ repo-context-center log "<summary>" [--files <path,path>] [--dry-run]
 | `verify` | build a verification plan from Impact results | before final checks or review |
 | `find` | locate focused candidate files | only if the route is insufficient |
 | `measure` | task-first route-vs-naive estimate | when evaluating routing efficiency for one task |
-| `metrics` | summarize route, savings, freshness, impact, and verification signals | optional diagnostic when inspecting RCC performance for one task |
+| `metrics` | summarize route, discovery savings estimates, freshness, impact, and verification signals | optional diagnostic when inspecting RCC performance for one task |
 | `done` | save completed-work memory | after meaningful agent work |
 | `learn` | regenerate repository learning | after memory edits, archive maintenance, or before release checks |
 | `handoff` | prepare a continuation brief | when work continues in another session or agent |

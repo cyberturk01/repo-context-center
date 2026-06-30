@@ -72,6 +72,71 @@ const stableMetricsFields = [
   "impact",
   "verification"
 ];
+const metricsNumericFields = {
+  routing: [
+    "primaryFiles",
+    "supportingFiles",
+    "optionalSupportingFiles",
+    "tests",
+    "readFirst"
+  ],
+  tokens: [
+    "naiveTokens",
+    "rccTokens",
+    "estimatedSavingTokens",
+    "estimatedSavingPercent"
+  ],
+  freshness: [
+    "score",
+    "affectedFiles",
+    "affectedContextFiles"
+  ],
+  impactSummary: [
+    "changedFiles",
+    "contextChanges",
+    "affectedFiles",
+    "affectedTests",
+    "suggestedCommands"
+  ],
+  verification: [
+    "targetedTests",
+    "targetedTestCommands",
+    "buildCommands",
+    "smokeChecks",
+    "manualChecks"
+  ]
+};
+const forbiddenMetricsRawArrayFields = [
+  "primaryFilePaths",
+  "primaryFileArray",
+  "primaryFilesRaw",
+  "supportingFilePaths",
+  "supportingFileArray",
+  "supportingFilesRaw",
+  "optionalSupportingFilePaths",
+  "readFirstFiles",
+  "testFiles",
+  "changedFiles",
+  "contextChanges",
+  "affectedFilePaths",
+  "affectedFilesRaw",
+  "affectedTestPaths",
+  "affectedTestsRaw",
+  "suggestedCommandList",
+  "suggestedCommandsRaw",
+  "targetedTestList",
+  "targetedTestsRaw",
+  "targetedTestCommandList",
+  "targetedTestCommandsRaw",
+  "buildCommandList",
+  "buildCommandsRaw",
+  "smokeCheckList",
+  "smokeChecksRaw",
+  "manualCheckList",
+  "manualChecksRaw",
+  "validationChecklist",
+  "validationChecklistRaw"
+];
 const forbiddenVerifyFields = [
   "executionPlan",
   "estimatedMinutes",
@@ -224,6 +289,13 @@ function assertNoArrayValues(value, label) {
   }
 }
 
+function assertNumberFields(value, keys, label) {
+  for (const key of keys) {
+    assert.equal(typeof value[key], "number", `${label}.${key} should be numeric`);
+    assert.ok(value[key] >= 0, `${label}.${key} should be non-negative`);
+  }
+}
+
 function assertImpactJsonContract(analysis, task, mode) {
   assert.deepEqual(Object.keys(analysis).sort(), [...stableImpactFields].sort());
   assertOmitsKeys(analysis, ["taskContext", "domainMatches", "taskMentionsContext"], "impact --json");
@@ -333,6 +405,11 @@ function assertMetricsJsonContract(metrics, task) {
     "affectedTests",
     "suggestedCommands"
   ], "metrics impact summary");
+  assertNumberFields(metrics.routing, metricsNumericFields.routing, "metrics.routing");
+  assertNumberFields(metrics.tokens, metricsNumericFields.tokens, "metrics.tokens");
+  assertNumberFields(metrics.freshness, metricsNumericFields.freshness, "metrics.freshness");
+  assertNumberFields(metrics.impact.summary, metricsNumericFields.impactSummary, "metrics.impact.summary");
+  assertNumberFields(metrics.verification, metricsNumericFields.verification, "metrics.verification");
   assertNoArrayValues(metrics, "metrics");
   assertOmitsKeys(metrics, [
     "recommendedFiles",
@@ -353,6 +430,7 @@ function assertMetricsJsonContract(metrics, task) {
     "notes",
     "confidenceExplanation"
   ], "metrics top-level");
+  assertOmitsKeys(metrics, forbiddenMetricsRawArrayFields, "metrics top-level");
   for (const section of [metrics.routing, metrics.tokens, metrics.freshness, metrics.impact, metrics.verification]) {
     assertOmitsKeys(section, [
       "recommendedFiles",
@@ -363,6 +441,7 @@ function assertMetricsJsonContract(metrics, task) {
       "notes",
       "confidenceExplanation"
     ], "metrics section");
+    assertOmitsKeys(section, forbiddenMetricsRawArrayFields, "metrics section");
   }
 }
 
@@ -674,11 +753,20 @@ test("measure --json keeps stable measurement contract", () => {
   assertMeasureJsonContract(report, task);
 });
 
-test("metrics --json keeps compact task-oriented metrics contract", () => {
-  const task = "fix login bug";
-  const metrics = parseJsonOnlyOutput(runCli(["metrics", task, "--json"]));
+test("metrics --json keeps compact task-oriented metrics contract across representative tasks", () => {
+  for (const task of [
+    "fix login bug",
+    "fix GitHub workflow self-check",
+    "update README release instructions"
+  ]) {
+    const metrics = parseJsonOnlyOutput(runCli(["metrics", task, "--json"]));
 
-  assertMetricsJsonContract(metrics, task);
+    assertMetricsJsonContract(metrics, task);
+    assert.equal(typeof metrics.impact.mode, "string");
+    assert.equal(typeof metrics.impact.confidence, "string");
+    assert.equal(typeof metrics.verification.mode, "string");
+    assert.equal(typeof metrics.verification.confidence, "string");
+  }
 });
 
 test("verify --json remains parseable recommendation JSON only", () => {
