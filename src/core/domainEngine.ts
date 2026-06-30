@@ -7,6 +7,7 @@ export type Domain =
   | "postgres"
   | "workflow"
   | "github-integration"
+  | "translation"
   | "frontend"
   | "backend"
   | "api"
@@ -54,6 +55,7 @@ export const domainDefinitions: DomainDefinition[] = [
   { domain: "postgres", pattern: /\b(postgres|postgresql|pg|psql)\b/i },
   { domain: "workflow", pattern: /\b(github workflow|github workflows|github action|github actions|ci|workflow|workflows|pipeline|pipelines)\b/i },
   { domain: "github-integration", pattern: /\b(github api|github integration|github app|github webhook|github controller|github route|octokit)\b/i },
+  { domain: "translation", pattern: /\b(translation|translations|translate|i18n|locale|locales|localization|language|languages|messages)\b/i },
   { domain: "frontend", pattern: /\b(frontend|front-end|ui|browser|component|components|page|pages|react|vue|svelte|css|tsx|jsx)\b/i },
   { domain: "backend", pattern: /\b(backend|back-end|api|server|service|services|controller|controllers|route|routes|endpoint|endpoints|worker|workers)\b/i },
   { domain: "api", pattern: /\b(api|apis|endpoint|endpoints|rest|graphql|rpc)\b/i },

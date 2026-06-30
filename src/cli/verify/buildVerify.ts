@@ -752,11 +752,12 @@ function confidenceExplanationWithDomains(
   impact: ImpactAnalysis,
   explanation: ImpactAnalysis["confidenceExplanation"]
 ): ImpactAnalysis["confidenceExplanation"] {
+  const matches = preferredDomainMatches(impact);
   const reasons = uniqueStrings(explanation.reasons.map((reason) => (
     reason.replace(/^domain matched: ([^(]+)\s+\(.+\)$/i, "domain matched: $1").trim()
   )));
 
-  for (const match of domainMatches(impact)) {
+  for (const match of matches) {
     const reason = `domain matched: ${match.domain}`;
 
     if (!reasons.includes(reason)) {
@@ -768,6 +769,27 @@ function confidenceExplanationWithDomains(
     ...explanation,
     reasons
   };
+}
+
+function preferredDomainMatches(impact: ImpactAnalysis): DomainMatch[] {
+  const matches = domainMatches(impact);
+  const domains = new Set(matches.map((match) => match.domain));
+
+  if (!domains.has("translation")) {
+    return matches;
+  }
+
+  return matches.filter((match) => {
+    if (match.domain === "config") {
+      return false;
+    }
+
+    if (match.domain === "frontend") {
+      return match.paths.some(isFrontendVisiblePath);
+    }
+
+    return true;
+  });
 }
 
 function compactConfidenceReason(reason: string): string | null {
@@ -1205,7 +1227,7 @@ export function createVerificationPlanFromImpact(
       summary: impact.summary,
       targetedTests: [],
       targetedTestCommands: [],
-      buildCommands: [],
+      buildCommands: commandsByType(impact.suggestedCommands, "build"),
       smokeChecks: [],
       manualChecks: compactChecks([
         manualCheck("context-changes", "Manually review context changes for workflow and routing impact.", contextChangePaths)

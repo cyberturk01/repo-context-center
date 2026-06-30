@@ -907,6 +907,13 @@ test("auth middleware task with UI and backend files keeps both domain checks pr
     expectedSmoke: "github-integration"
   },
   {
+    name: "translation",
+    task: "update i18n translation messages",
+    affectedFiles: ["src/i18n/messages.ts"],
+    affectedTests: [],
+    expectedReason: "domain matched: translation"
+  },
+  {
     name: "frontend",
     task: "fix frontend profile card",
     affectedFiles: ["src/ui/ProfileCard.tsx"],
@@ -997,6 +1004,43 @@ test("auth middleware task with UI and backend files keeps both domain checks pr
       assert.deepEqual(plan.targetedTestCommands, []);
     }
   });
+});
+
+test("createVerificationPlanFromImpact prefers translation domain over generic config reason", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "update translation",
+    affectedFiles: [
+      {
+        path: "packages/builder/src/settings/pages/translations/_components/TranslationValueCell.svelte",
+        reason: "task routing matched"
+      },
+      {
+        path: "packages/frontend-core/src/utils/translationGroups.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      level: "medium",
+      reasons: [
+        "task routing matched",
+        "no test relationship"
+      ],
+      evidence: {
+        changedFiles: 0,
+        nonContextChangedFiles: 0,
+        contextChanges: 0,
+        affectedFiles: 2,
+        affectedTests: 0,
+        contextOnlyChanges: false,
+        testRelationship: "none"
+      }
+    })
+  }));
+
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: translation"));
+  assert.equal(plan.confidenceExplanation.reasons.includes("domain matched: config"), false);
 });
 
 test("createVerificationPlanFromImpact suggests rendered docs review for update README wording", () => {
@@ -1573,7 +1617,7 @@ test("createVerificationPlanFromImpact is conservative for context-only route es
   assert.deepEqual(plan.confidenceExplanation.evidence, impact.confidenceExplanation.evidence);
   assert.deepEqual(plan.targetedTests, []);
   assert.deepEqual(plan.targetedTestCommands, []);
-  assert.deepEqual(plan.buildCommands, []);
+  assert.deepEqual(plan.buildCommands.map((command) => command.command), ["npm run build"]);
   assert.deepEqual(plan.smokeChecks, []);
   assert.deepEqual(plan.manualChecks, [
     {
@@ -1592,6 +1636,73 @@ test("createVerificationPlanFromImpact is conservative for context-only route es
     "Context-only changes detected; verify focuses on RCC/context files and does not promote task-route estimates to targeted tests or smoke checks."
   ));
   assert.ok(plan.notes.includes("Context-only impact detected; verify context changes manually."));
+});
+
+test("createVerificationPlanFromImpact aligns context-only build commands with impact suggestions", () => {
+  const impact = impactAnalysis({
+    task: "update translation",
+    affectedFiles: [
+      {
+        path: "src/i18n/messages.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/i18n/messages.spec.ts",
+        reason: "task route matched translation test",
+        score: 100,
+        confidence: "strong",
+        signals: ["task routing evidence"]
+      }
+    ],
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ],
+    suggestedCommands: [
+      {
+        command: "node --test tests/i18n/messages.spec.ts",
+        type: "test",
+        scope: "focused",
+        confidence: "high",
+        reason: "run affected tests directly"
+      },
+      {
+        command: "npm run build",
+        type: "build",
+        scope: "project",
+        confidence: "medium",
+        reason: "verify TypeScript output"
+      }
+    ],
+    confidenceExplanation: confidenceExplanation({
+      level: "medium",
+      reasons: [
+        "context-only changes detected",
+        "task routing matched",
+        "strong test relationship"
+      ],
+      evidence: {
+        changedFiles: 1,
+        nonContextChangedFiles: 0,
+        contextChanges: 1,
+        affectedFiles: 1,
+        affectedTests: 1,
+        contextOnlyChanges: true,
+        testRelationship: "strong"
+      }
+    })
+  });
+
+  const plan = createVerificationPlanFromImpact(impact);
+
+  assert.deepEqual(plan.targetedTests, []);
+  assert.deepEqual(plan.targetedTestCommands, []);
+  assert.deepEqual(plan.buildCommands.map((command) => command.command), ["npm run build"]);
+  assert.deepEqual(plan.smokeChecks, []);
 });
 
 test("planned mode promotes login task estimates without source changes", () => {
