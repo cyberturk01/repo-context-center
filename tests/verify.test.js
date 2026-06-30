@@ -2373,10 +2373,10 @@ test("verify prefers affected monorepo package ecosystem over root task wording"
   assert.ok(commandNames(plan.buildCommands).includes("mvn verify"));
 });
 
-test("verify does not suggest generic frontend smoke checks for backend-only non-Node tasks", () => {
+test("verify does not suggest generic frontend smoke checks for Spring Boot backend tasks", () => {
   const impact = impactAnalysis({
-    task: "fix frontend account service bug",
-    affectedFiles: [{ path: "src/main/java/com/example/AccountService.java", reason: "task routing matched" }],
+    task: "fix frontend-facing spring boot account service bug",
+    affectedFiles: [{ path: "src/main/java/com/example/account/AccountController.java", reason: "task routing matched" }],
     affectedTests: [],
     suggestedCommands: [],
     confidenceExplanation: confidenceExplanation({
@@ -2406,6 +2406,42 @@ test("verify does not suggest generic frontend smoke checks for backend-only non
 
   assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
   assert.ok(commandNames(plan.targetedTestCommands).includes("mvn test"));
+});
+
+test("verify does not suggest generic frontend smoke checks for Quarkus backend tasks", () => {
+  const impact = impactAnalysis({
+    task: "fix frontend-facing quarkus account resource bug",
+    affectedFiles: [{ path: "src/main/java/com/example/account/AccountResource.java", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "gradle",
+        confidence: "high",
+        matchedSignals: ["build.gradle.kts", "gradlew"],
+        rootPath: "."
+      },
+      detections: [{
+        id: "gradle",
+        confidence: "high",
+        matchedSignals: ["build.gradle.kts", "gradlew"],
+        rootPath: "."
+      }]
+    }
+  });
+
+  assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
+  assert.ok(commandNames(plan.targetedTestCommands).includes("./gradlew test"));
+  assert.ok(commandNames(plan.buildCommands).includes("./gradlew build"));
 });
 
 test("verify --planned --json selects planned-task mode", () => {

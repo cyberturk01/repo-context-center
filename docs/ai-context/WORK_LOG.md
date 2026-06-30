@@ -6822,4 +6822,70 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-30T14:37:34.114Z
+- Summary: Polish Java ecosystem adoption docs and verify regressions
+- Changed files: `docs/ecosystems/java.md`, `examples/java-gradle/build.gradle.kts`, `examples/java-gradle/gradlew`, `examples/java-gradle/README.md`, `examples/java-gradle/src/main/java/example/GreetingService.java`, `examples/java-maven/pom.xml`, `examples/java-maven/README.md`, `examples/java-maven/src/main/java/example/GreetingService.java`, `examples/quarkus/build.gradle.kts`, `examples/quarkus/gradlew`
+- Verification: npm run build; node --test tests/ecosystemDetector.test.js tests/verify.test.js tests/outputContract.test.js; npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Polish Java ecosystem adoption docs and verify regressions",
+  "files": [
+    "docs/ecosystems/java.md",
+    "examples/java-gradle/build.gradle.kts",
+    "examples/java-gradle/gradlew",
+    "examples/java-gradle/README.md",
+    "examples/java-gradle/src/main/java/example/GreetingService.java",
+    "examples/java-maven/pom.xml",
+    "examples/java-maven/README.md",
+    "examples/java-maven/src/main/java/example/GreetingService.java",
+    "examples/quarkus/build.gradle.kts",
+    "examples/quarkus/gradlew",
+    "examples/quarkus/README.md",
+    "examples/quarkus/src/main/java/example/GreetingResource.java",
+    "examples/spring-boot/pom.xml",
+    "examples/spring-boot/README.md",
+    "examples/spring-boot/src/main/java/example/GreetingController.java",
+    "README.md",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/ecosystemDetector.test.js tests/verify.test.js tests/outputContract.test.js; npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T14:37:34.114Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T14:37:34.114Z",
+  "summary": "Polish Java ecosystem adoption docs and verify regressions",
+  "files": [
+    "docs/ecosystems/java.md",
+    "examples/java-gradle/build.gradle.kts",
+    "examples/java-gradle/gradlew",
+    "examples/java-gradle/README.md",
+    "examples/java-gradle/src/main/java/example/GreetingService.java",
+    "examples/java-maven/pom.xml",
+    "examples/java-maven/README.md",
+    "examples/java-maven/src/main/java/example/GreetingService.java",
+    "examples/quarkus/build.gradle.kts",
+    "examples/quarkus/gradlew",
+    "examples/quarkus/README.md",
+    "examples/quarkus/src/main/java/example/GreetingResource.java",
+    "examples/spring-boot/pom.xml",
+    "examples/spring-boot/README.md",
+    "examples/spring-boot/src/main/java/example/GreetingController.java",
+    "README.md",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/ecosystemDetector.test.js tests/verify.test.js tests/outputContract.test.js; npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

@@ -6,24 +6,24 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Polish Java ecosystem adoption docs and verify regressions
 - Add ecosystem-aware verify defaults and adoption docs
 - Add compact ecosystem detection foundation
 - Tighten auth middleware routing, context-only impact confidence, and verify domain reasons
 - Polish verify build alignment and translation domain calibration
 - Renamed product-specific Risk Register category keys to generic messaging and frontend-api keys.
 - Tightened focused-risk evidence guards and exact-word product-domain matching to prevent Risk Register leakage.
-- Tightened Risk Register focused-risk evidence guards to prevent product-domain leakage and added regression coverage.
 
 ## Hot Files
 
 | File | Reason | Last touched |
 | ---- | ------ | ------------ |
 | `src/cli/verify/buildVerify.ts` | 31 touches; Add ecosystem-aware verify defaults and adoption docs | 2026-06-30 |
-| `tests/verify.test.js` | 28 touches; Add ecosystem-aware verify defaults and adoption docs | 2026-06-30 |
+| `tests/verify.test.js` | 29 touches; Polish Java ecosystem adoption docs and verify regressions | 2026-06-30 |
 | `tests/impact.test.js` | 26 touches; Tighten auth middleware routing, context-only impact confidence, and verify domain reasons | 2026-06-30 |
 | `src/cli/impact/buildImpact.ts` | 26 touches; Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. | 2026-06-30 |
+| `README.md` | 22 touches; Polish Java ecosystem adoption docs and verify regressions | 2026-06-30 |
 | `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
-| `README.md` | 21 touches; Add ecosystem-aware verify defaults and adoption docs | 2026-06-30 |
 | `tests/work.test.js` | 21 touches; Tighten auth middleware routing, context-only impact confidence, and verify domain reasons | 2026-06-30 |
 | `tests/outputContract.test.js` | 19 touches; Add ecosystem-aware verify defaults and adoption docs | 2026-06-30 |
 | `src/cli/index.ts` | 17 touches; Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes. | 2026-06-30 |
@@ -33,7 +33,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| General maintenance | 44 | Add ecosystem-aware verify defaults and adoption docs |
+| General maintenance | 45 | Polish Java ecosystem adoption docs and verify regressions |
 | Work routing | 43 | Tighten auth middleware routing, context-only impact confidence, and verify domain reasons |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Repository context | 19 | Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments. |
@@ -44,8 +44,8 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (113)
-- `npm test` (50)
+- `npm run build` (114)
+- `npm test` (51)
 - `node --test tests/impact.test.js` (27)
 - `node --test tests/verify.test.js` (27)
 - `node --test tests/cli.test.js` (22)

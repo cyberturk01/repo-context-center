@@ -93,8 +93,9 @@ RCC remains repository intelligence for AI coding agents, not a Node-only tool. 
 
 Examples:
 
-- Maven: `mvn test`, with `mvn verify` as broader verification.
-- Gradle: `./gradlew test` and `./gradlew build` when the wrapper exists; otherwise `gradle test` and `gradle build`.
+- Java Maven: `mvn test`, with `mvn verify` as broader verification.
+- Java Gradle: `./gradlew test` and `./gradlew build` when the wrapper exists; otherwise `gradle test` and `gradle build`.
+- Spring Boot and Quarkus: use the Java Maven/Gradle signals and keep backend-only verification focused on Java paths.
 - Python: `pytest` when pytest signals are present; otherwise `python -m pytest`.
 - Go: `go test ./...`.
 - .NET: `dotnet test`.
