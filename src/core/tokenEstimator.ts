@@ -34,6 +34,8 @@ export interface TokenEstimateOptions {
 }
 
 export interface TokenEstimateReport {
+  schemaVersion: 1;
+  command: "estimate";
   method: "ceil(characters / 4)";
   mode: EstimateMode;
   startupTokens: number;
@@ -698,6 +700,8 @@ export async function estimateTokenCost(options: TokenEstimateOptions): Promise<
   ];
 
   const report: TokenEstimateReport = {
+    schemaVersion: 1,
+    command: "estimate",
     method,
     mode: options.mode,
     startupTokens: sumTokens(startupFiles),

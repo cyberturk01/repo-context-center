@@ -52,7 +52,7 @@ function compactHandoffMemory(
       `Completed at: ${entry.timestamp}`
     );
 
-    const [verification] = entry.verification;
+    const verification = formatVerificationMemory(entry.verification);
     if (verification) {
       memory.push(`Verification: ${verification}`);
     }
@@ -69,6 +69,16 @@ function compactHandoffMemory(
   }
 
   return memory.slice(0, handoffMemoryLimit);
+}
+
+function formatVerificationMemory(verification: string[]): string | null {
+  const value = verification
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join("; ")
+    .replace(/(\.[cm]?[jt]sx?)(?=[A-Za-z0-9_.-]+\/)/g, "$1 ");
+
+  return value || null;
 }
 
 function normalizeMemoryText(value: string): string {

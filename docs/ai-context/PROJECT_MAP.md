@@ -18,6 +18,7 @@ Repo Context Center (RCC) is a repository intelligence layer for AI coding agent
 - `src/core` - orchestration and core business logic
 - `docs` - documentation
 - `templates` - templates/prompts/examples
+- `examples` - examples and usage samples
 - `tests` - test coverage, fixtures, and regression cases
 - `scripts` - automation and maintenance scripts
 - `.github/workflows` - CI and release automation
@@ -33,7 +34,7 @@ Repo Context Center (RCC) is a repository intelligence layer for AI coding agent
 | --- | --- |
 | Repo understanding level | High |
 | Entrypoints detected | 2 |
-| Key directories detected | 9 |
+| Key directories detected | 10 |
 | Modules detected | 4 |
 | Dependency hints mode | Conservative |
 | Generated/noise filtering | Active (5 ignored/noise areas separated) |
@@ -105,6 +106,7 @@ Repo Context Center (RCC) is a repository intelligence layer for AI coding agent
 - `package-lock.json/`
 - `repo-context-center-0.12.0.tgz/`
 - `repo-context-center-0.13.0.tgz/`
+- `repo-context-center-0.13.1.tgz/`
 - `snapshots/`
 - `target/`
 - `tests/fixtures/`

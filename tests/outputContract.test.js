@@ -62,6 +62,22 @@ const stableMeasureFields = [
   "estimatedSavingPercent",
   "warnings"
 ];
+const stableEstimateFields = [
+  "schemaVersion",
+  "command",
+  "method",
+  "mode",
+  "startupTokens",
+  "onDemandTokens",
+  "historyTokens",
+  "includedContextTokens",
+  "startupFiles",
+  "onDemandFiles",
+  "historyFiles",
+  "includedContextFiles",
+  "maxFiles",
+  "warnings"
+];
 const stableMetricsFields = [
   "schemaVersion",
   "command",
@@ -352,6 +368,32 @@ function assertMeasureJsonContract(report, task) {
     "warnings"
   ]) {
     assert.ok(Array.isArray(report[key]), `measure ${key} should be an array`);
+  }
+}
+
+function assertEstimateJsonContract(report) {
+  assert.deepEqual(Object.keys(report), stableEstimateFields);
+  assert.equal(report.schemaVersion, 1);
+  assert.equal(report.command, "estimate");
+  assert.equal(report.method, "ceil(characters / 4)");
+  assert.equal(report.mode, "compact");
+  for (const key of [
+    "startupTokens",
+    "onDemandTokens",
+    "historyTokens",
+    "includedContextTokens",
+    "maxFiles"
+  ]) {
+    assert.equal(typeof report[key], "number", `estimate ${key} should be numeric`);
+  }
+  for (const key of [
+    "startupFiles",
+    "onDemandFiles",
+    "historyFiles",
+    "includedContextFiles",
+    "warnings"
+  ]) {
+    assert.ok(Array.isArray(report[key]), `estimate ${key} should be an array`);
   }
 }
 
@@ -780,6 +822,12 @@ test("measure --json keeps stable measurement contract", () => {
   const report = parseJsonOnlyOutput(runCli(["measure", task, "--json"]));
 
   assertMeasureJsonContract(report, task);
+});
+
+test("estimate --json keeps stable estimate contract", () => {
+  const report = parseJsonOnlyOutput(runCli(["estimate", "--json"]));
+
+  assertEstimateJsonContract(report);
 });
 
 test("metrics --json keeps compact task-oriented metrics contract across representative tasks", () => {

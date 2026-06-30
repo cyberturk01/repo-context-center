@@ -710,7 +710,7 @@ repo-context-center doctor
 repo-context-center init [--dry-run] [--force] [--update] [--update-agent-file] [--github-action]
 repo-context-center work "<task>" [--agent] [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
 repo-context-center impact "<task>" [--json] [--task-only] [--max-files <number>]
-repo-context-center verify "<task>" [--json] [--task-only] [--max-files <number>]
+repo-context-center verify "<task>" [--json] [--task-only] [--planned] [--level minimal|balanced|deep]
 repo-context-center measure "<task>" [--json]
 repo-context-center metrics "<task>" [--json]
 repo-context-center done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]

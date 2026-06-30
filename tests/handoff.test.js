@@ -1088,6 +1088,26 @@ test("rcc handoff falls back safely when WORK_INDEX is missing", async () => {
   });
 });
 
+test("rcc handoff separates adjacent verification files in memory", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "## 2026-06-20T12:00:00.000Z",
+      "- Summary: Fixed handoff verification spacing",
+      "- Changed files: `src/cli/handoff/buildHandoffBrief.ts`",
+      "- Verification: node --test tests/work.test.jstests/impact.test.js",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["handoff", "--json"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.ok(brief.memory.includes("Verification: node --test tests/work.test.js tests/impact.test.js"));
+    assert.equal(brief.memory.some((item) => item.includes("tests/work.test.jstests/impact.test.js")), false);
+  });
+});
+
 test("rcc handoff tolerates missing context sources", async () => {
   await withTempRepo(async (tempDir) => {
     const result = runCli(["handoff", "--json", "--debug"], { cwd: tempDir });

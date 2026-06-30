@@ -2733,3 +2733,11 @@ test("verify rejects invalid args", () => {
   assert.equal(result.stdout, "");
   assert.match(result.stderr, /^Usage: rcc verify "<task>" \[--json\] \[--task-only\] \[--planned\]/);
 });
+
+test("verify rejects unsupported max-files flag", () => {
+  const result = runCli(["verify", "fix login bug", "--max-files", "2"]);
+
+  assert.notEqual(result.status, 0);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /^Usage: rcc verify "<task>" \[--json\] \[--task-only\] \[--planned\] \[--level minimal\|balanced\|deep\]/);
+});

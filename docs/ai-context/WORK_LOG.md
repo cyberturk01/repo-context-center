@@ -7074,4 +7074,54 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-30T23:04:50.648Z
+- Summary: Hardened RC command docs, estimate JSON contract, and handoff verification spacing
+- Changed files: `README.md`, `src/core/tokenEstimator.ts`, `src/cli/handoff/buildHandoffBrief.ts`, `src/core/templateInstaller.ts`, `tests/estimate.test.js`, `tests/outputContract.test.js`, `tests/handoff.test.js`, `tests/verify.test.js`, `tests/init.test.js`
+- Verification: npm run build; npm test; node --test tests/outputContract.test.js; node --test tests/verify.test.js; node --test tests/estimate.test.js; node --test tests/handoff.test.js; node --test tests/init.test.js tests/validate.test.js; node dist/cli/index.js validate
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Hardened RC command docs, estimate JSON contract, and handoff verification spacing",
+  "files": [
+    "README.md",
+    "src/core/tokenEstimator.ts",
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/core/templateInstaller.ts",
+    "tests/estimate.test.js",
+    "tests/outputContract.test.js",
+    "tests/handoff.test.js",
+    "tests/verify.test.js",
+    "tests/init.test.js"
+  ],
+  "verification": [
+    "npm run build; npm test; node --test tests/outputContract.test.js; node --test tests/verify.test.js; node --test tests/estimate.test.js; node --test tests/handoff.test.js; node --test tests/init.test.js tests/validate.test.js; node dist/cli/index.js validate"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T23:04:50.648Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T23:04:50.648Z",
+  "summary": "Hardened RC command docs, estimate JSON contract, and handoff verification spacing",
+  "files": [
+    "README.md",
+    "src/core/tokenEstimator.ts",
+    "src/cli/handoff/buildHandoffBrief.ts",
+    "src/core/templateInstaller.ts",
+    "tests/estimate.test.js",
+    "tests/outputContract.test.js",
+    "tests/handoff.test.js",
+    "tests/verify.test.js",
+    "tests/init.test.js"
+  ],
+  "verification": "npm run build; npm test; node --test tests/outputContract.test.js; node --test tests/verify.test.js; node --test tests/estimate.test.js; node --test tests/handoff.test.js; node --test tests/init.test.js tests/validate.test.js; node dist/cli/index.js validate",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

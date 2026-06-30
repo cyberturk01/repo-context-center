@@ -30,7 +30,7 @@ const expectedWorkflowSection = `<!-- repo-context-center:workflow:start -->
 RCC workflow:
 - Read \`docs/ai-context/RCC_WORKFLOW.md\` before broad repo scans.
 - Use \`rcc work "<task>" --agent\` for task briefing.
-- If the CLI is unavailable, read \`docs/ai-context/TASK_ROUTING.md\` and \`docs/ai-context/MODULE_INDEX.md\`.
+- If the CLI is unavailable, read \`docs/ai-context/TASK_ROUTING.md\` and \`docs/ai-context/DO_NOT_READ.md\`; use \`docs/ai-context/TOKEN_BUDGET.md\` only if needed.
 <!-- repo-context-center:workflow:end -->`;
 
 const minimalAgentsPointer = "# Agent Instructions\n\nFor the RCC repository workflow, read docs/ai-context/RCC_WORKFLOW.md before coding tasks.\n";
