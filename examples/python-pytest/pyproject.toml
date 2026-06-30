@@ -1,0 +1,7 @@
+[project]
+name = "rcc-python-pytest-example"
+version = "0.1.0"
+description = "Minimal pytest example for Repo Context Center adoption."
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

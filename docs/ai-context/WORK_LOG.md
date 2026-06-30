@@ -6888,4 +6888,70 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-30T14:43:38.949Z
+- Summary: Polish Python ecosystem adoption docs and regressions
+- Changed files: `docs/ecosystems/python.md`, `examples/fastapi/app/main.py`, `examples/fastapi/README.md`, `examples/fastapi/requirements.txt`, `examples/flask/flask_app/routes.py`, `examples/flask/README.md`, `examples/flask/requirements.txt`, `examples/python-pytest/pyproject.toml`, `examples/python-pytest/pytest.ini`, `examples/python-pytest/README.md`
+- Verification: npm run build; node --test tests/ecosystemDetector.test.js tests/verify.test.js tests/outputContract.test.js; npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Polish Python ecosystem adoption docs and regressions",
+  "files": [
+    "docs/ecosystems/python.md",
+    "examples/fastapi/app/main.py",
+    "examples/fastapi/README.md",
+    "examples/fastapi/requirements.txt",
+    "examples/flask/flask_app/routes.py",
+    "examples/flask/README.md",
+    "examples/flask/requirements.txt",
+    "examples/python-pytest/pyproject.toml",
+    "examples/python-pytest/pytest.ini",
+    "examples/python-pytest/README.md",
+    "examples/python/pyproject.toml",
+    "examples/python/README.md",
+    "README.md",
+    "src/cli/verify/buildVerify.ts",
+    "src/core/ecosystemDetector.ts",
+    "tests/ecosystemDetector.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/ecosystemDetector.test.js tests/verify.test.js tests/outputContract.test.js; npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T14:43:38.949Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T14:43:38.949Z",
+  "summary": "Polish Python ecosystem adoption docs and regressions",
+  "files": [
+    "docs/ecosystems/python.md",
+    "examples/fastapi/app/main.py",
+    "examples/fastapi/README.md",
+    "examples/fastapi/requirements.txt",
+    "examples/flask/flask_app/routes.py",
+    "examples/flask/README.md",
+    "examples/flask/requirements.txt",
+    "examples/python-pytest/pyproject.toml",
+    "examples/python-pytest/pytest.ini",
+    "examples/python-pytest/README.md",
+    "examples/python/pyproject.toml",
+    "examples/python/README.md",
+    "README.md",
+    "src/cli/verify/buildVerify.ts",
+    "src/core/ecosystemDetector.ts",
+    "tests/ecosystemDetector.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/ecosystemDetector.test.js tests/verify.test.js tests/outputContract.test.js; npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

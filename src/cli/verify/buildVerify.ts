@@ -560,7 +560,7 @@ function ecosystemTestCommand(detection: EcosystemDetection): ImpactCommand | nu
   const commands: Partial<Record<VerifyEcosystemId, string>> = {
     maven: "mvn test",
     gradle: gradleCommand(detection, "test"),
-    python: detection.matchedSignals.some((signal) => /(?:^|\/)(pytest\.ini|pyproject\.toml|requirements\.txt)$/.test(signal))
+    python: detection.matchedSignals.some((signal) => signal.endsWith("pytest.ini") || signal.endsWith("#pytest"))
       ? "pytest"
       : "python -m pytest",
     go: "go test ./...",

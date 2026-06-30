@@ -53,7 +53,7 @@ test("ecosystem detector recognizes Gradle repositories", async () => {
 
 test("ecosystem detector recognizes Python repositories", async () => {
   await withFixtureRepo(async (tempDir) => {
-    await writeFixtureFile(tempDir, "pyproject.toml", "[project]\nname = \"fixture\"\n");
+    await writeFixtureFile(tempDir, "pyproject.toml", "[project]\nname = \"fixture\"\n[tool.pytest.ini_options]\ntestpaths = [\"tests\"]\n");
     await writeFixtureFile(tempDir, "requirements.txt", "pytest\n");
     const { detectRepositoryEcosystems } = require("../dist/core/ecosystemDetector");
     const report = await detectRepositoryEcosystems(tempDir);
@@ -62,6 +62,32 @@ test("ecosystem detector recognizes Python repositories", async () => {
     assert.equal(report.primary.confidence, "high");
     assert.ok(report.primary.matchedSignals.includes("pyproject.toml"));
     assert.ok(report.primary.matchedSignals.includes("requirements.txt"));
+    assert.ok(report.primary.matchedSignals.includes("pyproject.toml#pytest"));
+    assert.ok(report.primary.matchedSignals.includes("requirements.txt#pytest"));
+  });
+});
+
+test("ecosystem detector recognizes Python repositories from pyproject.toml", async () => {
+  await withFixtureRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "pyproject.toml", "[project]\nname = \"fixture\"\n");
+    const { detectRepositoryEcosystems } = require("../dist/core/ecosystemDetector");
+    const report = await detectRepositoryEcosystems(tempDir);
+
+    assert.equal(report.primary.id, "python");
+    assert.equal(report.primary.confidence, "high");
+    assert.deepEqual(report.primary.matchedSignals, ["pyproject.toml"]);
+  });
+});
+
+test("ecosystem detector recognizes Python repositories from requirements.txt", async () => {
+  await withFixtureRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "requirements.txt", "fastapi\nuvicorn\n");
+    const { detectRepositoryEcosystems } = require("../dist/core/ecosystemDetector");
+    const report = await detectRepositoryEcosystems(tempDir);
+
+    assert.equal(report.primary.id, "python");
+    assert.equal(report.primary.confidence, "medium");
+    assert.deepEqual(report.primary.matchedSignals, ["requirements.txt"]);
   });
 });
 

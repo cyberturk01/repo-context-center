@@ -154,12 +154,34 @@ function addDetection(
   });
 }
 
-function detectRootEcosystems(root: CandidateRoot): EcosystemDetection[] {
+async function pythonPytestSignals(cwd: string, root: CandidateRoot): Promise<string[]> {
+  const files = new Set(root.fileNames);
+  const rootDir = root.rootPath === "." ? cwd : path.join(cwd, root.rootPath);
+  const signals: string[] = [];
+
+  for (const fileName of ["pyproject.toml", "requirements.txt", "setup.py"]) {
+    if (!files.has(fileName)) {
+      continue;
+    }
+
+    const content = await safeReadText(path.join(rootDir, fileName));
+    if (/\bpytest\b/i.test(content) || /\[tool\.pytest\b/i.test(content)) {
+      signals.push(`${signalPath(root.rootPath, fileName)}#pytest`);
+    }
+  }
+
+  return signals;
+}
+
+async function detectRootEcosystems(cwd: string, root: CandidateRoot): Promise<EcosystemDetection[]> {
   const detections: EcosystemDetection[] = [];
   const nodeSignals = exactSignals(root, ["package.json", "pnpm-lock.yaml", "yarn.lock", "package-lock.json"]);
   const mavenSignals = exactSignals(root, ["pom.xml"]);
   const gradleSignals = exactSignals(root, ["build.gradle", "build.gradle.kts", "gradlew"]);
-  const pythonSignals = exactSignals(root, ["pyproject.toml", "requirements.txt", "setup.py", "pytest.ini"]);
+  const pythonSignals = [
+    ...exactSignals(root, ["pyproject.toml", "requirements.txt", "setup.py", "pytest.ini"]),
+    ...await pythonPytestSignals(cwd, root)
+  ];
   const goSignals = exactSignals(root, ["go.mod"]);
   const dotnetSignals = [
     ...suffixSignals(root, [".csproj"]),
@@ -221,7 +243,7 @@ async function detectMonorepo(cwd: string, topLevelDirs: string[], ecosystemRoot
 
 export async function detectRepositoryEcosystems(cwd: string): Promise<EcosystemDetectionReport> {
   const { roots, topLevelDirs } = await candidateRoots(cwd);
-  const ecosystemDetections = roots.flatMap(detectRootEcosystems);
+  const ecosystemDetections = (await Promise.all(roots.map((root) => detectRootEcosystems(cwd, root)))).flat();
   const monorepo = await detectMonorepo(cwd, topLevelDirs, ecosystemDetections.map((detection) => detection.rootPath));
   const detections = sortDetections(monorepo ? [...ecosystemDetections, monorepo] : ecosystemDetections);
 

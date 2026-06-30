@@ -96,7 +96,7 @@ Examples:
 - Java Maven: `mvn test`, with `mvn verify` as broader verification.
 - Java Gradle: `./gradlew test` and `./gradlew build` when the wrapper exists; otherwise `gradle test` and `gradle build`.
 - Spring Boot and Quarkus: use the Java Maven/Gradle signals and keep backend-only verification focused on Java paths.
-- Python: `pytest` when pytest signals are present; otherwise `python -m pytest`.
+- Python: detects `pyproject.toml`, `requirements.txt`, `setup.py`, and `pytest.ini`; suggests `pytest` when pytest signals are present, otherwise `python -m pytest`. See [Python adoption](docs/ecosystems/python.md).
 - Go: `go test ./...`.
 - .NET: `dotnet test`.
 - Node: existing Node behavior is preserved.

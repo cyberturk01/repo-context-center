@@ -2292,6 +2292,96 @@ test("verify recommends Python module pytest fallback without pytest config sign
   });
 });
 
+test("verify recommends pytest from requirements pytest dependency signal", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "requirements.txt", "fastapi\npytest\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update user service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("pytest"));
+  });
+});
+
+test("verify recommends python module pytest for requirements without pytest signal", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "requirements.txt", "fastapi\nuvicorn\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update user service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("python -m pytest"));
+  });
+});
+
+test("verify does not suggest generic frontend smoke checks for FastAPI backend tasks", () => {
+  const impact = impactAnalysis({
+    task: "fix frontend session issue in FastAPI backend",
+    affectedFiles: [{ path: "app/main.py", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "python",
+        confidence: "high",
+        matchedSignals: ["pyproject.toml", "pyproject.toml#pytest"],
+        rootPath: "."
+      },
+      detections: [{
+        id: "python",
+        confidence: "high",
+        matchedSignals: ["pyproject.toml", "pyproject.toml#pytest"],
+        rootPath: "."
+      }]
+    }
+  });
+
+  assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
+  assert.ok(commandNames(plan.targetedTestCommands).includes("pytest"));
+});
+
+test("verify does not suggest generic frontend smoke checks for Flask backend tasks", () => {
+  const impact = impactAnalysis({
+    task: "fix frontend login issue in Flask backend",
+    affectedFiles: [{ path: "flask_app/routes.py", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "python",
+        confidence: "medium",
+        matchedSignals: ["requirements.txt", "requirements.txt#pytest"],
+        rootPath: "."
+      },
+      detections: [{
+        id: "python",
+        confidence: "medium",
+        matchedSignals: ["requirements.txt", "requirements.txt#pytest"],
+        rootPath: "."
+      }]
+    }
+  });
+
+  assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
+  assert.ok(commandNames(plan.targetedTestCommands).includes("pytest"));
+});
+
 test("verify recommends Go defaults when no stronger task-specific command exists", async () => {
   await withVerifyRepo(async (tempDir) => {
     await writeFixtureFile(tempDir, "go.mod", "module example.com/fixture\n");

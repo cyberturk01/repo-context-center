@@ -1,0 +1,4 @@
+[project]
+name = "rcc-python-example"
+version = "0.1.0"
+description = "Minimal Python example for Repo Context Center adoption."
