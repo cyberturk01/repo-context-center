@@ -172,7 +172,17 @@ init -> map -> work -> impact -> verify -> done -> handoff
 Optional diagnostics:
 
 - Use `rcc metrics "<task>" --json` when you need a compact repository intelligence snapshot for one task. It is not a required workflow step.
+- Use `rcc measure "<task>"`, `rcc estimate --compare-naive`, or `rcc scan --json` when evaluating routing, context cost, or repository layout.
 - `metrics` summarizes existing Work, Measure, Impact, Verify, and freshness outputs. It does not run a second independent repository analysis engine.
+
+## Command-guided, not command-chained
+
+RCC guides humans and AI agents toward the next explicit command. It does not automatically run follow-up commands.
+
+- `work` does not run `map`; refresh generated context with `map --write` when you choose to.
+- `verify` does not execute tests; it prints targeted test commands, build commands, smoke checks, and manual checks for you to run.
+- `done` records completed-work memory and repository learning signals, but it should not surprise users with broad automation.
+- RCC outputs may recommend the next command, but the human or agent decides what to run.
 
 Agent guidance:
 
@@ -703,29 +713,64 @@ Prefer `rcc work`, `rcc done`, and `rcc handoff` for new agent workflows.
 
 ## Command Reference
 
+Primary workflow:
+
+```text
+init -> map -> work -> impact -> verify -> done -> handoff
+```
+
+Optional diagnostics: `metrics`, `measure`, `estimate`, `scan`.
+
+### Core agent workflow
+
 ```sh
-repo-context-center --help
-repo-context-center --version
-repo-context-center doctor
-repo-context-center init [--dry-run] [--force] [--update] [--update-agent-file] [--github-action]
 repo-context-center work "<task>" [--agent] [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
+```
+
+### Setup and validation
+
+```sh
+repo-context-center init [--dry-run] [--force] [--update] [--update-agent-file] [--github-action]
+repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <number>]
+repo-context-center validate [--strict]
+```
+
+### Impact and verification
+
+```sh
 repo-context-center impact "<task>" [--json] [--task-only] [--max-files <number>]
 repo-context-center verify "<task>" [--json] [--task-only] [--planned] [--level minimal|balanced|deep]
-repo-context-center measure "<task>" [--json]
-repo-context-center metrics "<task>" [--json]
+```
+
+### Memory and handoff
+
+```sh
 repo-context-center done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]
 repo-context-center learn [--json] [--write] [--debug]
 repo-context-center handoff [task] [--json|--agent] [--debug] [--write]
-repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <number>]
-repo-context-center validate [--strict]
-repo-context-center archive [--keep <number>] [--dry-run]
-repo-context-center estimate [--mode compact|investigation|detailed] [--task "<task>"] [--compare-naive] [--json] [--max-files <number>]
-repo-context-center find "<query>" [--limit <number>]
 repo-context-center decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
 repo-context-center decision list
 repo-context-center decision search "<query>"
-repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
+```
+
+### Lookup and diagnostics
+
+```sh
+repo-context-center find "<query>" [--limit <number>]
+repo-context-center metrics "<task>" [--json]
+repo-context-center measure "<task>" [--json]
+repo-context-center estimate [--mode compact|investigation|detailed] [--task "<task>"] [--compare-naive] [--json] [--max-files <number>]
 repo-context-center scan [--json]
+repo-context-center doctor
+repo-context-center --help
+repo-context-center --version
+```
+
+### Maintenance and lower-level commands
+
+```sh
+repo-context-center archive [--keep <number>] [--dry-run]
+repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 repo-context-center start "<task>" [--max-files <number>] [--copy]
 repo-context-center log "<summary>" [--files <path,path>] [--dry-run]
 ```
