@@ -27,6 +27,7 @@ Recent development since v0.12.0 extends Verification Intelligence with Reposito
 ### Measurement And Contracts
 
 - Refactored Measure into reusable build/render modules while preserving the public `measure --json` shape.
+- Metrics now reuses shared task contexts and existing Impact/Verify/Measure builders to avoid duplicate high-level analysis work.
 - Added contract coverage for Impact, Measure, Metrics, Work, Handoff, and Verify JSON outputs.
 - Reinforced compact output expectations for machine-readable agent and integration payloads.
 

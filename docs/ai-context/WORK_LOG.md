@@ -6484,4 +6484,40 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-30T10:19:51.509Z
+- Summary: Updated README and CHANGELOG to document metrics reuse as optional diagnostic behavior without changing core workflow positioning.
+- Changed files: `CHANGELOG.md`, `README.md`
+- Verification: node --test tests/estimate.test.js tests/outputContract.test.js tests/cli.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated README and CHANGELOG to document metrics reuse as optional diagnostic behavior without changing core workflow positioning.",
+  "files": [
+    "CHANGELOG.md",
+    "README.md"
+  ],
+  "verification": [
+    "node --test tests/estimate.test.js tests/outputContract.test.js tests/cli.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T10:19:51.509Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T10:19:51.509Z",
+  "summary": "Updated README and CHANGELOG to document metrics reuse as optional diagnostic behavior without changing core workflow positioning.",
+  "files": [
+    "CHANGELOG.md",
+    "README.md"
+  ],
+  "verification": "node --test tests/estimate.test.js tests/outputContract.test.js tests/cli.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

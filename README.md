@@ -572,7 +572,7 @@ npx repo-context-center estimate --json
 
 ### Inspect Repository Metrics
 
-`metrics` is an optional diagnostic command. It summarizes RCC's task route, token saving, freshness, impact, and verification signals without duplicating repository analysis:
+`metrics` is an optional diagnostic command. It summarizes RCC's existing task route, token saving, freshness, impact, and verification signals without duplicating high-level analysis work:
 
 ```sh
 npx repo-context-center metrics "fix login bug"
