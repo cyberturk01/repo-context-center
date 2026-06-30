@@ -1,5 +1,97 @@
 # ChangeLog
 
+## [0.13.0]
+
+Recent development since v0.12.0 extends Verification Intelligence with Repository Metrics and stronger JSON contracts.
+
+### Repository Metrics
+
+- Added shared `RepositoryMetrics` models for compact task-level repository intelligence.
+- Added a metrics collector that reuses existing Work, Measure, Impact, Verify, and freshness outputs instead of adding a second repository analysis engine.
+- Added human and JSON renderers for metrics output.
+- Added the new optional diagnostic `metrics` command:
+  - `rcc metrics "<task>"`
+  - `rcc metrics "<task>" --json`
+- Added output contract guards to keep metrics JSON compact and summary-oriented, without leaking raw Work, Impact, or Verify arrays.
+
+### Verification Intelligence
+
+- Added a shared DomainEngine and routed Work, Impact, and Verify through shared task/domain context.
+- Improved domain precision for workflow, GitHub integration, frontend, backend, database, Redis/cache, config, auth, and context verification hints.
+- Stabilized `verify --json` as a long-lived integration contract.
+- Kept Verify output recommendation-focused by omitting raw Impact collections and internal scoring details.
+- Improved planned, task-only, and working-tree verification boundaries.
+- Added priority-aware verification recommendations and normalized targeted tests, commands, smoke checks, manual checks, and validation checklist items.
+- Added fixture-backed contract snapshots for planned verification scenarios.
+
+### Measurement And Contracts
+
+- Refactored Measure into reusable build/render modules while preserving the public `measure --json` shape.
+- Metrics now reuses shared task contexts and existing Impact/Verify/Measure builders to avoid duplicate high-level analysis work.
+- Added contract coverage for Impact, Measure, Metrics, Work, Handoff, and Verify JSON outputs.
+- Reinforced compact output expectations for machine-readable agent and integration payloads.
+
+## [0.12.0]
+
+Repo Context Center v0.12.0 adds Verification Intelligence: a dedicated verification-planning layer built from existing Impact Analysis output.
+
+### Verify Intelligence
+
+- Added the new `verify` command.
+- Added VerificationPlan output for targeted tests, targeted test commands, build commands, smoke checks, manual checks, validation checklist items, confidence, and notes.
+- Reused Impact Analysis as the source of truth for affected files, affected tests, suggested commands, confidence, docs-only notes, and context-only signals.
+- Added smoke-check and validation-checklist planning for stronger review handoffs.
+- Added `verify --json` and `verify --task-only --json` for a stable machine-readable JSON contract.
+
+## [0.11.1]
+
+Repo Context Center v0.11.1 expands RCC from task routing into practical change-impact guidance, with stronger installation diagnostics and safer agent-instruction updates.
+
+### Impact Analysis
+
+- Added the `impact` command.
+- Added affected files detection.
+- Added confidence-scored affected test recommendations.
+- Added suggested verification commands.
+- Added `contextChanges` separation for RCC and agent-context files.
+- Added task-only mode.
+- Added summary output.
+- Added confidence explanation.
+- Added structured affected-test metadata:
+  - `score`
+  - `confidence`
+  - `signals`
+- Added `verificationHints` placeholder for future Verify Intelligence.
+
+### Work Improvements
+
+- Work and Impact now share the same affected-test scoring.
+- Removed unrelated fallback test recommendations.
+- Work now prefers no tests over weak recommendations.
+- Improved agent guidance when no strong test relationship exists.
+
+### Measure
+
+- Improved excluded-file reporting.
+- Clarified representative ignored, unsupported, and scan-cap paths.
+
+### Doctor
+
+- Improved local/global installation diagnostics.
+- Reduced unnecessary upgrade recommendations.
+- Better distinguished a healthy active CLI from older local installs.
+
+### Init
+
+- Added safer `AGENTS.md` update flow.
+- Added `update-agent-file` support.
+- Improved AI instruction file detection without modifying third-party instruction files.
+
+### Validation
+
+- Validated the release on a large real-world monorepo with approximately 4,300 eligible files.
+- Covered `init`, `map`, `work`, `impact`, `measure`, `doctor`, and `validate`.
+
 ## [0.9.1]
 
 - WORK_INDEX.md compact memory file

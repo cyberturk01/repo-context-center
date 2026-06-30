@@ -7,7 +7,12 @@ const test = require("node:test");
 
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
-const { normalizeImpactPath } = require("../dist/cli/impact/buildImpact");
+const {
+  buildImpactAnalysis,
+  buildImpactAnalysisFromTaskContext,
+  normalizeImpactPath
+} = require("../dist/cli/impact/buildImpact");
+const { buildTaskAnalysis } = require("../dist/core/task-analysis");
 
 function runCli(args, options = {}) {
   return spawnSync(process.execPath, [cliPath, ...args], {
@@ -48,6 +53,19 @@ async function withImpactRepo(callback) {
     await writeFixtureFile(tempDir, "package.json", JSON.stringify({ scripts: { test: "node --test tests/*.test.js" } }, null, 2));
     await writeFixtureFile(tempDir, "src/auth/login.ts", "export function login() { return true; }\n");
     await writeFixtureFile(tempDir, "tests/auth/login.test.js", "test('login', () => {});\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+async function withBareImpactRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-impact-bare-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "package.json", JSON.stringify({ scripts: { test: "node --test tests/*.test.js" } }, null, 2));
 
     return await callback(tempDir);
   } finally {
@@ -203,6 +221,32 @@ test("impact --json returns task-based affected files and commands", async () =>
   });
 });
 
+test("buildImpactAnalysisFromTaskContext matches buildImpactAnalysis", async () => {
+  await withImpactRepo(async (cwd) => {
+    const task = "update login flow";
+    const options = { maxFiles: 12, taskOnly: true };
+    const taskContext = await buildTaskAnalysis(cwd, task, options);
+    const fromTaskContext = buildImpactAnalysisFromTaskContext(taskContext, { maxFiles: options.maxFiles });
+    const fromCwdAndTask = await buildImpactAnalysis(cwd, task, options);
+
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(fromTaskContext)),
+      JSON.parse(JSON.stringify(fromCwdAndTask))
+    );
+    assert.equal(fromTaskContext.taskContext, taskContext);
+    assert.deepEqual(fromTaskContext.domainMatches, taskContext.domains);
+    assert.equal(fromTaskContext.taskMentionsContext, taskContext.taskMentionsContext);
+
+    for (const key of ["taskContext", "domainMatches", "taskMentionsContext"]) {
+      const descriptor = Object.getOwnPropertyDescriptor(fromTaskContext, key);
+
+      assert.ok(descriptor, `${key} should be attached`);
+      assert.equal(descriptor.enumerable, false, `${key} should be non-enumerable`);
+      assert.equal(Object.keys(fromTaskContext).includes(key), false, `${key} should not appear in public keys`);
+    }
+  });
+});
+
 test("impact includes git working-tree changes and paired tests", async () => {
   await withImpactRepo(async (cwd) => {
     runGit(["init"], cwd);
@@ -236,6 +280,47 @@ test("impact includes git working-tree changes and paired tests", async () => {
   });
 });
 
+test("impact sorts affected files by confidence without changing JSON shape", async () => {
+  await withBareImpactRepo(async (cwd) => {
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Backend auth session work: read `packages/backend-core/src/auth/session.ts`, `packages/backend-core/src/auth/sessionStore.ts`, `packages/frontend/src/session.ts`, and `packages/backend-core/src/billing/session.ts`."
+      ].join("\n")
+    );
+    await writeFixtureFile(cwd, "packages/backend-core/src/auth/session.ts", "export function session() { return true; }\n");
+    await writeFixtureFile(cwd, "packages/backend-core/src/auth/sessionStore.ts", "export function sessionStore() { return true; }\n");
+    await writeFixtureFile(cwd, "packages/frontend/src/session.ts", "export function sessionView() { return true; }\n");
+    await writeFixtureFile(cwd, "packages/backend-core/src/billing/session.ts", "export function billingSession() { return true; }\n");
+
+    runGit(["init"], cwd);
+    runGit(["config", "user.email", "test@example.com"], cwd);
+    runGit(["config", "user.name", "Test User"], cwd);
+    runGit(["add", "."], cwd);
+    runGit(["commit", "-m", "initial"], cwd);
+
+    await writeFixtureFile(cwd, "packages/backend-core/src/auth/session.ts", "export function session() { return false; }\n");
+
+    const result = runCli(["impact", "fix backend auth session", "--json"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const analysis = JSON.parse(result.stdout);
+    const affectedFiles = analysis.affectedFiles.map((file) => file.path);
+    const sourceIndex = affectedFiles.indexOf("packages/backend-core/src/auth/session.ts");
+    const sameModuleIndex = affectedFiles.indexOf("packages/backend-core/src/auth/sessionStore.ts");
+    const unrelatedPackageIndex = affectedFiles.indexOf("packages/frontend/src/session.ts");
+
+    assert.deepEqual(Object.keys(analysis.affectedFiles[0]).sort(), ["path", "reason"]);
+    assert.equal(sourceIndex, 0);
+    assert.ok(sameModuleIndex > sourceIndex);
+    assert.ok(unrelatedPackageIndex > sameModuleIndex);
+  });
+});
+
 test("impact --task-only ignores git context changes in confidence evidence", async () => {
   await withImpactRepo(async (cwd) => {
     await writeFixtureFile(cwd, "CLAUDE.md", "Old Claude guidance\n");
@@ -263,8 +348,11 @@ test("impact --task-only ignores git context changes in confidence evidence", as
     assert.equal(defaultAnalysis.mode, "working-tree");
     assert.equal(defaultAnalysis.basis, "changed-files-and-task");
     assert.ok(defaultAnalysis.changedFiles.some((file) => file.path === "AGENTS.md"));
+    assert.equal(defaultAnalysis.confidence, "high");
     assert.equal(defaultAnalysis.confidenceExplanation.evidence.contextOnlyChanges, true);
     assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("context-only changes detected"));
+    assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("routing confidence: high"));
+    assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("change confidence: medium"));
 
     assert.equal(taskOnlyAnalysis.mode, "task-only");
     assert.equal(taskOnlyAnalysis.basis, "task");
@@ -275,6 +363,8 @@ test("impact --task-only ignores git context changes in confidence evidence", as
     assert.equal(taskOnlyAnalysis.confidenceExplanation.evidence.contextOnlyChanges, false);
     assert.equal(taskOnlyAnalysis.confidenceExplanation.reasons.includes("context-only changes detected"), false);
     assert.equal(taskOnlyAnalysis.confidenceExplanation.reasons.includes("context changes do not raise confidence to high"), false);
+    assert.ok(taskOnlyAnalysis.confidenceExplanation.reasons.includes("routing confidence: high"));
+    assert.ok(taskOnlyAnalysis.confidenceExplanation.reasons.includes("change confidence: low"));
     assert.ok(taskOnlyAnalysis.affectedFiles.some((file) => file.path === "src/auth/login.ts"));
     assert.ok(taskOnlyAnalysis.affectedTests.some((file) => file.path === "tests/auth/login.test.js"));
     assert.ok(taskOnlyAnalysis.notes.includes("Task-only mode: ignored git working-tree changes."));
@@ -414,7 +504,8 @@ test("impact separates RCC and agent context changes from affected files", async
     assert.equal(analysis.confidenceExplanation.evidence.contextOnlyChanges, true);
     assert.equal(analysis.confidenceExplanation.evidence.nonContextChangedFiles, 0);
     assert.ok(analysis.confidenceExplanation.reasons.includes("context-only changes detected"));
-    assert.ok(analysis.confidenceExplanation.reasons.includes("context changes do not raise confidence to high"));
+    assert.ok(analysis.confidenceExplanation.reasons.includes("change confidence: medium"));
+    assert.ok(analysis.confidenceExplanation.reasons.includes("routing evidence not strong enough for high confidence"));
   });
 });
 
@@ -423,7 +514,7 @@ test("impact text output explains confidence evidence", async () => {
     const result = runCli(["impact", "update login flow"], { cwd });
 
     assert.equal(result.status, 0, result.stderr || result.stdout);
-    assert.match(result.stdout, /Confidence: medium/);
+    assert.match(result.stdout, /Confidence: high/);
     assert.match(result.stdout, /Confidence evidence:\n- task routing matched\n- filename stem matched\n- strong test relationship/);
     assert.doesNotMatch(result.stdout, /verificationHints|Verification hints/i);
   });
@@ -564,6 +655,54 @@ test("impact does not recommend unrelated infrastructure tests for translation t
   });
 });
 
+test("impact does not emit Redis or queue package tests for auth middleware tasks", async () => {
+  await withBareImpactRepo(async (cwd) => {
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Backend auth middleware work: read `packages/backend-core/src/auth/middleware.ts`, `packages/backend-core/src/auth/tests/auth.spec.ts`, `packages/backend-core/tests/redis/utils.spec.ts`, `packages/backend-core/tests/queue/queuedProcessor.spec.ts`, `packages/builder/src/stores/portal/admin.test.js`, and `packages/builder/src/stores/portal/agents.spec.ts`."
+      ].join("\n")
+    );
+    await writeFixtureFile(cwd, "packages/backend-core/src/auth/middleware.ts", "export function authMiddleware() { return true; }\n");
+    await writeFixtureFile(cwd, "packages/backend-core/src/auth/tests/auth.spec.ts", "test('auth middleware', () => {});\n");
+    await writeFixtureFile(
+      cwd,
+      "packages/backend-core/tests/redis/utils.spec.ts",
+      "import '../../src/auth/middleware';\ntest('redis utils', () => {});\n"
+    );
+    await writeFixtureFile(
+      cwd,
+      "packages/backend-core/tests/queue/queuedProcessor.spec.ts",
+      "import '../../src/auth/middleware';\ntest('queued processor', () => {});\n"
+    );
+    await writeFixtureFile(cwd, "packages/builder/src/stores/portal/admin.test.js", "test('portal admin', () => {});\n");
+    await writeFixtureFile(cwd, "packages/builder/src/stores/portal/agents.spec.ts", "test('portal agents', () => {});\n");
+
+    const result = runCli(["impact", "improve auth middleware", "--json"], { cwd });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const analysis = JSON.parse(result.stdout);
+    const affectedTests = analysis.affectedTests.map((file) => file.path);
+
+    assert.deepEqual(affectedTests, ["packages/backend-core/src/auth/tests/auth.spec.ts"]);
+    assert.equal(affectedTests.includes("packages/backend-core/tests/redis/utils.spec.ts"), false);
+    assert.equal(affectedTests.includes("packages/backend-core/tests/queue/queuedProcessor.spec.ts"), false);
+    assert.equal(affectedTests.includes("packages/builder/src/stores/portal/admin.test.js"), false);
+    assert.equal(affectedTests.includes("packages/builder/src/stores/portal/agents.spec.ts"), false);
+    assert.ok(analysis.affectedTests.every((file) => {
+      if (!/relationship=exact/.test(file.reason)) {
+        return true;
+      }
+
+      return /\/auth\/|auth\.spec\./.test(file.path);
+    }));
+  });
+});
+
 test("impact still recommends Redis cache tests for Redis cache tasks", async () => {
   await withImpactRepo(async (cwd) => {
     await writeFixtureFile(
@@ -587,7 +726,7 @@ test("impact still recommends Redis cache tests for Redis cache tasks", async ()
     const affectedTests = analysis.affectedTests.map((file) => file.path);
 
     assert.deepEqual(affectedTests, ["tests/cache/redis.test.js"]);
-    assert.match(analysis.affectedTests[0].reason, /^strong confidence score /);
+    assert.match(analysis.affectedTests[0].reason, /^recommended: /);
   });
 });
 

@@ -1,0 +1,165 @@
+{
+  "redis-cache task-only": {
+    "schemaVersion": 1,
+    "command": "verify",
+    "mode": "task-only",
+    "topLevelKeys": [
+      "schemaVersion",
+      "command",
+      "task",
+      "mode",
+      "summary",
+      "targetedTests",
+      "targetedTestCommands",
+      "buildCommands",
+      "smokeChecks",
+      "manualChecks",
+      "validationChecklist",
+      "confidence",
+      "confidenceExplanation",
+      "notes"
+    ],
+    "summary": {
+      "changedFiles": 0,
+      "contextChanges": 0,
+      "affectedFiles": 1,
+      "affectedTests": 1,
+      "suggestedCommands": 2
+    },
+    "targetedTests": [
+      {
+        "path": "tests/cache/redis.spec.ts",
+        "confidence": "strong",
+        "priority": "high",
+        "informational": [
+          "reason"
+        ]
+      }
+    ],
+    "targetedTestCommands": [
+      {
+        "command": "node --test tests/cache/redis.spec.ts",
+        "type": "test",
+        "scope": "focused",
+        "confidence": "high",
+        "priority": "high",
+        "informational": [
+          "reason"
+        ]
+      }
+    ],
+    "buildCommands": [
+      {
+        "command": "npm run build",
+        "type": "build",
+        "scope": "project",
+        "confidence": "medium",
+        "priority": "high",
+        "informational": [
+          "reason"
+        ]
+      }
+    ],
+    "smokeChecks": [
+      {
+        "type": "cache-behavior",
+        "paths": [
+          "src/cache/redis.ts"
+        ],
+        "command": null,
+        "priority": "high",
+        "informational": [
+          "reason"
+        ]
+      }
+    ],
+    "manualChecks": [
+      {
+        "type": "cache-fallback",
+        "paths": [
+          "src/cache/redis.ts"
+        ],
+        "command": null,
+        "priority": "high",
+        "informational": [
+          "reason"
+        ]
+      }
+    ],
+    "validationChecklist": [
+      "Verify cache miss behavior.",
+      "Verify cache hit behavior.",
+      "Verify cache invalidation behavior.",
+      "Verify Redis/cache backend unavailable fallback."
+    ],
+    "confidence": "high",
+    "informationalTopLevel": [
+      "confidenceExplanation",
+      "notes"
+    ]
+  },
+  "simple-auth planned": {
+    "schemaVersion": 1,
+    "command": "verify",
+    "mode": "planned-task",
+    "topLevelKeys": [
+      "schemaVersion",
+      "command",
+      "task",
+      "mode",
+      "summary",
+      "targetedTests",
+      "targetedTestCommands",
+      "buildCommands",
+      "smokeChecks",
+      "manualChecks",
+      "validationChecklist",
+      "confidence",
+      "confidenceExplanation",
+      "notes"
+    ],
+    "summary": {
+      "changedFiles": 0,
+      "contextChanges": 0,
+      "affectedFiles": 0,
+      "affectedTests": 0,
+      "suggestedCommands": 1
+    },
+    "targetedTests": [],
+    "targetedTestCommands": [],
+    "buildCommands": [],
+    "smokeChecks": [
+      {
+        "type": "auth-flow",
+        "paths": [],
+        "command": null,
+        "priority": "high",
+        "informational": [
+          "reason"
+        ]
+      }
+    ],
+    "manualChecks": [
+      {
+        "type": "invalid-credentials",
+        "paths": [],
+        "command": null,
+        "priority": "high",
+        "informational": [
+          "reason"
+        ]
+      }
+    ],
+    "validationChecklist": [
+      "Verify login flow.",
+      "Verify logout flow.",
+      "Verify invalid credentials behavior.",
+      "Verify session expiration behavior."
+    ],
+    "confidence": "low",
+    "informationalTopLevel": [
+      "confidenceExplanation",
+      "notes"
+    ]
+  }
+}

@@ -3942,4 +3942,2582 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-27T08:29:57.605Z
+- Summary: updated README for latest RCC workflow and impact changes
+- Changed files: `README.md`
+- Verification: node dist/cli/index.js impact "update README wording" --json; node dist/cli/index.js impact "update README for latest 20 changes" --json --task-only
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "updated README for latest RCC workflow and impact changes",
+  "files": [
+    "README.md"
+  ],
+  "verification": [
+    "node dist/cli/index.js impact \"update README wording\" --json; node dist/cli/index.js impact \"update README for latest 20 changes\" --json --task-only"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-27T08:29:57.605Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-27T08:29:57.605Z",
+  "summary": "updated README for latest RCC workflow and impact changes",
+  "files": [
+    "README.md"
+  ],
+  "verification": "node dist/cli/index.js impact \"update README wording\" --json; node dist/cli/index.js impact \"update README for latest 20 changes\" --json --task-only",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T14:18:55.048Z
+- Summary: Created shared task analysis engine and adapted work/impact to render from TaskAnalysisResult without changing outputs.
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/work/buildWorkBrief.ts`, `src/core/task-analysis/buildTaskAnalysis.ts`, `src/core/task-analysis/classifyRelationships.ts`, `src/core/task-analysis/discoverCandidates.ts`, `src/core/task-analysis/index.ts`, `src/core/task-analysis/parseTaskIntent.ts`, `src/core/task-analysis/scoreRelationships.ts`, `src/core/task-analysis/types.ts`, `tests/task-analysis.test.js`
+- Verification: npm run build; node --test tests/task-analysis.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Created shared task analysis engine and adapted work/impact to render from TaskAnalysisResult without changing outputs.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/classifyRelationships.ts",
+    "src/core/task-analysis/discoverCandidates.ts",
+    "src/core/task-analysis/index.ts",
+    "src/core/task-analysis/parseTaskIntent.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/task-analysis.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:18:55.048Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:18:55.048Z",
+  "summary": "Created shared task analysis engine and adapted work/impact to render from TaskAnalysisResult without changing outputs.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/classifyRelationships.ts",
+    "src/core/task-analysis/discoverCandidates.ts",
+    "src/core/task-analysis/index.ts",
+    "src/core/task-analysis/parseTaskIntent.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": "npm run build; node --test tests/task-analysis.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T14:21:51.949Z
+- Summary: Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema.
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/work/buildWorkBrief.ts`, `src/core/task-analysis/buildTaskAnalysis.ts`, `src/core/task-analysis/classifyRelationships.ts`, `src/core/task-analysis/discoverCandidates.ts`, `src/core/task-analysis/index.ts`, `src/core/task-analysis/parseTaskIntent.ts`, `src/core/task-analysis/scoreRelationships.ts`, `src/core/task-analysis/types.ts`, `tests/task-analysis.test.js`
+- Verification: node --test tests/impact.test.js; node --test tests/task-analysis.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/classifyRelationships.ts",
+    "src/core/task-analysis/discoverCandidates.ts",
+    "src/core/task-analysis/index.ts",
+    "src/core/task-analysis/parseTaskIntent.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": [
+    "node --test tests/impact.test.js; node --test tests/task-analysis.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:21:51.949Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:21:51.949Z",
+  "summary": "Completed impact migration to TaskAnalysisResult renderer while preserving Impact JSON/output schema.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/classifyRelationships.ts",
+    "src/core/task-analysis/discoverCandidates.ts",
+    "src/core/task-analysis/index.ts",
+    "src/core/task-analysis/parseTaskIntent.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": "node --test tests/impact.test.js; node --test tests/task-analysis.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T14:30:41.123Z
+- Summary: Fixed routing regression by demoting generic task/tasks path matches from focused routing primaries.
+- Changed files: `src/cli/work/targetedLookup.ts`, `src/core/suggester.ts`
+- Verification: npm run build; node --test tests/routingRegression.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed routing regression by demoting generic task/tasks path matches from focused routing primaries.",
+  "files": [
+    "src/cli/work/targetedLookup.ts",
+    "src/core/suggester.ts"
+  ],
+  "verification": [
+    "npm run build; node --test tests/routingRegression.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:30:41.123Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:30:41.123Z",
+  "summary": "Fixed routing regression by demoting generic task/tasks path matches from focused routing primaries.",
+  "files": [
+    "src/cli/work/targetedLookup.ts",
+    "src/core/suggester.ts"
+  ],
+  "verification": "npm run build; node --test tests/routingRegression.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T14:34:57.594Z
+- Summary: Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches.
+- Changed files: `src/core/suggester.ts`
+- Verification: npm run build; node --test tests/start.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches.",
+  "files": [
+    "src/core/suggester.ts"
+  ],
+  "verification": [
+    "npm run build; node --test tests/start.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:34:57.594Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:34:57.594Z",
+  "summary": "Fixed start focus signal selection so camelCase filenames like fileSystem.ts retain strong non-generic token matches.",
+  "files": [
+    "src/core/suggester.ts"
+  ],
+  "verification": "npm run build; node --test tests/start.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T14:40:28.640Z
+- Summary: Introduced relationship classification for affected test candidates before scoring and exposed classifications on TaskAnalysisResult.
+- Changed files: `src/cli/shared/affectedTests.ts`, `src/core/task-analysis/buildTaskAnalysis.ts`, `src/core/task-analysis/scoreRelationships.ts`, `src/core/task-analysis/types.ts`, `tests/task-analysis.test.js`
+- Verification: npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Introduced relationship classification for affected test candidates before scoring and exposed classifications on TaskAnalysisResult.",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:40:28.640Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:40:28.640Z",
+  "summary": "Introduced relationship classification for affected test candidates before scoring and exposed classifications on TaskAnalysisResult.",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": "npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T14:46:16.371Z
+- Summary: Required direct relationships before TaskAnalysis recommends tests so work and impact suppress indirect-only test candidates.
+- Changed files: `src/cli/shared/affectedTests.ts`, `tests/task-analysis.test.js`
+- Verification: node --test tests/impact.test.js; node --test tests/task-analysis.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Required direct relationships before TaskAnalysis recommends tests so work and impact suppress indirect-only test candidates.",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": [
+    "node --test tests/impact.test.js; node --test tests/task-analysis.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:46:16.371Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:46:16.371Z",
+  "summary": "Required direct relationships before TaskAnalysis recommends tests so work and impact suppress indirect-only test candidates.",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": "node --test tests/impact.test.js; node --test tests/task-analysis.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T14:55:19.207Z
+- Summary: Added TaskAnalysis fixture repositories and snapshot regression test covering auth, Redis, translations, and monorepo cases.
+- Changed files: `fixtures/monorepo-large/AGENTS.md`, `fixtures/monorepo-large/docs/ai-context/TASK_ROUTING.md`, `fixtures/monorepo-large/expected.json`, `fixtures/monorepo-large/packages/api/src/auth/middleware.ts`, `fixtures/monorepo-large/packages/api/tests/auth/middleware.spec.ts`, `fixtures/monorepo-large/packages/web/src/profile/ProfileCard.tsx`, `fixtures/monorepo-large/packages/web/tests/profile/ProfileCard.spec.tsx`, `fixtures/monorepo-large/packages/worker/tests/cache/redis.spec.ts`, `fixtures/redis-cache/AGENTS.md`, `fixtures/redis-cache/docs/ai-context/TASK_ROUTING.md`
+- Verification: npm run build; node --test tests/taskAnalysisFixtures.test.js; node --test tests/task-analysis.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added TaskAnalysis fixture repositories and snapshot regression test covering auth, Redis, translations, and monorepo cases.",
+  "files": [
+    "fixtures/monorepo-large/AGENTS.md",
+    "fixtures/monorepo-large/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/monorepo-large/expected.json",
+    "fixtures/monorepo-large/packages/api/src/auth/middleware.ts",
+    "fixtures/monorepo-large/packages/api/tests/auth/middleware.spec.ts",
+    "fixtures/monorepo-large/packages/web/src/profile/ProfileCard.tsx",
+    "fixtures/monorepo-large/packages/web/tests/profile/ProfileCard.spec.tsx",
+    "fixtures/monorepo-large/packages/worker/tests/cache/redis.spec.ts",
+    "fixtures/redis-cache/AGENTS.md",
+    "fixtures/redis-cache/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/redis-cache/expected.json",
+    "fixtures/redis-cache/src/cache/redis.ts",
+    "fixtures/redis-cache/tests/api/public.spec.ts",
+    "fixtures/redis-cache/tests/cache/redis.spec.ts",
+    "fixtures/simple-auth/AGENTS.md",
+    "fixtures/simple-auth/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/simple-auth/expected.json",
+    "fixtures/simple-auth/src/auth/middleware.ts",
+    "fixtures/simple-auth/tests/auth/auth.spec.ts",
+    "fixtures/simple-auth/tests/cache/redis.spec.ts",
+    "fixtures/translations/AGENTS.md",
+    "fixtures/translations/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/translations/expected.json",
+    "fixtures/translations/src/i18n/translate.ts",
+    "fixtures/translations/tests/api/public.spec.ts",
+    "fixtures/translations/tests/cache/redis.spec.ts",
+    "fixtures/translations/tests/queue/worker.spec.ts",
+    "src/cli/shared/affectedTests.ts",
+    "tests/task-analysis.test.js",
+    "tests/taskAnalysisFixtures.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/taskAnalysisFixtures.test.js; node --test tests/task-analysis.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T14:55:19.207Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T14:55:19.207Z",
+  "summary": "Added TaskAnalysis fixture repositories and snapshot regression test covering auth, Redis, translations, and monorepo cases.",
+  "files": [
+    "fixtures/monorepo-large/AGENTS.md",
+    "fixtures/monorepo-large/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/monorepo-large/expected.json",
+    "fixtures/monorepo-large/packages/api/src/auth/middleware.ts",
+    "fixtures/monorepo-large/packages/api/tests/auth/middleware.spec.ts",
+    "fixtures/monorepo-large/packages/web/src/profile/ProfileCard.tsx",
+    "fixtures/monorepo-large/packages/web/tests/profile/ProfileCard.spec.tsx",
+    "fixtures/monorepo-large/packages/worker/tests/cache/redis.spec.ts",
+    "fixtures/redis-cache/AGENTS.md",
+    "fixtures/redis-cache/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/redis-cache/expected.json",
+    "fixtures/redis-cache/src/cache/redis.ts",
+    "fixtures/redis-cache/tests/api/public.spec.ts",
+    "fixtures/redis-cache/tests/cache/redis.spec.ts",
+    "fixtures/simple-auth/AGENTS.md",
+    "fixtures/simple-auth/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/simple-auth/expected.json",
+    "fixtures/simple-auth/src/auth/middleware.ts",
+    "fixtures/simple-auth/tests/auth/auth.spec.ts",
+    "fixtures/simple-auth/tests/cache/redis.spec.ts",
+    "fixtures/translations/AGENTS.md",
+    "fixtures/translations/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/translations/expected.json",
+    "fixtures/translations/src/i18n/translate.ts",
+    "fixtures/translations/tests/api/public.spec.ts",
+    "fixtures/translations/tests/cache/redis.spec.ts",
+    "fixtures/translations/tests/queue/worker.spec.ts",
+    "src/cli/shared/affectedTests.ts",
+    "tests/task-analysis.test.js",
+    "tests/taskAnalysisFixtures.test.js"
+  ],
+  "verification": "npm run build; node --test tests/taskAnalysisFixtures.test.js; node --test tests/task-analysis.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T15:00:06.860Z
+- Summary: Implemented verify command as a renderer over TaskAnalysisResult with JSON and text reports.
+- Changed files: `src/cli/commands/verify.ts`, `src/cli/index.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `src/cli/verify/verifyOptions.ts`, `src/cli/verify/verifyTypes.ts`, `tests/cli.test.js`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js; node --test tests/commandArchitecture.test.js; node --test tests/cli.test.js; node --test tests/taskAnalysisFixtures.test.js; node --test tests/task-analysis.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented verify command as a renderer over TaskAnalysisResult with JSON and text reports.",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/cli.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js; node --test tests/commandArchitecture.test.js; node --test tests/cli.test.js; node --test tests/taskAnalysisFixtures.test.js; node --test tests/task-analysis.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T15:00:06.860Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T15:00:06.860Z",
+  "summary": "Implemented verify command as a renderer over TaskAnalysisResult with JSON and text reports.",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/cli.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js; node --test tests/commandArchitecture.test.js; node --test tests/cli.test.js; node --test tests/taskAnalysisFixtures.test.js; node --test tests/task-analysis.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T15:06:24.405Z
+- Summary: Cleaned work renderer so work routes render tests from TaskAnalysisResult.testCandidates and cannot leak Work-only routed tests.
+- Changed files: `src/cli/work/buildWorkBrief.ts`, `tests/task-analysis.test.js`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/work.test.js; node --test tests/task-analysis.test.js; node --test tests/taskAnalysisFixtures.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Cleaned work renderer so work routes render tests from TaskAnalysisResult.testCandidates and cannot leak Work-only routed tests.",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "tests/task-analysis.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/work.test.js; node --test tests/task-analysis.test.js; node --test tests/taskAnalysisFixtures.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T15:06:24.405Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T15:06:24.405Z",
+  "summary": "Cleaned work renderer so work routes render tests from TaskAnalysisResult.testCandidates and cannot leak Work-only routed tests.",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "tests/task-analysis.test.js",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/work.test.js; node --test tests/task-analysis.test.js; node --test tests/taskAnalysisFixtures.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T15:11:23.565Z
+- Summary: Updated routing regression fixture caps to match TaskAnalysis-backed Work test candidates and verified full npm test.
+- Changed files: `tests/fixtures/routing-cases.json`
+- Verification: node --test tests/routingRegression.test.js; npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated routing regression fixture caps to match TaskAnalysis-backed Work test candidates and verified full npm test.",
+  "files": [
+    "tests/fixtures/routing-cases.json"
+  ],
+  "verification": [
+    "node --test tests/routingRegression.test.js; npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T15:11:23.565Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T15:11:23.565Z",
+  "summary": "Updated routing regression fixture caps to match TaskAnalysis-backed Work test candidates and verified full npm test.",
+  "files": [
+    "tests/fixtures/routing-cases.json"
+  ],
+  "verification": "node --test tests/routingRegression.test.js; npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T15:31:06.247Z
+- Summary: Add evidence-based TaskAnalysis test eligibility
+- Changed files: `src/core/task-analysis/buildTaskAnalysis.ts`, `src/core/task-analysis/scoreRelationships.ts`, `src/core/task-analysis/types.ts`, `tests/task-analysis.test.js`
+- Verification: npm run build; node --test tests/task-analysis.test.js tests/impact.test.js tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add evidence-based TaskAnalysis test eligibility",
+  "files": [
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/task-analysis.test.js tests/impact.test.js tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T15:31:06.247Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T15:31:06.247Z",
+  "summary": "Add evidence-based TaskAnalysis test eligibility",
+  "files": [
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": "npm run build; node --test tests/task-analysis.test.js tests/impact.test.js tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T15:37:23.301Z
+- Summary: Make impact/work test output evidence-first and add CLI regression for auth middleware excluding Redis/queue tests
+- Changed files: `src/core/task-analysis/scoreRelationships.ts`, `tests/impact.test.js`
+- Verification: npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Make impact/work test output evidence-first and add CLI regression for auth middleware excluding Redis/queue tests",
+  "files": [
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T15:37:23.301Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T15:37:23.301Z",
+  "summary": "Make impact/work test output evidence-first and add CLI regression for auth middleware excluding Redis/queue tests",
+  "files": [
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T15:53:26.085Z
+- Summary: Tightened affected-test evidence exact policy so generic import/module/routing signals no longer recommend unrelated tests; added Budibase-shaped auth middleware regression.
+- Changed files: `src/cli/shared/affectedTests.ts`, `src/core/task-analysis/scoreRelationships.ts`, `tests/impact.test.js`, `tests/task-analysis.test.js`
+- Verification: npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Tightened affected-test evidence exact policy so generic import/module/routing signals no longer recommend unrelated tests; added Budibase-shaped auth middleware regression.",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T15:53:26.085Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T15:53:26.085Z",
+  "summary": "Tightened affected-test evidence exact policy so generic import/module/routing signals no longer recommend unrelated tests; added Budibase-shaped auth middleware regression.",
+  "files": [
+    "src/cli/shared/affectedTests.ts",
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": "npm run build; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T19:52:14.258Z
+- Summary: Align workflow routing regression with strict affected-test evidence policy
+- Changed files: `tests/fixtures/routing-cases.json`
+- Verification: npm run build; node --test tests/routingRegression.test.js; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Align workflow routing regression with strict affected-test evidence policy",
+  "files": [
+    "tests/fixtures/routing-cases.json"
+  ],
+  "verification": [
+    "npm run build; node --test tests/routingRegression.test.js; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T19:52:14.258Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T19:52:14.258Z",
+  "summary": "Align workflow routing regression with strict affected-test evidence policy",
+  "files": [
+    "tests/fixtures/routing-cases.json"
+  ],
+  "verification": "npm run build; node --test tests/routingRegression.test.js; node --test tests/task-analysis.test.js; node --test tests/impact.test.js; node --test tests/work.test.js; node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T20:28:58.862Z
+- Summary: Fix RCC agent-file update mode for AGENTS and CLAUDE
+- Changed files: `src/cli/commands/init.ts`, `src/cli/commands/validate.ts`, `src/core/templateInstaller.ts`, `tests/init.test.js`, `tests/validate.test.js`
+- Verification: npm run build; node --test tests/init.test.js; node --test tests/validate.test.js; acceptance sequence: node dist/cli/index.js init; node dist/cli/index.js init --update; node dist/cli/index.js validate
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Fix RCC agent-file update mode for AGENTS and CLAUDE",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/validate.ts",
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js",
+    "tests/validate.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/init.test.js; node --test tests/validate.test.js; acceptance sequence: node dist/cli/index.js init; node dist/cli/index.js init --update; node dist/cli/index.js validate"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T20:28:58.862Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T20:28:58.862Z",
+  "summary": "Fix RCC agent-file update mode for AGENTS and CLAUDE",
+  "files": [
+    "src/cli/commands/init.ts",
+    "src/cli/commands/validate.ts",
+    "src/core/templateInstaller.ts",
+    "tests/init.test.js",
+    "tests/validate.test.js"
+  ],
+  "verification": "npm run build; node --test tests/init.test.js; node --test tests/validate.test.js; acceptance sequence: node dist/cli/index.js init; node dist/cli/index.js init --update; node dist/cli/index.js validate",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T22:19:41.169Z
+- Summary: ranked impact affected files by confidence
+- Changed files: `src/cli/impact/buildImpact.ts`, `tests/impact.test.js`
+- Verification: node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "ranked impact affected files by confidence",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T22:19:41.169Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T22:19:41.169Z",
+  "summary": "ranked impact affected files by confidence",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T22:26:47.720Z
+- Summary: refined impact confidence calculation
+- Changed files: `src/core/task-analysis/scoreRelationships.ts`, `tests/impact.test.js`
+- Verification: node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "refined impact confidence calculation",
+  "files": [
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": [
+    "node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T22:26:47.720Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T22:26:47.720Z",
+  "summary": "refined impact confidence calculation",
+  "files": [
+    "src/core/task-analysis/scoreRelationships.ts",
+    "tests/impact.test.js"
+  ],
+  "verification": "node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T22:29:04.065Z
+- Summary: updated changelog for v0.11.1
+- Changed files: `CHANGELOG.md`
+- Verification: not run (documentation-only changelog update)
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "updated changelog for v0.11.1",
+  "files": [
+    "CHANGELOG.md"
+  ],
+  "verification": [
+    "not run (documentation-only changelog update)"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T22:29:04.065Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T22:29:04.065Z",
+  "summary": "updated changelog for v0.11.1",
+  "files": [
+    "CHANGELOG.md"
+  ],
+  "verification": "not run (documentation-only changelog update)",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T22:34:21.415Z
+- Summary: Add low-overhead routing for tiny obvious tasks
+- Changed files: `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderAgent.ts`, `src/cli/work/renderText.ts`, `src/cli/work/taskSize.ts`, `tests/work.test.js`
+- Verification: node --test tests/work.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add low-overhead routing for tiny obvious tasks",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/taskSize.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "node --test tests/work.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T22:34:21.415Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T22:34:21.415Z",
+  "summary": "Add low-overhead routing for tiny obvious tasks",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/taskSize.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "node --test tests/work.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T23:05:37.628Z
+- Summary: Implemented shared VerificationPlan model and focused construction tests without exposing verify CLI
+- Changed files: `src/cli/commands/verify.ts`, `src/cli/index.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `src/cli/verify/verifyOptions.ts`, `src/cli/verify/verifyTypes.ts`, `tests/verify.test.js`
+- Verification: node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Implemented shared VerificationPlan model and focused construction tests without exposing verify CLI",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T23:05:37.628Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T23:05:37.628Z",
+  "summary": "Implemented shared VerificationPlan model and focused construction tests without exposing verify CLI",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T23:10:41.852Z
+- Summary: Built VerificationPlan generation from ImpactAnalysis with focused adapter tests
+- Changed files: `src/cli/commands/verify.ts`, `src/cli/index.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `src/cli/verify/verifyOptions.ts`, `src/cli/verify/verifyTypes.ts`, `tests/verify.test.js`
+- Verification: node --test tests/verify.test.js; node --test tests/impact.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Built VerificationPlan generation from ImpactAnalysis with focused adapter tests",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "node --test tests/verify.test.js; node --test tests/impact.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T23:10:41.852Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T23:10:41.852Z",
+  "summary": "Built VerificationPlan generation from ImpactAnalysis with focused adapter tests",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "node --test tests/verify.test.js; node --test tests/impact.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T23:12:57.071Z
+- Summary: Updated CLI help test to keep verify hidden until CLI command is implemented
+- Changed files: `src/cli/commands/verify.ts`, `src/cli/index.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `src/cli/verify/verifyOptions.ts`, `src/cli/verify/verifyTypes.ts`, `tests/cli.test.js`, `tests/verify.test.js`
+- Verification: node --test tests/cli.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated CLI help test to keep verify hidden until CLI command is implemented",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/cli.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "node --test tests/cli.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T23:12:57.071Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T23:12:57.071Z",
+  "summary": "Updated CLI help test to keep verify hidden until CLI command is implemented",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/cli.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "node --test tests/cli.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T23:17:36.035Z
+- Summary: Added rcc verify CLI backed by ImpactAnalysis recommendations
+- Changed files: `src/cli/commands/verify.ts`, `src/cli/index.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `src/cli/verify/verifyOptions.ts`, `src/cli/verify/verifyTypes.ts`, `tests/cli.test.js`, `tests/outputContract.test.js`, `tests/verify.test.js`
+- Verification: node --test tests/verify.test.js; node --test tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added rcc verify CLI backed by ImpactAnalysis recommendations",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/cli.test.js",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "node --test tests/verify.test.js; node --test tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T23:17:36.035Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T23:17:36.035Z",
+  "summary": "Added rcc verify CLI backed by ImpactAnalysis recommendations",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/cli.test.js",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "node --test tests/verify.test.js; node --test tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T23:21:23.138Z
+- Summary: Added safe manual smoke check heuristics to VerificationPlan generation
+- Changed files: `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `src/cli/verify/verifyTypes.ts`, `tests/verify.test.js`
+- Verification: node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added safe manual smoke check heuristics to VerificationPlan generation",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T23:21:23.138Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T23:21:23.138Z",
+  "summary": "Added safe manual smoke check heuristics to VerificationPlan generation",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T23:25:00.140Z
+- Summary: Added short validation checklist generation to RCC Verify
+- Changed files: `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `tests/verify.test.js`
+- Verification: node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added short validation checklist generation to RCC Verify",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T23:25:00.140Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T23:25:00.140Z",
+  "summary": "Added short validation checklist generation to RCC Verify",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T23:28:25.114Z
+- Summary: Hardened verify JSON output contract coverage for agent-safe parseable plans
+- Changed files: `tests/outputContract.test.js`
+- Verification: node --test tests/outputContract.test.js; node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Hardened verify JSON output contract coverage for agent-safe parseable plans",
+  "files": [
+    "tests/outputContract.test.js"
+  ],
+  "verification": [
+    "node --test tests/outputContract.test.js; node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T23:28:25.114Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T23:28:25.114Z",
+  "summary": "Hardened verify JSON output contract coverage for agent-safe parseable plans",
+  "files": [
+    "tests/outputContract.test.js"
+  ],
+  "verification": "node --test tests/outputContract.test.js; node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T23:36:02.234Z
+- Summary: Documented RCC v0.12.0 Verify Intelligence in README and CHANGELOG
+- Changed files: `CHANGELOG.md`, `README.md`
+- Verification: node --test tests/verify.test.js; node --test tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Documented RCC v0.12.0 Verify Intelligence in README and CHANGELOG",
+  "files": [
+    "CHANGELOG.md",
+    "README.md"
+  ],
+  "verification": [
+    "node --test tests/verify.test.js; node --test tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T23:36:02.234Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T23:36:02.234Z",
+  "summary": "Documented RCC v0.12.0 Verify Intelligence in README and CHANGELOG",
+  "files": [
+    "CHANGELOG.md",
+    "README.md"
+  ],
+  "verification": "node --test tests/verify.test.js; node --test tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-28T23:54:51.281Z
+- Summary: Made rcc verify conservative for context-only working-tree changes
+- Changed files: `src/cli/verify/buildVerify.ts`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Made rcc verify conservative for context-only working-tree changes",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-28T23:54:51.281Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-28T23:54:51.281Z",
+  "summary": "Made rcc verify conservative for context-only working-tree changes",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T00:02:25.533Z
+- Summary: Refined context-only verify confidence
+- Changed files: `src/cli/verify/buildVerify.ts`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Refined context-only verify confidence",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T00:02:25.533Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T00:02:25.533Z",
+  "summary": "Refined context-only verify confidence",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T12:41:21.292Z
+- Summary: Add planned verification mode for rcc verify
+- Changed files: `src/cli/commands/verify.ts`, `src/cli/impact/impactTypes.ts`, `src/cli/index.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/verify/verifyOptions.ts`, `src/cli/verify/verifyTypes.ts`, `tests/cli.test.js`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js; node --test tests/cli.test.js; node --test tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add planned verification mode for rcc verify",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/cli.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js; node --test tests/cli.test.js; node --test tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T12:41:21.292Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T12:41:21.292Z",
+  "summary": "Add planned verification mode for rcc verify",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/index.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/cli.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js; node --test tests/cli.test.js; node --test tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T12:47:36.989Z
+- Summary: Add domain-aware verification planning
+- Changed files: `src/cli/verify/buildVerify.ts`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js; node --test tests/cli.test.js; node --test tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add domain-aware verification planning",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js; node --test tests/cli.test.js; node --test tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T12:47:36.989Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T12:47:36.989Z",
+  "summary": "Add domain-aware verification planning",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js; node --test tests/cli.test.js; node --test tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T12:53:25.632Z
+- Summary: Promote strong Impact affected tests in rcc verify
+- Changed files: `src/cli/verify/buildVerify.ts`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js; node --test tests/cli.test.js; node --test tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Promote strong Impact affected tests in rcc verify",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js; node --test tests/cli.test.js; node --test tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T12:53:25.632Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T12:53:25.632Z",
+  "summary": "Promote strong Impact affected tests in rcc verify",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js; node --test tests/cli.test.js; node --test tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T13:21:38.717Z
+- Summary: Normalize rcc verify checks with level caps and CLI level option
+- Changed files: `src/cli/commands/verify.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/verify/verifyOptions.ts`, `src/cli/verify/verifyTypes.ts`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Normalize rcc verify checks with level caps and CLI level option",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T13:21:38.717Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T13:21:38.717Z",
+  "summary": "Normalize rcc verify checks with level caps and CLI level option",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T13:22:16.684Z
+- Summary: Normalize rcc verify checks with level caps and CLI level option
+- Changed files: `src/cli/commands/verify.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/verify/verifyOptions.ts`, `src/cli/verify/verifyTypes.ts`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Normalize rcc verify checks with level caps and CLI level option",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T13:22:16.684Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T13:22:16.684Z",
+  "summary": "Normalize rcc verify checks with level caps and CLI level option",
+  "files": [
+    "src/cli/commands/verify.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/verifyOptions.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T13:29:06.953Z
+- Summary: Add priority and execution ordering to rcc verify
+- Changed files: `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `src/cli/verify/verifyTypes.ts`, `tests/outputContract.test.js`, `tests/verify.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add priority and execution ordering to rcc verify",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T13:29:06.953Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T13:29:06.953Z",
+  "summary": "Add priority and execution ordering to rcc verify",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T13:37:53.764Z
+- Summary: Improve rcc verify domain precision for workflow, GitHub integration, Postgres, and auth checks
+- Changed files: `src/cli/verify/buildVerify.ts`, `tests/verify.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Improve rcc verify domain precision for workflow, GitHub integration, Postgres, and auth checks",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T13:37:53.764Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T13:37:53.764Z",
+  "summary": "Improve rcc verify domain precision for workflow, GitHub integration, Postgres, and auth checks",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T14:08:24.734Z
+- Summary: Stabilized verify output by replacing duplicated execution-plan command/path payloads with section refs and compacting domain check paths
+- Changed files: `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `src/cli/verify/verifyTypes.ts`, `tests/outputContract.test.js`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/cli.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Stabilized verify output by replacing duplicated execution-plan command/path payloads with section refs and compacting domain check paths",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/cli.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T14:08:24.734Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T14:08:24.734Z",
+  "summary": "Stabilized verify output by replacing duplicated execution-plan command/path payloads with section refs and compacting domain check paths",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/cli.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T14:16:49.762Z
+- Summary: Improved verify checklist quality with deterministic domain-specific validation items for Redis, workflows, Postgres, and auth
+- Changed files: `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `src/cli/verify/verifyTypes.ts`, `tests/outputContract.test.js`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/cli.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Improved verify checklist quality with deterministic domain-specific validation items for Redis, workflows, Postgres, and auth",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/cli.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T14:16:49.762Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T14:16:49.762Z",
+  "summary": "Improved verify checklist quality with deterministic domain-specific validation items for Redis, workflows, Postgres, and auth",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/cli.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T14:23:06.812Z
+- Summary: Refined verify mode behavior so working-tree plans keep changed-file review separate and planned plans keep context review secondary
+- Changed files: `src/cli/verify/buildVerify.ts`, `tests/outputContract.test.js`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/cli.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Refined verify mode behavior so working-tree plans keep changed-file review separate and planned plans keep context review secondary",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/cli.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T14:23:06.812Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T14:23:06.812Z",
+  "summary": "Refined verify mode behavior so working-tree plans keep changed-file review separate and planned plans keep context review secondary",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/cli.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T14:28:54.096Z
+- Summary: Documented verify JSON contract stability layers and added normalized fixture snapshot tests for stable integration fields
+- Changed files: `README.md`, `tests/fixtures/verify-json-contract-snapshots.json`, `tests/outputContract.test.js`
+- Verification: npm run build; node --test tests/outputContract.test.js; node --test tests/verify.test.js; node --test tests/cli.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Documented verify JSON contract stability layers and added normalized fixture snapshot tests for stable integration fields",
+  "files": [
+    "README.md",
+    "tests/fixtures/verify-json-contract-snapshots.json",
+    "tests/outputContract.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/outputContract.test.js; node --test tests/verify.test.js; node --test tests/cli.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T14:28:54.096Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T14:28:54.096Z",
+  "summary": "Documented verify JSON contract stability layers and added normalized fixture snapshot tests for stable integration fields",
+  "files": [
+    "README.md",
+    "tests/fixtures/verify-json-contract-snapshots.json",
+    "tests/outputContract.test.js"
+  ],
+  "verification": "npm run build; node --test tests/outputContract.test.js; node --test tests/verify.test.js; node --test tests/cli.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T14:41:08.473Z
+- Summary: Simplified verify output contract to recommendation-only fields
+- Changed files: `README.md`, `src/cli/verify/buildVerify.ts`, `src/cli/verify/renderVerify.ts`, `src/cli/verify/verifyTypes.ts`, `tests/fixtures/verify-json-contract-snapshots.json`, `tests/outputContract.test.js`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Simplified verify output contract to recommendation-only fields",
+  "files": [
+    "README.md",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/fixtures/verify-json-contract-snapshots.json",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T14:41:08.473Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T14:41:08.473Z",
+  "summary": "Simplified verify output contract to recommendation-only fields",
+  "files": [
+    "README.md",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/verify/renderVerify.ts",
+    "src/cli/verify/verifyTypes.ts",
+    "tests/fixtures/verify-json-contract-snapshots.json",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T14:54:22.664Z
+- Summary: Stabilized verify output by removing generic affected-file manual checks, compacting targeted test and confidence reasons, and gating context-routing checks on actual context changes.
+- Changed files: `src/cli/verify/buildVerify.ts`, `tests/fixtures/verify-json-contract-snapshots.json`, `tests/outputContract.test.js`, `tests/verify.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Stabilized verify output by removing generic affected-file manual checks, compacting targeted test and confidence reasons, and gating context-routing checks on actual context changes.",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/fixtures/verify-json-contract-snapshots.json",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T14:54:22.664Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T14:54:22.664Z",
+  "summary": "Stabilized verify output by removing generic affected-file manual checks, compacting targeted test and confidence reasons, and gating context-routing checks on actual context changes.",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/fixtures/verify-json-contract-snapshots.json",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T21:35:03.012Z
+- Summary: Finalize verify planned vs working-tree context boundaries
+- Changed files: `src/cli/verify/buildVerify.ts`, `tests/verify.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Finalize verify planned vs working-tree context boundaries",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T21:35:03.012Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T21:35:03.012Z",
+  "summary": "Finalize verify planned vs working-tree context boundaries",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T21:39:07.016Z
+- Summary: Calibrate rcc verify domain detection for workflow GitHub frontend backend and database suggestions
+- Changed files: `src/cli/verify/buildVerify.ts`, `tests/verify.test.js`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Calibrate rcc verify domain detection for workflow GitHub frontend backend and database suggestions",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T21:39:07.016Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T21:39:07.016Z",
+  "summary": "Calibrate rcc verify domain detection for workflow GitHub frontend backend and database suggestions",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-29T21:44:59.947Z
+- Summary: Freeze verify JSON public contract for v0.12.x
+- Changed files: `fixtures/github-integration/AGENTS.md`, `fixtures/github-integration/docs/ai-context/TASK_ROUTING.md`, `fixtures/github-integration/expected.json`, `fixtures/github-integration/src/api/githubController.ts`, `fixtures/github-integration/tests/api/githubController.spec.ts`, `fixtures/workflow-yaml/.github/workflows/release.yaml`, `fixtures/workflow-yaml/AGENTS.md`, `fixtures/workflow-yaml/docs/ai-context/TASK_ROUTING.md`, `fixtures/workflow-yaml/expected.json`, `README.md`
+- Verification: npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Freeze verify JSON public contract for v0.12.x",
+  "files": [
+    "fixtures/github-integration/AGENTS.md",
+    "fixtures/github-integration/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/github-integration/expected.json",
+    "fixtures/github-integration/src/api/githubController.ts",
+    "fixtures/github-integration/tests/api/githubController.spec.ts",
+    "fixtures/workflow-yaml/.github/workflows/release.yaml",
+    "fixtures/workflow-yaml/AGENTS.md",
+    "fixtures/workflow-yaml/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/workflow-yaml/expected.json",
+    "README.md",
+    "src/cli/verify/buildVerify.ts",
+    "tests/outputContract.test.js",
+    "tests/taskAnalysisFixtures.test.js"
+  ],
+  "verification": [
+    "npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-29T21:44:59.947Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-29T21:44:59.947Z",
+  "summary": "Freeze verify JSON public contract for v0.12.x",
+  "files": [
+    "fixtures/github-integration/AGENTS.md",
+    "fixtures/github-integration/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/github-integration/expected.json",
+    "fixtures/github-integration/src/api/githubController.ts",
+    "fixtures/github-integration/tests/api/githubController.spec.ts",
+    "fixtures/workflow-yaml/.github/workflows/release.yaml",
+    "fixtures/workflow-yaml/AGENTS.md",
+    "fixtures/workflow-yaml/docs/ai-context/TASK_ROUTING.md",
+    "fixtures/workflow-yaml/expected.json",
+    "README.md",
+    "src/cli/verify/buildVerify.ts",
+    "tests/outputContract.test.js",
+    "tests/taskAnalysisFixtures.test.js"
+  ],
+  "verification": "npm test",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T08:27:26.853Z
+- Summary: Added shared DomainEngine and moved Verify domain detection to it while preserving verify output
+- Changed files: `src/cli/verify/buildVerify.ts`, `src/core/domainEngine.ts`, `tests/domainEngine.test.js`
+- Verification: npm run build; node --test tests/domainEngine.test.js; node --test tests/verify.test.js; node --test tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added shared DomainEngine and moved Verify domain detection to it while preserving verify output",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/core/domainEngine.ts",
+    "tests/domainEngine.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/domainEngine.test.js; node --test tests/verify.test.js; node --test tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T08:27:26.853Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T08:27:26.853Z",
+  "summary": "Added shared DomainEngine and moved Verify domain detection to it while preserving verify output",
+  "files": [
+    "src/cli/verify/buildVerify.ts",
+    "src/core/domainEngine.ts",
+    "tests/domainEngine.test.js"
+  ],
+  "verification": "npm run build; node --test tests/domainEngine.test.js; node --test tests/verify.test.js; node --test tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T08:32:07.801Z
+- Summary: Extended TaskAnalysisResult into the internal TaskContext and projected it through Work, Impact, and Verify without changing public CLI contracts
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactTypes.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/work/buildWorkBrief.ts`, `src/core/domainEngine.ts`, `src/core/task-analysis/buildTaskAnalysis.ts`, `src/core/task-analysis/types.ts`, `tests/domainEngine.test.js`, `tests/task-analysis.test.js`
+- Verification: npm run build; node --test tests/work.test.js; node --test tests/impact.test.js; node --test tests/verify.test.js; node --test tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Extended TaskAnalysisResult into the internal TaskContext and projected it through Work, Impact, and Verify without changing public CLI contracts",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/core/domainEngine.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/domainEngine.test.js",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/work.test.js; node --test tests/impact.test.js; node --test tests/verify.test.js; node --test tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T08:32:07.801Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T08:32:07.801Z",
+  "summary": "Extended TaskAnalysisResult into the internal TaskContext and projected it through Work, Impact, and Verify without changing public CLI contracts",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/core/domainEngine.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/domainEngine.test.js",
+    "tests/task-analysis.test.js"
+  ],
+  "verification": "npm run build; node --test tests/work.test.js; node --test tests/impact.test.js; node --test tests/verify.test.js; node --test tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T08:36:27.462Z
+- Summary: Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of rediscovering domains
+- Changed files: `src/cli/impact/buildImpact.ts`, `src/cli/impact/impactTypes.ts`, `src/cli/verify/buildVerify.ts`, `src/cli/work/buildWorkBrief.ts`, `src/core/domainEngine.ts`, `src/core/task-analysis/buildTaskAnalysis.ts`, `src/core/task-analysis/types.ts`, `tests/domainEngine.test.js`, `tests/task-analysis.test.js`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/impact.test.js; node dist/cli/index.js verify "fix login bug" --planned --json; node dist/cli/index.js verify "add redis cache" --planned --json; node dist/cli/index.js verify "update github...
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of rediscovering domains",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/core/domainEngine.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/domainEngine.test.js",
+    "tests/task-analysis.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/impact.test.js; node dist/cli/index.js verify \"fix login bug\" --planned --json; node dist/cli/index.js verify \"add redis cache\" --planned --json; node dist/cli/index.js verify \"update github..."
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T08:36:27.462Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T08:36:27.462Z",
+  "summary": "Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of rediscovering domains",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/impact/impactTypes.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/cli/work/buildWorkBrief.ts",
+    "src/core/domainEngine.ts",
+    "src/core/task-analysis/buildTaskAnalysis.ts",
+    "src/core/task-analysis/types.ts",
+    "tests/domainEngine.test.js",
+    "tests/task-analysis.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js; node --test tests/outputContract.test.js; node --test tests/impact.test.js; node dist/cli/index.js verify \"fix login bug\" --planned --json; node dist/cli/index.js verify \"add redis cache\" --planned --json; node dist/cli/index.js verify \"update github...",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T09:28:29.678Z
+- Summary: Refactored measure report building into reusable build/render modules while preserving CLI JSON contract.
+- Changed files: `src/cli/commands/measure.ts`, `src/cli/measure/buildMeasure.ts`, `src/cli/measure/measureTypes.ts`, `src/cli/measure/renderMeasure.ts`, `tests/commandArchitecture.test.js`, `tests/estimate.test.js`
+- Verification: npm run build; node --test tests/estimate.test.js tests/commandArchitecture.test.js tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Refactored measure report building into reusable build/render modules while preserving CLI JSON contract.",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/cli/measure/buildMeasure.ts",
+    "src/cli/measure/measureTypes.ts",
+    "src/cli/measure/renderMeasure.ts",
+    "tests/commandArchitecture.test.js",
+    "tests/estimate.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/estimate.test.js tests/commandArchitecture.test.js tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T09:28:29.678Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T09:28:29.678Z",
+  "summary": "Refactored measure report building into reusable build/render modules while preserving CLI JSON contract.",
+  "files": [
+    "src/cli/commands/measure.ts",
+    "src/cli/measure/buildMeasure.ts",
+    "src/cli/measure/measureTypes.ts",
+    "src/cli/measure/renderMeasure.ts",
+    "tests/commandArchitecture.test.js",
+    "tests/estimate.test.js"
+  ],
+  "verification": "npm run build; node --test tests/estimate.test.js tests/commandArchitecture.test.js tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T09:32:28.924Z
+- Summary: Added shared RepositoryMetrics type model for future metrics collector outputs.
+- Changed files: `src/analytics/metricsTypes.ts`
+- Verification: npm run build
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added shared RepositoryMetrics type model for future metrics collector outputs.",
+  "files": [
+    "src/analytics/metricsTypes.ts"
+  ],
+  "verification": [
+    "npm run build"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T09:32:28.924Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T09:32:28.924Z",
+  "summary": "Added shared RepositoryMetrics type model for future metrics collector outputs.",
+  "files": [
+    "src/analytics/metricsTypes.ts"
+  ],
+  "verification": "npm run build",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T09:36:53.736Z
+- Summary: Added RepositoryMetrics collector that summarizes existing Work, Impact, Verify, and Measure builder outputs without direct repository scanning.
+- Changed files: `src/analytics/metricsCollector.ts`, `tests/metricsCollector.test.js`
+- Verification: npm run build; node --test tests/metricsCollector.test.js tests/estimate.test.js tests/impact.test.js tests/verify.test.js tests/work.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added RepositoryMetrics collector that summarizes existing Work, Impact, Verify, and Measure builder outputs without direct repository scanning.",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "tests/metricsCollector.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/metricsCollector.test.js tests/estimate.test.js tests/impact.test.js tests/verify.test.js tests/work.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T09:36:53.736Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T09:36:53.736Z",
+  "summary": "Added RepositoryMetrics collector that summarizes existing Work, Impact, Verify, and Measure builder outputs without direct repository scanning.",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "tests/metricsCollector.test.js"
+  ],
+  "verification": "npm run build; node --test tests/metricsCollector.test.js tests/estimate.test.js tests/impact.test.js tests/verify.test.js tests/work.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T09:40:06.536Z
+- Summary: Added RepositoryMetrics human and JSON renderers with focused renderer contract tests.
+- Changed files: `src/analytics/renderMetrics.ts`, `tests/metricsRenderer.test.js`
+- Verification: npm run build; node --test tests/metricsRenderer.test.js tests/metricsCollector.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added RepositoryMetrics human and JSON renderers with focused renderer contract tests.",
+  "files": [
+    "src/analytics/renderMetrics.ts",
+    "tests/metricsRenderer.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/metricsRenderer.test.js tests/metricsCollector.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T09:40:06.536Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T09:40:06.536Z",
+  "summary": "Added RepositoryMetrics human and JSON renderers with focused renderer contract tests.",
+  "files": [
+    "src/analytics/renderMetrics.ts",
+    "tests/metricsRenderer.test.js"
+  ],
+  "verification": "npm run build; node --test tests/metricsRenderer.test.js tests/metricsCollector.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T09:45:22.322Z
+- Summary: Added rcc metrics command as a thin wrapper over repository metrics collector and renderer.
+- Changed files: `src/cli/commands/metrics.ts`, `src/cli/index.ts`, `tests/cli.test.js`
+- Verification: npm run build; node --test tests/cli.test.js tests/commandArchitecture.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added rcc metrics command as a thin wrapper over repository metrics collector and renderer.",
+  "files": [
+    "src/cli/commands/metrics.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/cli.test.js tests/commandArchitecture.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T09:45:22.322Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T09:45:22.322Z",
+  "summary": "Added rcc metrics command as a thin wrapper over repository metrics collector and renderer.",
+  "files": [
+    "src/cli/commands/metrics.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js"
+  ],
+  "verification": "npm run build; node --test tests/cli.test.js tests/commandArchitecture.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T09:48:36.357Z
+- Summary: Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes.
+- Changed files: `src/cli/commands/metrics.ts`, `src/cli/index.ts`, `tests/cli.test.js`, `tests/outputContract.test.js`
+- Verification: npm run build; node --test tests/outputContract.test.js tests/metricsRenderer.test.js tests/metricsCollector.test.js tests/cli.test.js tests/estimate.test.js tests/impact.test.js tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes.",
+  "files": [
+    "src/cli/commands/metrics.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/outputContract.test.js tests/metricsRenderer.test.js tests/metricsCollector.test.js tests/cli.test.js tests/estimate.test.js tests/impact.test.js tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T09:48:36.357Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T09:48:36.357Z",
+  "summary": "Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes.",
+  "files": [
+    "src/cli/commands/metrics.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": "npm run build; node --test tests/outputContract.test.js tests/metricsRenderer.test.js tests/metricsCollector.test.js tests/cli.test.js tests/estimate.test.js tests/impact.test.js tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T09:52:22.583Z
+- Summary: Updated README and CHANGELOG for recent metrics and verify contract work.
+- Changed files: `README.md`, `CHANGELOG.md`
+- Verification: npm run build; node --test tests/cli.test.js tests/outputContract.test.js tests/estimate.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/packageMetadata.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated README and CHANGELOG for recent metrics and verify contract work.",
+  "files": [
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "verification": [
+    "npm run build; node --test tests/cli.test.js tests/outputContract.test.js tests/estimate.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/packageMetadata.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T09:52:22.583Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T09:52:22.583Z",
+  "summary": "Updated README and CHANGELOG for recent metrics and verify contract work.",
+  "files": [
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "verification": "npm run build; node --test tests/cli.test.js tests/outputContract.test.js tests/estimate.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/packageMetadata.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T09:55:57.586Z
+- Summary: Repositioned metrics as optional diagnostic insight instead of a core workflow step.
+- Changed files: `README.md`, `CHANGELOG.md`
+- Verification: node --test tests/estimate.test.js tests/outputContract.test.js tests/cli.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Repositioned metrics as optional diagnostic insight instead of a core workflow step.",
+  "files": [
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "verification": [
+    "node --test tests/estimate.test.js tests/outputContract.test.js tests/cli.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T09:55:57.586Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T09:55:57.586Z",
+  "summary": "Repositioned metrics as optional diagnostic insight instead of a core workflow step.",
+  "files": [
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "verification": "node --test tests/estimate.test.js tests/outputContract.test.js tests/cli.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T10:04:22.277Z
+- Summary: Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments.
+- Changed files: `src/cli/impact/buildImpact.ts`, `tests/impact.test.js`, `tests/outputContract.test.js`
+- Verification: npm run build; node --test tests/impact.test.js tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/impact.test.js tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T10:04:22.277Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T10:04:22.277Z",
+  "summary": "Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments.",
+  "files": [
+    "src/cli/impact/buildImpact.ts",
+    "tests/impact.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": "npm run build; node --test tests/impact.test.js tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T10:07:24.030Z
+- Summary: Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it.
+- Changed files: `src/analytics/metricsCollector.ts`, `src/cli/impact/buildImpact.ts`, `src/cli/verify/buildVerify.ts`, `tests/impact.test.js`, `tests/metricsCollector.test.js`, `tests/outputContract.test.js`, `tests/verify.test.js`
+- Verification: npm run build; node --test tests/verify.test.js tests/outputContract.test.js; node --test tests/metricsCollector.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it.",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/verify/buildVerify.ts",
+    "tests/impact.test.js",
+    "tests/metricsCollector.test.js",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/verify.test.js tests/outputContract.test.js; node --test tests/metricsCollector.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T10:07:24.030Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T10:07:24.030Z",
+  "summary": "Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it.",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "src/cli/impact/buildImpact.ts",
+    "src/cli/verify/buildVerify.ts",
+    "tests/impact.test.js",
+    "tests/metricsCollector.test.js",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/verify.test.js tests/outputContract.test.js; node --test tests/metricsCollector.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T10:09:41.091Z
+- Summary: Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract.
+- Changed files: `src/cli/measure/buildMeasure.ts`, `tests/estimate.test.js`, `tests/outputContract.test.js`
+- Verification: npm run build; node --test tests/estimate.test.js tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract.",
+  "files": [
+    "src/cli/measure/buildMeasure.ts",
+    "tests/estimate.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/estimate.test.js tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T10:09:41.091Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T10:09:41.091Z",
+  "summary": "Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract.",
+  "files": [
+    "src/cli/measure/buildMeasure.ts",
+    "tests/estimate.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": "npm run build; node --test tests/estimate.test.js tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T10:14:34.337Z
+- Summary: Refactored metrics collector to reuse task contexts, route-derived measure reports, impact-from-context, and verify-from-impact helpers while preserving compact metrics output.
+- Changed files: `src/analytics/metricsCollector.ts`, `tests/metricsCollector.test.js`
+- Verification: npm run build; node --test tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/cli.test.js tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Refactored metrics collector to reuse task contexts, route-derived measure reports, impact-from-context, and verify-from-impact helpers while preserving compact metrics output.",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "tests/metricsCollector.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/cli.test.js tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T10:14:34.337Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T10:14:34.337Z",
+  "summary": "Refactored metrics collector to reuse task contexts, route-derived measure reports, impact-from-context, and verify-from-impact helpers while preserving compact metrics output.",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "tests/metricsCollector.test.js"
+  ],
+  "verification": "npm run build; node --test tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/cli.test.js tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T10:16:17.448Z
+- Summary: Added architecture guard preventing metrics collector from directly calling duplicate high-level Work, Measure, Impact, and Verify builders.
+- Changed files: `src/analytics/metricsCollector.ts`, `tests/commandArchitecture.test.js`, `tests/metricsCollector.test.js`
+- Verification: npm run build; node --test tests/metricsCollector.test.js tests/commandArchitecture.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added architecture guard preventing metrics collector from directly calling duplicate high-level Work, Measure, Impact, and Verify builders.",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "tests/commandArchitecture.test.js",
+    "tests/metricsCollector.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/metricsCollector.test.js tests/commandArchitecture.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T10:16:17.448Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T10:16:17.448Z",
+  "summary": "Added architecture guard preventing metrics collector from directly calling duplicate high-level Work, Measure, Impact, and Verify builders.",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "tests/commandArchitecture.test.js",
+    "tests/metricsCollector.test.js"
+  ],
+  "verification": "npm run build; node --test tests/metricsCollector.test.js tests/commandArchitecture.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T10:19:51.509Z
+- Summary: Updated README and CHANGELOG to document metrics reuse as optional diagnostic behavior without changing core workflow positioning.
+- Changed files: `CHANGELOG.md`, `README.md`
+- Verification: node --test tests/estimate.test.js tests/outputContract.test.js tests/cli.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated README and CHANGELOG to document metrics reuse as optional diagnostic behavior without changing core workflow positioning.",
+  "files": [
+    "CHANGELOG.md",
+    "README.md"
+  ],
+  "verification": [
+    "node --test tests/estimate.test.js tests/outputContract.test.js tests/cli.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T10:19:51.509Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T10:19:51.509Z",
+  "summary": "Updated README and CHANGELOG to document metrics reuse as optional diagnostic behavior without changing core workflow positioning.",
+  "files": [
+    "CHANGELOG.md",
+    "README.md"
+  ],
+  "verification": "node --test tests/estimate.test.js tests/outputContract.test.js tests/cli.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

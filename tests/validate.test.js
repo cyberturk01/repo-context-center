@@ -46,7 +46,7 @@ test("validate passes on complete setup", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Required files: ok/);
-    assert.match(result.stdout, /Warnings: none/);
+    assert.match(result.stdout, /Warnings: 0/);
     assert.match(result.stdout, /Result: passed/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });

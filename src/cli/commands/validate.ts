@@ -29,7 +29,7 @@ function formatReport(report: ValidationReport, strict: boolean): string {
   }
 
   if (report.warnings.length === 0) {
-    lines.push("Warnings: none");
+    lines.push("Warnings: 0");
   } else {
     lines.push(`Warnings: ${report.warnings.length}`);
     for (const issue of report.warnings) {

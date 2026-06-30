@@ -1,0 +1,20 @@
+{
+  "name": "github-integration",
+  "cases": [
+    {
+      "task": "update github api integration",
+      "expected": {
+        "affectedFiles": [
+          "src/api/githubController.ts"
+        ],
+        "tests": [
+          "tests/api/githubController.spec.ts"
+        ],
+        "verificationCommands": [
+          "node --test tests/api/githubController.spec.ts",
+          "npm run build"
+        ]
+      }
+    }
+  ]
+}

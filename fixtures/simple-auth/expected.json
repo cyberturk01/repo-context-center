@@ -1,0 +1,20 @@
+{
+  "name": "simple-auth",
+  "cases": [
+    {
+      "task": "improve auth middleware",
+      "expected": {
+        "affectedFiles": [
+          "src/auth/middleware.ts"
+        ],
+        "tests": [
+          "tests/auth/auth.spec.ts"
+        ],
+        "verificationCommands": [
+          "node --test tests/auth/auth.spec.ts",
+          "npm run build"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "name": "monorepo-large",
+  "cases": [
+    {
+      "task": "improve api auth middleware",
+      "expected": {
+        "affectedFiles": [
+          "packages/api/src/auth/middleware.ts"
+        ],
+        "tests": [
+          "packages/api/tests/auth/middleware.spec.ts"
+        ],
+        "verificationCommands": [
+          "node --test packages/api/tests/auth/middleware.spec.ts",
+          "npm run build"
+        ]
+      }
+    },
+    {
+      "task": "update web profile card",
+      "expected": {
+        "affectedFiles": [
+          "packages/web/src/profile/ProfileCard.tsx"
+        ],
+        "tests": [
+          "packages/web/tests/profile/ProfileCard.spec.tsx"
+        ],
+        "verificationCommands": [
+          "node --test packages/web/tests/profile/ProfileCard.spec.tsx"
+        ]
+      }
+    }
+  ]
+}

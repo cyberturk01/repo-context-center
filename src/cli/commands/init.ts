@@ -80,7 +80,7 @@ export async function initCommand(io: CliIO, args: string[] = []): Promise<numbe
     force: options.force,
     dryRun: options.dryRun,
     githubAction: options.githubAction,
-    updateAgentFile: options.updateAgentFile
+    updateAgentFile: options.update || options.updateAgentFile
   });
 
   for (const result of results) {
@@ -89,10 +89,16 @@ export async function initCommand(io: CliIO, args: string[] = []): Promise<numbe
 
   if (options.update || options.updateAgentFile) {
     const agentsResult = results.find((result) => result.path === "AGENTS.md");
+    const claudeResult = results.find((result) => result.path === "CLAUDE.md");
     if (agentsResult?.action === "update") {
       io.stdout("Updated RCC agent pointer in AGENTS.md while preserving manual content.\n");
     } else if (agentsResult?.action === "skip") {
       io.stdout("AGENTS.md already has current RCC agent pointer or was left unchanged.\n");
+    }
+    if (claudeResult?.action === "update") {
+      io.stdout("Updated RCC agent pointer in CLAUDE.md while preserving manual content.\n");
+    } else if (claudeResult?.action === "skip") {
+      io.stdout("CLAUDE.md already has current RCC agent pointer or was left unchanged.\n");
     }
   }
 

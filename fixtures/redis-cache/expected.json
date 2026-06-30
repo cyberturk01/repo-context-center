@@ -1,0 +1,20 @@
+{
+  "name": "redis-cache",
+  "cases": [
+    {
+      "task": "add redis cache",
+      "expected": {
+        "affectedFiles": [
+          "src/cache/redis.ts"
+        ],
+        "tests": [
+          "tests/cache/redis.spec.ts"
+        ],
+        "verificationCommands": [
+          "node --test tests/cache/redis.spec.ts",
+          "npm run build"
+        ]
+      }
+    }
+  ]
+}

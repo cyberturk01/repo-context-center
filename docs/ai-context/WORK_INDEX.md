@@ -6,51 +6,51 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
-- Improved work agent no-test guidance
-- Added task-only mode to impact analysis
-- Add structured affected-test metadata to impact JSON
-- Tightened affected-test confidence thresholds
-- Keep work affected-test scoring from broad test discovery
-- Shared affected-test scoring between impact and work
-- Added empty verificationHints field to impact analysis model
+- Updated README and CHANGELOG to document metrics reuse as optional diagnostic behavior without changing core workflow positioning.
+- Added architecture guard preventing metrics collector from directly calling duplicate high-level Work, Measure, Impact, and Verify builders.
+- Refactored metrics collector to reuse task contexts, route-derived measure reports, impact-from-context, and verify-from-impact helpers whi...
+- Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract.
+- Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it.
+- Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments.
+- Repositioned metrics as optional diagnostic insight instead of a core workflow step.
 
 ## Hot Files
 
 | File | Reason | Last touched |
 | ---- | ------ | ------------ |
+| `src/cli/verify/buildVerify.ts` | 28 touches; Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. | 2026-06-30 |
+| `src/cli/impact/buildImpact.ts` | 26 touches; Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. | 2026-06-30 |
+| `tests/impact.test.js` | 25 touches; Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. | 2026-06-30 |
+| `tests/verify.test.js` | 25 touches; Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. | 2026-06-30 |
 | `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
-| `src/cli/impact/buildImpact.ts` | 19 touches; Added task-only mode to impact analysis | 2026-06-26 |
-| `tests/impact.test.js` | 19 touches; Added task-only mode to impact analysis | 2026-06-26 |
-| `tests/work.test.js` | 18 touches; Improved work agent no-test guidance | 2026-06-26 |
-| `src/cli/handoff/buildHandoffBrief.ts` | 15 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
-| `src/cli/commands/done.ts` | 14 touches; Added negative coverage for done handoff file path injection and verbose agent JSON boundaries | 2026-06-24 |
-| `tests/init.test.js` | 13 touches; Added hard root AGENTS.md path guard for update-agent-file and identical CLAUDE content regression coverage | 2026-06-26 |
-| `tests/done.test.js` | 13 touches; Added negative coverage for done handoff file path injection and verbose agent JSON boundaries | 2026-06-24 |
-| `src/cli/handoff/handoffTypes.ts` | 13 touches; Polished handoff repository learning hint ordering | 2026-06-20 |
-| `README.md` | 12 touches; Added task-only mode to impact analysis | 2026-06-26 |
+| `README.md` | 20 touches; Updated README and CHANGELOG to document metrics reuse as optional diagnostic behavior without changing core workflow positioning. | 2026-06-30 |
+| `tests/work.test.js` | 20 touches; Add low-overhead routing for tiny obvious tasks | 2026-06-28 |
+| `tests/outputContract.test.js` | 17 touches; Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract. | 2026-06-30 |
+| `src/cli/index.ts` | 17 touches; Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes. | 2026-06-30 |
+| `src/cli/work/buildWorkBrief.ts` | 16 touches; Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of rediscoveri... | 2026-06-30 |
 
 ## Completed Work Themes
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Work routing | 25 | Improved work agent no-test guidance |
+| Work routing | 42 | Added architecture guard preventing metrics collector from directly calling duplicate high-level Work, Measure, Impact, and Verify builders. |
+| General maintenance | 39 | Updated README and CHANGELOG to document metrics reuse as optional diagnostic behavior without changing core workflow positioning. |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
-| General maintenance | 16 | Added task-only mode to impact analysis |
-| Repository context | 10 | Added Impact contextChanges support and separated RCC/setup paths from affected files |
+| Repository context | 19 | Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments. |
+| CLI commands | 13 | Stabilized verify output by replacing duplicated execution-plan command/path payloads with section refs and compacting domain check paths |
+| Tests | 12 | Hardened verify JSON output contract coverage for agent-safe parseable plans |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
-| Tests | 8 | Add structured affected-test metadata to impact JSON |
-| CLI commands | 6 | Fixed suggested command path spacing for concatenated test paths |
-| Work memory | 5 | Implemented learning quality guards for repository memory |
+| Measurement and benchmarks | 7 | Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes. |
 
 ## Verification Patterns
 
-- `npm run build` (67)
-- `npm test` (42)
+- `npm run build` (106)
+- `npm test` (49)
+- `node --test tests/impact.test.js` (26)
+- `node --test tests/verify.test.js` (25)
+- `node --test tests/cli.test.js` (22)
+- `node --test tests/outputContract.test.js` (17)
+- `node --test tests/work.test.js` (15)
 - `node --test tests/*.test.js` (13)
-- `node --test tests/cli.test.js` (13)
-- `node --test tests/handoff.test.js` (13)
-- `node --test tests/impact.test.js` (13)
-- `npm run benchmark:routing` (11)
-- `npm run release:check` (10)
 
 <!-- repo-context-center:work-index:end -->

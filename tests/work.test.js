@@ -944,7 +944,7 @@ test("work --agent marks tiny tasks as fast fixes with lightweight guidance", as
     assert.equal(result.status, 0);
     assert.equal(route.taskSize, "tiny");
     assert.equal(route.mode, "fast_fix");
-    assert.equal(route.next, "Tiny task: open only the primary file and apply the fix. No strongly related tests found; do not add generic tests. Do not rerun rcc work for this task.");
+    assert.equal(route.next, "Tiny obvious task: open only the primary file. No strongly related tests found; do not add generic tests or broad exploration. Use done only if this change is meaningful project memory.");
   });
 });
 
@@ -959,7 +959,7 @@ test("work --agent tiny guidance keeps word spacing stable", async () => {
 
       assert.equal(result.status, 0, task);
       assert.equal(route.taskSize, "tiny", task);
-      assert.equal(route.next, "Tiny task: open only the primary file and apply the fix. No strongly related tests found; do not add generic tests. Do not rerun rcc work for this task.");
+      assert.equal(route.next, "Tiny obvious task: open only the primary file. No strongly related tests found; do not add generic tests or broad exploration. Use done only if this change is meaningful project memory.");
       assert.doesNotMatch(route.next, /relevanttest/, task);
       assert.doesNotMatch(route.next, /runthe/, task);
     }
@@ -991,8 +991,8 @@ test("work prunes tiny typo tasks to one primary file where possible", async () 
     assert.equal(result.status, 0);
     assert.equal(brief.taskSize, "tiny");
     assert.ok(brief.primaryFiles.length <= 1, JSON.stringify(brief.primaryFiles));
-    assert.ok(brief.supportingFiles.length <= 1, JSON.stringify(brief.supportingFiles));
-    assert.ok(brief.tests.length <= 1, JSON.stringify(brief.tests));
+    assert.deepEqual(brief.supportingFiles, []);
+    assert.deepEqual(brief.tests, []);
     assert.ok(brief.readFirst.includes("AGENTS.md"), JSON.stringify(brief.readFirst));
   });
 });
@@ -1084,14 +1084,15 @@ test("work keeps broader guidance for large architecture tasks", async () => {
   });
 });
 
-test("work --agent tiny task says to skip broad exploration unless primary is wrong", async () => {
+test("work --agent tiny task avoids generic tests and broad exploration", async () => {
   await withPruningRepo(async (tempDir) => {
     const result = runCli(["work", "--agent", "fix work typo"], { cwd: tempDir });
     const route = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
     assert.equal(route.taskSize, "tiny");
-    assert.match(route.next, /skip broad exploration unless the primary file is wrong/);
+    assert.deepEqual(route.tests, []);
+    assert.match(route.next, /do not add generic tests or broad exploration/i);
   });
 });
 
@@ -1498,13 +1499,19 @@ test("work does not recommend unrelated infrastructure tests for translation tas
     await writeFixtureFile(tempDir, "tests/invites/invite.test.js", "test('invite flow', () => {});\n");
     await writeFixtureFile(tempDir, "tests/api/public.test.js", "test('public api', () => {});\n");
 
-    const result = runCli(["work", "--agent", "update translation strings"], { cwd: tempDir });
+    const result = runCli(["work", "--agent", "update translation wording"], { cwd: tempDir });
     const route = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(route.taskSize, "tiny");
+    assert.equal(route.mode, "fast_fix");
     assert.deepEqual(route.tests, []);
-    assert.match(route.next, /No strongly related tests found; do not add generic tests\./);
-    assert.doesNotMatch(route.next, /broad exploration/i);
+    assert.equal(route.tests.includes("tests/cache/redis.test.js"), false, route.tests.join("\n"));
+    assert.equal(route.tests.includes("tests/queue/worker.test.js"), false, route.tests.join("\n"));
+    assert.equal(route.tests.includes("tests/invites/invite.test.js"), false, route.tests.join("\n"));
+    assert.equal(route.tests.includes("tests/api/public.test.js"), false, route.tests.join("\n"));
+    assert.match(route.next, /No strongly related tests found; do not add generic tests or broad exploration\./);
+    assert.match(route.next, /Use done only if this change is meaningful project memory\./);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -1528,7 +1535,7 @@ test("work still recommends Redis cache tests for Redis cache tasks", async () =
     await writeFixtureFile(tempDir, "tests/cache/redis.test.js", "test('redis cache', () => {});\n");
     await writeFixtureFile(tempDir, "tests/api/public.test.js", "test('public api', () => {});\n");
 
-    const result = runCli(["work", "--agent", "fix redis cache expiration"], { cwd: tempDir });
+    const result = runCli(["work", "--agent", "add redis cache"], { cwd: tempDir });
     const route = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -2108,11 +2115,11 @@ test("work --json promotes role task source and tests ahead of docs", async () =
     assert.equal(brief.nextCheapestCommand, 'rcc find "role"');
     assert.ok(brief.taskFiles.some((file) => file.path === "src/core/repoFileClassifier.ts"), JSON.stringify(brief.taskFiles));
     assert.ok(brief.taskFiles.some((file) => file.path === "src/cli/commands/work.ts"), JSON.stringify(brief.taskFiles));
-    assert.ok(brief.supportingTests.some((file) => file.path === "tests/repoFileClassifier.test.js"), JSON.stringify(brief.supportingTests));
+    assert.deepEqual(brief.supportingTests, []);
     assert.ok(!brief.supportingTests.some((file) => file.path === "tests/estimate.test.js"), JSON.stringify(brief.supportingTests));
     assert.ok(recommendedPaths.includes("src/core/repoFileClassifier.ts"), recommendedPaths.join("\n"));
     assert.ok(recommendedPaths.includes("src/cli/commands/work.ts"), recommendedPaths.join("\n"));
-    assert.ok(recommendedPaths.includes("tests/repoFileClassifier.test.js"), recommendedPaths.join("\n"));
+    assert.ok(!recommendedPaths.includes("tests/repoFileClassifier.test.js"), recommendedPaths.join("\n"));
     assert.ok(!recommendedPaths.includes("tests/estimate.test.js"), recommendedPaths.join("\n"));
     assert.ok(!recommendedPaths.includes("AGENTS.md"), recommendedPaths.join("\n"));
     assert.ok(!recommendedPaths.some((file) => file.startsWith("docs/ai-context/")), recommendedPaths.join("\n"));
@@ -2142,7 +2149,7 @@ test("work human output separates docs for Turkish role investigation", async ()
     assert.doesNotMatch(taskFiles, /AGENTS\.md/);
     assert.doesNotMatch(taskFiles, /docs\/ai-context/);
     assert.match(supportingFiles, /none/);
-    assert.match(supportingTests, /tests\/repoFileClassifier\.test\.js/);
+    assert.match(supportingTests, /none/);
     assert.doesNotMatch(supportingTests, /tests\/estimate\.test\.js/);
     assert.match(workflowDocs, /AGENTS\.md/);
     assert.match(contextDocs, /docs\/ai-context\/TASK_ROUTING\.md/);
@@ -2585,8 +2592,38 @@ test("work --agent keeps tiny typo tasks to one primary and no supporting files"
 
     assert.equal(result.status, 0);
     assert.equal(route.taskSize, "tiny");
+    assert.equal(route.mode, "fast_fix");
+    assert.ok(route.primaryFiles.includes("README.md"), route.primaryFiles.join("\n"));
     assert.equal(route.primaryFiles.length, 1, route.primaryFiles.join("\n"));
     assert.deepEqual(route.supportingFiles, []);
+    assert.deepEqual(route.tests, []);
+    assert.match(route.next, /do not add generic tests or broad exploration/i);
+    assert.match(route.next, /Use done only if this change is meaningful project memory\./);
+  });
+});
+
+test("work --agent keeps README wording tasks tiny without unrelated tests", async () => {
+  await withDocumentationRoutingRepo(async (tempDir) => {
+    const result = runCli(["work", "update README wording", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(route.taskSize, "tiny");
+    assert.equal(route.mode, "fast_fix");
+    assert.deepEqual(route.primaryFiles, ["README.md"]);
+    assert.deepEqual(route.supportingFiles, []);
+    assert.deepEqual(route.tests, []);
+  });
+});
+
+test("work --agent does not downgrade auth middleware tasks to tiny", async () => {
+  await withWorkRepo(async (tempDir) => {
+    const result = runCli(["work", "improve auth middleware", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.notEqual(route.taskSize, "tiny");
+    assert.notEqual(route.next.startsWith("Tiny obvious task:"), true);
   });
 });
 
@@ -2603,9 +2640,8 @@ test("work --agent routes Turkish workflow task routing fixes to RCC implementat
     ], route.primaryFiles.join("\n"));
     assert.equal(route.primaryFiles.some((file) => file.startsWith(".github/workflows/")), false, route.primaryFiles.join("\n"));
     assert.equal(route.primaryFiles.includes("package.json"), false, route.primaryFiles.join("\n"));
-    assert.ok(route.tests.includes("tests/taskIntent.test.js"), route.tests.join("\n"));
-    assert.ok(route.tests.includes("tests/work.test.js"), route.tests.join("\n"));
-    assert.equal(route.next, "Start with primaryFiles. Do not rerun rcc work for this task. Use rcc find \"routing\" only if needed.");
+    assert.deepEqual(route.tests, []);
+    assert.equal(route.next, "Start with primaryFiles. No strongly related tests found; do not add generic tests. Do not rerun rcc work for this task.");
   });
 });
 

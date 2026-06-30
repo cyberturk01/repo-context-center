@@ -12,10 +12,12 @@ import { learnCommand } from "./commands/learn";
 import { logCommand } from "./commands/log";
 import { mapCommand } from "./commands/map";
 import { measureCommand } from "./commands/measure";
+import { metricsCommand } from "./commands/metrics";
 import { scanCommand } from "./commands/scan";
 import { startCommand } from "./commands/start";
 import { suggestCommand } from "./commands/suggest";
 import { validateCommand } from "./commands/validate";
+import { verifyCommand } from "./commands/verify";
 import { workCommand } from "./commands/work";
 
 export interface CliIO {
@@ -41,9 +43,11 @@ const commands: Record<string, CommandHandler> = {
   log: logCommand,
   map: mapCommand,
   measure: measureCommand,
+  metrics: metricsCommand,
   scan: scanCommand,
   start: startCommand,
   suggest: suggestCommand,
+  verify: verifyCommand,
   work: workCommand
 };
 
@@ -63,6 +67,8 @@ Commands:
             Options: --update, --dry-run, --force, --github-action
   validate  Validate required context files and warnings
             Options: --strict
+  verify    Recommend verification checks from impact analysis
+            Usage: verify "<task>" [--json] [--task-only] [--planned]
   archive   Archive older CHANGE_LOG and LESSONS_LEARNED entries
             Options: --keep <number>, --dry-run
   decision  Add a durable project decision to docs/ai-context/DECISIONS.md
@@ -87,6 +93,8 @@ Commands:
   measure   Task-first route-vs-naive token estimate
             Usage: rcc measure "<task>"
                    rcc measure "<task>" --json
+  metrics   Summarize repository intelligence metrics for a task
+            Usage: rcc metrics "<task>" [--json]
   scan      Suggest lightweight context entries from repo layout
             Options: --json
   start     Print a startup prompt for an AI coding agent

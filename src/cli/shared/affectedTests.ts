@@ -12,6 +12,13 @@ const defaultMaximumAffectedTests = 5;
 const maximumWalkFiles = 2000;
 
 export type AffectedTestConfidence = "strong" | "medium" | "weak";
+export type RelationshipType =
+  | "direct-test"
+  | "related-test"
+  | "nearby-test"
+  | "learned-test"
+  | "fallback-test"
+  | "unrelated";
 
 export interface AffectedTestCandidate {
   path: string;
@@ -24,6 +31,13 @@ export interface ScoredAffectedTest {
   score: number;
   confidence: AffectedTestConfidence;
   signals: string[];
+  relationshipType: RelationshipType;
+}
+
+export interface ClassifiedAffectedTest {
+  path: string;
+  relationshipType: RelationshipType;
+  signals: string[];
 }
 
 export interface AffectedTestScoringOptions {
@@ -35,6 +49,11 @@ export interface AffectedTestScoringOptions {
   learnedTests?: string[];
   includeRepoTestDiscovery?: boolean;
   maxTests?: number;
+}
+
+export interface AffectedTestAnalysis {
+  classifications: ClassifiedAffectedTest[];
+  scoredTests: ScoredAffectedTest[];
 }
 
 function uniquePaths(paths: string[]): string[] {
@@ -148,6 +167,20 @@ function pathTokens(filePath: string): Set<string> {
     .filter((token) => token.length > 1 && !["src", "test", "tests", "spec", "__tests__"].includes(token)));
 }
 
+function scopedPathTokens(filePath: string): Set<string> {
+  const parts = comparableStem(filePath).split("/").filter(Boolean);
+  const scopedParts = (parts[0] === "packages" || parts[0] === "libs") && parts.length > 2
+    ? parts.slice(2)
+    : parts;
+
+  return new Set(scopedParts
+    .join("/")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .toLowerCase()
+    .split(/[\/._\-\s]+/)
+    .filter((token) => token.length > 1 && !["src", "test", "tests", "spec", "__tests__", "util", "utils"].includes(token)));
+}
+
 function taskTokens(task: string): Set<string> {
   const generic = new Set([
     "add",
@@ -172,6 +205,10 @@ function taskTestNameScore(testPath: string, terms: Set<string>): number {
 
   const shared = [...pathTokens(testPath)].filter((token) => terms.has(token)).length;
   return shared > 0 ? Math.min(28, 16 + shared * 6) : 0;
+}
+
+function hasScopedTaskTokenMatch(testPath: string, terms: Set<string>): boolean {
+  return [...scopedPathTokens(testPath)].some((token) => terms.has(token));
 }
 
 function filenameSimilarityScore(testPath: string, sourcePaths: string[]): number {
@@ -200,7 +237,15 @@ function sameDirectoryScore(testPath: string, sourcePaths: string[]): number {
     return 0;
   }
 
-  return sourcePaths.some((sourcePath) => path.posix.dirname(comparableStem(sourcePath)) === testDir) ? 22 : 0;
+  return sourcePaths.some((sourcePath) => {
+    const sourceDir = path.posix.dirname(comparableStem(sourcePath));
+
+    return sourceDir === testDir
+      || testDir === path.posix.join(sourceDir, "tests")
+      || testDir === path.posix.join(sourceDir, "__tests__")
+      || testDir.startsWith(`${path.posix.join(sourceDir, "tests")}/`)
+      || testDir.startsWith(`${path.posix.join(sourceDir, "__tests__")}/`);
+  }) ? 22 : 0;
 }
 
 function moduleScope(filePath: string): string {
@@ -282,21 +327,22 @@ function reasonFromSignals(score: number, confidence: AffectedTestConfidence, si
   return `${confidence} confidence score ${score}: ${signals.join("; ")}`;
 }
 
-function hasDirectRelationshipSignal(signals: string[]): boolean {
+function hasDirectRecommendationSignal(signals: string[]): boolean {
   const directSignals = new Set([
-    "changed test file",
     "imports affected source",
     "same directory",
-    "filename similarity",
-    "same package/module with task token",
+    "task/test name match",
+    "co-change history",
     "specific routed test name"
   ]);
 
   return signals.some((signal) => directSignals.has(signal));
 }
 
-function confidenceForAffectedTest(score: number, signals: string[]): AffectedTestConfidence {
-  if (score >= affectedTestScoreThreshold && hasDirectRelationshipSignal(signals)) {
+function confidenceForAffectedTest(score: number, relationshipType: RelationshipType, signals: string[]): AffectedTestConfidence {
+  const meaningfulRelationship = !["fallback-test", "unrelated"].includes(relationshipType);
+
+  if (score >= affectedTestScoreThreshold && meaningfulRelationship && hasDirectRecommendationSignal(signals)) {
     return "strong";
   }
 
@@ -313,7 +359,130 @@ function changedTestFiles(changedFiles: string[]): string[] {
     .map(normalizeRepoPath);
 }
 
-export async function scoreAffectedTests(options: AffectedTestScoringOptions): Promise<ScoredAffectedTest[]> {
+interface TestRelationshipFeatures {
+  path: string;
+  relationshipType: RelationshipType;
+  changedTest: boolean;
+  routeTest: boolean;
+  taskNameScore: number;
+  specificRoutedTestName: boolean;
+  learnedTest: boolean;
+  coChangedTest: boolean;
+  importScore: number;
+  filenameScore: number;
+  moduleScore: number;
+  moduleDirect: boolean;
+  directoryScore: number;
+}
+
+function relationshipTypeForFeatures(features: Omit<TestRelationshipFeatures, "relationshipType">): RelationshipType {
+  if (
+    features.importScore > 0
+    || features.directoryScore > 0
+    || features.taskNameScore > 0
+    || features.specificRoutedTestName
+    || features.coChangedTest
+  ) {
+    return "direct-test";
+  }
+
+  if (features.changedTest || features.filenameScore > 0 || features.moduleDirect) {
+    return "related-test";
+  }
+
+  if (features.moduleScore > 0) {
+    return "nearby-test";
+  }
+
+  if (features.learnedTest) {
+    return "learned-test";
+  }
+
+  if (features.routeTest) {
+    return "fallback-test";
+  }
+
+  return "unrelated";
+}
+
+function signalsForFeatures(features: TestRelationshipFeatures): string[] {
+  const signals: string[] = [];
+
+  if (features.changedTest) {
+    signals.push("changed test file");
+  }
+  if (features.routeTest) {
+    signals.push("task routing evidence");
+  }
+  if (features.taskNameScore > 0) {
+    signals.push("task/test name match");
+  }
+  if (features.specificRoutedTestName) {
+    signals.push("specific routed test name");
+  }
+  if (features.learnedTest) {
+    signals.push("repository learning");
+  }
+  if (features.coChangedTest) {
+    signals.push("co-change history");
+  }
+  if (features.importScore > 0) {
+    signals.push("imports affected source");
+  }
+  if (features.filenameScore > 0) {
+    signals.push("filename similarity");
+  }
+  if (features.moduleScore > 0) {
+    signals.push(features.moduleDirect ? "same package/module with task token" : "same package/module");
+  }
+  if (features.directoryScore > 0) {
+    signals.push("same directory");
+  }
+  if (signals.length === 1 && signals[0] === "task routing evidence") {
+    signals.push("weak generic route penalty");
+  }
+
+  return signals;
+}
+
+function scoreForFeatures(features: TestRelationshipFeatures): number {
+  if (features.relationshipType === "unrelated") {
+    return 0;
+  }
+
+  let score = 0;
+
+  if (features.changedTest) {
+    score += 100;
+  }
+  if (features.routeTest) {
+    score += 40;
+  }
+  if (features.taskNameScore > 0) {
+    score += features.taskNameScore;
+  }
+  if (features.specificRoutedTestName) {
+    score += 20;
+  }
+  if (features.learnedTest) {
+    score += 58;
+  }
+  if (features.coChangedTest) {
+    score += 46;
+  }
+  score += features.importScore;
+  score += features.filenameScore;
+  score += features.moduleScore;
+  score += features.directoryScore;
+
+  if (features.relationshipType === "fallback-test") {
+    score -= 30;
+  }
+
+  return score;
+}
+
+export async function analyzeAffectedTests(options: AffectedTestScoringOptions): Promise<AffectedTestAnalysis> {
   const changedFiles = uniquePaths((options.changedFiles ?? []).map(normalizeRepoPath));
   const routeTests = (options.routeTests ?? []).map((file) => ({
     ...file,
@@ -331,6 +500,7 @@ export async function scoreAffectedTests(options: AffectedTestScoringOptions): P
   const terms = taskTokens(options.task);
   const changedTestSet = new Set(changedTestFiles(changedFiles));
   const routeTestSet = new Set(routeTests.map((file) => file.path));
+  const routeTestReasons = new Map(routeTests.map((file) => [file.path, file.reason ?? ""]));
   const learnedRouteTests = routeTests
     .filter((file) => /\blearned|repository learning|work-log\b/i.test(file.reason ?? ""))
     .map((file) => file.path);
@@ -342,69 +512,43 @@ export async function scoreAffectedTests(options: AffectedTestScoringOptions): P
   const coChangedTests = await coChangeTestSet(options.cwd, sourcePaths);
 
   const scored = await Promise.all(candidatePaths.map(async (testPath) => {
-    let score = 0;
-    const signals: string[] = [];
-
-    if (changedTestSet.has(testPath)) {
-      score += 100;
-      signals.push("changed test file");
-    }
-    if (routeTestSet.has(testPath)) {
-      score += 40;
-      signals.push("task routing evidence");
-    }
     const taskNameScore = routeTestSet.has(testPath) ? taskTestNameScore(testPath, terms) : 0;
-    if (taskNameScore > 0) {
-      score += taskNameScore;
-      signals.push("task/test name match");
-    }
-    if (routeTestSet.has(testPath) && taskNameScore >= 22) {
-      score += 20;
-      signals.push("specific routed test name");
-    }
-    if (learnedTests.has(testPath)) {
-      score += 58;
-      signals.push("repository learning");
-    }
-    if (coChangedTests.has(testPath)) {
-      score += 46;
-      signals.push("co-change history");
-    }
-
     const importScore = await importRelationshipScore(options.cwd, testPath, sourcePaths);
-    if (importScore > 0) {
-      score += importScore;
-      signals.push("imports affected source");
-    }
-
-    const nameScore = filenameSimilarityScore(testPath, sourcePaths);
-    if (nameScore > 0) {
-      score += nameScore;
-      signals.push("filename similarity");
-    }
-
+    const filenameScore = filenameSimilarityScore(testPath, sourcePaths);
     const moduleRelationship = sameModuleRelationship(testPath, sourcePaths, terms);
-    if (moduleRelationship.score > 0) {
-      score += moduleRelationship.score;
-      signals.push(moduleRelationship.direct ? "same package/module with task token" : "same package/module");
-    }
-
     const directoryScore = sameDirectoryScore(testPath, sourcePaths);
-    if (directoryScore > 0) {
-      score += directoryScore;
-      signals.push("same directory");
-    }
-
-    if (signals.length === 1 && signals[0] === "task routing evidence") {
-      score -= 30;
-      signals.push("weak generic route penalty");
-    }
+    const classifiedFeatures = {
+      path: testPath,
+      changedTest: changedTestSet.has(testPath),
+      routeTest: routeTestSet.has(testPath),
+      taskNameScore,
+      specificRoutedTestName: routeTestSet.has(testPath)
+        && (
+          hasScopedTaskTokenMatch(testPath, terms)
+          || /\brouted by RCC token measurement guidance\b/i.test(routeTestReasons.get(testPath) ?? "")
+        ),
+      learnedTest: learnedTests.has(testPath),
+      coChangedTest: coChangedTests.has(testPath),
+      importScore,
+      filenameScore,
+      moduleScore: moduleRelationship.score,
+      moduleDirect: moduleRelationship.direct,
+      directoryScore
+    };
+    const relationshipType = relationshipTypeForFeatures(classifiedFeatures);
+    const features = {
+      ...classifiedFeatures,
+      relationshipType
+    };
+    const signals = signalsForFeatures(features);
+    const score = scoreForFeatures(features);
 
     return {
       path: testPath,
       score,
-      confidence: confidenceForAffectedTest(score, signals),
-      signals
+      confidence: confidenceForAffectedTest(score, relationshipType, signals),
+      signals,
+      relationshipType
     };
   }));
 
@@ -417,11 +561,24 @@ export async function scoreAffectedTests(options: AffectedTestScoringOptions): P
     exists: await pathExists(options.cwd, item.path)
   })));
 
-  return existing
+  const scoredTests = existing
     .filter((entry) => entry.exists)
     .map((entry) => entry.item)
     .map((item) => ({
       ...item,
       reason: reasonFromSignals(item.score, item.confidence, item.signals)
     }));
+
+  return {
+    classifications: scored.map((item) => ({
+      path: item.path,
+      relationshipType: item.relationshipType,
+      signals: item.signals
+    })),
+    scoredTests
+  };
+}
+
+export async function scoreAffectedTests(options: AffectedTestScoringOptions): Promise<ScoredAffectedTest[]> {
+  return (await analyzeAffectedTests(options)).scoredTests;
 }

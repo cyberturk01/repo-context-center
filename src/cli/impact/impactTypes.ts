@@ -1,5 +1,7 @@
 import type { WorkRecommendation } from "../work/workTypes";
 import type { AffectedTestConfidence } from "../shared/affectedTests";
+import type { TaskAnalysisResult } from "../../core/task-analysis";
+import type { DomainMatch } from "../../core/domainEngine";
 
 export interface ImpactOptions {
   json: boolean;
@@ -62,7 +64,7 @@ export interface ImpactAnalysis {
   schemaVersion: 1;
   command: "impact";
   task: string;
-  mode: "working-tree" | "task-only";
+  mode: "working-tree" | "task-only" | "planned-task";
   basis: "changed-files-and-task" | "changed-files" | "task";
   summary: ImpactSummary;
   changedFiles: ImpactFile[];
@@ -74,6 +76,9 @@ export interface ImpactAnalysis {
   confidenceExplanation: ImpactConfidenceExplanation;
   verificationHints: ImpactVerificationHint[];
   notes: string[];
+  taskContext?: TaskAnalysisResult;
+  domainMatches?: DomainMatch[];
+  taskMentionsContext?: boolean;
 }
 
 export function recommendationReason(item: WorkRecommendation, fallback: string): string {
