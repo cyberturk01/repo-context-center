@@ -293,7 +293,7 @@ Estimated saving:
 195,536 tokens (99.9%)
 ```
 
-The naive scan estimate is an approximation. Savings are estimates, not guarantees.
+Token estimates are based on repository size, available context, and routing scope. Reported savings are estimates, not guarantees.
 
 JSON output is available for integrations:
 
