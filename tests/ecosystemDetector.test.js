@@ -103,6 +103,28 @@ test("ecosystem detector recognizes Go repositories", async () => {
   });
 });
 
+test("ecosystem detector recognizes Go modules inside service monorepos", async () => {
+  await withFixtureRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "services/accounts/go.mod", "module example.com/accounts\n");
+    await writeFixtureFile(tempDir, "services/billing/go.mod", "module example.com/billing\n");
+    const { detectRepositoryEcosystems } = require("../dist/core/ecosystemDetector");
+    const report = await detectRepositoryEcosystems(tempDir);
+
+    assert.ok(ids(report).includes("go"));
+    assert.ok(ids(report).includes("monorepo"));
+    assert.ok(report.detections.some((detection) => (
+      detection.id === "go"
+      && detection.rootPath === "services/accounts"
+      && detection.matchedSignals.includes("services/accounts/go.mod")
+    )));
+    assert.ok(report.detections.some((detection) => (
+      detection.id === "go"
+      && detection.rootPath === "services/billing"
+      && detection.matchedSignals.includes("services/billing/go.mod")
+    )));
+  });
+});
+
 test("ecosystem detector recognizes dotnet repositories", async () => {
   await withFixtureRepo(async (tempDir) => {
     await writeFixtureFile(tempDir, "Fixture.sln", "");

@@ -6,23 +6,23 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Polish Go ecosystem adoption docs and regression coverage
 - Polish Python ecosystem adoption docs and regressions
 - Polish Java ecosystem adoption docs and verify regressions
 - Add ecosystem-aware verify defaults and adoption docs
 - Add compact ecosystem detection foundation
 - Tighten auth middleware routing, context-only impact confidence, and verify domain reasons
 - Polish verify build alignment and translation domain calibration
-- Renamed product-specific Risk Register category keys to generic messaging and frontend-api keys.
 
 ## Hot Files
 
 | File | Reason | Last touched |
 | ---- | ------ | ------------ |
 | `src/cli/verify/buildVerify.ts` | 32 touches; Polish Python ecosystem adoption docs and regressions | 2026-06-30 |
-| `tests/verify.test.js` | 30 touches; Polish Python ecosystem adoption docs and regressions | 2026-06-30 |
+| `tests/verify.test.js` | 31 touches; Polish Go ecosystem adoption docs and regression coverage | 2026-06-30 |
 | `tests/impact.test.js` | 26 touches; Tighten auth middleware routing, context-only impact confidence, and verify domain reasons | 2026-06-30 |
 | `src/cli/impact/buildImpact.ts` | 26 touches; Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. | 2026-06-30 |
-| `README.md` | 23 touches; Polish Python ecosystem adoption docs and regressions | 2026-06-30 |
+| `README.md` | 24 touches; Polish Go ecosystem adoption docs and regression coverage | 2026-06-30 |
 | `tests/handoff.test.js` | 22 touches; Deduplicate handoff Work index memory against Last completed | 2026-06-20 |
 | `tests/work.test.js` | 21 touches; Tighten auth middleware routing, context-only impact confidence, and verify domain reasons | 2026-06-30 |
 | `tests/outputContract.test.js` | 19 touches; Add ecosystem-aware verify defaults and adoption docs | 2026-06-30 |
@@ -37,15 +37,15 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Work routing | 43 | Tighten auth middleware routing, context-only impact confidence, and verify domain reasons |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Repository context | 19 | Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments. |
-| Tests | 13 | Tightened Risk Register focused-risk evidence guards to prevent product-domain leakage and added regression coverage. |
+| Tests | 14 | Polish Go ecosystem adoption docs and regression coverage |
 | CLI commands | 13 | Stabilized verify output by replacing duplicated execution-plan command/path payloads with section refs and compacting domain check paths |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
 | Measurement and benchmarks | 7 | Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes. |
 
 ## Verification Patterns
 
-- `npm run build` (115)
-- `npm test` (52)
+- `npm run build` (116)
+- `npm test` (53)
 - `node --test tests/impact.test.js` (27)
 - `node --test tests/verify.test.js` (27)
 - `node --test tests/cli.test.js` (22)

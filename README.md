@@ -91,13 +91,15 @@ Example output:
 
 RCC remains repository intelligence for AI coding agents, not a Node-only tool. It can detect common Maven, Gradle, Python, Go, .NET, and workspace-style repository signals and use them to make `rcc verify` recommendations feel natural when no stronger task-specific command exists.
 
+RCC is distributed as a single npm CLI package. Java, Python, Go, Maven, Gradle, Spring Boot, Quarkus, and monorepo examples are adoption examples only; they show how RCC works inside those repository types. RCC does not publish separate Maven, PyPI, Go module, or .NET packages.
+
 Examples:
 
 - Java Maven: `mvn test`, with `mvn verify` as broader verification.
 - Java Gradle: `./gradlew test` and `./gradlew build` when the wrapper exists; otherwise `gradle test` and `gradle build`.
 - Spring Boot and Quarkus: use the Java Maven/Gradle signals and keep backend-only verification focused on Java paths.
 - Python: detects `pyproject.toml`, `requirements.txt`, `setup.py`, and `pytest.ini`; suggests `pytest` when pytest signals are present, otherwise `python -m pytest`. See [Python adoption](docs/ecosystems/python.md).
-- Go: `go test ./...`.
+- Go: detects `go.mod`; suggests `go test ./...` when no stronger task-specific command exists. See [Go adoption](docs/ecosystems/go.md).
 - .NET: `dotnet test`.
 - Node: existing Node behavior is preserved.
 

@@ -2392,6 +2392,90 @@ test("verify recommends Go defaults when no stronger task-specific command exist
   });
 });
 
+test("verify keeps Go backend service tasks out of generic frontend smoke checks", () => {
+  const impact = impactAnalysis({
+    task: "fix frontend-facing go account service bug",
+    affectedFiles: [{ path: "internal/account/service.go", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "go",
+        confidence: "high",
+        matchedSignals: ["go.mod"],
+        rootPath: "."
+      },
+      detections: [{
+        id: "go",
+        confidence: "high",
+        matchedSignals: ["go.mod"],
+        rootPath: "."
+      }]
+    }
+  });
+
+  assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
+  assert.ok(commandNames(plan.targetedTestCommands).includes("go test ./..."));
+});
+
+test("verify prefers the nearest Go module in multi-service monorepos", () => {
+  const impact = impactAnalysis({
+    task: "update billing service",
+    affectedFiles: [{ path: "services/billing/internal/invoice/service.go", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "go",
+        confidence: "high",
+        matchedSignals: ["services/accounts/go.mod"],
+        rootPath: "services/accounts"
+      },
+      detections: [
+        {
+          id: "go",
+          confidence: "high",
+          matchedSignals: ["services/accounts/go.mod"],
+          rootPath: "services/accounts"
+        },
+        {
+          id: "go",
+          confidence: "high",
+          matchedSignals: ["services/billing/go.mod"],
+          rootPath: "services/billing"
+        },
+        {
+          id: "monorepo",
+          confidence: "medium",
+          matchedSignals: ["services/"],
+          rootPath: "."
+        }
+      ]
+    }
+  });
+
+  assert.deepEqual(commandNames(plan.targetedTestCommands), ["go test ./..."]);
+  assert.match(plan.targetedTestCommands[0].reason, /go ecosystem default/);
+});
+
 test("verify recommends dotnet defaults when no stronger task-specific command exists", async () => {
   await withVerifyRepo(async (tempDir) => {
     await writeFixtureFile(tempDir, "Fixture.csproj", "<Project />\n");
