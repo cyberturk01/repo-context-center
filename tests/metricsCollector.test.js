@@ -68,6 +68,16 @@ test("metrics collector summarizes existing RCC builder outputs", async () => {
     assert.equal(metrics.schemaVersion, 1);
     assert.equal(metrics.command, "metrics");
     assert.equal(metrics.task, task);
+    assert.deepEqual(metrics.ecosystem, {
+      primary: "unknown",
+      confidence: "none",
+      detected: 0,
+      signals: 0,
+      roots: 0,
+      monorepo: false,
+      packageRoot: null,
+      ids: ""
+    });
     assert.deepEqual(metrics.routing, {
       taskSize: work.taskSize,
       taskMode: work.taskMode,
@@ -147,5 +157,21 @@ test("metrics collector exposes compact counts instead of raw arrays", async () 
     }
 
     assertCompact(metrics, "metrics");
+  });
+});
+
+test("metrics collector exposes compact ecosystem detection without changing routing counts", async () => {
+  await withMetricsRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "package.json", JSON.stringify({ scripts: { test: "node --test" } }, null, 2));
+    const { buildRepositoryMetrics } = require("../dist/analytics/metricsCollector");
+    const metrics = await buildRepositoryMetrics(tempDir, "fix login bug");
+
+    assert.equal(metrics.ecosystem.primary, "node");
+    assert.equal(metrics.ecosystem.confidence, "high");
+    assert.equal(metrics.ecosystem.monorepo, false);
+    assert.equal(metrics.ecosystem.packageRoot, ".");
+    assert.equal(metrics.ecosystem.ids, "node");
+    assert.equal(typeof metrics.routing.primaryFiles, "number");
+    assert.equal(typeof metrics.verification.targetedTests, "number");
   });
 });

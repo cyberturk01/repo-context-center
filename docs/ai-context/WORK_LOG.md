@@ -6712,4 +6712,114 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-30T14:12:59.567Z
+- Summary: Add compact ecosystem detection foundation
+- Changed files: `src/analytics/metricsCollector.ts`, `src/analytics/metricsTypes.ts`, `src/analytics/renderMetrics.ts`, `src/core/ecosystemDetector.ts`, `tests/ecosystemDetector.test.js`, `tests/metricsCollector.test.js`, `tests/metricsRenderer.test.js`, `tests/outputContract.test.js`
+- Verification: npm run build; node --test tests/ecosystemDetector.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/outputContract.test.js tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add compact ecosystem detection foundation",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "src/analytics/metricsTypes.ts",
+    "src/analytics/renderMetrics.ts",
+    "src/core/ecosystemDetector.ts",
+    "tests/ecosystemDetector.test.js",
+    "tests/metricsCollector.test.js",
+    "tests/metricsRenderer.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/ecosystemDetector.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/outputContract.test.js tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T14:12:59.567Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T14:12:59.567Z",
+  "summary": "Add compact ecosystem detection foundation",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "src/analytics/metricsTypes.ts",
+    "src/analytics/renderMetrics.ts",
+    "src/core/ecosystemDetector.ts",
+    "tests/ecosystemDetector.test.js",
+    "tests/metricsCollector.test.js",
+    "tests/metricsRenderer.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": "npm run build; node --test tests/ecosystemDetector.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/outputContract.test.js tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T14:24:11.738Z
+- Summary: Add ecosystem-aware verify defaults and adoption docs
+- Changed files: `docs/ecosystems/go.md`, `docs/ecosystems/java.md`, `docs/ecosystems/monorepo.md`, `docs/ecosystems/python.md`, `README.md`, `src/analytics/metricsCollector.ts`, `src/analytics/metricsTypes.ts`, `src/analytics/renderMetrics.ts`, `src/cli/verify/buildVerify.ts`, `src/core/ecosystemDetector.ts`
+- Verification: npm run build; node --test tests/ecosystemDetector.test.js tests/verify.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/outputContract.test.js; npm test
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Add ecosystem-aware verify defaults and adoption docs",
+  "files": [
+    "docs/ecosystems/go.md",
+    "docs/ecosystems/java.md",
+    "docs/ecosystems/monorepo.md",
+    "docs/ecosystems/python.md",
+    "README.md",
+    "src/analytics/metricsCollector.ts",
+    "src/analytics/metricsTypes.ts",
+    "src/analytics/renderMetrics.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/core/ecosystemDetector.ts",
+    "tests/ecosystemDetector.test.js",
+    "tests/metricsCollector.test.js",
+    "tests/metricsRenderer.test.js",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/ecosystemDetector.test.js tests/verify.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/outputContract.test.js; npm test"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T14:24:11.738Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T14:24:11.738Z",
+  "summary": "Add ecosystem-aware verify defaults and adoption docs",
+  "files": [
+    "docs/ecosystems/go.md",
+    "docs/ecosystems/java.md",
+    "docs/ecosystems/monorepo.md",
+    "docs/ecosystems/python.md",
+    "README.md",
+    "src/analytics/metricsCollector.ts",
+    "src/analytics/metricsTypes.ts",
+    "src/analytics/renderMetrics.ts",
+    "src/cli/verify/buildVerify.ts",
+    "src/core/ecosystemDetector.ts",
+    "tests/ecosystemDetector.test.js",
+    "tests/metricsCollector.test.js",
+    "tests/metricsRenderer.test.js",
+    "tests/outputContract.test.js",
+    "tests/verify.test.js"
+  ],
+  "verification": "npm run build; node --test tests/ecosystemDetector.test.js tests/verify.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/outputContract.test.js; npm test",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

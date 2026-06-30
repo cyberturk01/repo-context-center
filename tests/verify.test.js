@@ -1,5 +1,7 @@
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
+const { mkdir, mkdtemp, rm, writeFile } = require("node:fs/promises");
+const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
@@ -29,6 +31,27 @@ function runCli(args, options = {}) {
 
 function fixturePath(name) {
   return path.join(repoRoot, "fixtures", name);
+}
+
+async function writeFixtureFile(root, relativePath, content = "") {
+  const fullPath = path.join(root, relativePath);
+  await mkdir(path.dirname(fullPath), { recursive: true });
+  await writeFile(fullPath, content, "utf8");
+}
+
+async function withVerifyRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-verify-ecosystem-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Fixture repo guidance.\n");
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+function commandNames(commands) {
+  return commands.map((command) => command.command);
 }
 
 function confidenceExplanation(overrides = {}) {
@@ -2212,6 +2235,177 @@ test("buildVerificationPlanFromImpact preserves planned mode", async () => {
     JSON.parse(JSON.stringify(fromImpact)),
     JSON.parse(JSON.stringify(fromCwdAndTask))
   );
+});
+
+test("verify recommends Maven defaults when no stronger task-specific command exists", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "pom.xml", "<project></project>\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update account service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("mvn test"));
+    assert.ok(commandNames(plan.buildCommands).includes("mvn verify"));
+  });
+});
+
+test("verify recommends Gradle wrapper defaults when gradlew exists", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "build.gradle.kts", "plugins {}\n");
+    await writeFixtureFile(tempDir, "gradlew", "");
+
+    const plan = await buildVerificationPlan(tempDir, "update billing service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("./gradlew test"));
+    assert.ok(commandNames(plan.buildCommands).includes("./gradlew build"));
+  });
+});
+
+test("verify recommends Gradle defaults without wrapper when gradlew is absent", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "build.gradle", "plugins {}\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update billing service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("gradle test"));
+    assert.ok(commandNames(plan.buildCommands).includes("gradle build"));
+  });
+});
+
+test("verify recommends Python pytest defaults from pytest signals", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "pyproject.toml", "[project]\nname = \"fixture\"\n");
+    await writeFixtureFile(tempDir, "pytest.ini", "[pytest]\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update user service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("pytest"));
+  });
+});
+
+test("verify recommends Python module pytest fallback without pytest config signals", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "setup.py", "from setuptools import setup\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update user service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("python -m pytest"));
+  });
+});
+
+test("verify recommends Go defaults when no stronger task-specific command exists", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "go.mod", "module example.com/fixture\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update account service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("go test ./..."));
+  });
+});
+
+test("verify recommends dotnet defaults when no stronger task-specific command exists", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "Fixture.csproj", "<Project />\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update account service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("dotnet test"));
+  });
+});
+
+test("verify keeps Node behavior unchanged when no stronger command exists", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "package.json", JSON.stringify({ scripts: { test: "node --test" } }, null, 2));
+
+    const plan = await buildVerificationPlan(tempDir, "update account service", { taskOnly: true });
+
+    assert.equal(commandNames(plan.targetedTestCommands).includes("npm test"), false);
+    assert.equal(commandNames(plan.targetedTestCommands).includes("node --test"), false);
+    assert.equal(plan.targetedTestCommands.length, 0);
+  });
+});
+
+test("verify prefers affected monorepo package ecosystem over root task wording", () => {
+  const impact = impactAnalysis({
+    task: "update package service",
+    affectedFiles: [{ path: "services/api/src/main/java/com/example/AccountService.java", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "node",
+        confidence: "high",
+        matchedSignals: ["package.json"],
+        rootPath: "."
+      },
+      detections: [
+        {
+          id: "node",
+          confidence: "high",
+          matchedSignals: ["package.json"],
+          rootPath: "."
+        },
+        {
+          id: "maven",
+          confidence: "high",
+          matchedSignals: ["services/api/pom.xml"],
+          rootPath: "services/api"
+        },
+        {
+          id: "monorepo",
+          confidence: "high",
+          matchedSignals: ["package.json#workspaces", "services/"],
+          rootPath: "."
+        }
+      ]
+    }
+  });
+
+  assert.ok(commandNames(plan.targetedTestCommands).includes("mvn test"));
+  assert.ok(commandNames(plan.buildCommands).includes("mvn verify"));
+});
+
+test("verify does not suggest generic frontend smoke checks for backend-only non-Node tasks", () => {
+  const impact = impactAnalysis({
+    task: "fix frontend account service bug",
+    affectedFiles: [{ path: "src/main/java/com/example/AccountService.java", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "maven",
+        confidence: "high",
+        matchedSignals: ["pom.xml"],
+        rootPath: "."
+      },
+      detections: [{
+        id: "maven",
+        confidence: "high",
+        matchedSignals: ["pom.xml"],
+        rootPath: "."
+      }]
+    }
+  });
+
+  assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
+  assert.ok(commandNames(plan.targetedTestCommands).includes("mvn test"));
 });
 
 test("verify --planned --json selects planned-task mode", () => {

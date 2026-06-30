@@ -87,6 +87,21 @@ Example output:
 - `supportingFiles` are optional follow-up files when the route is not enough.
 - `readFirst` contains repository rules the agent should read before editing.
 
+## Non-Node Usage
+
+RCC remains repository intelligence for AI coding agents, not a Node-only tool. It can detect common Maven, Gradle, Python, Go, .NET, and workspace-style repository signals and use them to make `rcc verify` recommendations feel natural when no stronger task-specific command exists.
+
+Examples:
+
+- Maven: `mvn test`, with `mvn verify` as broader verification.
+- Gradle: `./gradlew test` and `./gradlew build` when the wrapper exists; otherwise `gradle test` and `gradle build`.
+- Python: `pytest` when pytest signals are present; otherwise `python -m pytest`.
+- Go: `go test ./...`.
+- .NET: `dotnet test`.
+- Node: existing Node behavior is preserved.
+
+RCC prints suggested commands but does not execute them. See [Java](docs/ecosystems/java.md), [Python](docs/ecosystems/python.md), [Go](docs/ecosystems/go.md), and [monorepo](docs/ecosystems/monorepo.md) adoption notes.
+
 Preview installation without writing files:
 
 ```sh
@@ -627,7 +642,7 @@ Use `metrics --json` when a tool needs compact RepositoryMetrics for optional di
 npx repo-context-center metrics "fix login regression" --json
 ```
 
-`metrics --json` is a summary contract, not a raw data export. Stable top-level fields are `schemaVersion`, `command`, `task`, `routing`, `tokens`, `freshness`, `impact`, and `verification`. The nested objects contain counts, confidence values, freshness status, and discovery/context-scope token-saving estimates. Raw arrays from Work, Impact, and Verify are intentionally omitted.
+`metrics --json` is a summary contract, not a raw data export. Stable top-level fields are `schemaVersion`, `command`, `task`, `ecosystem`, `routing`, `tokens`, `freshness`, `impact`, and `verification`. The nested objects contain counts, confidence values, freshness status, detected ecosystem summaries, and discovery/context-scope token-saving estimates. Raw arrays from Work, Impact, and Verify are intentionally omitted.
 
 Use `handoff --json` or `handoff --agent` when a tool needs continuation context:
 
@@ -765,6 +780,112 @@ jobs:
 
       - name: Check generated context is fresh
         run: npx repo-context-center map --check --max-files 300
+```
+
+Ecosystem CI examples can keep the RCC steps identical while the project setup changes around them.
+
+Node:
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+- run: npm install -g repo-context-center@latest
+- run: rcc map --check
+- run: rcc work "review pull request impact" --agent
+- run: rcc impact "review pull request impact" --json
+- run: rcc verify "review pull request impact"
+- run: rcc metrics "review pull request impact" --json
+  if: always()
+```
+
+Java Maven:
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+- uses: actions/setup-java@v4
+  with:
+    distribution: temurin
+    java-version: 21
+- run: npm install -g repo-context-center@latest
+- run: rcc map --check
+- run: rcc work "review service change" --agent
+- run: rcc impact "review service change" --json
+- run: rcc verify "review service change"
+- run: rcc metrics "review service change" --json
+  if: always()
+```
+
+Java Gradle:
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+- uses: actions/setup-java@v4
+  with:
+    distribution: temurin
+    java-version: 21
+- run: npm install -g repo-context-center@latest
+- run: rcc map --check
+- run: rcc work "review gradle service change" --agent
+- run: rcc impact "review gradle service change" --json
+- run: rcc verify "review gradle service change"
+- run: rcc metrics "review gradle service change" --json
+  if: always()
+```
+
+Python:
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+- uses: actions/setup-python@v5
+  with:
+    python-version: "3.12"
+- run: npm install -g repo-context-center@latest
+- run: rcc map --check
+- run: rcc work "review python service change" --agent
+- run: rcc impact "review python service change" --json
+- run: rcc verify "review python service change"
+- run: rcc metrics "review python service change" --json
+  if: always()
+```
+
+Go:
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+- uses: actions/setup-go@v5
+  with:
+    go-version: "1.22"
+- run: npm install -g repo-context-center@latest
+- run: rcc map --check
+- run: rcc work "review go service change" --agent
+- run: rcc impact "review go service change" --json
+- run: rcc verify "review go service change"
+- run: rcc metrics "review go service change" --json
+  if: always()
+```
+
+Monorepo:
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+- run: npm install -g repo-context-center@latest
+- run: rcc map --check --max-files 500
+- run: rcc work "review workspace change" --agent
+- run: rcc impact "review workspace change" --json
+- run: rcc verify "review workspace change"
+- run: rcc metrics "review workspace change" --json
+  if: always()
 ```
 
 If CI fails, refresh generated sections locally:

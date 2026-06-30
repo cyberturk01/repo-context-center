@@ -66,6 +66,7 @@ const stableMetricsFields = [
   "schemaVersion",
   "command",
   "task",
+  "ecosystem",
   "routing",
   "tokens",
   "freshness",
@@ -359,6 +360,16 @@ function assertMetricsJsonContract(metrics, task) {
   assert.equal(metrics.schemaVersion, 1);
   assert.equal(metrics.command, "metrics");
   assert.equal(metrics.task, task);
+  assertHasKeys(metrics.ecosystem, [
+    "primary",
+    "confidence",
+    "detected",
+    "signals",
+    "roots",
+    "monorepo",
+    "packageRoot",
+    "ids"
+  ], "metrics ecosystem");
   assertHasKeys(metrics.routing, [
     "taskSize",
     "taskMode",
@@ -406,6 +417,16 @@ function assertMetricsJsonContract(metrics, task) {
     "suggestedCommands"
   ], "metrics impact summary");
   assertNumberFields(metrics.routing, metricsNumericFields.routing, "metrics.routing");
+  assertNumberFields(metrics.ecosystem, [
+    "detected",
+    "signals",
+    "roots"
+  ], "metrics.ecosystem");
+  assert.equal(typeof metrics.ecosystem.primary, "string");
+  assert.equal(typeof metrics.ecosystem.confidence, "string");
+  assert.equal(typeof metrics.ecosystem.monorepo, "boolean");
+  assert.equal(typeof metrics.ecosystem.ids, "string");
+  assert.ok(metrics.ecosystem.packageRoot === null || typeof metrics.ecosystem.packageRoot === "string");
   assertNumberFields(metrics.tokens, metricsNumericFields.tokens, "metrics.tokens");
   assertNumberFields(metrics.freshness, metricsNumericFields.freshness, "metrics.freshness");
   assertNumberFields(metrics.impact.summary, metricsNumericFields.impactSummary, "metrics.impact.summary");
@@ -431,7 +452,7 @@ function assertMetricsJsonContract(metrics, task) {
     "confidenceExplanation"
   ], "metrics top-level");
   assertOmitsKeys(metrics, forbiddenMetricsRawArrayFields, "metrics top-level");
-  for (const section of [metrics.routing, metrics.tokens, metrics.freshness, metrics.impact, metrics.verification]) {
+  for (const section of [metrics.ecosystem, metrics.routing, metrics.tokens, metrics.freshness, metrics.impact, metrics.verification]) {
     assertOmitsKeys(section, [
       "recommendedFiles",
       "relevantTests",

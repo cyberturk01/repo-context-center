@@ -11,6 +11,12 @@ import {
   type Domain as VerificationDomain,
   type DomainMatch as CoreDomainMatch
 } from "../../core/domainEngine";
+import {
+  detectRepositoryEcosystems,
+  type EcosystemDetection,
+  type EcosystemDetectionReport,
+  type EcosystemId
+} from "../../core/ecosystemDetector";
 import type {
   VerificationCheck,
   VerificationCommand,
@@ -28,6 +34,7 @@ const plannedModeNote = "Planned verification mode: plan uses task routing, impa
 const runnableNodeTestPattern = /\.(test|spec)\.[cm]?[jt]sx?$/i;
 const maximumTargetedTestCommandLength = 300;
 const defaultVerificationLevel: VerificationLevel = "balanced";
+type VerifyEcosystemId = Exclude<EcosystemId, "monorepo">;
 const priorityRank: Record<VerificationPriority, number> = {
   critical: 0,
   high: 1,
@@ -488,6 +495,147 @@ function normalizeVerificationPlan(plan: VerificationPlan, level: VerificationLe
 
 function commandsByType(commands: ImpactCommand[], type: ImpactCommand["type"]): ImpactCommand[] {
   return commands.filter((command) => command.type === type);
+}
+
+function ecosystemPathMatches(rootPath: string, filePath: string): boolean {
+  return rootPath === "." || filePath === rootPath || filePath.startsWith(`${rootPath}/`);
+}
+
+function ecosystemMatchScore(detection: EcosystemDetection, filePaths: string[]): number {
+  if (detection.id === "monorepo") {
+    return -1;
+  }
+
+  if (filePaths.length === 0) {
+    return detection.rootPath === "." ? 1 : 0;
+  }
+
+  const matchingPaths = filePaths.filter((filePath) => ecosystemPathMatches(detection.rootPath, filePath));
+  if (matchingPaths.length === 0) {
+    return -1;
+  }
+
+  return (detection.rootPath === "." ? 1 : 10 + detection.rootPath.length) + matchingPaths.length;
+}
+
+function ecosystemForImpact(impact: ImpactAnalysis, ecosystem?: EcosystemDetectionReport): EcosystemDetection | null {
+  if (!ecosystem) {
+    return null;
+  }
+
+  const filePaths = uniqueStrings([
+    ...impact.changedFiles.map((file) => file.path),
+    ...impact.affectedFiles.map((file) => file.path),
+    ...impact.affectedTests.map((file) => file.path)
+  ]);
+  const ranked = ecosystem.detections
+    .filter((detection) => detection.id !== "monorepo")
+    .map((detection, index) => ({
+      detection,
+      index,
+      score: ecosystemMatchScore(detection, filePaths)
+    }))
+    .filter((item) => item.score >= 0)
+    .sort((left, right) => (
+      right.score - left.score
+      || confidenceSortScore(right.detection.confidence) - confidenceSortScore(left.detection.confidence)
+      || left.index - right.index
+    ));
+
+  return ranked[0]?.detection ?? ecosystem.primary;
+}
+
+function confidenceSortScore(confidence: EcosystemDetection["confidence"]): number {
+  return confidence === "high" ? 2 : confidence === "medium" ? 1 : 0;
+}
+
+function gradleCommand(detection: EcosystemDetection, task: "test" | "build"): string {
+  return detection.matchedSignals.some((signal) => signal.endsWith("gradlew"))
+    ? `./gradlew ${task}`
+    : `gradle ${task}`;
+}
+
+function ecosystemTestCommand(detection: EcosystemDetection): ImpactCommand | null {
+  const id = detection.id as VerifyEcosystemId;
+  const commands: Partial<Record<VerifyEcosystemId, string>> = {
+    maven: "mvn test",
+    gradle: gradleCommand(detection, "test"),
+    python: detection.matchedSignals.some((signal) => /(?:^|\/)(pytest\.ini|pyproject\.toml|requirements\.txt)$/.test(signal))
+      ? "pytest"
+      : "python -m pytest",
+    go: "go test ./...",
+    dotnet: "dotnet test"
+  };
+  const command = commands[id];
+
+  if (!command) {
+    return null;
+  }
+
+  return {
+    command,
+    type: "test",
+    scope: "project",
+    confidence: "medium",
+    reason: `${id} ecosystem default when no stronger affected test command exists`
+  };
+}
+
+function ecosystemBuildCommand(detection: EcosystemDetection): ImpactCommand | null {
+  const id = detection.id as VerifyEcosystemId;
+
+  if (id === "maven") {
+    return {
+      command: "mvn verify",
+      type: "verification",
+      scope: "project",
+      confidence: "medium",
+      reason: "maven ecosystem broader verification default"
+    };
+  }
+
+  if (id === "gradle") {
+    return {
+      command: gradleCommand(detection, "build"),
+      type: "build",
+      scope: "project",
+      confidence: "medium",
+      reason: "gradle ecosystem build default"
+    };
+  }
+
+  return null;
+}
+
+function ecosystemFallbackCommands(
+  impact: ImpactAnalysis,
+  ecosystem: EcosystemDetectionReport | undefined,
+  targetedTestCommands: ImpactCommand[],
+  buildCommands: ImpactCommand[]
+): { targetedTestCommands: ImpactCommand[]; buildCommands: ImpactCommand[] } {
+  const detection = ecosystemForImpact(impact, ecosystem);
+
+  if (!detection || detection.id === "node" || detection.id === "monorepo") {
+    return { targetedTestCommands, buildCommands };
+  }
+
+  const fallbackTest = targetedTestCommands.length === 0 ? ecosystemTestCommand(detection) : null;
+  const fallbackBuild = buildCommands.length === 0 ? ecosystemBuildCommand(detection) : null;
+
+  return {
+    targetedTestCommands: fallbackTest ? [...targetedTestCommands, fallbackTest] : targetedTestCommands,
+    buildCommands: fallbackBuild ? [...buildCommands, fallbackBuild] : buildCommands
+  };
+}
+
+function shouldSuppressFrontendChecks(impact: ImpactAnalysis, ecosystem?: EcosystemDetectionReport): boolean {
+  const detection = ecosystemForImpact(impact, ecosystem);
+
+  return Boolean(
+    detection
+    && !["node", "monorepo"].includes(detection.id)
+    && !impact.affectedFiles.some((file) => isFrontendVisiblePath(file.path))
+  );
 }
 
 function targetedTestLimit(task: string): number {
@@ -1003,12 +1151,13 @@ function domainManualChecks(impact: ImpactAnalysis): ImpactVerificationHint[] {
   return compactAllChecks(checks);
 }
 
-function smokeChecksFromImpact(impact: ImpactAnalysis): ImpactVerificationHint[] {
+function smokeChecksFromImpact(impact: ImpactAnalysis, ecosystem?: EcosystemDetectionReport): ImpactVerificationHint[] {
   if (isContextOnlyVerification(impact)) {
     return [];
   }
 
-  const checks: ImpactVerificationHint[] = [...domainSmokeChecks(impact)];
+  const checks: ImpactVerificationHint[] = domainSmokeChecks(impact)
+    .filter((check) => !shouldSuppressFrontendChecks(impact, ecosystem) || checkGroup(check.type) !== "frontend-ui");
   const text = impactText(impact).toLowerCase();
   const docsOnly = impact.affectedFiles.length > 0 && impact.affectedFiles.every((file) => isDocsPath(file.path));
 
@@ -1225,12 +1374,15 @@ export function createVerificationPlan(input: VerificationPlanInput): Verificati
 
 export function createVerificationPlanFromImpact(
   impact: ImpactAnalysis,
-  level: VerificationLevel = defaultVerificationLevel
+  level: VerificationLevel = defaultVerificationLevel,
+  ecosystem?: EcosystemDetectionReport
 ): VerificationPlan {
   const contextChangePaths = impact.contextChanges.map((file) => file.path);
   const contextOnly = isContextOnlyVerification(impact);
   const targetedTests = promotedTargetedTests(impact);
   const targetedTestCommands = targetedTestCommandsFromTests(targetedTests);
+  const suggestedBuildCommands = commandsByType(impact.suggestedCommands, "build");
+  const fallbackCommands = ecosystemFallbackCommands(impact, ecosystem, targetedTestCommands, suggestedBuildCommands);
 
   if (contextOnly) {
     return normalizeVerificationPlan(createVerificationPlan({
@@ -1239,7 +1391,7 @@ export function createVerificationPlanFromImpact(
       summary: impact.summary,
       targetedTests: [],
       targetedTestCommands: [],
-      buildCommands: commandsByType(impact.suggestedCommands, "build"),
+      buildCommands: fallbackCommands.buildCommands,
       smokeChecks: [],
       manualChecks: compactChecks([
         manualCheck("context-changes", "Manually review context changes for workflow and routing impact.", contextChangePaths)
@@ -1256,9 +1408,9 @@ export function createVerificationPlanFromImpact(
     mode: impact.mode,
     summary: impact.summary,
     targetedTests,
-    targetedTestCommands,
-    buildCommands: commandsByType(impact.suggestedCommands, "build"),
-    smokeChecks: smokeChecksFromImpact(impact),
+    targetedTestCommands: fallbackCommands.targetedTestCommands,
+    buildCommands: fallbackCommands.buildCommands,
+    smokeChecks: smokeChecksFromImpact(impact, ecosystem),
     manualChecks: [
       ...impact.verificationHints,
       ...domainManualChecks(impact),
@@ -1275,7 +1427,8 @@ export function createVerificationPlanFromImpact(
 
 export function createPlannedVerificationPlanFromImpact(
   impact: ImpactAnalysis,
-  level: VerificationLevel = defaultVerificationLevel
+  level: VerificationLevel = defaultVerificationLevel,
+  ecosystem?: EcosystemDetectionReport
 ): VerificationPlan {
   const plannedImpact: ImpactAnalysis = {
     ...impact,
@@ -1286,6 +1439,8 @@ export function createPlannedVerificationPlanFromImpact(
   const contextChangePaths = includeContextReview ? plannedImpact.contextChanges.map((file) => file.path) : [];
   const targetedTests = promotedTargetedTests(plannedImpact);
   const targetedTestCommands = targetedTestCommandsFromTests(targetedTests);
+  const suggestedBuildCommands = commandsByType(plannedImpact.suggestedCommands, "build");
+  const fallbackCommands = ecosystemFallbackCommands(plannedImpact, ecosystem, targetedTestCommands, suggestedBuildCommands);
   const notes = plannedNotesFromImpact(plannedImpact);
 
   return normalizeVerificationPlan(createVerificationPlan({
@@ -1293,9 +1448,9 @@ export function createPlannedVerificationPlanFromImpact(
     mode: plannedImpact.mode,
     summary: plannedImpact.summary,
     targetedTests,
-    targetedTestCommands,
-    buildCommands: commandsByType(plannedImpact.suggestedCommands, "build"),
-    smokeChecks: smokeChecksFromImpact(plannedImpact),
+    targetedTestCommands: fallbackCommands.targetedTestCommands,
+    buildCommands: fallbackCommands.buildCommands,
+    smokeChecks: smokeChecksFromImpact(plannedImpact, ecosystem),
     manualChecks: [
       ...plannedImpact.verificationHints,
       ...domainManualChecks(plannedImpact),
@@ -1312,15 +1467,15 @@ export function createPlannedVerificationPlanFromImpact(
 
 export function buildVerificationPlanFromImpact(
   impact: ImpactAnalysis,
-  options: { level?: VerificationLevel; planned?: boolean } = {}
+  options: { level?: VerificationLevel; planned?: boolean; ecosystem?: EcosystemDetectionReport } = {}
 ): VerificationPlan {
   const level = options.level ?? defaultVerificationLevel;
 
   if (options.planned) {
-    return createPlannedVerificationPlanFromImpact(impact, level);
+    return createPlannedVerificationPlanFromImpact(impact, level, options.ecosystem);
   }
 
-  return createVerificationPlanFromImpact(impact, level);
+  return createVerificationPlanFromImpact(impact, level, options.ecosystem);
 }
 
 export async function buildVerificationPlan(
@@ -1331,6 +1486,7 @@ export async function buildVerificationPlan(
   const impact = await buildImpactAnalysis(cwd, task, {
     taskOnly: options.taskOnly ?? false
   });
+  const ecosystem = await detectRepositoryEcosystems(cwd);
 
-  return buildVerificationPlanFromImpact(impact, options);
+  return buildVerificationPlanFromImpact(impact, { ...options, ecosystem });
 }
