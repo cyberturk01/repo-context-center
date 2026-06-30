@@ -6520,4 +6520,112 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-30T12:36:10.460Z
+- Summary: Tightened Risk Register focused-risk evidence guards to prevent product-domain leakage and added regression coverage.
+- Changed files: `src/core/repoMapper.ts`, `tests/map.test.js`
+- Verification: npm run build; node --test tests/riskRegister.test.js tests/learningQuality.test.js tests/domainEngine.test.js tests/outputContract.test.js; node --test tests/map.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Tightened Risk Register focused-risk evidence guards to prevent product-domain leakage and added regression coverage.",
+  "files": [
+    "src/core/repoMapper.ts",
+    "tests/map.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/riskRegister.test.js tests/learningQuality.test.js tests/domainEngine.test.js tests/outputContract.test.js; node --test tests/map.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T12:36:10.460Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T12:36:10.460Z",
+  "summary": "Tightened Risk Register focused-risk evidence guards to prevent product-domain leakage and added regression coverage.",
+  "files": [
+    "src/core/repoMapper.ts",
+    "tests/map.test.js"
+  ],
+  "verification": "npm run build; node --test tests/riskRegister.test.js tests/learningQuality.test.js tests/domainEngine.test.js tests/outputContract.test.js; node --test tests/map.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T12:37:20.924Z
+- Summary: Tightened focused-risk evidence guards and exact-word product-domain matching to prevent Risk Register leakage.
+- Changed files: `src/core/repoMapper.ts`, `tests/map.test.js`
+- Verification: npm run build; node --test tests/riskRegister.test.js tests/learningQuality.test.js tests/domainEngine.test.js tests/outputContract.test.js; node --test tests/map.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Tightened focused-risk evidence guards and exact-word product-domain matching to prevent Risk Register leakage.",
+  "files": [
+    "src/core/repoMapper.ts",
+    "tests/map.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/riskRegister.test.js tests/learningQuality.test.js tests/domainEngine.test.js tests/outputContract.test.js; node --test tests/map.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T12:37:20.924Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T12:37:20.924Z",
+  "summary": "Tightened focused-risk evidence guards and exact-word product-domain matching to prevent Risk Register leakage.",
+  "files": [
+    "src/core/repoMapper.ts",
+    "tests/map.test.js"
+  ],
+  "verification": "npm run build; node --test tests/riskRegister.test.js tests/learningQuality.test.js tests/domainEngine.test.js tests/outputContract.test.js; node --test tests/map.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T13:18:18.123Z
+- Summary: Renamed product-specific Risk Register category keys to generic messaging and frontend-api keys.
+- Changed files: `src/core/repoMapper.ts`, `tests/map.test.js`
+- Verification: npm run build; node --test tests/map.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Renamed product-specific Risk Register category keys to generic messaging and frontend-api keys.",
+  "files": [
+    "src/core/repoMapper.ts",
+    "tests/map.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/map.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T13:18:18.123Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T13:18:18.123Z",
+  "summary": "Renamed product-specific Risk Register category keys to generic messaging and frontend-api keys.",
+  "files": [
+    "src/core/repoMapper.ts",
+    "tests/map.test.js"
+  ],
+  "verification": "npm run build; node --test tests/map.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->

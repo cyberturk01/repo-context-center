@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Renamed product-specific Risk Register category keys to generic messaging and frontend-api keys.
+- Tightened focused-risk evidence guards and exact-word product-domain matching to prevent Risk Register leakage.
+- Tightened Risk Register focused-risk evidence guards to prevent product-domain leakage and added regression coverage.
 - Updated README and CHANGELOG to document metrics reuse as optional diagnostic behavior without changing core workflow positioning.
 - Added architecture guard preventing metrics collector from directly calling duplicate high-level Work, Measure, Impact, and Verify builders.
 - Refactored metrics collector to reuse task contexts, route-derived measure reports, impact-from-context, and verify-from-impact helpers whi...
 - Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract.
-- Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it.
-- Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments.
-- Repositioned metrics as optional diagnostic insight instead of a core workflow step.
 
 ## Hot Files
 
@@ -34,17 +34,17 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
 | Work routing | 42 | Added architecture guard preventing metrics collector from directly calling duplicate high-level Work, Measure, Impact, and Verify builders. |
-| General maintenance | 39 | Updated README and CHANGELOG to document metrics reuse as optional diagnostic behavior without changing core workflow positioning. |
+| General maintenance | 41 | Renamed product-specific Risk Register category keys to generic messaging and frontend-api keys. |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Repository context | 19 | Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments. |
+| Tests | 13 | Tightened Risk Register focused-risk evidence guards to prevent product-domain leakage and added regression coverage. |
 | CLI commands | 13 | Stabilized verify output by replacing duplicated execution-plan command/path payloads with section refs and compacting domain check paths |
-| Tests | 12 | Hardened verify JSON output contract coverage for agent-safe parseable plans |
 | Agent guidance | 9 | Softened rcc doctor stale local install guidance when active CLI and shell commands are healthy |
 | Measurement and benchmarks | 7 | Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes. |
 
 ## Verification Patterns
 
-- `npm run build` (106)
+- `npm run build` (109)
 - `npm test` (49)
 - `node --test tests/impact.test.js` (26)
 - `node --test tests/verify.test.js` (25)

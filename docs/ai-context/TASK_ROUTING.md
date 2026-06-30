@@ -16,24 +16,23 @@ Before broad search: check `DO_NOT_READ.md`.
 | --- | --- |
 | CLI behavior | `src/cli/index.ts`, `src/cli/commands/archive.ts`, `src/cli/commands/decision.ts`, `src/cli/commands/doctor.ts` |
 | Configuration | `src/core/config.ts`, `src/core/validator.ts`, `src/core/templateInstaller.ts`, `guardian.config.json` |
-| Analyzer / risk scoring | `src/core/validator.ts` |
+| Analyzer / risk scoring | `src/core/validator.ts`, `src/core/task-analysis/scoreRelationships.ts` |
 | Report rendering | `src/core/repoMapper.ts`, `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/map.ts` |
 | Repository scanning / classification | `src/core/scanner.ts`, `src/core/fileSystem.ts`, `src/core/contextFiles.ts`, `src/templates/generic/docs/ai-context/SYMBOL_MAP.md` |
 | Template / context generation | `src/templates/generic/AGENTS.md`, `src/templates/generic/docs/ai-context/CHANGE_LOG.md`, `src/templates/generic/docs/ai-context/COMMUNICATION_MODE.md`, `src/templates/generic/docs/ai-context/DEPENDENCY_MAP.md` |
 | CI / release workflow | `.github/workflows/ai-project-guardian.yml`, `.github/workflows/ci.yml`, `package.json`, `tests/v07-release.test.js` |
-| Tests / fixtures | `tests/agent-startup-adoption.test.js`, `tests/archive.test.js`, `tests/fixtures/learning-cases.json`, `tests/fixtures/routing-cases.json` |
+| Tests / fixtures | `tests/agent-startup-adoption.test.js`, `tests/archive.test.js`, `fixtures/github-integration/AGENTS.md`, `fixtures/github-integration/docs/ai-context/TASK_ROUTING.md` |
 
 ### Task Routing
 | Task Type | Start With | Then Check | Tests | Notes |
 | --- | --- | --- | --- | --- |
 | CLI flags/output | `src/cli/commands/archive.ts`, `src/cli/commands/decision.ts`, `src/cli/commands/doctor.ts`, `src/cli/commands/done.ts` | core command handler, README examples, CLI tests | `tests/archive.test.js`, `tests/cli.test.js`, `tests/decision.test.js` | Keep output stable for tests and scripts. |
 | Config behavior | `guardian.config.json`, `package.json`, `src/cli/commands/validate.ts`, `src/core/config.ts` | template installer, validator, init tests | `tests/init.test.js`, `tests/validate.test.js` | Preserve existing user files unless force behavior is explicit. |
-| Analyzer/risk rule changes | `src/core/validator.ts` | validator, hotspots, risk register tests | `tests/validate.test.js` | Risk and analyzer wording affects future agent read order. |
+| Analyzer/risk rule changes | `src/core/task-analysis/scoreRelationships.ts`, `src/core/validator.ts` | validator, hotspots, risk register tests | `tests/task-analysis.test.js`, `tests/validate.test.js` | Risk and analyzer wording affects future agent read order. |
 | Report rendering | `src/cli/commands/archive.ts`, `src/cli/commands/estimate.ts`, `src/cli/commands/map.ts`, `src/core/repoMapper.ts` | renderers, snapshot-like tests, README examples | `tests/archive.test.js`, `tests/estimate.test.js`, `tests/map.test.js` | Keep generated sections deterministic. |
 | Repository scanning/classification | `src/cli/commands/scan.ts`, `src/core/contextFiles.ts`, `src/core/fileSystem.ts`, `src/core/scanner.ts` | context file rules, symbol map output, scan tests | `tests/scan.test.js` | Avoid full source reads except bounded symbol extraction. |
 | Template/context generation | `src/templates/generic/AGENTS.md`, `src/templates/generic/docs/ai-context/CHANGE_LOG.md`, `src/templates/generic/docs/ai-context/COMMUNICATION_MODE.md`, `src/templates/generic/docs/ai-context/DEPENDENCY_MAP.md` | template installer, context docs, template tests | none detected | Keep templates compact and aligned with generated context files. |
-| Test fixture/snapshot updates | `tests/fixtures/learning-cases.json`, `tests/fixtures/routing-cases.json` | affected tests, generated docs, do-not-read rules | none detected | Fixture drift can hide broken routing or map output. |
-| Staff/POS/public flows | `src/core/renderRepositoryLearning.ts`, `src/core/repositoryLearning.ts`, `src/core/repositoryLearningRouting.ts`, `src/core/repositoryUnderstanding.ts` | role checks, route handlers, e2e tests | `tests/renderRepositoryLearning.test.js`, `tests/repositoryLearning.test.js`, `tests/repositoryUnderstanding.test.js` | User-visible and often role-sensitive. |
+| Test fixture/snapshot updates | `fixtures/github-integration/AGENTS.md`, `fixtures/github-integration/docs/ai-context/TASK_ROUTING.md`, `fixtures/github-integration/expected.json`, `fixtures/github-integration/src/api/githubController.ts` | affected tests, generated docs, do-not-read rules | none detected | Fixture drift can hide broken routing or map output. |
 | GitHub Actions / release workflow | `.github/workflows/ai-project-guardian.yml`, `.github/workflows/ci.yml`, `scripts/release-check.js` | package scripts, workflow files, release docs | `tests/scripts/release-check.test.js`, `tests/v07-release.test.js` | Use Investigation Mode before changing deploy or release behavior. |
 
 _Generated by repo-context-center. Edit outside this section._
