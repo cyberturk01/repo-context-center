@@ -100,6 +100,29 @@ test("measure uses work route helpers without importing workCommand", async () =
   assert.doesNotMatch(builderSource, /\bworkCommand\b/);
 });
 
+test("metrics collector reuses shared analysis helpers instead of high-level builders", async () => {
+  const source = await readFile(path.join(repoRoot, "src", "analytics", "metricsCollector.ts"), "utf8");
+
+  for (const helper of [
+    "buildTaskAnalysis",
+    "buildWorkBriefFromTaskContext",
+    "buildMeasureReportFromRoute",
+    "buildImpactAnalysisFromTaskContext",
+    "buildVerificationPlanFromImpact"
+  ]) {
+    assert.match(source, new RegExp(`\\b${helper}\\b`), `metrics collector should use ${helper}`);
+  }
+
+  for (const builder of [
+    "buildWorkBriefForTask",
+    "buildMeasureReport",
+    "buildImpactAnalysis",
+    "buildVerificationPlan"
+  ]) {
+    assert.doesNotMatch(source, new RegExp(`\\b${builder}\\s*\\(`), `metrics collector should not call ${builder}`);
+  }
+});
+
 test("handoff uses work brief helpers through handoff builders without importing workCommand", async () => {
   const commandSource = await readFile(path.join(commandsDir, "handoff.ts"), "utf8");
   const builderSource = await readFile(path.join(repoRoot, "src", "cli", "handoff", "buildHandoffBrief.ts"), "utf8");

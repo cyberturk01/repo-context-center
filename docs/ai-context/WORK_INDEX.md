@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Added architecture guard preventing metrics collector from directly calling duplicate high-level Work, Measure, Impact, and Verify builders.
+- Refactored metrics collector to reuse task contexts, route-derived measure reports, impact-from-context, and verify-from-impact helpers whi...
 - Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract.
 - Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it.
 - Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments.
 - Repositioned metrics as optional diagnostic insight instead of a core workflow step.
 - Updated README and CHANGELOG for recent metrics and verify contract work.
-- Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes.
-- Added rcc metrics command as a thin wrapper over repository metrics collector and renderer.
 
 ## Hot Files
 
@@ -33,7 +33,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Work routing | 40 | Refactored Measure to build reports from an existing PublicAgentRoute while preserving normal measure behavior and JSON contract. |
+| Work routing | 42 | Added architecture guard preventing metrics collector from directly calling duplicate high-level Work, Measure, Impact, and Verify builders. |
 | General maintenance | 38 | Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Repository context | 19 | Refactored Impact to build from existing TaskAnalysisResult while preserving JSON output and hidden context attachments. |
@@ -44,7 +44,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (104)
+- `npm run build` (106)
 - `npm test` (49)
 - `node --test tests/impact.test.js` (26)
 - `node --test tests/verify.test.js` (25)

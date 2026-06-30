@@ -1,7 +1,9 @@
-import { buildImpactAnalysis } from "../cli/impact/buildImpact";
-import { buildMeasureReport } from "../cli/measure/buildMeasure";
+import { buildImpactAnalysisFromTaskContext } from "../cli/impact/buildImpact";
+import { buildMeasureReportFromRoute } from "../cli/measure/buildMeasure";
 import { buildVerificationPlanFromImpact } from "../cli/verify/buildVerify";
-import { buildWorkBriefForTask } from "../cli/work/buildWorkBrief";
+import { buildWorkBriefFromTaskContext } from "../cli/work/buildWorkBrief";
+import { toAgentRoute } from "../cli/work/renderAgent";
+import { buildTaskAnalysis } from "../core/task-analysis";
 import type { RepositoryMetrics, RepositoryMetricsSources } from "./metricsTypes";
 
 export function repositoryMetricsFromSources(sources: RepositoryMetricsSources): RepositoryMetrics {
@@ -54,11 +56,21 @@ export function repositoryMetricsFromSources(sources: RepositoryMetricsSources):
 }
 
 export async function buildRepositoryMetrics(cwd: string, task: string): Promise<RepositoryMetrics> {
-  const [work, measure, impact] = await Promise.all([
-    buildWorkBriefForTask(cwd, task),
-    buildMeasureReport(cwd, task),
-    buildImpactAnalysis(cwd, task)
-  ]);
+  const maxFiles = 50;
+  const contextBudget = "balanced";
+  const taskContext = await buildTaskAnalysis(cwd, task, {
+    contextBudget,
+    maxFiles,
+    taskOnly: true
+  });
+  const work = buildWorkBriefFromTaskContext(taskContext, contextBudget);
+  const route = toAgentRoute(work, false);
+  const measure = await buildMeasureReportFromRoute(cwd, task, route);
+  const impactContext = await buildTaskAnalysis(cwd, task, {
+    maxFiles,
+    taskOnly: false
+  });
+  const impact = buildImpactAnalysisFromTaskContext(impactContext, { maxFiles });
   const verify = buildVerificationPlanFromImpact(impact);
 
   return repositoryMetricsFromSources({

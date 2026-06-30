@@ -113,10 +113,39 @@ test("metrics collector summarizes existing RCC builder outputs", async () => {
 test("metrics collector depends on command builders instead of repository scanners", async () => {
   const source = await readFile(path.join(repoRoot, "src", "analytics", "metricsCollector.ts"), "utf8");
 
-  assert.match(source, /buildWorkBriefForTask/);
-  assert.match(source, /buildImpactAnalysis/);
+  assert.match(source, /buildTaskAnalysis/);
+  assert.match(source, /buildWorkBriefFromTaskContext/);
+  assert.match(source, /toAgentRoute/);
+  assert.match(source, /buildMeasureReportFromRoute/);
+  assert.match(source, /buildImpactAnalysisFromTaskContext/);
   assert.match(source, /buildVerificationPlanFromImpact/);
-  assert.match(source, /buildMeasureReport/);
-  assert.doesNotMatch(source, /from "\.\.\/core\/(?:scanner|repoMapper|tokenEstimator|task-analysis|fileSystem)"/);
+  assert.equal((source.match(/buildTaskAnalysis\(cwd, task/g) ?? []).length, 2);
+  assert.doesNotMatch(source, /\bbuildWorkBriefForTask\(/);
+  assert.doesNotMatch(source, /\bbuildAgentWorkRoute\(/);
+  assert.doesNotMatch(source, /\bbuildMeasureReport\(/);
+  assert.doesNotMatch(source, /\bbuildImpactAnalysis\(/);
+  assert.doesNotMatch(source, /\bbuildVerificationPlan\(/);
+  assert.doesNotMatch(source, /from "\.\.\/core\/(?:scanner|repoMapper|tokenEstimator|fileSystem)"/);
   assert.doesNotMatch(source, /from "node:fs/);
+});
+
+test("metrics collector exposes compact counts instead of raw arrays", async () => {
+  await withMetricsRepo(async (tempDir) => {
+    const { buildRepositoryMetrics } = require("../dist/analytics/metricsCollector");
+    const metrics = await buildRepositoryMetrics(tempDir, "fix login bug");
+
+    function assertCompact(value, label) {
+      assert.equal(Array.isArray(value), false, `${label} should not expose raw arrays`);
+
+      if (!value || typeof value !== "object") {
+        return;
+      }
+
+      for (const [key, child] of Object.entries(value)) {
+        assertCompact(child, `${label}.${key}`);
+      }
+    }
+
+    assertCompact(metrics, "metrics");
+  });
 });

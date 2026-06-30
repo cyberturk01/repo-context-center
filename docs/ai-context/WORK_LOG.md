@@ -6410,4 +6410,78 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-30T10:14:34.337Z
+- Summary: Refactored metrics collector to reuse task contexts, route-derived measure reports, impact-from-context, and verify-from-impact helpers while preserving compact metrics output.
+- Changed files: `src/analytics/metricsCollector.ts`, `tests/metricsCollector.test.js`
+- Verification: npm run build; node --test tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/cli.test.js tests/outputContract.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Refactored metrics collector to reuse task contexts, route-derived measure reports, impact-from-context, and verify-from-impact helpers while preserving compact metrics output.",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "tests/metricsCollector.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/cli.test.js tests/outputContract.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T10:14:34.337Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T10:14:34.337Z",
+  "summary": "Refactored metrics collector to reuse task contexts, route-derived measure reports, impact-from-context, and verify-from-impact helpers while preserving compact metrics output.",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "tests/metricsCollector.test.js"
+  ],
+  "verification": "npm run build; node --test tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/cli.test.js tests/outputContract.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T10:16:17.448Z
+- Summary: Added architecture guard preventing metrics collector from directly calling duplicate high-level Work, Measure, Impact, and Verify builders.
+- Changed files: `src/analytics/metricsCollector.ts`, `tests/commandArchitecture.test.js`, `tests/metricsCollector.test.js`
+- Verification: npm run build; node --test tests/metricsCollector.test.js tests/commandArchitecture.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added architecture guard preventing metrics collector from directly calling duplicate high-level Work, Measure, Impact, and Verify builders.",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "tests/commandArchitecture.test.js",
+    "tests/metricsCollector.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/metricsCollector.test.js tests/commandArchitecture.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T10:16:17.448Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T10:16:17.448Z",
+  "summary": "Added architecture guard preventing metrics collector from directly calling duplicate high-level Work, Measure, Impact, and Verify builders.",
+  "files": [
+    "src/analytics/metricsCollector.ts",
+    "tests/commandArchitecture.test.js",
+    "tests/metricsCollector.test.js"
+  ],
+  "verification": "npm run build; node --test tests/metricsCollector.test.js tests/commandArchitecture.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
