@@ -12,6 +12,7 @@ import { learnCommand } from "./commands/learn";
 import { logCommand } from "./commands/log";
 import { mapCommand } from "./commands/map";
 import { measureCommand } from "./commands/measure";
+import { metricsCommand } from "./commands/metrics";
 import { scanCommand } from "./commands/scan";
 import { startCommand } from "./commands/start";
 import { suggestCommand } from "./commands/suggest";
@@ -42,6 +43,7 @@ const commands: Record<string, CommandHandler> = {
   log: logCommand,
   map: mapCommand,
   measure: measureCommand,
+  metrics: metricsCommand,
   scan: scanCommand,
   start: startCommand,
   suggest: suggestCommand,
@@ -91,6 +93,8 @@ Commands:
   measure   Task-first route-vs-naive token estimate
             Usage: rcc measure "<task>"
                    rcc measure "<task>" --json
+  metrics   Summarize repository intelligence metrics for a task
+            Usage: rcc metrics "<task>" [--json]
   scan      Suggest lightweight context entries from repo layout
             Options: --json
   start     Print a startup prompt for an AI coding agent

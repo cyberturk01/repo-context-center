@@ -1,5 +1,35 @@
 # ChangeLog
 
+## [Unreleased]
+
+Recent development since v0.12.0 extends Verification Intelligence with Repository Metrics and stronger JSON contracts.
+
+### Repository Metrics
+
+- Added shared `RepositoryMetrics` models for compact task-level repository intelligence.
+- Added a metrics collector that reuses existing Work, Measure, Impact, Verify, and freshness outputs instead of adding a second repository analysis engine.
+- Added human and JSON renderers for metrics output.
+- Added the new optional diagnostic `metrics` command:
+  - `rcc metrics "<task>"`
+  - `rcc metrics "<task>" --json`
+- Added output contract guards to keep metrics JSON compact and summary-oriented, without leaking raw Work, Impact, or Verify arrays.
+
+### Verification Intelligence
+
+- Added a shared DomainEngine and routed Work, Impact, and Verify through shared task/domain context.
+- Improved domain precision for workflow, GitHub integration, frontend, backend, database, Redis/cache, config, auth, and context verification hints.
+- Stabilized `verify --json` as a long-lived integration contract.
+- Kept Verify output recommendation-focused by omitting raw Impact collections and internal scoring details.
+- Improved planned, task-only, and working-tree verification boundaries.
+- Added priority-aware verification recommendations and normalized targeted tests, commands, smoke checks, manual checks, and validation checklist items.
+- Added fixture-backed contract snapshots for planned verification scenarios.
+
+### Measurement And Contracts
+
+- Refactored Measure into reusable build/render modules while preserving the public `measure --json` shape.
+- Added contract coverage for Impact, Measure, Metrics, Work, Handoff, and Verify JSON outputs.
+- Reinforced compact output expectations for machine-readable agent and integration payloads.
+
 ## [0.12.0]
 
 Repo Context Center v0.12.0 adds Verification Intelligence: a dedicated verification-planning layer built from existing Impact Analysis output.

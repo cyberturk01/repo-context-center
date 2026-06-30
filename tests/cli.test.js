@@ -21,6 +21,48 @@ async function writeJson(filePath, value) {
   await writeFile(filePath, JSON.stringify(value, null, 2), "utf8");
 }
 
+async function writeText(root, relativePath, content) {
+  const fullPath = path.join(root, relativePath);
+  await mkdir(path.dirname(fullPath), { recursive: true });
+  await writeFile(fullPath, content, "utf8");
+}
+
+async function withMetricsRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-cli-metrics-"));
+
+  try {
+    await writeText(tempDir, "AGENTS.md", "Fixture repo guidance.\n");
+    await writeText(
+      tempDir,
+      "docs/ai-context/TASK_ROUTING.md",
+      [
+        "# Task Routing",
+        "",
+        "- Auth or login work: read `src/auth/login.ts` and `tests/auth/login.test.ts`."
+      ].join("\n")
+    );
+    await writeText(
+      tempDir,
+      "docs/ai-context/MODULE_INDEX.md",
+      [
+        "# Module Index",
+        "",
+        "| Path | Owns | Read When |",
+        "| --- | --- | --- |",
+        "| `src/auth/login.ts` | Auth login | login work |"
+      ].join("\n")
+    );
+    await writeText(tempDir, "docs/ai-context/DO_NOT_READ.md", "- `node_modules/`\n- `dist/`\n");
+    await writeText(tempDir, "src/auth/login.ts", "export function login() { return true; }\n");
+    await writeText(tempDir, "tests/auth/login.test.ts", "test('login', () => {});\n");
+    await writeText(tempDir, "README.md", "# Fixture\n");
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function writeLocalRccPackage(root, version) {
   await writeJson(path.join(root, "node_modules", "repo-context-center", "package.json"), {
     name: "repo-context-center",
@@ -97,9 +139,54 @@ test("CLI help prints usage", () => {
   assert.match(result.stdout, /measure\s+Task-first route-vs-naive token estimate/);
   assert.match(result.stdout, /Usage: rcc measure "<task>"/);
   assert.match(result.stdout, /rcc measure "<task>" --json/);
+  assert.match(result.stdout, /metrics\s+Summarize repository intelligence metrics for a task/);
+  assert.match(result.stdout, /Usage: rcc metrics "<task>" \[--json\]/);
   assert.match(result.stdout, /start\s+Print a startup prompt for an AI coding agent/);
   assert.match(result.stdout, /Usage: start "<task>" \[--max-files <number>\] \[--copy\]/);
   assert.match(result.stdout, /--version\s+Show version/);
+});
+
+test("metrics requires a task", () => {
+  const result = runCli(["metrics"]);
+
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.equal(result.stderr, 'Usage: rcc metrics "<task>" [--json]\n');
+});
+
+test("metrics prints human-readable repository metric sections", async () => {
+  await withMetricsRepo(async (tempDir) => {
+    const result = runCli(["metrics", "fix login bug"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.match(result.stdout, /^repo-context-center metrics\n/);
+    assert.match(result.stdout, /Task: fix login bug/);
+    assert.match(result.stdout, /Routing:\n- Task size:/);
+    assert.match(result.stdout, /Token savings:\n- Naive tokens:/);
+    assert.match(result.stdout, /Freshness:\n- Status:/);
+    assert.match(result.stdout, /Impact:\n- Mode:/);
+    assert.match(result.stdout, /Verification:\n- Mode:/);
+  });
+});
+
+test("metrics --json returns parseable metrics output", async () => {
+  await withMetricsRepo(async (tempDir) => {
+    const result = runCli(["metrics", "fix login bug", "--json"], { cwd: tempDir });
+    const metrics = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.equal(metrics.schemaVersion, 1);
+    assert.equal(metrics.command, "metrics");
+    assert.equal(metrics.task, "fix login bug");
+    assert.ok("routing" in metrics);
+    assert.ok("tokens" in metrics);
+    assert.ok("freshness" in metrics);
+    assert.ok("impact" in metrics);
+    assert.ok("verification" in metrics);
+    assert.equal(result.stdout, `${JSON.stringify(metrics, null, 2)}\n`);
+  });
 });
 
 test("CLI --version prints running package version", () => {

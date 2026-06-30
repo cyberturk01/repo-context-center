@@ -23,6 +23,55 @@ const stableVerifyFields = [
   "confidenceExplanation",
   "notes"
 ];
+const stableImpactFields = [
+  "schemaVersion",
+  "command",
+  "task",
+  "mode",
+  "basis",
+  "summary",
+  "changedFiles",
+  "contextChanges",
+  "affectedFiles",
+  "affectedTests",
+  "suggestedCommands",
+  "confidence",
+  "confidenceExplanation",
+  "verificationHints",
+  "notes"
+];
+const stableMeasureFields = [
+  "schemaVersion",
+  "command",
+  "task",
+  "naiveTokens",
+  "rccTokens",
+  "filesCounted",
+  "filesExcluded",
+  "excludedExamples",
+  "ignoredFiles",
+  "ignoredExamples",
+  "unsupportedFiles",
+  "unsupportedExamples",
+  "skippedByScanCap",
+  "scanCapExamples",
+  "primaryFiles",
+  "supportingFiles",
+  "tests",
+  "estimatedSavingTokens",
+  "estimatedSavingPercent",
+  "warnings"
+];
+const stableMetricsFields = [
+  "schemaVersion",
+  "command",
+  "task",
+  "routing",
+  "tokens",
+  "freshness",
+  "impact",
+  "verification"
+];
 const forbiddenVerifyFields = [
   "executionPlan",
   "estimatedMinutes",
@@ -160,6 +209,158 @@ function assertPathArray(value, label) {
   assert.ok(Array.isArray(value), `${label} should be an array`);
   for (const item of value) {
     assert.equal(typeof item, "string", `${label} should contain compact path strings`);
+  }
+}
+
+function assertNoArrayValues(value, label) {
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  assert.equal(Array.isArray(value), false, `${label} should not expose raw arrays`);
+
+  for (const [key, child] of Object.entries(value)) {
+    assertNoArrayValues(child, `${label}.${key}`);
+  }
+}
+
+function assertImpactJsonContract(analysis, task, mode) {
+  assert.deepEqual(Object.keys(analysis).sort(), [...stableImpactFields].sort());
+  assert.equal(analysis.schemaVersion, 1);
+  assert.equal(analysis.command, "impact");
+  assert.equal(analysis.task, task);
+  assert.equal(analysis.mode, mode);
+  assertHasKeys(analysis.summary, [
+    "changedFiles",
+    "contextChanges",
+    "affectedFiles",
+    "affectedTests",
+    "suggestedCommands"
+  ], "impact summary");
+  assert.ok(Array.isArray(analysis.changedFiles));
+  assert.ok(Array.isArray(analysis.contextChanges));
+  assert.ok(Array.isArray(analysis.affectedFiles));
+  assert.ok(Array.isArray(analysis.affectedTests));
+  assert.ok(Array.isArray(analysis.suggestedCommands));
+  assert.ok(Array.isArray(analysis.verificationHints));
+  assert.ok(Array.isArray(analysis.notes));
+  assert.equal(typeof analysis.confidence, "string");
+  assert.equal(typeof analysis.confidenceExplanation, "object");
+}
+
+function assertMeasureJsonContract(report, task) {
+  assert.deepEqual(Object.keys(report), stableMeasureFields);
+  assert.equal(report.schemaVersion, 1);
+  assert.equal(report.command, "measure");
+  assert.equal(report.task, task);
+  for (const key of [
+    "naiveTokens",
+    "rccTokens",
+    "filesCounted",
+    "filesExcluded",
+    "ignoredFiles",
+    "unsupportedFiles",
+    "skippedByScanCap",
+    "primaryFiles",
+    "supportingFiles",
+    "tests",
+    "estimatedSavingTokens",
+    "estimatedSavingPercent"
+  ]) {
+    assert.equal(typeof report[key], "number", `measure ${key} should be numeric`);
+  }
+  for (const key of [
+    "excludedExamples",
+    "ignoredExamples",
+    "unsupportedExamples",
+    "scanCapExamples",
+    "warnings"
+  ]) {
+    assert.ok(Array.isArray(report[key]), `measure ${key} should be an array`);
+  }
+}
+
+function assertMetricsJsonContract(metrics, task) {
+  assert.deepEqual(Object.keys(metrics), stableMetricsFields);
+  assert.equal(metrics.schemaVersion, 1);
+  assert.equal(metrics.command, "metrics");
+  assert.equal(metrics.task, task);
+  assertHasKeys(metrics.routing, [
+    "taskSize",
+    "taskMode",
+    "taskSizeConfidence",
+    "contextBudget",
+    "primaryFiles",
+    "supportingFiles",
+    "optionalSupportingFiles",
+    "tests",
+    "readFirst"
+  ], "metrics routing");
+  assertHasKeys(metrics.tokens, [
+    "naiveTokens",
+    "rccTokens",
+    "estimatedSavingTokens",
+    "estimatedSavingPercent"
+  ], "metrics tokens");
+  assertHasKeys(metrics.freshness, [
+    "status",
+    "score",
+    "reason",
+    "affectedFiles",
+    "affectedContextFiles"
+  ], "metrics freshness");
+  assertHasKeys(metrics.impact, [
+    "mode",
+    "basis",
+    "summary",
+    "confidence"
+  ], "metrics impact");
+  assertHasKeys(metrics.verification, [
+    "mode",
+    "targetedTests",
+    "targetedTestCommands",
+    "buildCommands",
+    "smokeChecks",
+    "manualChecks",
+    "confidence"
+  ], "metrics verification");
+  assertHasKeys(metrics.impact.summary, [
+    "changedFiles",
+    "contextChanges",
+    "affectedFiles",
+    "affectedTests",
+    "suggestedCommands"
+  ], "metrics impact summary");
+  assertNoArrayValues(metrics, "metrics");
+  assertOmitsKeys(metrics, [
+    "recommendedFiles",
+    "relevantTests",
+    "targetedLookupHints",
+    "promotedFromTargetedLookup",
+    "changedFiles",
+    "contextChanges",
+    "affectedFiles",
+    "affectedTests",
+    "suggestedCommands",
+    "targetedTests",
+    "targetedTestCommands",
+    "buildCommands",
+    "smokeChecks",
+    "manualChecks",
+    "validationChecklist",
+    "notes",
+    "confidenceExplanation"
+  ], "metrics top-level");
+  for (const section of [metrics.routing, metrics.tokens, metrics.freshness, metrics.impact, metrics.verification]) {
+    assertOmitsKeys(section, [
+      "recommendedFiles",
+      "relevantTests",
+      "targetedLookupHints",
+      "promotedFromTargetedLookup",
+      "validationChecklist",
+      "notes",
+      "confidenceExplanation"
+    ], "metrics section");
   }
 }
 
@@ -454,6 +655,27 @@ test("handoff --json remains parseable shape-tested JSON", () => {
   assert.ok(Array.isArray(brief.relevantTests));
   assert.equal(typeof brief.nextCommand, "string");
   assert.match(brief.nextCommand, /^rcc (?:work|done)\b/);
+});
+
+test("impact --json keeps stable public analysis contract", () => {
+  const task = "fix login bug";
+  const analysis = parseJsonOnlyOutput(runCli(["impact", task, "--json", "--task-only"]));
+
+  assertImpactJsonContract(analysis, task, "task-only");
+});
+
+test("measure --json keeps stable measurement contract", () => {
+  const task = "fix login bug";
+  const report = parseJsonOnlyOutput(runCli(["measure", task, "--json"]));
+
+  assertMeasureJsonContract(report, task);
+});
+
+test("metrics --json keeps compact task-oriented metrics contract", () => {
+  const task = "fix login bug";
+  const metrics = parseJsonOnlyOutput(runCli(["metrics", task, "--json"]));
+
+  assertMetricsJsonContract(metrics, task);
 });
 
 test("verify --json remains parseable recommendation JSON only", () => {

@@ -6138,4 +6138,154 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-06-30T09:45:22.322Z
+- Summary: Added rcc metrics command as a thin wrapper over repository metrics collector and renderer.
+- Changed files: `src/cli/commands/metrics.ts`, `src/cli/index.ts`, `tests/cli.test.js`
+- Verification: npm run build; node --test tests/cli.test.js tests/commandArchitecture.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added rcc metrics command as a thin wrapper over repository metrics collector and renderer.",
+  "files": [
+    "src/cli/commands/metrics.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/cli.test.js tests/commandArchitecture.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T09:45:22.322Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T09:45:22.322Z",
+  "summary": "Added rcc metrics command as a thin wrapper over repository metrics collector and renderer.",
+  "files": [
+    "src/cli/commands/metrics.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js"
+  ],
+  "verification": "npm run build; node --test tests/cli.test.js tests/commandArchitecture.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T09:48:36.357Z
+- Summary: Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes.
+- Changed files: `src/cli/commands/metrics.ts`, `src/cli/index.ts`, `tests/cli.test.js`, `tests/outputContract.test.js`
+- Verification: npm run build; node --test tests/outputContract.test.js tests/metricsRenderer.test.js tests/metricsCollector.test.js tests/cli.test.js tests/estimate.test.js tests/impact.test.js tests/verify.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes.",
+  "files": [
+    "src/cli/commands/metrics.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/outputContract.test.js tests/metricsRenderer.test.js tests/metricsCollector.test.js tests/cli.test.js tests/estimate.test.js tests/impact.test.js tests/verify.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T09:48:36.357Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T09:48:36.357Z",
+  "summary": "Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes.",
+  "files": [
+    "src/cli/commands/metrics.ts",
+    "src/cli/index.ts",
+    "tests/cli.test.js",
+    "tests/outputContract.test.js"
+  ],
+  "verification": "npm run build; node --test tests/outputContract.test.js tests/metricsRenderer.test.js tests/metricsCollector.test.js tests/cli.test.js tests/estimate.test.js tests/impact.test.js tests/verify.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T09:52:22.583Z
+- Summary: Updated README and CHANGELOG for recent metrics and verify contract work.
+- Changed files: `README.md`, `CHANGELOG.md`
+- Verification: npm run build; node --test tests/cli.test.js tests/outputContract.test.js tests/estimate.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/packageMetadata.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Updated README and CHANGELOG for recent metrics and verify contract work.",
+  "files": [
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "verification": [
+    "npm run build; node --test tests/cli.test.js tests/outputContract.test.js tests/estimate.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/packageMetadata.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T09:52:22.583Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T09:52:22.583Z",
+  "summary": "Updated README and CHANGELOG for recent metrics and verify contract work.",
+  "files": [
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "verification": "npm run build; node --test tests/cli.test.js tests/outputContract.test.js tests/estimate.test.js tests/metricsCollector.test.js tests/metricsRenderer.test.js tests/packageMetadata.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-06-30T09:55:57.586Z
+- Summary: Repositioned metrics as optional diagnostic insight instead of a core workflow step.
+- Changed files: `README.md`, `CHANGELOG.md`
+- Verification: node --test tests/estimate.test.js tests/outputContract.test.js tests/cli.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "Repositioned metrics as optional diagnostic insight instead of a core workflow step.",
+  "files": [
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "verification": [
+    "node --test tests/estimate.test.js tests/outputContract.test.js tests/cli.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-06-30T09:55:57.586Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-06-30T09:55:57.586Z",
+  "summary": "Repositioned metrics as optional diagnostic insight instead of a core workflow step.",
+  "files": [
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "verification": "node --test tests/estimate.test.js tests/outputContract.test.js tests/cli.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
 <!-- repo-context-center:work-log:end -->
