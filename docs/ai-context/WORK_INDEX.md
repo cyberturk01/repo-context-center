@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- Added RepositoryMetrics collector that summarizes existing Work, Impact, Verify, and Measure builder outputs without direct repository scan...
 - Added shared RepositoryMetrics type model for future metrics collector outputs.
 - Refactored measure report building into reusable build/render modules while preserving CLI JSON contract.
 - Refactored Verify into a thin VerificationGenerator over ImpactAnalysis by consuming Impact-provided domain/context metadata instead of red...
 - Extended TaskAnalysisResult into the internal TaskContext and projected it through Work, Impact, and Verify without changing public CLI con...
 - Added shared DomainEngine and moved Verify domain detection to it while preserving verify output
 - Freeze verify JSON public contract for v0.12.x
-- Calibrate rcc verify domain detection for workflow GitHub frontend backend and database suggestions
 
 ## Hot Files
 
@@ -33,7 +33,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| Work routing | 37 | Extended TaskAnalysisResult into the internal TaskContext and projected it through Work, Impact, and Verify without changing public CLI contracts |
+| Work routing | 38 | Added RepositoryMetrics collector that summarizes existing Work, Impact, Verify, and Measure builder outputs without direct repository scanning. |
 | General maintenance | 36 | Added shared DomainEngine and moved Verify domain detection to it while preserving verify output |
 | Handoff | 24 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
 | Repository context | 16 | Added shared RepositoryMetrics type model for future metrics collector outputs. |
@@ -44,7 +44,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Verification Patterns
 
-- `npm run build` (96)
+- `npm run build` (97)
 - `npm test` (49)
 - `node --test tests/impact.test.js` (26)
 - `node --test tests/verify.test.js` (25)
