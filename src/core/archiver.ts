@@ -13,7 +13,12 @@ export interface ArchiveOptions {
   cwd: string;
   keep: number;
   dryRun?: boolean;
+  includeLowSignalLearning?: boolean;
+  updateRepositoryLearning?: boolean;
 }
+
+export const automaticWorkLogArchiveKeep = 50;
+export const automaticWorkLogArchiveTrigger = 100;
 
 export interface ArchiveFileResult {
   sourcePath: string;
@@ -316,7 +321,9 @@ async function archiveWorkLog(options: ArchiveOptions): Promise<{ result: Archiv
     const existingArchive = await readIfPresent(archivePath);
     const updatedPaths = await refreshWorkMemoryArtifacts(options.cwd, {
       dryRun: options.dryRun,
-      archivedWorkLogContent: existingArchive
+      archivedWorkLogContent: existingArchive,
+      includeLowSignalLearning: options.includeLowSignalLearning,
+      updateRepositoryLearning: options.updateRepositoryLearning
     });
     return {
       result: {
@@ -337,7 +344,9 @@ async function archiveWorkLog(options: ArchiveOptions): Promise<{ result: Archiv
     const updatedPaths = await refreshWorkMemoryArtifacts(options.cwd, {
       dryRun: options.dryRun,
       workLogContent: content,
-      archivedWorkLogContent: existingArchive
+      archivedWorkLogContent: existingArchive,
+      includeLowSignalLearning: options.includeLowSignalLearning,
+      updateRepositoryLearning: options.updateRepositoryLearning
     });
     return {
       result: {
@@ -365,7 +374,9 @@ async function archiveWorkLog(options: ArchiveOptions): Promise<{ result: Archiv
     ...await refreshWorkMemoryArtifacts(options.cwd, {
       dryRun: options.dryRun,
       workLogContent: nextWorkLog,
-      archivedWorkLogContent: nextArchive
+      archivedWorkLogContent: nextArchive,
+      includeLowSignalLearning: options.includeLowSignalLearning,
+      updateRepositoryLearning: options.updateRepositoryLearning
     })
   ];
 
@@ -379,6 +390,34 @@ async function archiveWorkLog(options: ArchiveOptions): Promise<{ result: Archiv
     },
     updatedPaths
   };
+}
+
+export async function autoArchiveWorkLog(options: {
+  cwd: string;
+  includeLowSignalLearning?: boolean;
+  keep?: number;
+  trigger?: number;
+  updateRepositoryLearning?: boolean;
+}): Promise<ArchiveFileResult | undefined> {
+  const sourcePath = path.join(options.cwd, workLogPath);
+  if (!(await pathExists(sourcePath))) {
+    return undefined;
+  }
+
+  const content = await readFile(sourcePath, "utf8");
+  const entries = extractGeneratedSection(content, workLogStart, workLogEnd).entries;
+  const trigger = options.trigger ?? automaticWorkLogArchiveTrigger;
+  if (entries.length <= trigger) {
+    return undefined;
+  }
+
+  const { result } = await archiveWorkLog({
+    cwd: options.cwd,
+    keep: options.keep ?? automaticWorkLogArchiveKeep,
+    includeLowSignalLearning: options.includeLowSignalLearning,
+    updateRepositoryLearning: options.updateRepositoryLearning
+  });
+  return result;
 }
 
 export async function archiveContextFiles(options: ArchiveOptions): Promise<ArchiveResult> {

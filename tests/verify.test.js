@@ -1,5 +1,7 @@
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
+const { mkdir, mkdtemp, rm, writeFile } = require("node:fs/promises");
+const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
@@ -29,6 +31,27 @@ function runCli(args, options = {}) {
 
 function fixturePath(name) {
   return path.join(repoRoot, "fixtures", name);
+}
+
+async function writeFixtureFile(root, relativePath, content = "") {
+  const fullPath = path.join(root, relativePath);
+  await mkdir(path.dirname(fullPath), { recursive: true });
+  await writeFile(fullPath, content, "utf8");
+}
+
+async function withVerifyRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-verify-ecosystem-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Fixture repo guidance.\n");
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+function commandNames(commands) {
+  return commands.map((command) => command.command);
 }
 
 function confidenceExplanation(overrides = {}) {
@@ -907,6 +930,13 @@ test("auth middleware task with UI and backend files keeps both domain checks pr
     expectedSmoke: "github-integration"
   },
   {
+    name: "translation",
+    task: "update i18n translation messages",
+    affectedFiles: ["src/i18n/messages.ts"],
+    affectedTests: [],
+    expectedReason: "domain matched: translation"
+  },
+  {
     name: "frontend",
     task: "fix frontend profile card",
     affectedFiles: ["src/ui/ProfileCard.tsx"],
@@ -997,6 +1027,91 @@ test("auth middleware task with UI and backend files keeps both domain checks pr
       assert.deepEqual(plan.targetedTestCommands, []);
     }
   });
+});
+
+test("createVerificationPlanFromImpact prefers translation domain over generic config reason", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "update translation",
+    affectedFiles: [
+      {
+        path: "packages/builder/src/settings/pages/translations/_components/TranslationValueCell.svelte",
+        reason: "task routing matched"
+      },
+      {
+        path: "packages/frontend-core/src/utils/translationGroups.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      level: "medium",
+      reasons: [
+        "task routing matched",
+        "no test relationship"
+      ],
+      evidence: {
+        changedFiles: 0,
+        nonContextChangedFiles: 0,
+        contextChanges: 0,
+        affectedFiles: 2,
+        affectedTests: 0,
+        contextOnlyChanges: false,
+        testRelationship: "none"
+      }
+    })
+  }));
+
+  assert.ok(plan.confidenceExplanation.reasons.includes("domain matched: translation"));
+  assert.equal(plan.confidenceExplanation.reasons.includes("domain matched: config"), false);
+});
+
+test("createVerificationPlanFromImpact keeps confidence domain reasons focused on specific domains", () => {
+  const plan = createVerificationPlanFromImpact(impactAnalysis({
+    task: "improve auth middleware",
+    affectedFiles: [
+      {
+        path: "packages/backend-core/src/auth/auth.ts",
+        reason: "matched filename stem"
+      },
+      {
+        path: "packages/builder/src/settings/pages/auth/index.svelte",
+        reason: "matched task token"
+      },
+      {
+        path: "packages/backend-core/src/config/auth.ts",
+        reason: "matched task token"
+      }
+    ],
+    affectedTests: [],
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      level: "medium",
+      reasons: [
+        "context-only changes detected",
+        "task routing matched",
+        "no test relationship"
+      ],
+      evidence: {
+        changedFiles: 1,
+        nonContextChangedFiles: 0,
+        contextChanges: 1,
+        affectedFiles: 3,
+        affectedTests: 0,
+        contextOnlyChanges: true,
+        testRelationship: "none"
+      }
+    })
+  }));
+  const domainReasons = plan.confidenceExplanation.reasons.filter((reason) => reason.startsWith("domain matched:"));
+
+  assert.deepEqual(domainReasons, ["domain matched: auth", "domain matched: context"]);
 });
 
 test("createVerificationPlanFromImpact suggests rendered docs review for update README wording", () => {
@@ -1573,7 +1688,7 @@ test("createVerificationPlanFromImpact is conservative for context-only route es
   assert.deepEqual(plan.confidenceExplanation.evidence, impact.confidenceExplanation.evidence);
   assert.deepEqual(plan.targetedTests, []);
   assert.deepEqual(plan.targetedTestCommands, []);
-  assert.deepEqual(plan.buildCommands, []);
+  assert.deepEqual(plan.buildCommands.map((command) => command.command), ["npm run build"]);
   assert.deepEqual(plan.smokeChecks, []);
   assert.deepEqual(plan.manualChecks, [
     {
@@ -1592,6 +1707,73 @@ test("createVerificationPlanFromImpact is conservative for context-only route es
     "Context-only changes detected; verify focuses on RCC/context files and does not promote task-route estimates to targeted tests or smoke checks."
   ));
   assert.ok(plan.notes.includes("Context-only impact detected; verify context changes manually."));
+});
+
+test("createVerificationPlanFromImpact aligns context-only build commands with impact suggestions", () => {
+  const impact = impactAnalysis({
+    task: "update translation",
+    affectedFiles: [
+      {
+        path: "src/i18n/messages.ts",
+        reason: "task routing matched"
+      }
+    ],
+    affectedTests: [
+      {
+        path: "tests/i18n/messages.spec.ts",
+        reason: "task route matched translation test",
+        score: 100,
+        confidence: "strong",
+        signals: ["task routing evidence"]
+      }
+    ],
+    contextChanges: [
+      {
+        path: "docs/ai-context/TASK_ROUTING.md",
+        reason: "changed in working tree"
+      }
+    ],
+    suggestedCommands: [
+      {
+        command: "node --test tests/i18n/messages.spec.ts",
+        type: "test",
+        scope: "focused",
+        confidence: "high",
+        reason: "run affected tests directly"
+      },
+      {
+        command: "npm run build",
+        type: "build",
+        scope: "project",
+        confidence: "medium",
+        reason: "verify TypeScript output"
+      }
+    ],
+    confidenceExplanation: confidenceExplanation({
+      level: "medium",
+      reasons: [
+        "context-only changes detected",
+        "task routing matched",
+        "strong test relationship"
+      ],
+      evidence: {
+        changedFiles: 1,
+        nonContextChangedFiles: 0,
+        contextChanges: 1,
+        affectedFiles: 1,
+        affectedTests: 1,
+        contextOnlyChanges: true,
+        testRelationship: "strong"
+      }
+    })
+  });
+
+  const plan = createVerificationPlanFromImpact(impact);
+
+  assert.deepEqual(plan.targetedTests, []);
+  assert.deepEqual(plan.targetedTestCommands, []);
+  assert.deepEqual(plan.buildCommands.map((command) => command.command), ["npm run build"]);
+  assert.deepEqual(plan.smokeChecks, []);
 });
 
 test("planned mode promotes login task estimates without source changes", () => {
@@ -2055,6 +2237,440 @@ test("buildVerificationPlanFromImpact preserves planned mode", async () => {
   );
 });
 
+test("verify recommends Maven defaults when no stronger task-specific command exists", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "pom.xml", "<project></project>\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update account service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("mvn test"));
+    assert.ok(commandNames(plan.buildCommands).includes("mvn verify"));
+  });
+});
+
+test("verify recommends Gradle wrapper defaults when gradlew exists", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "build.gradle.kts", "plugins {}\n");
+    await writeFixtureFile(tempDir, "gradlew", "");
+
+    const plan = await buildVerificationPlan(tempDir, "update billing service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("./gradlew test"));
+    assert.ok(commandNames(plan.buildCommands).includes("./gradlew build"));
+  });
+});
+
+test("verify recommends Gradle defaults without wrapper when gradlew is absent", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "build.gradle", "plugins {}\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update billing service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("gradle test"));
+    assert.ok(commandNames(plan.buildCommands).includes("gradle build"));
+  });
+});
+
+test("verify recommends Python pytest defaults from pytest signals", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "pyproject.toml", "[project]\nname = \"fixture\"\n");
+    await writeFixtureFile(tempDir, "pytest.ini", "[pytest]\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update user service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("pytest"));
+  });
+});
+
+test("verify recommends Python module pytest fallback without pytest config signals", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "setup.py", "from setuptools import setup\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update user service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("python -m pytest"));
+  });
+});
+
+test("verify recommends pytest from requirements pytest dependency signal", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "requirements.txt", "fastapi\npytest\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update user service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("pytest"));
+  });
+});
+
+test("verify recommends python module pytest for requirements without pytest signal", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "requirements.txt", "fastapi\nuvicorn\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update user service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("python -m pytest"));
+  });
+});
+
+test("verify does not suggest generic frontend smoke checks for FastAPI backend tasks", () => {
+  const impact = impactAnalysis({
+    task: "fix frontend session issue in FastAPI backend",
+    affectedFiles: [{ path: "app/main.py", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "python",
+        confidence: "high",
+        matchedSignals: ["pyproject.toml", "pyproject.toml#pytest"],
+        rootPath: "."
+      },
+      detections: [{
+        id: "python",
+        confidence: "high",
+        matchedSignals: ["pyproject.toml", "pyproject.toml#pytest"],
+        rootPath: "."
+      }]
+    }
+  });
+
+  assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
+  assert.ok(commandNames(plan.targetedTestCommands).includes("pytest"));
+});
+
+test("verify does not suggest generic frontend smoke checks for Flask backend tasks", () => {
+  const impact = impactAnalysis({
+    task: "fix frontend login issue in Flask backend",
+    affectedFiles: [{ path: "flask_app/routes.py", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "python",
+        confidence: "medium",
+        matchedSignals: ["requirements.txt", "requirements.txt#pytest"],
+        rootPath: "."
+      },
+      detections: [{
+        id: "python",
+        confidence: "medium",
+        matchedSignals: ["requirements.txt", "requirements.txt#pytest"],
+        rootPath: "."
+      }]
+    }
+  });
+
+  assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
+  assert.ok(commandNames(plan.targetedTestCommands).includes("pytest"));
+});
+
+test("verify recommends Go defaults when no stronger task-specific command exists", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "go.mod", "module example.com/fixture\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update account service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("go test ./..."));
+  });
+});
+
+test("verify keeps Go backend service tasks out of generic frontend smoke checks", () => {
+  const impact = impactAnalysis({
+    task: "fix frontend-facing go account service bug",
+    affectedFiles: [{ path: "internal/account/service.go", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "go",
+        confidence: "high",
+        matchedSignals: ["go.mod"],
+        rootPath: "."
+      },
+      detections: [{
+        id: "go",
+        confidence: "high",
+        matchedSignals: ["go.mod"],
+        rootPath: "."
+      }]
+    }
+  });
+
+  assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
+  assert.ok(commandNames(plan.targetedTestCommands).includes("go test ./..."));
+});
+
+test("verify prefers the nearest Go module in multi-service monorepos", () => {
+  const impact = impactAnalysis({
+    task: "update billing service",
+    affectedFiles: [{ path: "services/billing/internal/invoice/service.go", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "go",
+        confidence: "high",
+        matchedSignals: ["services/accounts/go.mod"],
+        rootPath: "services/accounts"
+      },
+      detections: [
+        {
+          id: "go",
+          confidence: "high",
+          matchedSignals: ["services/accounts/go.mod"],
+          rootPath: "services/accounts"
+        },
+        {
+          id: "go",
+          confidence: "high",
+          matchedSignals: ["services/billing/go.mod"],
+          rootPath: "services/billing"
+        },
+        {
+          id: "monorepo",
+          confidence: "medium",
+          matchedSignals: ["services/"],
+          rootPath: "."
+        }
+      ]
+    }
+  });
+
+  assert.deepEqual(commandNames(plan.targetedTestCommands), ["go test ./..."]);
+  assert.match(plan.targetedTestCommands[0].reason, /go ecosystem default/);
+});
+
+test("verify recommends dotnet defaults when no stronger task-specific command exists", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "Fixture.csproj", "<Project />\n");
+
+    const plan = await buildVerificationPlan(tempDir, "update account service", { taskOnly: true });
+
+    assert.ok(commandNames(plan.targetedTestCommands).includes("dotnet test"));
+  });
+});
+
+test("verify keeps Node behavior unchanged when no stronger command exists", async () => {
+  await withVerifyRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "package.json", JSON.stringify({ scripts: { test: "node --test" } }, null, 2));
+
+    const plan = await buildVerificationPlan(tempDir, "update account service", { taskOnly: true });
+
+    assert.equal(commandNames(plan.targetedTestCommands).includes("npm test"), false);
+    assert.equal(commandNames(plan.targetedTestCommands).includes("node --test"), false);
+    assert.equal(plan.targetedTestCommands.length, 0);
+  });
+});
+
+test("verify recommends package-specific pnpm workspace commands when nearest Node package is clear", () => {
+  const impact = impactAnalysis({
+    task: "update auth package",
+    affectedFiles: [{ path: "packages/auth/src/session.ts", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "node",
+        confidence: "high",
+        matchedSignals: ["package.json"],
+        rootPath: ".",
+        packageName: "root"
+      },
+      detections: [
+        {
+          id: "node",
+          confidence: "high",
+          matchedSignals: ["package.json"],
+          rootPath: ".",
+          packageName: "root"
+        },
+        {
+          id: "node",
+          confidence: "high",
+          matchedSignals: ["packages/auth/package.json"],
+          rootPath: "packages/auth",
+          packageName: "auth"
+        }
+      ],
+      workspace: {
+        detected: true,
+        type: "pnpm",
+        rootPath: ".",
+        packageCount: 1,
+        packages: [{ rootPath: "packages/auth", name: "auth", ecosystemIds: ["node"] }],
+        matchedSignals: ["pnpm-workspace.yaml"]
+      }
+    }
+  });
+
+  assert.deepEqual(commandNames(plan.targetedTestCommands), ["pnpm --filter auth test"]);
+});
+
+test("verify prefers affected monorepo package ecosystem over root task wording", () => {
+  const impact = impactAnalysis({
+    task: "update package service",
+    affectedFiles: [{ path: "services/api/src/main/java/com/example/AccountService.java", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "node",
+        confidence: "high",
+        matchedSignals: ["package.json"],
+        rootPath: "."
+      },
+      detections: [
+        {
+          id: "node",
+          confidence: "high",
+          matchedSignals: ["package.json"],
+          rootPath: "."
+        },
+        {
+          id: "maven",
+          confidence: "high",
+          matchedSignals: ["services/api/pom.xml"],
+          rootPath: "services/api"
+        },
+        {
+          id: "monorepo",
+          confidence: "high",
+          matchedSignals: ["package.json#workspaces", "services/"],
+          rootPath: "."
+        }
+      ]
+    }
+  });
+
+  assert.ok(commandNames(plan.targetedTestCommands).includes("mvn -pl api test"));
+  assert.ok(commandNames(plan.buildCommands).includes("mvn -pl api verify"));
+});
+
+test("verify does not suggest generic frontend smoke checks for Spring Boot backend tasks", () => {
+  const impact = impactAnalysis({
+    task: "fix frontend-facing spring boot account service bug",
+    affectedFiles: [{ path: "src/main/java/com/example/account/AccountController.java", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "maven",
+        confidence: "high",
+        matchedSignals: ["pom.xml"],
+        rootPath: "."
+      },
+      detections: [{
+        id: "maven",
+        confidence: "high",
+        matchedSignals: ["pom.xml"],
+        rootPath: "."
+      }]
+    }
+  });
+
+  assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
+  assert.ok(commandNames(plan.targetedTestCommands).includes("mvn test"));
+});
+
+test("verify does not suggest generic frontend smoke checks for Quarkus backend tasks", () => {
+  const impact = impactAnalysis({
+    task: "fix frontend-facing quarkus account resource bug",
+    affectedFiles: [{ path: "src/main/java/com/example/account/AccountResource.java", reason: "task routing matched" }],
+    affectedTests: [],
+    suggestedCommands: [],
+    confidenceExplanation: confidenceExplanation({
+      evidence: {
+        affectedFiles: 1,
+        affectedTests: 0,
+        testRelationship: "none"
+      }
+    })
+  });
+  const plan = buildVerificationPlanFromImpact(impact, {
+    ecosystem: {
+      primary: {
+        id: "gradle",
+        confidence: "high",
+        matchedSignals: ["build.gradle.kts", "gradlew"],
+        rootPath: "."
+      },
+      detections: [{
+        id: "gradle",
+        confidence: "high",
+        matchedSignals: ["build.gradle.kts", "gradlew"],
+        rootPath: "."
+      }]
+    }
+  });
+
+  assert.equal(plan.smokeChecks.some((check) => check.type === "frontend-ui"), false);
+  assert.ok(commandNames(plan.targetedTestCommands).includes("./gradlew test"));
+  assert.ok(commandNames(plan.buildCommands).includes("./gradlew build"));
+});
+
 test("verify --planned --json selects planned-task mode", () => {
   const result = runCli(["verify", "fix login bug", "--planned", "--json"], {
     cwd: fixturePath("simple-auth")
@@ -2116,4 +2732,12 @@ test("verify rejects invalid args", () => {
   assert.notEqual(result.status, 0);
   assert.equal(result.stdout, "");
   assert.match(result.stderr, /^Usage: rcc verify "<task>" \[--json\] \[--task-only\] \[--planned\]/);
+});
+
+test("verify rejects unsupported max-files flag", () => {
+  const result = runCli(["verify", "fix login bug", "--max-files", "2"]);
+
+  assert.notEqual(result.status, 0);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /^Usage: rcc verify "<task>" \[--json\] \[--task-only\] \[--planned\] \[--level minimal\|balanced\|deep\]/);
 });

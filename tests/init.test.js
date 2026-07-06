@@ -30,7 +30,7 @@ const expectedWorkflowSection = `<!-- repo-context-center:workflow:start -->
 RCC workflow:
 - Read \`docs/ai-context/RCC_WORKFLOW.md\` before broad repo scans.
 - Use \`rcc work "<task>" --agent\` for task briefing.
-- If the CLI is unavailable, read \`docs/ai-context/TASK_ROUTING.md\` and \`docs/ai-context/MODULE_INDEX.md\`.
+- If the CLI is unavailable, read \`docs/ai-context/TASK_ROUTING.md\` and \`docs/ai-context/DO_NOT_READ.md\`; use \`docs/ai-context/TOKEN_BUDGET.md\` only if needed.
 <!-- repo-context-center:workflow:end -->`;
 
 const minimalAgentsPointer = "# Agent Instructions\n\nFor the RCC repository workflow, read docs/ai-context/RCC_WORKFLOW.md before coding tasks.\n";
@@ -143,31 +143,31 @@ test("init --max-files overrides auto scan cap", async () => {
 });
 
 
-test("init preserves manual repository learning sections outside generated markers", async () => {
+test("init preserves existing repository learning content", async () => {
   const tempDir = await createTempRepo();
 
   try {
-    await writeFixtureFile(tempDir, "docs/ai-context/REPOSITORY_LEARNING.md", [
+    const existing = [
       "# Repository Learning",
       "",
       "Manual note before generated content.",
       "",
       "<!-- repo-context-center:repository-learning:start -->",
-      "stale generated content",
+      "## Recent Focus Areas",
+      "",
+      "- routing (3)",
       "<!-- repo-context-center:repository-learning:end -->",
       "",
       "Manual note after generated content.",
       ""
-    ].join("\n"));
+    ].join("\n");
+    await writeFixtureFile(tempDir, "docs/ai-context/REPOSITORY_LEARNING.md", existing);
 
-    const result = runInit(tempDir);
+    const result = runInit(tempDir, ["--update"]);
     const content = await readFile(path.join(tempDir, "docs/ai-context/REPOSITORY_LEARNING.md"), "utf8");
 
     assert.equal(result.status, 0);
-    assert.match(content, /Manual note before generated content\./);
-    assert.match(content, /Manual note after generated content\./);
-    assert.match(content, /## Recent Focus Areas/);
-    assert.doesNotMatch(content, /stale generated content/);
+    assert.equal(content, existing);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

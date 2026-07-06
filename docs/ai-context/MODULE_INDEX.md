@@ -23,9 +23,9 @@ Reference stable repository ownership and responsibilities.
 
 ## Analyzers / Risk Rules
 - Purpose: Analysis, validation, risk scoring, and hotspot guidance.
-- Primary files: `src/core/validator.ts`.
+- Primary files: `src/core/validator.ts`, `src/core/task-analysis/scoreRelationships.ts`.
 - Common tasks: change analyzers, adjust risk rows, score context quality, validate rules.
-- Related tests: `tests/validate.test.js`.
+- Related tests: `tests/task-analysis.test.js`, `tests/validate.test.js`.
 - Dependency hints: src/core/validator.ts, tests/*.
 - Risks: over-broad warnings, under-reported risky areas.
 
@@ -41,7 +41,7 @@ Reference stable repository ownership and responsibilities.
 - Purpose: Core coordination and shared command behavior.
 - Primary files: `src/core/archiver.ts`, `src/core/config.ts`, `src/core/contextFiles.ts`, `src/core/contextReader.ts`.
 - Common tasks: coordinate commands, connect scanner and renderers, share common services.
-- Related tests: none detected.
+- Related tests: `tests/domainEngine.test.js`.
 - Dependency hints: src/cli/commands/archive.ts, src/core/archiver.ts, tests/*.
 - Risks: cross-command regression, shared behavior drift.
 
@@ -61,31 +61,23 @@ Reference stable repository ownership and responsibilities.
 - Dependency hints: docs/ai-context/*, src/core/templateInstaller.ts, src/templates/*, templates/*.
 - Risks: stale generated defaults, template/context mismatch.
 
-## Tests / Fixtures
+## Tests/fixtures
 - Purpose: Test data, temp repos, and fixtures.
-- Primary files: `tests/fixtures/learning-cases.json`, `tests/fixtures/routing-cases.json`.
+- Primary files: `fixtures/github-integration/AGENTS.md`, `fixtures/github-integration/docs/ai-context/TASK_ROUTING.md`, `fixtures/github-integration/expected.json`, `fixtures/github-integration/src/api/githubController.ts`.
 - Common tasks: update temp repo setup, change fixtures, refresh expected docs.
 - Related tests: none detected.
-- Dependency hints: tests/*.
+- Dependency hints: fixtures/*, tests/*.
 - Risks: fixture/snapshot drift.
-
-## Staff/POS/public flows
-- Purpose: Public, staff, owner, POS, and QR flows.
-- Primary files: `src/core/renderRepositoryLearning.ts`, `src/core/repositoryLearning.ts`, `src/core/repositoryLearningRouting.ts`, `src/core/repositoryUnderstanding.ts`.
-- Common tasks: public UI, staff workflow, POS.
-- Related tests: `tests/renderRepositoryLearning.test.js`, `tests/repositoryLearning.test.js`, `tests/repositoryUnderstanding.test.js`.
-- Dependency hints: none.
-- Risks: review real callers before editing.
 
 ## Context docs
 - Purpose: Agent routing, context maps, and workflow notes.
-- Primary files: `AGENTS.md`, `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/MODULE_INDEX.md`, `docs/ai-context/PROJECT_MAP.md`, `.repo-context-center/config.json`.
+- Primary files: `AGENTS.md`, `docs/ai-context/TASK_ROUTING.md`, `docs/ai-context/MODULE_INDEX.md`, `docs/ai-context/PROJECT_MAP.md`, `docs/ai-context/CHANGE_LOG.md`.
 - Common tasks: update routing, refresh maps, preserve manual notes.
 - Related tests: `tests/map.test.js`, `tests/validate.test.js`.
 - Dependency hints: docs/ai-context/*, src/core/repoMapper.ts, src/templates/generic/*.
 - Risks: future agents misrouted, manual content overwritten.
 
-## Release workflow
+## Release/deploy workflow
 - Purpose: CI, deployment, and release configuration.
 - Primary files: `.github/workflows/ai-project-guardian.yml`, `.github/workflows/ci.yml`, `scripts/release-check.js`.
 - Common tasks: CI, deployment, release.

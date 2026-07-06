@@ -157,7 +157,19 @@ test("--json returns parseable estimate output", async () => {
     const report = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    assert.doesNotMatch(result.stdout, /```/);
+    assert.doesNotMatch(result.stdout, /^repo-context-center\b/im);
+    assert.doesNotMatch(result.stdout, /^Usage:/m);
+    assert.doesNotMatch(result.stdout, /^(?:warning|warn|info|log|note):/im);
+    assert.equal(result.stdout.trimStart()[0], "{");
+    assert.equal(result.stdout.trimEnd().at(-1), "}");
+    assert.equal(report.schemaVersion, 1);
+    assert.equal(report.command, "estimate");
+    assert.equal(report.method, "ceil(characters / 4)");
     assert.equal(report.mode, "compact");
+    assert.equal(typeof report.startupTokens, "number");
+    assert.equal(typeof report.includedContextTokens, "number");
     assert.ok(Array.isArray(report.warnings));
   });
 });

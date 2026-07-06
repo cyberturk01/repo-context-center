@@ -8,6 +8,7 @@ import {
   escapeRegExp,
   extractRepoPaths,
   isAgentRulePath,
+  applicationLayerAffinity,
   isWeakSemanticSourceHint,
   isWorkflowConfigOrPackageHint,
   isWorkOutputAssemblyTask,
@@ -88,6 +89,37 @@ function recommendationItemsWithLearning(
     const reason = learnedReason(item.path, learnedSignals);
     return reason ? { ...item, reasons: uniquePaths([...item.reasons, reason]) } : item;
   });
+}
+
+function isAuthMiddlewareTask(taskIntent: TaskIntentAnalysis): boolean {
+  const terms = new Set(taskIntent.lookupTerms);
+
+  return terms.has("auth") && terms.has("middleware");
+}
+
+function isStrongAuthMiddlewarePrimaryPath(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, "/").toLowerCase();
+
+  return (
+    /(^|\/)packages\/backend-core\/src\/auth\//i.test(normalized)
+    || /(^|\/)packages\/backend-core\/src\/middleware\//i.test(normalized)
+    || /(^|\/)packages\/server\/src\/api\/routes\/.+\/middleware\//i.test(normalized)
+    || /(^|\/)src\/auth\/middleware\.[cm]?[jt]sx?$/i.test(normalized)
+    || /(^|\/)src\/middleware\//i.test(normalized)
+  );
+}
+
+function calibrateAuthMiddlewarePrimaryPaths(
+  primaryPaths: string[],
+  taskIntent: TaskIntentAnalysis
+): string[] {
+  if (!isAuthMiddlewareTask(taskIntent)) {
+    return primaryPaths;
+  }
+
+  const focused = primaryPaths.filter(isStrongAuthMiddlewarePrimaryPath);
+
+  return focused.length > 0 ? focused : primaryPaths;
 }
 
 function contextDocPaths(startup: StartupContext, guidance: ReadFirstGuidance): string[] {
@@ -234,6 +266,20 @@ function taskMentionsExactFilename(task: string, filePath: string): boolean {
   return pattern.test(task);
 }
 
+export function isExplicitlyExcludedLayerPath(
+  task: string,
+  filePath: string,
+  taskIntent: TaskIntentAnalysis
+): boolean {
+  const layer = applicationLayerAffinity(filePath);
+
+  if (layer === "neutral" || !taskIntent.excludedApplicationLayers.includes(layer)) {
+    return false;
+  }
+
+  return !taskMentionsExplicitPath(task, filePath) && !taskMentionsExactFilename(task, filePath);
+}
+
 function taskExplicitlyTargetsContextDocs(taskIntent: TaskIntentAnalysis): boolean {
   return taskIntent.lookupTerms.some((term) => [
     "context",
@@ -280,11 +326,82 @@ function testRelevanceToPrimary(testPath: string, primaryPaths: string[]): numbe
   return score;
 }
 
-function sortTestsByPrimaryRelevance(testPaths: string[], primaryPaths: string[]): string[] {
+function workspacePackageRoot(filePath: string): string | null {
+  const parts = normalizeRepoPathText(filePath).split("/").filter(Boolean);
+  return ["apps", "packages", "services", "libs", "modules"].includes(parts[0] ?? "") && parts.length >= 2
+    ? `${parts[0]}/${parts[1]}`
+    : null;
+}
+
+function testHasDirectLookupSignal(testPath: string, lookupHints: TargetedLookupHint[]): boolean {
+  const hint = lookupHints.find((candidate) => candidate.path === testPath);
+  return hint?.signal === "exact-filename-match" || hint?.signal === "paired-test";
+}
+
+function testLayerMatchesPrimary(testPath: string, primaryPaths: string[]): boolean {
+  const testLayer = applicationLayerAffinity(testPath);
+  if (testLayer === "neutral") {
+    return true;
+  }
+
+  const primaryLayers = new Set(primaryPaths.map(applicationLayerAffinity).filter((layer) => layer !== "neutral"));
+  return primaryLayers.size === 0 || primaryLayers.has(testLayer);
+}
+
+function testWorkspaceAffinity(testPath: string, primaryPaths: string[]): number {
+  const testRoot = workspacePackageRoot(testPath);
+  if (!testRoot) {
+    return 0;
+  }
+
+  return primaryPaths.some((primaryPath) => workspacePackageRoot(primaryPath) === testRoot) ? 8 : 0;
+}
+
+function testLayerAffinityScore(testPath: string, primaryPaths: string[]): number {
+  const testLayer = applicationLayerAffinity(testPath);
+  return testLayer !== "neutral" && primaryPaths.some((primaryPath) => applicationLayerAffinity(primaryPath) === testLayer)
+    ? 6
+    : 0;
+}
+
+function calibrateTestsToPrimary(
+  testPaths: string[],
+  primaryPaths: string[],
+  lookupHints: TargetedLookupHint[]
+): string[] {
+  return testPaths.filter((testPath) => (
+    testHasDirectLookupSignal(testPath, lookupHints)
+    || testLayerMatchesPrimary(testPath, primaryPaths)
+  ));
+}
+
+function sortTestsByPrimaryRelevance(
+  testPaths: string[],
+  primaryPaths: string[],
+  lookupHints: TargetedLookupHint[]
+): string[] {
   return [...testPaths].sort((left, right) => {
-    const scoreDelta = testRelevanceToPrimary(right, primaryPaths) - testRelevanceToPrimary(left, primaryPaths);
+    const directSignalScore = (testPath: string): number => testHasDirectLookupSignal(testPath, lookupHints) ? 20 : 0;
+    const score = (testPath: string): number => (
+      directSignalScore(testPath)
+      + testRelevanceToPrimary(testPath, primaryPaths)
+      + testWorkspaceAffinity(testPath, primaryPaths)
+      + testLayerAffinityScore(testPath, primaryPaths)
+    );
+    const scoreDelta = score(right) - score(left);
     return scoreDelta !== 0 ? scoreDelta : 0;
   });
+}
+
+function testAffinityReasons(testPath: string, primaryPaths: string[]): string[] {
+  const reasons: string[] = [];
+  if (testWorkspaceAffinity(testPath, primaryPaths) > 0) {
+    reasons.push("same workspace package as a primary file");
+  }
+  if (testLayerAffinityScore(testPath, primaryPaths) > 0) {
+    reasons.push("same application layer as a primary file");
+  }
+  return reasons;
 }
 
 function isDirectTaskTargetHint(hint: TargetedLookupHint | Omit<TargetedLookupHint, "index">, task: string, taskIntent: TaskIntentAnalysis): boolean {
@@ -347,18 +464,34 @@ export function buildWorkFileCategorization(
     .filter((hint) => isDirectTaskTargetHint(hint, startup.task, taskIntent))
     .map((hint) => hint.path);
   const legacyTaskPaths = categorized.taskFiles.map((file) => file.path);
-  const primaryPaths = directPrimaryPaths.length > 0
+  const rawPrimaryPaths = directPrimaryPaths.length > 0
     ? directPrimaryPaths
     : legacyTaskPaths;
+  const primaryCandidatePaths = isAuthMiddlewareTask(taskIntent)
+    ? uniquePaths([
+      ...rawPrimaryPaths,
+      ...categorized.recommendedFiles.map((file) => file.path)
+    ])
+    : rawPrimaryPaths;
+  const scopedPrimaryCandidatePaths = primaryCandidatePaths.filter((file) => (
+    !isExplicitlyExcludedLayerPath(startup.task, file, taskIntent)
+  ));
+  const primaryPaths = calibrateAuthMiddlewarePrimaryPaths(scopedPrimaryCandidatePaths, taskIntent);
   const primarySet = new Set(primaryPaths);
-  const testPaths = sortTestsByPrimaryRelevance(uniquePaths([
+  const testCandidates = uniquePaths([
     ...categorized.supportingTests.map((file) => file.path),
     ...affectedTestPaths
-  ]), primaryPaths);
+  ]).filter((file) => !isExplicitlyExcludedLayerPath(startup.task, file, taskIntent));
+  const testPaths = sortTestsByPrimaryRelevance(
+    calibrateTestsToPrimary(testCandidates, primaryPaths, lookupHints),
+    primaryPaths,
+    lookupHints
+  );
   const testSet = new Set(testPaths);
   const supportingPaths = uniquePaths([
     ...(directPrimaryPaths.length > 0
       ? [
+      ...rawPrimaryPaths,
       ...legacyTaskPaths,
       ...categorized.recommendedFiles
         .map((file) => file.path)
@@ -376,7 +509,10 @@ export function buildWorkFileCategorization(
     primaryFiles: recommendationItemsWithHints(primaryPaths, startup, lookupHints),
     supportingFiles: recommendationItemsWithLearning(supportingPaths, startup, lookupHints, learnedSignals),
     optionalSupportingFiles: [],
-    tests: recommendationItemsWithLearning(testPaths, startup, lookupHints, learnedSignals),
+    tests: recommendationItemsWithLearning(testPaths, startup, lookupHints, learnedSignals).map((item) => ({
+      ...item,
+      reasons: uniquePaths([...item.reasons, ...testAffinityReasons(item.path, primaryPaths)])
+    })),
     agentRules: categorized.workflowDocs.filter((file) => !primarySet.has(file.path)),
     contextIfUnclear: categorized.contextDocs.filter((file) => !primarySet.has(file.path))
   };

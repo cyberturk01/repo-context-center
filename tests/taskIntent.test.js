@@ -161,3 +161,62 @@ test("next lookup keyword follows filtered lookup term order", () => {
   assert.equal(analyzeTaskIntent("fix rcc find command").nextLookupKeyword, "find");
   assert.equal(analyzeTaskIntent("fix possible issue").nextLookupKeyword, null);
 });
+
+test("frontend intent recognizes UI vocabulary and named surfaces", () => {
+  const intent = analyzeTaskIntent(
+    "Collapse the reservation form into a mobile drawer on the Operations Home page"
+  );
+
+  assert.equal(intent.hasFrontendIntent, true);
+  assert.equal(intent.hasBackendIntent, false);
+  assert.deepEqual(intent.excludedApplicationLayers, []);
+  assert.ok(intent.namedUiSurfaces.includes("reservation form"));
+  assert.ok(intent.namedUiSurfaces.includes("mobile drawer"));
+  assert.ok(intent.namedUiSurfaces.includes("operations home"));
+});
+
+test("backend intent recognizes API application-layer vocabulary", () => {
+  const intent = analyzeTaskIntent("Add an API endpoint and repository migration for reservations");
+
+  assert.equal(intent.hasFrontendIntent, false);
+  assert.equal(intent.hasBackendIntent, true);
+  assert.deepEqual(intent.excludedApplicationLayers, []);
+  assert.deepEqual(intent.namedUiSurfaces, []);
+});
+
+test("backend exclusion phrases do not become positive backend intent", () => {
+  for (const task of [
+    "Update the reservation form; do not change backend APIs",
+    "Update the reservation page with no backend changes",
+    "Update the reservation drawer without API changes",
+    "Implement the warning client-side only",
+    "Implement the dashboard warning frontend only"
+  ]) {
+    const intent = analyzeTaskIntent(task);
+    assert.equal(intent.hasFrontendIntent, true, task);
+    assert.equal(intent.hasBackendIntent, false, task);
+    assert.deepEqual(intent.excludedApplicationLayers, ["backend"], task);
+  }
+});
+
+test("frontend exclusion phrases support backend-only tasks", () => {
+  for (const task of [
+    "Change the API service with no frontend changes",
+    "Update the database without UI changes",
+    "Implement the endpoint backend only",
+    "Implement the controller server-side only"
+  ]) {
+    const intent = analyzeTaskIntent(task);
+    assert.equal(intent.hasFrontendIntent, false, task);
+    assert.equal(intent.hasBackendIntent, true, task);
+    assert.deepEqual(intent.excludedApplicationLayers, ["frontend"], task);
+  }
+});
+
+test("generic create and error terms alone do not imply frontend intent", () => {
+  const intent = analyzeTaskIntent("Create error handling");
+
+  assert.equal(intent.hasFrontendIntent, false);
+  assert.equal(intent.hasBackendIntent, false);
+  assert.deepEqual(intent.namedUiSurfaces, []);
+});

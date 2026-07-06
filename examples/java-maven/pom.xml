@@ -1,0 +1,6 @@
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>example</groupId>
+  <artifactId>java-maven-rcc-example</artifactId>
+  <version>0.1.0</version>
+</project>

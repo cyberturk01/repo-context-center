@@ -172,6 +172,13 @@ function strongerConfidence(left: InternalConfidenceLevel, right: InternalConfid
   return score[left] >= score[right] ? left : right;
 }
 
+function capContextOnlyConfidence(
+  level: InternalConfidenceLevel,
+  contextOnlyChanges: boolean
+): InternalConfidenceLevel {
+  return contextOnlyChanges && level === "high" ? "medium" : level;
+}
+
 function confidenceExplanation(
   changedFiles: string[],
   contextChanges: CandidateFile[],
@@ -202,7 +209,8 @@ function confidenceExplanation(
     : nonContextChangedFiles.length > 0 || contextChanges.length > 0
       ? "medium"
       : "low";
-  const level = strongerConfidence(routingConfidence, changeConfidence);
+  const uncappedLevel = strongerConfidence(routingConfidence, changeConfidence);
+  const level = capContextOnlyConfidence(uncappedLevel, contextOnlyChanges);
 
   if (nonContextChangedFiles.length > 0) {
     reasons.push("changed files detected");
@@ -227,6 +235,9 @@ function confidenceExplanation(
   }
   reasons.push(`routing confidence: ${routingConfidence}`);
   reasons.push(`change confidence: ${changeConfidence}`);
+  if (contextOnlyChanges && uncappedLevel !== level) {
+    reasons.push("context-only changes cap confidence at medium");
+  }
   if (level !== "high" && contextOnlyChanges && routingConfidence !== "high") {
     reasons.push("routing evidence not strong enough for high confidence");
   }

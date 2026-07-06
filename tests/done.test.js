@@ -96,6 +96,41 @@ test("done preserves existing entries", async () => {
   });
 });
 
+test("done automatically archives an oversized work log", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const entries = Array.from({ length: 100 }, (_, index) => [
+      `## ${new Date(Date.UTC(2025, 0, 1, 0, 0, index)).toISOString()}`,
+      `- Summary: Historical work ${index}`,
+      `- Changed files: \`src/history-${index}.ts\``
+    ].join("\n"));
+    await writeFixtureFile(tempDir, workLogPath, [
+      "# Work Log",
+      "",
+      "Lightweight RCC memory from completed agent work.",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "",
+      ...entries.flatMap((entry) => [entry, ""]),
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["done", "Newest completed work", "--files", "src/newest.ts"], { cwd: tempDir });
+    const live = await readFile(path.join(tempDir, workLogPath), "utf8");
+    const archived = await readFile(
+      path.join(tempDir, "docs/ai-context/archive/WORK_LOG_ARCHIVE.md"),
+      "utf8"
+    );
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Auto-archived 51 older work log entries\./);
+    assert.equal((live.match(/^## /gm) ?? []).length, 50);
+    assert.match(live, /Newest completed work/);
+    assert.doesNotMatch(live, /Historical work 0\b/);
+    assert.match(archived, /Historical work 0\b/);
+  });
+});
+
 test("done works without git", async () => {
   await withDoneRepo(async (tempDir) => {
     await writeFixtureFile(tempDir, "src/index.ts", "export const ok = true;\n");

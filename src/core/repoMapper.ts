@@ -3,8 +3,7 @@ import { readdir } from "node:fs/promises";
 import { hasConfig, readConfig } from "./config";
 import { requiredContextFiles, type RequiredContextFile } from "./contextFiles";
 import { ensureDir, readTextFile, writeTextFile, pathExists } from "./fileSystem";
-import { renderRepositoryLearningBody, upsertRepositoryLearning } from "./renderRepositoryLearning";
-import { buildRepositoryLearningModel } from "./repositoryLearning";
+import { renderRepositoryLearning } from "./renderRepositoryLearning";
 import { buildRepositoryUnderstanding, type RepositoryUnderstanding } from "./repositoryUnderstanding";
 import { extractExportedSymbols, type ScannedSymbol } from "./scanner";
 import { renderWorkIndex } from "./workMemory";
@@ -279,6 +278,11 @@ function words(filePath: string): string[] {
 function pathHas(file: RepoFile, terms: string[]): boolean {
   const fileWords = new Set(words(file.path));
   return terms.some((term) => fileWords.has(term) || file.path.toLowerCase().includes(term));
+}
+
+function pathHasWord(file: RepoFile, terms: string[]): boolean {
+  const fileWords = new Set(words(file.path));
+  return terms.some((term) => fileWords.has(term));
 }
 
 function isTestPath(filePath: string): boolean {
@@ -598,9 +602,9 @@ function findCategoryTestFiles(category: Category, tests: string[]): string[] {
     templates: ["template", "context"],
     auth: ["auth", "session", "security", "consent"],
     database: ["db", "database", "migration"],
-    email: ["email", "mail", "message", "notification"],
+    messaging: ["email", "mail", "message", "notification"],
     business: ["coupon", "reward", "loyalty", "customer"],
-    "public-staff-pos": ["public", "staff", "pos", "qr"],
+    "frontend-api": ["public", "staff", "pos", "qr"],
     context: ["context", "template", "map", "validate"],
     release: ["release", "deploy", "deployment", "workflow", "ci"]
   };
@@ -880,7 +884,7 @@ const categories: Category[] = [
   },
   {
     key: "fixtures",
-    label: "Tests / Fixtures",
+    label: "Tests/fixtures",
     taskType: "Test fixture/snapshot updates",
     purpose: "Test data, temp repos, and fixtures",
     commonTasks: ["update temp repo setup", "change fixtures", "refresh expected docs"],
@@ -911,37 +915,37 @@ const categories: Category[] = [
     match: (file) => isDatabasePath(file.path)
   },
   {
-    key: "email",
-    label: "Email/messaging",
-    taskType: "Email/messaging",
-    purpose: "Email, messages, notifications, and campaigns",
+    key: "messaging",
+    label: "Messaging/notifications",
+    taskType: "Messaging/notifications",
+    purpose: "Messages, notifications, and delivery workflows",
     commonTasks: ["delivery", "templates", "queues"],
     thenCheck: ["queue boundaries", "template tests", "delivery guards"],
     notes: "Check duplicate-send and incorrect-recipient risks.",
-    riskWhy: "Messaging changes can send incorrect or duplicate communication.",
+    riskWhy: "Notification changes can send incorrect or duplicate communication.",
     match: (file) => pathHas(file, ["email", "mail", "message", "notification", "campaign"])
   },
   {
     key: "business",
-    label: "Business-sensitive flows",
-    taskType: "Coupon/reward/loyalty",
-    purpose: "Coupon, reward, customer, and loyalty behavior",
-    commonTasks: ["business rules", "eligibility", "redemption"],
-    thenCheck: ["service rules", "public/staff callers", "business tests"],
-    notes: "Check accounting, eligibility, and duplicate-use cases.",
-    riskWhy: "Business rules can affect customer value or owner accounting.",
+    label: "Business logic",
+    taskType: "Business logic",
+    purpose: "Domain rules, eligibility, and state-changing behavior",
+    commonTasks: ["business rules", "eligibility", "state changes"],
+    thenCheck: ["service rules", "callers", "domain tests"],
+    notes: "Check data consistency, eligibility, and duplicate-use cases.",
+    riskWhy: "Business logic changes can affect user-visible behavior or data consistency.",
     match: (file) => pathHas(file, ["coupon", "reward", "loyalty", "referral", "visit", "contact", "customer"])
   },
   {
-    key: "public-staff-pos",
-    label: "Staff/POS/public flows",
-    taskType: "Staff/POS/public flows",
-    purpose: "Public, staff, owner, POS, and QR flows",
-    commonTasks: ["public UI", "staff workflow", "POS"],
+    key: "frontend-api",
+    label: "Frontend/API",
+    taskType: "User-visible and access-sensitive flows",
+    purpose: "User-visible routes, public assets, and access-sensitive workflows",
+    commonTasks: ["public UI", "role-aware workflow", "route behavior"],
     thenCheck: ["role checks", "route handlers", "e2e tests"],
     notes: "User-visible and often role-sensitive.",
-    riskWhy: "Public and staff flows are user-visible and often role-sensitive.",
-    match: (file) => isPublicPath(file.path) || pathHas(file, ["owner", "staff", "pos", "qr", "public"])
+    riskWhy: "User-visible and access-sensitive flows can affect behavior across roles or entrypoints.",
+    match: (file) => isPublicPath(file.path) || pathHasWord(file, ["owner", "staff", "pos", "qr", "public"])
   },
   {
     key: "context",
@@ -956,7 +960,7 @@ const categories: Category[] = [
   },
   {
     key: "release",
-    label: "Release workflow",
+    label: "Release/deploy workflow",
     taskType: "GitHub Actions / release workflow",
     purpose: "CI, deployment, and release configuration",
     commonTasks: ["CI", "deployment", "release"],
@@ -978,7 +982,7 @@ function filesForCategory(files: RepoFile[], category: Category): RepoFile[] {
 }
 
 const sourceEvidenceRoots = ["src", "app", "lib", "packages"];
-const domainCategoryKeys = new Set(["auth", "database", "email", "business", "public-staff-pos"]);
+const domainCategoryKeys = new Set(["auth", "database", "messaging", "business", "frontend-api"]);
 
 function isProductionDomainEvidence(file: RepoFile, category: Category): boolean {
   if (isTestPath(file.path)
@@ -998,9 +1002,38 @@ function isProductionDomainEvidence(file: RepoFile, category: Category): boolean
   return category.key === "database" && isDatabasePath(file.path) && /\.(sql|ya?ml|json)$/i.test(file.path);
 }
 
+function knownDomainDirectoryEvidence(file: RepoFile, category: Category): boolean {
+  const normalized = file.path.toLowerCase();
+
+  switch (category.key) {
+    case "auth":
+      return /(^|\/)(auth|authentication|security|sessions?)(\/|$)/.test(normalized);
+    case "database":
+      return isDatabasePath(file.path) || /(^|\/)(db|database|migrations?|schema|schemas|sql)(\/|$)/.test(normalized);
+    case "messaging":
+      return /(^|\/)(email|mail|messages?|notifications?|campaigns?)(\/|$)/.test(normalized);
+    case "business":
+      return /(^|\/)(coupons?|rewards?|loyalty|referrals?)(\/|$)/.test(normalized);
+    case "frontend-api":
+      return /(^|\/)(access|permissions?|roles?|staff|pos|qr)(\/|$)/.test(normalized);
+    default:
+      return false;
+  }
+}
+
+function productionDomainEvidenceFiles(files: RepoFile[], category: Category): RepoFile[] {
+  return filesForCategory(files, category).filter((file) => isProductionDomainEvidence(file, category));
+}
+
 function categoryHasProductionDomainEvidence(files: RepoFile[], category: Category): boolean {
-  return !domainCategoryKeys.has(category.key)
-    || filesForCategory(files, category).some((file) => isProductionDomainEvidence(file, category));
+  if (!domainCategoryKeys.has(category.key)) {
+    return true;
+  }
+
+  const evidenceFiles = productionDomainEvidenceFiles(files, category);
+
+  return evidenceFiles.length >= 2
+    || evidenceFiles.some((file) => knownDomainDirectoryEvidence(file, category));
 }
 
 function relatedTests(sourceFiles: string[], testFiles: string[]): string[] {
@@ -1227,6 +1260,10 @@ function buildModules(files: RepoFile[], understanding: RepositoryUnderstanding,
   return categories
     .map((category) => {
       if (category.key === "context" && !hasProjectFiles) {
+        return undefined;
+      }
+
+      if (!categoryHasProductionDomainEvidence(files, category)) {
         return undefined;
       }
 
@@ -2007,8 +2044,14 @@ function renderExistingWorkIndex(_data: RepoMapData, existing?: string): string 
   return existing?.trim() ? existing : renderWorkIndex([]);
 }
 
-function renderRepositoryLearning(): string {
-  return renderRepositoryLearningBody(buildRepositoryLearningModel({}));
+function renderExistingRepositoryLearning(_data: RepoMapData, existing?: string): string {
+  return existing?.trim() ? existing : renderRepositoryLearning({
+    recentFocusAreas: [],
+    commonFileRelationships: [],
+    frequentlyModifiedTogether: [],
+    verificationPatterns: [],
+    repositoryHabits: []
+  });
 }
 
 function manualContentWithoutGeneratedSection(existing: string | undefined): string {
@@ -2038,7 +2081,7 @@ const renderers: Record<GeneratedContextFile, { title: string; render: (data: Re
   "docs/ai-context/TOKEN_BUDGET.md": { title: "Token Budget", render: renderTokenBudget },
   "docs/ai-context/DO_NOT_READ.md": { title: "Do Not Read", render: renderDoNotRead },
   "docs/ai-context/WORK_INDEX.md": { title: "Work Index", render: renderExistingWorkIndex },
-  "docs/ai-context/REPOSITORY_LEARNING.md": { title: "Repository Learning", render: renderRepositoryLearning },
+  "docs/ai-context/REPOSITORY_LEARNING.md": { title: "Repository Learning", render: renderExistingRepositoryLearning },
   "docs/ai-context/HOTSPOTS.md": { title: "Hotspots", render: renderHotspots },
   "docs/ai-context/LESSONS_LEARNED.md": {
     title: "Lessons Learned",
@@ -2130,10 +2173,9 @@ async function buildChanges(cwd: string, data: RepoMapData): Promise<RepoMapChan
     const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : undefined;
     const rendered = renderer.render(data, existing);
     const content = generatedFile === "docs/ai-context/WORK_INDEX.md"
+      || generatedFile === "docs/ai-context/REPOSITORY_LEARNING.md"
       ? rendered
-      : generatedFile === "docs/ai-context/REPOSITORY_LEARNING.md"
-        ? upsertRepositoryLearning(existing, buildRepositoryLearningModel({}))
-        : upsertGeneratedSection(existing, renderer.title, rendered);
+      : upsertGeneratedSection(existing, renderer.title, rendered);
     changes.push({
       path: file,
       action: existing === undefined ? "create" : "update",

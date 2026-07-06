@@ -48,6 +48,71 @@ async function setFixtureMtime(root, relativePath, date) {
   await utimes(fullPath, date, date);
 }
 
+async function withFrontendReservationRepo(callback, options = {}) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-frontend-reservations-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "package.json", JSON.stringify({
+      private: true,
+      workspaces: ["apps/*", "packages/*"]
+    }, null, 2));
+    await writeFixtureFile(
+      tempDir,
+      "apps/dashboard/src/reservations/ReservationFoundation.tsx",
+      "export function ReservationFoundation() { return <section>Reservation form and reservation list</section>; }\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "apps/dashboard/src/operations/OperationsHome.tsx",
+      "export function OperationsHome() { return <section>Reservation warnings</section>; }\n"
+    );
+    await writeFixtureFile(tempDir, "apps/dashboard/src/localization.ts", "export const reservationLabels = {};\n");
+    await writeFixtureFile(tempDir, "apps/dashboard/src/App.css", ".reservation-drawer { display: block; }\n");
+    if (options.dashboardTests !== false) {
+      await writeFixtureFile(
+        tempDir,
+        "apps/dashboard/src/reservations/ReservationFoundation.test.tsx",
+        "test('reservation create flow and duplicate warnings', () => {});\n"
+      );
+      await writeFixtureFile(
+        tempDir,
+        "apps/dashboard/src/operations/OperationsHome.test.tsx",
+        "test('operations home reservation warnings', () => {});\n"
+      );
+    }
+    await writeFixtureFile(
+      tempDir,
+      "apps/api/src/modules/reservations/reservation.routes.ts",
+      "export const reservationRoutes = {};\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "apps/api/src/modules/reservations/reservation.service.ts",
+      "export const reservationService = {};\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "apps/api/src/modules/reservations/reservation.routes.test.ts",
+      "test('reservation API routes', () => {});\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "apps/api/src/modules/reservations/reservation.service.test.ts",
+      "test('reservation API service', () => {});\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "packages/shared-types/src/reservation.ts",
+      "export interface Reservation { id: string; }\n"
+    );
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function withFreshnessRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-freshness-"));
   const contextDate = new Date("2026-06-17T12:00:00.000Z");
@@ -2205,6 +2270,82 @@ test("work --json ranks exact filename above weak semantic matches", async () =>
   });
 });
 
+test("work matches spaced task phrases to normalized compound filenames", async () => {
+  await withFrontendReservationRepo(async (tempDir) => {
+    const result = runCli(["work", "--json", "--debug", "update Operations Home reservation warnings"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const hint = brief.targetedLookupHints.find((item) => item.path === "apps/dashboard/src/operations/OperationsHome.tsx");
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.ok(hint, JSON.stringify(brief.targetedLookupHints, null, 2));
+    assert.equal(hint.signal, "filename-match");
+    assert.match(hint.reason, /normalized compound filename "operations home"/);
+  });
+});
+
+test("work compound filename match outranks a single exact domain stem", async () => {
+  await withFrontendReservationRepo(async (tempDir) => {
+    await writeFixtureFile(
+      tempDir,
+      "apps/dashboard/src/reservations/ReservationFormDrawer.tsx",
+      "export function ReservationFormDrawer() { return null; }\n"
+    );
+
+    const result = runCli(["work", "--json", "--debug", "improve reservation form drawer"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const paths = brief.targetedLookupHints.map((hint) => hint.path);
+    const componentHint = brief.targetedLookupHints.find((hint) => hint.path === "apps/dashboard/src/reservations/ReservationFormDrawer.tsx");
+    const exactDomainHint = brief.targetedLookupHints.find((hint) => hint.path === "packages/shared-types/src/reservation.ts");
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(paths[0], "apps/dashboard/src/reservations/ReservationFormDrawer.tsx", JSON.stringify(brief.targetedLookupHints, null, 2));
+    assert.ok(componentHint && exactDomainHint && componentHint.score > exactDomainHint.score);
+    assert.equal(paths.includes("apps/api/src/modules/reservations/reservation.service.ts"), false);
+  });
+});
+
+test("work adds bounded diminishing bonuses for independent filename signals", async () => {
+  await withFrontendReservationRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "apps/dashboard/src/ReservationFormDrawer.tsx", "export const view = true;\n");
+    await writeFixtureFile(tempDir, "apps/dashboard/src/ReservationPanel.tsx", "export const panel = true;\n");
+
+    const task = "reservation drawer improve form panel";
+    const result = runCli(["work", "--json", "--debug", task], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const multi = brief.targetedLookupHints.find((hint) => hint.path === "apps/dashboard/src/ReservationFormDrawer.tsx");
+    const single = brief.targetedLookupHints.find((hint) => hint.path === "apps/dashboard/src/ReservationPanel.tsx");
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.ok(multi && single, JSON.stringify(brief.targetedLookupHints, null, 2));
+    assert.ok(multi.score > single.score, JSON.stringify({ multi, single }, null, 2));
+    assert.match(multi.reason, /additional matches:/);
+    assert.ok(multi.score - single.score <= 34, JSON.stringify({ multi, single }, null, 2));
+  });
+});
+
+test("work cumulative score is stable when a task contains unrelated noise", async () => {
+  await withFrontendReservationRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "apps/dashboard/src/ReservationFormDrawer.tsx", "export const view = true;\n");
+    const concise = runCli(["work", "--json", "--debug", "reservation drawer improve form"], { cwd: tempDir });
+    const noisy = runCli([
+      "work",
+      "--json",
+      "--debug",
+      "reservation drawer improve form customer calendar toolbar settings export analytics notification history"
+    ], { cwd: tempDir });
+    const conciseBrief = JSON.parse(concise.stdout);
+    const noisyBrief = JSON.parse(noisy.stdout);
+    const targetPath = "apps/dashboard/src/ReservationFormDrawer.tsx";
+    const conciseHint = conciseBrief.targetedLookupHints.find((hint) => hint.path === targetPath);
+    const noisyHint = noisyBrief.targetedLookupHints.find((hint) => hint.path === targetPath);
+
+    assert.equal(concise.status, 0, concise.stderr || concise.stdout);
+    assert.equal(noisy.status, 0, noisy.stderr || noisy.stdout);
+    assert.ok(conciseHint && noisyHint, JSON.stringify({ concise: conciseBrief.targetedLookupHints, noisy: noisyBrief.targetedLookupHints }, null, 2));
+    assert.ok(noisyHint.score - conciseHint.score <= 1, JSON.stringify({ conciseHint, noisyHint }, null, 2));
+  });
+});
+
 test("work --json ranks package task package.json first", async () => {
   await withRecommendedRankingRepo(async (tempDir) => {
     const result = runCli(["work", "--json", "--debug", "improve package scripts"], { cwd: tempDir });
@@ -2618,12 +2759,31 @@ test("work --agent keeps README wording tasks tiny without unrelated tests", asy
 
 test("work --agent does not downgrade auth middleware tasks to tiny", async () => {
   await withWorkRepo(async (tempDir) => {
+    for (const filePath of [
+      "packages/backend-core/src/events/publishers/auth.ts",
+      "packages/builder/src/stores/portal/auth.ts",
+      "packages/frontend-core/src/api/auth.ts",
+      "packages/worker/src/api/controllers/global/auth.ts",
+      "packages/worker/src/api/routes/global/auth.ts",
+      "packages/backend-core/src/auth/auth.ts",
+      "packages/server/src/api/routes/public/middleware/mapper.ts",
+      "packages/backend-core/src/auth/index.ts",
+      "packages/backend-core/src/middleware/joi-validator.ts",
+      "packages/builder/src/settings/pages/auth/index.svelte"
+    ]) {
+      await writeFixtureFile(tempDir, filePath, "export const value = true;\n");
+    }
+
     const result = runCli(["work", "improve auth middleware", "--agent"], { cwd: tempDir });
     const route = JSON.parse(result.stdout);
 
     assert.equal(result.status, 0);
     assert.notEqual(route.taskSize, "tiny");
     assert.notEqual(route.next.startsWith("Tiny obvious task:"), true);
+    assert.ok(route.primaryFiles.includes("packages/server/src/api/routes/public/middleware/mapper.ts"), route.primaryFiles.join("\n"));
+    assert.ok(route.primaryFiles.includes("packages/backend-core/src/middleware/joi-validator.ts"), route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.includes("packages/frontend-core/src/api/auth.ts"), false, route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.includes("packages/builder/src/settings/pages/auth/index.svelte"), false, route.primaryFiles.join("\n"));
   });
 });
 
@@ -3015,5 +3175,214 @@ test("work output is concise and agent-oriented", async () => {
     assert.doesNotMatch(result.stdout, /Recent logs:/);
     assert.doesNotMatch(result.stdout, /Read-first guidance:/);
     assert.doesNotMatch(result.stdout, /Fast lookup:/);
+  });
+});
+
+test("work prefers files in the explicitly named workspace package", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-monorepo-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "package.json", JSON.stringify({
+      private: true,
+      workspaces: ["packages/*"]
+    }, null, 2));
+    await writeFixtureFile(tempDir, "packages/auth/src/session.ts", "export function session() { return true; }\n");
+    await writeFixtureFile(tempDir, "packages/auth/tests/session.test.ts", "test('auth session', () => {});\n");
+    await writeFixtureFile(tempDir, "packages/frontend/src/session.ts", "export function sessionView() { return true; }\n");
+    await writeFixtureFile(tempDir, "packages/mobile/src/session.ts", "export function sessionMobile() { return true; }\n");
+
+    const result = runCli(["work", "update auth session", "--json"], { cwd: tempDir });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const route = JSON.parse(result.stdout);
+    const primaryPaths = route.primaryFiles.map((file) => file.path);
+    const authIndex = primaryPaths.indexOf("packages/auth/src/session.ts");
+    const frontendIndex = primaryPaths.indexOf("packages/frontend/src/session.ts");
+    const mobileIndex = primaryPaths.indexOf("packages/mobile/src/session.ts");
+
+    assert.notEqual(authIndex, -1, primaryPaths.join("\n"));
+    assert.ok(frontendIndex === -1 || authIndex < frontendIndex, primaryPaths.join("\n"));
+    assert.ok(mobileIndex === -1 || authIndex < mobileIndex, primaryPaths.join("\n"));
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work --agent routes reservation create-form UI work to the dashboard", async () => {
+  await withFrontendReservationRepo(async (tempDir) => {
+    const task = [
+      "Collapse an always-visible reservation creation form behind a + New reservation action.",
+      "Open it in a drawer, modal, or panel, close and reset it after success,",
+      "preserve errors after failure, keep existing fields, do not change backend APIs,",
+      "and keep it mobile friendly."
+    ].join(" ");
+    const result = runCli(["work", task, "--agent"], { cwd: tempDir });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const route = JSON.parse(result.stdout);
+    const dashboardPath = "apps/dashboard/src/reservations/ReservationFoundation.tsx";
+    const backendPaths = [
+      "apps/api/src/modules/reservations/reservation.routes.ts",
+      "apps/api/src/modules/reservations/reservation.service.ts"
+    ];
+
+    assert.ok(route.primaryFiles.includes(dashboardPath), JSON.stringify(route, null, 2));
+    assert.equal(route.primaryFiles.some((file) => backendPaths.includes(file)), false, route.primaryFiles.join("\n"));
+    assert.equal(route.tests.some((file) => file.startsWith("apps/api/")), false, route.tests.join("\n"));
+    assert.ok(
+      route.tests.includes("apps/dashboard/src/reservations/ReservationFoundation.test.tsx"),
+      route.tests.join("\n")
+    );
+
+    const debugResult = runCli(["work", task, "--json", "--debug"], { cwd: tempDir });
+    const debug = JSON.parse(debugResult.stdout);
+    assert.ok(debug.targetedLookupHints.some((hint) => (
+      hint.path === dashboardPath && hint.reason.includes("frontend layer affinity (+36)")
+    )), JSON.stringify(debug.targetedLookupHints, null, 2));
+    assert.ok(debug.targetedLookupHints.some((hint) => (
+      hint.path.startsWith("apps/api/") && hint.reason.includes("backend layer explicitly excluded (-44)")
+    )), JSON.stringify(debug.targetedLookupHints, null, 2));
+  });
+});
+
+test("work --agent routes client-side duplicate reservation warnings to dashboard surfaces", async () => {
+  await withFrontendReservationRepo(async (tempDir) => {
+    const task = [
+      "Add client-side likely duplicate reservation warnings to the reservation list,",
+      "Operations Home, and reservation detail drawer. Do not change backend APIs",
+      "and do not block creation."
+    ].join(" ");
+    const result = runCli(["work", task, "--agent"], { cwd: tempDir });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const route = JSON.parse(result.stdout);
+    const reservationFoundation = "apps/dashboard/src/reservations/ReservationFoundation.tsx";
+    const operationsHome = "apps/dashboard/src/operations/OperationsHome.tsx";
+    const backendPaths = [
+      "apps/api/src/modules/reservations/reservation.routes.ts",
+      "apps/api/src/modules/reservations/reservation.service.ts"
+    ];
+
+    assert.ok(route.primaryFiles.includes(reservationFoundation), JSON.stringify(route, null, 2));
+    assert.ok(
+      route.primaryFiles.includes(operationsHome) || route.supportingFiles.includes(operationsHome),
+      [...route.primaryFiles, ...route.supportingFiles].join("\n")
+    );
+    assert.equal(route.primaryFiles.some((file) => backendPaths.includes(file)), false, route.primaryFiles.join("\n"));
+    assert.equal(route.tests.some((file) => file.startsWith("apps/api/")), false, route.tests.join("\n"));
+    assert.ok(
+      route.tests.some((file) => file.startsWith("apps/dashboard/")),
+      route.tests.join("\n")
+    );
+  });
+});
+
+test("work --agent applies backend affinity for backend tasks", async () => {
+  await withFrontendReservationRepo(async (tempDir) => {
+    const result = runCli([
+      "work",
+      "Update the reservation API service and route controller without frontend changes",
+      "--agent"
+    ], { cwd: tempDir });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const route = JSON.parse(result.stdout);
+    assert.ok(route.primaryFiles.some((file) => file.startsWith("apps/api/")), route.primaryFiles.join("\n"));
+    assert.equal(route.primaryFiles.some((file) => file.startsWith("apps/dashboard/")), false, route.primaryFiles.join("\n"));
+  });
+});
+
+test("work --agent retains both application layers for mixed tasks", async () => {
+  await withFrontendReservationRepo(async (tempDir) => {
+    const result = runCli([
+      "work",
+      "Update the reservation dashboard form and backend API service together",
+      "--agent"
+    ], { cwd: tempDir });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const route = JSON.parse(result.stdout);
+    assert.ok(route.primaryFiles.some((file) => file.startsWith("apps/dashboard/")), route.primaryFiles.join("\n"));
+    assert.ok(route.primaryFiles.some((file) => file.startsWith("apps/api/")), route.primaryFiles.join("\n"));
+  });
+});
+
+test("work --agent preserves an explicitly named filename across layer exclusion", async () => {
+  await withFrontendReservationRepo(async (tempDir) => {
+    const result = runCli([
+      "work",
+      "Update the reservation form without backend changes, but inspect reservation.service.ts",
+      "--agent"
+    ], { cwd: tempDir });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const route = JSON.parse(result.stdout);
+    assert.ok(
+      route.primaryFiles.includes("apps/api/src/modules/reservations/reservation.service.ts"),
+      route.primaryFiles.join("\n")
+    );
+  });
+});
+
+test("work debug explains same-workspace and same-layer frontend test preference", async () => {
+  await withFrontendReservationRepo(async (tempDir) => {
+    const task = "Update the dashboard reservation form and drawer without backend changes";
+    const result = runCli(["work", task, "--json", "--debug"], { cwd: tempDir });
+    const brief = JSON.parse(result.stdout);
+    const dashboardTest = brief.tests.find((item) => (
+      item.path === "apps/dashboard/src/reservations/ReservationFoundation.test.tsx"
+    ));
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.ok(dashboardTest, JSON.stringify(brief.tests, null, 2));
+    assert.match(dashboardTest.reason, /same workspace package/);
+    assert.match(dashboardTest.reason, /frontend layer affinity/);
+    assert.equal(brief.tests.some((item) => item.path.startsWith("apps/api/")), false, JSON.stringify(brief.tests, null, 2));
+  });
+});
+
+test("work --agent reports no tests instead of filling a frontend task with backend tests", async () => {
+  await withFrontendReservationRepo(async (tempDir) => {
+    const result = runCli([
+      "work",
+      "Update the dashboard reservation form and drawer without backend changes",
+      "--agent"
+    ], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.deepEqual(route.tests, []);
+    assert.match(route.next, /No strongly related tests found/);
+  }, { dashboardTests: false });
+});
+
+test("work --agent keeps tests from both application layers for mixed changes", async () => {
+  await withFrontendReservationRepo(async (tempDir) => {
+    const result = runCli([
+      "work",
+      "Update the reservation dashboard form and backend API service together",
+      "--agent"
+    ], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.ok(route.tests.some((file) => file.startsWith("apps/dashboard/")), route.tests.join("\n"));
+    assert.ok(route.tests.some((file) => file.startsWith("apps/api/")), route.tests.join("\n"));
+  });
+});
+
+test("work preserves an explicitly named backend test for a frontend task", async () => {
+  await withFrontendReservationRepo(async (tempDir) => {
+    const exactTest = "apps/api/src/modules/reservations/reservation.service.test.ts";
+    const result = runCli([
+      "work",
+      "Update the dashboard reservation form without backend changes but run reservation.service.test.ts",
+      "--agent"
+    ], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.ok(route.tests.includes(exactTest), route.tests.join("\n"));
   });
 });

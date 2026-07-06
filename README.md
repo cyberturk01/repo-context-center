@@ -15,7 +15,7 @@ Core workflow:
 init → map → work → impact → verify → done → handoff
 ```
 
-Optional insight:
+Optional diagnostic:
 
 ```
 metrics
@@ -87,6 +87,30 @@ Example output:
 - `supportingFiles` are optional follow-up files when the route is not enough.
 - `readFirst` contains repository rules the agent should read before editing.
 
+## Non-Node Usage
+
+RCC remains repository intelligence for AI coding agents, not a Node-only tool. It can detect common Maven, Gradle, Python, Go, .NET, and workspace-style repository signals and use them to make `rcc verify` recommendations feel natural when no stronger task-specific command exists.
+
+RCC is distributed as a single npm CLI package. Java, Python, Go, Maven, Gradle, Spring Boot, Quarkus, and monorepo examples are adoption examples only; they show how RCC works inside those repository types. RCC does not publish separate Maven, PyPI, Go module, or .NET packages.
+
+Examples:
+
+- Java Maven: `mvn test`, with `mvn verify` as broader verification.
+- Java Gradle: `./gradlew test` and `./gradlew build` when the wrapper exists; otherwise `gradle test` and `gradle build`.
+- Spring Boot and Quarkus: use the Java Maven/Gradle signals and keep backend-only verification focused on Java paths.
+- Python: detects `pyproject.toml`, `requirements.txt`, `setup.py`, and `pytest.ini`; suggests `pytest` when pytest signals are present, otherwise `python -m pytest`. See [Python adoption](docs/ecosystems/python.md).
+- Go: detects `go.mod`; suggests `go test ./...` when no stronger task-specific command exists. See [Go adoption](docs/ecosystems/go.md).
+- .NET: `dotnet test`.
+- Node: existing Node behavior is preserved.
+
+RCC prints suggested commands but does not execute them. See [Java](docs/ecosystems/java.md), [Python](docs/ecosystems/python.md), [Go](docs/ecosystems/go.md), and [monorepo](docs/ecosystems/monorepo.md) adoption notes.
+
+## Monorepo Intelligence
+
+RCC recognizes common workspace layouts such as `apps/`, `packages/`, `services/`, `libs/`, `modules/`, npm/yarn/pnpm workspaces, Turborepo, Nx, and Lerna. In monorepos, Work and Impact prefer files in the same package when task wording or affected paths make the package clear, while Verify can suggest package-aware commands such as workspace test filters, Maven `-pl`, Gradle project paths, or package-scoped pytest when confidence is sufficient.
+
+RCC understands repository structure; it does not replace the build system, run commands, score package health, or create execution plans.
+
 Preview installation without writing files:
 
 ```sh
@@ -130,7 +154,7 @@ npm run release:check
 Recommended workflow:
 
 ```text
-init -> map --write -> work -> impact -> verify -> done -> handoff
+init -> map -> work -> impact -> verify -> done -> handoff
 ```
 
 | Step | Command | When to run it | What it produces | Who uses the output |
@@ -141,10 +165,24 @@ init -> map --write -> work -> impact -> verify -> done -> handoff
 | `work` | `rcc work "implement feature" --agent` | Once at task start | Compact route with primary files, tests, supporting files, and read-first rules | The active coding agent |
 | `impact` | `rcc impact "update README wording" --json` | Before or after a change when estimating affected files and checks | Affected files, affected tests, suggested commands, confidence, and notes | Humans, agents, and reviewers |
 | `verify` | `rcc verify "implement feature"` | Before final verification or review | Verification plan with targeted tests, build commands, smoke checks, manual checks, and a validation checklist | Humans, agents, and reviewers |
-| `metrics` | `rcc metrics "implement feature"` | Optional diagnostic snapshot of RCC routing, token saving, freshness, impact, and verification signals for one task | RepositoryMetrics text or JSON | Humans, agents, and integrations |
 | `done` | `rcc done --summary "implemented feature" --files auto --verify "npm test"` | After meaningful completed work | Lightweight work memory in `docs/ai-context/WORK_LOG.md` and learned repository patterns in `docs/ai-context/REPOSITORY_LEARNING.md` | Future agents and humans |
 | `learn` | `rcc learn --write` | When repository learning should be regenerated on demand | Refreshed learned focus areas, file relationships, verification patterns, and repository habits | Agents, humans, and routing commands |
 | `handoff` | `rcc handoff` or `rcc handoff --agent` | When work continues in another session or agent | Continuation brief from recent work, decisions, and task-aware files | The next agent or human |
+
+Optional diagnostics:
+
+- Use `rcc metrics "<task>" --json` when you need a compact repository intelligence snapshot for one task. It is not a required workflow step.
+- Use `rcc measure "<task>"`, `rcc estimate --compare-naive`, or `rcc scan --json` when evaluating routing, context cost, or repository layout.
+- `metrics` summarizes existing Work, Measure, Impact, Verify, and freshness outputs. It does not run a second independent repository analysis engine.
+
+## Command-guided, not command-chained
+
+RCC guides humans and AI agents toward the next explicit command. It does not automatically run follow-up commands.
+
+- `work` does not run `map`; refresh generated context with `map --write` when you choose to.
+- `verify` does not execute tests; it prints targeted test commands, build commands, smoke checks, and manual checks for you to run.
+- `done` records completed-work memory and repository learning signals, but it should not surprise users with broad automation.
+- RCC outputs may recommend the next command, but the human or agent decides what to run.
 
 Agent guidance:
 
@@ -155,7 +193,6 @@ Agent guidance:
 - Use `rcc find "<keyword>"` only if the route is insufficient.
 - Use `rcc impact "<task>" --json` when you need a compact estimate of affected files, tests, and verification commands.
 - Use `rcc verify "<task>"` when you need a concrete verification plan from Impact results.
-- Use `rcc metrics "<task>" --json` when you need compact repository intelligence metrics without raw route, impact, or verify payloads.
 - Use `rcc done` after meaningful work.
 - Use `rcc learn --write` when learned repository patterns need to be regenerated manually.
 - Use `rcc handoff` when another session or agent needs to continue.
@@ -174,7 +211,7 @@ RCC does not run in the background, automatically edit source code, run commands
 | `work` | Run once at task start and follow the route | Reads context and repo metadata to produce a compact task route |
 | `impact` | Run when estimating change impact | Combines working-tree changes, task routing, learned test signals, and scored affected-test candidates |
 | `verify` | Run when planning final checks | Builds a verification plan from Impact results; RCC prints commands and checks but does not execute them |
-| `metrics` | Run when diagnosing RCC task intelligence | Optionally summarizes existing Work, Measure, Impact, Verify, and freshness outputs without running a second analysis engine |
+| `metrics` | Run only when diagnosing RCC task intelligence | Optionally summarizes existing Work, Measure, Impact, Verify, and freshness outputs without running a second independent repository analysis engine |
 | `find` | Run only when the route is insufficient | Returns focused fallback file candidates with reasons |
 | `done` | Record summary, changed files, and verification after meaningful work | Appends lightweight work memory for future handoff and routing |
 | `learn` | Regenerate learned repository patterns on demand | Reads work memory, work index, and decisions to refresh `REPOSITORY_LEARNING.md` |
@@ -230,9 +267,9 @@ Use `rcc handoff` for:
 
 ## Token Saving Expectations
 
-RCC is designed to reduce initial repository discovery context. In measured examples, RCC can reduce startup discovery context by roughly 70-99%, depending on repository size and task specificity. Full-task savings are usually lower because the agent still needs to read source files, make changes, and verify behavior.
+RCC is designed to reduce initial repository discovery context. In measured examples, RCC can reduce startup discovery context by roughly 70-99%, depending on repository size, context freshness, routing scope, and task specificity. Full-task savings are usually lower because the agent still needs to read source files, make changes, and verify behavior.
 
-Measured examples can show large reductions, sometimes from hundreds of thousands of estimated naive-scan tokens to compact routes under a few hundred tokens. Actual savings depend on repository size, task wording, and whether the agent follows the route.
+Measured examples can show large reductions, sometimes from hundreds of thousands of estimated naive-scan tokens to compact routes under a few hundred tokens. These are discovery and context-scope estimates, not guaranteed real model billing savings. Actual savings depend on repository size, context freshness, routing scope, task wording, and whether the agent follows the route.
 
 ## Measurement
 
@@ -293,7 +330,7 @@ Estimated saving:
 195,536 tokens (99.9%)
 ```
 
-Token estimates are based on repository size, available context, and routing scope. Reported savings are estimates, not guarantees.
+Token estimates are based on repository size, context freshness, and routing scope. Reported savings are discovery/context-scope estimates, not guarantees of real model billing savings.
 
 JSON output is available for integrations:
 
@@ -303,17 +340,17 @@ rcc measure "fix workflow risk detection" --json
 
 ## Repository Metrics
 
-Use `metrics` when you want an optional compact task-level quality snapshot of RCC's own repository intelligence signals:
+Use `metrics` when you want an optional compact task-level quality snapshot of RCC's repository intelligence signals. It is a diagnostic command, not part of the required RCC workflow:
 
 ```sh
 rcc metrics "fix workflow risk detection"
 rcc metrics "fix workflow risk detection" --json
 ```
 
-Metrics reuses existing RCC outputs instead of running a second repository analysis engine. It summarizes:
+Metrics reuses existing RCC outputs instead of running a second independent repository analysis engine. It summarizes:
 
 - `work` routing counts and task metadata
-- `measure` token savings
+- `measure` discovery/context-scope token savings estimates
 - map freshness from the work brief
 - `impact` summary and confidence
 - `verify` recommendation counts and confidence
@@ -340,10 +377,10 @@ That saves context, time, and attention while still leaving the agent in control
 The primary workflow is:
 
 ```text
-init -> map --write -> work -> impact -> verify -> done -> handoff
+init -> map -> work -> impact -> verify -> done -> handoff
 ```
 
-Optional insight command:
+Optional diagnostic command:
 
 ```text
 metrics
@@ -572,7 +609,7 @@ npx repo-context-center estimate --json
 
 ### Inspect Repository Metrics
 
-`metrics` is an optional diagnostic command. It summarizes RCC's existing task route, token saving, freshness, impact, and verification signals without duplicating high-level analysis work:
+`metrics` is an optional diagnostic command, not a required workflow step. It summarizes RCC's existing Work, Measure, Impact, Verify, and freshness outputs without running a second independent repository analysis engine:
 
 ```sh
 npx repo-context-center metrics "fix login bug"
@@ -618,13 +655,13 @@ npx repo-context-center verify "fix login regression" --task-only --json
 
 Integrations should execute or display the stable command/path/check data and avoid depending on long reason strings or heuristic explanation text.
 
-Use `metrics --json` when a tool needs compact RepositoryMetrics:
+Use `metrics --json` when a tool needs compact RepositoryMetrics for optional diagnostics:
 
 ```sh
 npx repo-context-center metrics "fix login regression" --json
 ```
 
-`metrics --json` is a summary contract, not a raw data export. Stable top-level fields are `schemaVersion`, `command`, `task`, `routing`, `tokens`, `freshness`, `impact`, and `verification`. The nested objects contain counts, confidence values, freshness status, and token-saving estimates. Raw arrays from Work, Impact, and Verify are intentionally omitted.
+`metrics --json` is a summary contract, not a raw data export. Stable top-level fields are `schemaVersion`, `command`, `task`, `ecosystem`, `routing`, `tokens`, `freshness`, `impact`, and `verification`. The nested objects contain counts, confidence values, freshness status, detected ecosystem summaries, and discovery/context-scope token-saving estimates. Raw arrays from Work, Impact, and Verify are intentionally omitted.
 
 Use `handoff --json` or `handoff --agent` when a tool needs continuation context:
 
@@ -654,6 +691,8 @@ npx repo-context-center archive --keep 50
 ```
 
 Archiving keeps work memory compact and refreshes repository learning from the remaining indexed history.
+`done` also performs this compaction automatically when `WORK_LOG.md` grows beyond 100 entries,
+keeping the newest 50 entries in the live file and moving older entries into the excluded archive.
 
 Preserve durable project decisions:
 
@@ -676,29 +715,64 @@ Prefer `rcc work`, `rcc done`, and `rcc handoff` for new agent workflows.
 
 ## Command Reference
 
+Primary workflow:
+
+```text
+init -> map -> work -> impact -> verify -> done -> handoff
+```
+
+Optional diagnostics: `metrics`, `measure`, `estimate`, `scan`.
+
+### Core agent workflow
+
 ```sh
-repo-context-center --help
-repo-context-center --version
-repo-context-center doctor
-repo-context-center init [--dry-run] [--force] [--update] [--update-agent-file] [--github-action]
 repo-context-center work "<task>" [--agent] [--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
+```
+
+### Setup and validation
+
+```sh
+repo-context-center init [--dry-run] [--force] [--update] [--update-agent-file] [--github-action]
+repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <number>]
+repo-context-center validate [--strict]
+```
+
+### Impact and verification
+
+```sh
 repo-context-center impact "<task>" [--json] [--task-only] [--max-files <number>]
-repo-context-center verify "<task>" [--json] [--task-only] [--max-files <number>]
-repo-context-center measure "<task>" [--json]
-repo-context-center metrics "<task>" [--json]
+repo-context-center verify "<task>" [--json] [--task-only] [--planned] [--level minimal|balanced|deep]
+```
+
+### Memory and handoff
+
+```sh
 repo-context-center done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]
 repo-context-center learn [--json] [--write] [--debug]
 repo-context-center handoff [task] [--json|--agent] [--debug] [--write]
-repo-context-center map [--write] [--check] [--dry-run] [--json] [--max-files <number>]
-repo-context-center validate [--strict]
-repo-context-center archive [--keep <number>] [--dry-run]
-repo-context-center estimate [--mode compact|investigation|detailed] [--task "<task>"] [--compare-naive] [--json] [--max-files <number>]
-repo-context-center find "<query>" [--limit <number>]
 repo-context-center decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
 repo-context-center decision list
 repo-context-center decision search "<query>"
-repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
+```
+
+### Lookup and diagnostics
+
+```sh
+repo-context-center find "<query>" [--limit <number>]
+repo-context-center metrics "<task>" [--json]
+repo-context-center measure "<task>" [--json]
+repo-context-center estimate [--mode compact|investigation|detailed] [--task "<task>"] [--compare-naive] [--json] [--max-files <number>]
 repo-context-center scan [--json]
+repo-context-center doctor
+repo-context-center --help
+repo-context-center --version
+```
+
+### Maintenance and lower-level commands
+
+```sh
+repo-context-center archive [--keep <number>] [--dry-run]
+repo-context-center suggest "<task>" [--json] [--symbols] [--max-files <number>]
 repo-context-center start "<task>" [--max-files <number>] [--copy]
 repo-context-center log "<summary>" [--files <path,path>] [--dry-run]
 ```
@@ -712,7 +786,7 @@ repo-context-center log "<summary>" [--files <path,path>] [--dry-run]
 | `verify` | build a verification plan from Impact results | before final checks or review |
 | `find` | locate focused candidate files | only if the route is insufficient |
 | `measure` | task-first route-vs-naive estimate | when evaluating routing efficiency for one task |
-| `metrics` | summarize route, savings, freshness, impact, and verification signals | optional diagnostic when inspecting RCC performance for one task |
+| `metrics` | summarize route, discovery savings estimates, freshness, impact, and verification signals | optional diagnostic when inspecting RCC performance for one task |
 | `done` | save completed-work memory | after meaningful agent work |
 | `learn` | regenerate repository learning | after memory edits, archive maintenance, or before release checks |
 | `handoff` | prepare a continuation brief | when work continues in another session or agent |
@@ -762,6 +836,112 @@ jobs:
 
       - name: Check generated context is fresh
         run: npx repo-context-center map --check --max-files 300
+```
+
+Ecosystem CI examples can keep the RCC steps identical while the project setup changes around them.
+
+Node:
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+- run: npm install -g repo-context-center@latest
+- run: rcc map --check
+- run: rcc work "review pull request impact" --agent
+- run: rcc impact "review pull request impact" --json
+- run: rcc verify "review pull request impact"
+- run: rcc metrics "review pull request impact" --json
+  if: always()
+```
+
+Java Maven:
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+- uses: actions/setup-java@v4
+  with:
+    distribution: temurin
+    java-version: 21
+- run: npm install -g repo-context-center@latest
+- run: rcc map --check
+- run: rcc work "review service change" --agent
+- run: rcc impact "review service change" --json
+- run: rcc verify "review service change"
+- run: rcc metrics "review service change" --json
+  if: always()
+```
+
+Java Gradle:
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+- uses: actions/setup-java@v4
+  with:
+    distribution: temurin
+    java-version: 21
+- run: npm install -g repo-context-center@latest
+- run: rcc map --check
+- run: rcc work "review gradle service change" --agent
+- run: rcc impact "review gradle service change" --json
+- run: rcc verify "review gradle service change"
+- run: rcc metrics "review gradle service change" --json
+  if: always()
+```
+
+Python:
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+- uses: actions/setup-python@v5
+  with:
+    python-version: "3.12"
+- run: npm install -g repo-context-center@latest
+- run: rcc map --check
+- run: rcc work "review python service change" --agent
+- run: rcc impact "review python service change" --json
+- run: rcc verify "review python service change"
+- run: rcc metrics "review python service change" --json
+  if: always()
+```
+
+Go:
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+- uses: actions/setup-go@v5
+  with:
+    go-version: "1.22"
+- run: npm install -g repo-context-center@latest
+- run: rcc map --check
+- run: rcc work "review go service change" --agent
+- run: rcc impact "review go service change" --json
+- run: rcc verify "review go service change"
+- run: rcc metrics "review go service change" --json
+  if: always()
+```
+
+Monorepo:
+
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+- run: npm install -g repo-context-center@latest
+- run: rcc map --check --max-files 500
+- run: rcc work "review workspace change" --agent
+- run: rcc impact "review workspace change" --json
+- run: rcc verify "review workspace change"
+- run: rcc metrics "review workspace change" --json
+  if: always()
 ```
 
 If CI fails, refresh generated sections locally:

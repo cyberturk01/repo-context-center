@@ -51,7 +51,7 @@ function reasonText(file: CandidateFile): string {
 
 function moduleKey(filePath: string): string {
   const parts = normalizeRepoPath(filePath).split("/").filter(Boolean);
-  const packageRoot = ["apps", "libs", "packages", "services"].includes(parts[0] ?? "") && parts.length >= 2
+  const packageRoot = ["apps", "libs", "modules", "packages", "services"].includes(parts[0] ?? "") && parts.length >= 2
     ? parts.slice(0, 2)
     : [];
   const sourceIndex = parts.findIndex((part) => ["lib", "src"].includes(part));
@@ -71,7 +71,7 @@ function moduleKey(filePath: string): string {
 function packageKey(filePath: string): string {
   const parts = normalizeRepoPath(filePath).split("/").filter(Boolean);
 
-  if (["apps", "libs", "packages", "services"].includes(parts[0] ?? "") && parts.length >= 2) {
+  if (["apps", "libs", "modules", "packages", "services"].includes(parts[0] ?? "") && parts.length >= 2) {
     return parts.slice(0, 2).join("/");
   }
 
@@ -102,6 +102,7 @@ function affectedFileRank(
   const hasExactFilenameMatch = /\bexact filename(?:\/path)? match(?:ed)?\b/i.test(reasons);
   const hasFilenameMatch = /\b(matched filename stem|filename similarity|filename\/path contains query)\b/i.test(reasons);
   const hasSameModule = candidateModule.length > 0 && anchorModules.has(candidateModule);
+  const hasSamePackage = candidatePackage.length > 0 && anchorPackages.has(candidatePackage);
   const hasDirectSourceRelationship = primaryPaths.has(file.path)
     || changedPaths.has(file.path)
     || /\b(changed in working tree|imports affected source|repository learning|co-change history)\b/i.test(reasons);
@@ -120,6 +121,7 @@ function affectedFileRank(
   if (hasDirectSourceRelationship) score += 600;
   if (isChangedSource) score += 200;
   if (hasSameModule) score += 350;
+  if (hasSamePackage) score += 150;
   if (hasFilenameMatch) score += 120;
   if (isUnrelatedPackageFilenameMatch) score -= 300;
 

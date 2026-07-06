@@ -348,11 +348,12 @@ test("impact --task-only ignores git context changes in confidence evidence", as
     assert.equal(defaultAnalysis.mode, "working-tree");
     assert.equal(defaultAnalysis.basis, "changed-files-and-task");
     assert.ok(defaultAnalysis.changedFiles.some((file) => file.path === "AGENTS.md"));
-    assert.equal(defaultAnalysis.confidence, "high");
+    assert.equal(defaultAnalysis.confidence, "medium");
     assert.equal(defaultAnalysis.confidenceExplanation.evidence.contextOnlyChanges, true);
     assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("context-only changes detected"));
     assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("routing confidence: high"));
     assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("change confidence: medium"));
+    assert.ok(defaultAnalysis.confidenceExplanation.reasons.includes("context-only changes cap confidence at medium"));
 
     assert.equal(taskOnlyAnalysis.mode, "task-only");
     assert.equal(taskOnlyAnalysis.basis, "task");
@@ -825,4 +826,35 @@ test("impact rejects invalid args", () => {
   assert.notEqual(result.status, 0);
   assert.equal(result.stdout, "");
   assert.match(result.stderr, /^Usage: rcc impact "<task>"/);
+});
+
+test("impact preserves workspace package boundary when ranking affected files", async () => {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-impact-monorepo-"));
+
+  try {
+    await writeFixtureFile(cwd, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(cwd, "package.json", JSON.stringify({
+      private: true,
+      workspaces: ["packages/*"]
+    }, null, 2));
+    await writeFixtureFile(
+      cwd,
+      "docs/ai-context/TASK_ROUTING.md",
+      "- Auth work: read `packages/auth/src/session.ts`, `packages/frontend/src/session.ts`, and `packages/mobile/src/session.ts`.\n"
+    );
+    await writeFixtureFile(cwd, "packages/auth/src/session.ts", "export function session() { return false; }\n");
+    await writeFixtureFile(cwd, "packages/auth/src/sessionStore.ts", "export function sessionStore() { return true; }\n");
+    await writeFixtureFile(cwd, "packages/frontend/src/session.ts", "export function sessionView() { return true; }\n");
+    await writeFixtureFile(cwd, "packages/mobile/src/session.ts", "export function sessionMobile() { return true; }\n");
+
+    const { buildImpactAnalysis } = require("../dist/cli/impact/buildImpact");
+    const analysis = await buildImpactAnalysis(cwd, "update auth session", { taskOnly: true });
+    const paths = analysis.affectedFiles.map((file) => file.path);
+
+    assert.ok(paths.indexOf("packages/auth/src/session.ts") !== -1, paths.join("\n"));
+    assert.ok(paths.indexOf("packages/auth/src/sessionStore.ts") === -1 || paths.indexOf("packages/auth/src/sessionStore.ts") < paths.indexOf("packages/frontend/src/session.ts"), paths.join("\n"));
+    assert.ok(paths.indexOf("packages/frontend/src/session.ts") === -1 || paths.indexOf("packages/auth/src/session.ts") < paths.indexOf("packages/frontend/src/session.ts"), paths.join("\n"));
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
 });

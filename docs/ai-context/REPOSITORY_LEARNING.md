@@ -7,57 +7,56 @@ Compact learned repository behavior from completed RCC work.
 
 ## Recent Focus Areas
 
-- cli (45)
-- work (34)
-- handoff (25)
-- repository context (14)
-- agent guidance (14)
+- cli (16)
+- work (13)
+- repository context (10)
+- tests (4)
+- measurement (4)
 
 ## Common File Relationships
 
 | Source | Related | Reason | Count |
 | --- | --- | --- | ---: |
-| handoff | `tests/handoff.test.js` | Observed in completed handoff work | 22 |
-| cli | `src/cli/verify/buildVerify.ts` | Observed in completed cli work | 21 |
-| cli | `tests/verify.test.js` | Observed in completed cli work | 19 |
-| cli | `src/cli/impact/buildImpact.ts` | Observed in completed cli work | 17 |
-| cli | `tests/impact.test.js` | Observed in completed cli work | 17 |
-| work | `tests/work.test.js` | Observed in completed work tasks | 17 |
-| work | `src/cli/work/buildWorkBrief.ts` | Observed in completed work tasks | 15 |
-| handoff | `src/cli/handoff/buildHandoffBrief.ts` | Observed in completed handoff work | 15 |
+| cli | `src/cli/verify/buildVerify.ts` | Observed in completed cli work | 16 |
+| cli | `tests/verify.test.js` | Observed in completed cli work | 14 |
+| work | `tests/work.test.js` | Observed in completed work tasks | 8 |
+| cli | `tests/outputContract.test.js` | Observed in completed cli work | 7 |
+| work | `src/cli/work/buildWorkBrief.ts` | Observed in completed work tasks | 6 |
+| work | `src/cli/work/targetedLookup.ts` | Observed in completed work tasks | 6 |
+| cli | `src/cli/verify/verifyTypes.ts` | Observed in completed cli work | 6 |
+| work | `src/cli/work/taskFileRecommendations.ts` | Observed in completed work tasks | 5 |
 
 ## Frequently Modified Together
 
 | Files | Count | Recent summary |
 | --- | ---: | --- |
-| `src/cli/verify/buildVerify.ts`, `tests/verify.test.js` | 25 | Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. |
-| `src/cli/impact/buildImpact.ts`, `tests/impact.test.js` | 19 | Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. |
-| `src/cli/handoff/buildHandoffBrief.ts`, `tests/handoff.test.js` | 14 | Deduplicate handoff Work index memory against Last completed |
-| `src/cli/verify/buildVerify.ts`, `src/cli/verify/verifyTypes.ts` | 13 | Simplified verify output contract to recommendation-only fields |
-| `src/cli/verify/verifyTypes.ts`, `tests/verify.test.js` | 13 | Simplified verify output contract to recommendation-only fields |
-| `src/cli/index.ts`, `tests/cli.test.js` | 12 | Added output contract guards for metrics JSON and reinforced impact/measure JSON shapes. |
-| `src/cli/commands/done.ts`, `tests/done.test.js` | 12 | Added negative coverage for done handoff file path injection and verbose agent JSON boundaries |
-| `src/cli/handoff/buildHandoffBrief.ts`, `src/cli/handoff/handoffTypes.ts` | 12 | Polished handoff repository learning hint ordering |
+| `src/cli/verify/buildVerify.ts`, `tests/verify.test.js` | 17 | Tighten auth middleware routing, context-only impact confidence, and verify domain reasons |
+| `src/cli/verify/buildVerify.ts`, `tests/outputContract.test.js` | 8 | Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. |
+| `tests/outputContract.test.js`, `tests/verify.test.js` | 7 | Refactored Verify to build plans from an existing ImpactAnalysis and updated metrics to reuse Impact instead of recomputing it. |
+| `src/cli/work/targetedLookup.ts`, `src/cli/work/taskFileRecommendations.ts` | 6 | Added automatic WORK_LOG compaction and archived oversized live history |
+| `src/cli/verify/buildVerify.ts`, `src/cli/verify/verifyTypes.ts` | 6 | Simplified verify output contract to recommendation-only fields |
+| `src/cli/verify/verifyTypes.ts`, `tests/verify.test.js` | 6 | Simplified verify output contract to recommendation-only fields |
+| `src/cli/work/buildWorkBrief.ts`, `src/cli/work/targetedLookup.ts` | 5 | Added automatic WORK_LOG compaction and archived oversized live history |
+| `src/cli/work/buildWorkBrief.ts`, `src/cli/work/taskFileRecommendations.ts` | 5 | Added automatic WORK_LOG compaction and archived oversized live history |
 
 ## Verification Patterns
 
 | Scope | Command | Count |
 | --- | --- | ---: |
-| build | `npm run build` | 103 |
-| tests | `npm test` | 48 |
-| impact | `node --test tests/impact.test.js` | 26 |
-| verify | `node --test tests/verify.test.js` | 24 |
-| cli | `node --test tests/cli.test.js` | 22 |
-| outputcontract | `node --test tests/outputContract.test.js` | 16 |
-| work | `node --test tests/work.test.js` | 15 |
-| handoff | `node --test tests/handoff.test.js` | 12 |
+| build | `npm run build` | 39 |
+| tests | `npm test` | 13 |
+| verify | `node --test tests/verify.test.js` | 13 |
+| outputcontract | `node --test tests/outputContract.test.js` | 11 |
+| cli | `node --test tests/cli.test.js` | 6 |
+| ecosystemdetector | `node --test tests/ecosystemDetector.test.js tests/verify.test.js tests/outputContract.test.js` | 3 |
+| impact | `node --test tests/impact.test.js` | 3 |
+| map | `node --test tests/map.test.js` | 3 |
 
 ## Repository Habits
 
-- Completed work records meaningful changed files (159/163).
-- Verification commands are recorded with completed work (163/163).
-- Tests are commonly changed with related implementation work (141/163).
-- Follow-ups are captured when residual tasks remain (1/163).
+- Completed work records meaningful changed files (50/50).
+- Verification commands are recorded with completed work (50/50).
+- Tests are commonly changed with related implementation work (46/50).
 
 _Generated by repo-context-center. Edit outside this section._
 <!-- repo-context-center:repository-learning:end -->
