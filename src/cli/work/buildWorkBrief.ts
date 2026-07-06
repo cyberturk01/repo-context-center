@@ -5,6 +5,7 @@ import { buildTaskAnalysis, type CandidateFile, type CandidateTest, type TaskAna
 import {
   nextCommand
 } from "./workConstants";
+import { isExplicitlyExcludedLayerPath } from "./taskFileRecommendations";
 import {
   readFirstCompatibilityPaths
 } from "./readFirstGuidance";
@@ -345,7 +346,9 @@ export function buildWorkBriefFromTaskContext(
   contextBudget: ContextBudget,
   estimateTokens?: WorkBriefTokenEstimator
 ): WorkBrief {
-  const taskAnalysisTests = recommendationsFromCandidates(analysis.testCandidates);
+  const taskAnalysisTests = recommendationsFromCandidates(analysis.testCandidates.filter((candidate) => (
+    !isExplicitlyExcludedLayerPath(analysis.task, candidate.path, analysis.taskIntent)
+  )));
   const taskAnalysisTestPaths = new Set(taskAnalysisTests.map((file) => file.path));
   const categorizedFromAnalysis = {
     ...analysis.work.categorized,

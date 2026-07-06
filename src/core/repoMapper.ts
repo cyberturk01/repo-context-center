@@ -3,8 +3,7 @@ import { readdir } from "node:fs/promises";
 import { hasConfig, readConfig } from "./config";
 import { requiredContextFiles, type RequiredContextFile } from "./contextFiles";
 import { ensureDir, readTextFile, writeTextFile, pathExists } from "./fileSystem";
-import { renderRepositoryLearningBody, upsertRepositoryLearning } from "./renderRepositoryLearning";
-import { buildRepositoryLearningModel } from "./repositoryLearning";
+import { renderRepositoryLearning } from "./renderRepositoryLearning";
 import { buildRepositoryUnderstanding, type RepositoryUnderstanding } from "./repositoryUnderstanding";
 import { extractExportedSymbols, type ScannedSymbol } from "./scanner";
 import { renderWorkIndex } from "./workMemory";
@@ -2045,8 +2044,14 @@ function renderExistingWorkIndex(_data: RepoMapData, existing?: string): string 
   return existing?.trim() ? existing : renderWorkIndex([]);
 }
 
-function renderRepositoryLearning(): string {
-  return renderRepositoryLearningBody(buildRepositoryLearningModel({}));
+function renderExistingRepositoryLearning(_data: RepoMapData, existing?: string): string {
+  return existing?.trim() ? existing : renderRepositoryLearning({
+    recentFocusAreas: [],
+    commonFileRelationships: [],
+    frequentlyModifiedTogether: [],
+    verificationPatterns: [],
+    repositoryHabits: []
+  });
 }
 
 function manualContentWithoutGeneratedSection(existing: string | undefined): string {
@@ -2076,7 +2081,7 @@ const renderers: Record<GeneratedContextFile, { title: string; render: (data: Re
   "docs/ai-context/TOKEN_BUDGET.md": { title: "Token Budget", render: renderTokenBudget },
   "docs/ai-context/DO_NOT_READ.md": { title: "Do Not Read", render: renderDoNotRead },
   "docs/ai-context/WORK_INDEX.md": { title: "Work Index", render: renderExistingWorkIndex },
-  "docs/ai-context/REPOSITORY_LEARNING.md": { title: "Repository Learning", render: renderRepositoryLearning },
+  "docs/ai-context/REPOSITORY_LEARNING.md": { title: "Repository Learning", render: renderExistingRepositoryLearning },
   "docs/ai-context/HOTSPOTS.md": { title: "Hotspots", render: renderHotspots },
   "docs/ai-context/LESSONS_LEARNED.md": {
     title: "Lessons Learned",
@@ -2168,10 +2173,9 @@ async function buildChanges(cwd: string, data: RepoMapData): Promise<RepoMapChan
     const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : undefined;
     const rendered = renderer.render(data, existing);
     const content = generatedFile === "docs/ai-context/WORK_INDEX.md"
+      || generatedFile === "docs/ai-context/REPOSITORY_LEARNING.md"
       ? rendered
-      : generatedFile === "docs/ai-context/REPOSITORY_LEARNING.md"
-        ? upsertRepositoryLearning(existing, buildRepositoryLearningModel({}))
-        : upsertGeneratedSection(existing, renderer.title, rendered);
+      : upsertGeneratedSection(existing, renderer.title, rendered);
     changes.push({
       path: file,
       action: existing === undefined ? "create" : "update",

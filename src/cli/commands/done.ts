@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { autoArchiveWorkLog } from "../../core/archiver";
 import { pathExists, readTextFile, writeTextFile } from "../../core/fileSystem";
 import { evaluateLearningQuality } from "../../core/learningQuality";
 import { refreshWorkMemoryArtifacts } from "../../core/workMemoryRefresh";
@@ -312,7 +313,7 @@ function appendEntry(content: string, entry: string): string {
   return `${normalized.trimEnd()}\n\n${memoryStart}\n${entry}\n${memoryEnd}\n`;
 }
 
-function formatSavedMessage(options: DoneOptions, files: string[], skippedLearning: boolean): string {
+function formatSavedMessage(options: DoneOptions, files: string[], skippedLearning: boolean, autoArchived = 0): string {
   const lines = [
     `Summary: ${cleanInline(options.summary)}`,
     `Changed files: ${files.length > 0 ? files.slice(0, 10).join(", ") : options.fileMode === "none" ? "none" : "not detected"}`,
@@ -329,6 +330,9 @@ function formatSavedMessage(options: DoneOptions, files: string[], skippedLearni
   }
   if (options.followUps) {
     lines.push(`Follow-ups: ${cleanInline(options.followUps)}`);
+  }
+  if (autoArchived > 0) {
+    lines.push(`Auto-archived ${autoArchived} older work log entries.`);
   }
 
   return `${lines.join("\n")}\n`;
@@ -356,6 +360,7 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
   const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : defaultContent();
   const nextContent = appendEntry(existing, formatEntry(options, files));
   const skippedLearning = shouldSkipRepositoryLearning(options, files);
+  let autoArchived = 0;
 
   if (!options.dryRun) {
     await writeTextFile(targetPath, nextContent);
@@ -364,8 +369,14 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
       workLogContent: nextContent,
       updateRepositoryLearning: !skippedLearning
     });
+    const archiveResult = await autoArchiveWorkLog({
+      cwd: io.cwd,
+      includeLowSignalLearning: options.learningMode === "force",
+      updateRepositoryLearning: !skippedLearning
+    });
+    autoArchived = archiveResult?.archived ?? 0;
   }
 
-  io.stdout(formatSavedMessage(options, files, skippedLearning));
+  io.stdout(formatSavedMessage(options, files, skippedLearning, autoArchived));
   return 0;
 }

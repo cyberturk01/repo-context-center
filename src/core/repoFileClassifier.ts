@@ -41,6 +41,7 @@ const generatedDirs = new Set([
 const fixtureDirs = new Set(["fixtures", "__fixtures__", "test-fixtures"]);
 const snapshotDirs = new Set(["__snapshots__"]);
 const sourceRoots = new Set(["src", "app", "lib"]);
+const workspaceRoots = new Set(["apps", "packages", "libs", "services"]);
 const testRoots = new Set(["tests", "test", "__tests__", "cypress", "e2e"]);
 const packageFileNames = new Set([
   "package.json",
@@ -242,7 +243,7 @@ function isSourcePath(parts: string[]): boolean {
     return true;
   }
 
-  return (parts[0] === "packages" || parts[0] === "libs") && parts[1] !== undefined && parts[2] === "src";
+  return workspaceRoots.has(parts[0]) && parts[1] !== undefined && sourceRoots.has(parts[2]);
 }
 
 function isLikelyEntrypoint(parts: string[], basename: string, role: RepoFileRole): boolean {

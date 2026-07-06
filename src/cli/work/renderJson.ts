@@ -36,9 +36,10 @@ function recommendationSignal(
 ): PublicWorkFile {
   const matchingHint = lookupHints.find((hint) => hint.path === recommendation.path);
   if (matchingHint) {
+    const additionalReasons = recommendation.reasons.filter((reason) => reason !== matchingHint.reason);
     return {
       path: recommendation.path,
-      reason: matchingHint.reason,
+      reason: [matchingHint.reason, ...additionalReasons].filter(Boolean).join("; ") || null,
       confidence: matchingHint.confidence,
       score: matchingHint.score
     };

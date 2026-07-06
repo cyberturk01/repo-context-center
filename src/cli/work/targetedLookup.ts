@@ -29,6 +29,22 @@ function basenameWithoutExtensions(filePath: string): string {
   return firstDot === -1 ? basename : basename.slice(0, firstDot);
 }
 
+function identifierTokens(value: string): string[] {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+function basenameIdentifierTokens(filePath: string): string[] {
+  const basename = path.posix.basename(filePath);
+  const firstDot = basename.indexOf(".");
+  const stem = firstDot === -1 ? basename : basename.slice(0, firstDot);
+
+  return identifierTokens(stem);
+}
+
 function pathParts(filePath: string): string[] {
   return filePath
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
@@ -353,6 +369,104 @@ function applyWorkspaceScopeScore(
   };
 }
 
+export type ApplicationLayerAffinity = "frontend" | "backend" | "neutral";
+
+const frontendPathSegments = new Set([
+  "client",
+  "component",
+  "components",
+  "dashboard",
+  "frontend",
+  "page",
+  "pages",
+  "screen",
+  "screens",
+  "ui",
+  "web"
+]);
+const backendPathSegments = new Set([
+  "api",
+  "backend",
+  "controller",
+  "controllers",
+  "migration",
+  "migrations",
+  "repository",
+  "repositories",
+  "server",
+  "service",
+  "services"
+]);
+
+export function applicationLayerAffinity(filePath: string): ApplicationLayerAffinity {
+  const normalized = filePath.replace(/\\/g, "/").toLowerCase();
+  const segments = normalized.split(/[\/.\-_]+/).filter(Boolean);
+  const basenameStem = path.posix.basename(normalized).replace(/\.[^.]+$/, "");
+  const frontendMatches = segments.filter((segment) => frontendPathSegments.has(segment)).length;
+  const backendMatches = segments.filter((segment) => backendPathSegments.has(segment)).length
+    + (/(?:service|repository|controller|migration)s?$/i.test(basenameStem) ? 1 : 0);
+
+  if (frontendMatches === backendMatches) {
+    return "neutral";
+  }
+
+  return frontendMatches > backendMatches ? "frontend" : "backend";
+}
+
+function taskExplicitlyTargetsPath(hint: TargetedLookupHint, taskIntent: TaskIntentAnalysis): boolean {
+  const normalizedPath = hint.path.replace(/\\/g, "/").toLowerCase();
+  const basename = path.posix.basename(normalizedPath);
+
+  return extractRepoPaths(taskIntent.normalizedTask)
+    .map((candidate) => candidate.replace(/\\/g, "/").toLowerCase())
+    .some((candidate) => candidate === normalizedPath || candidate === basename);
+}
+
+function applyApplicationLayerScore(
+  hint: TargetedLookupHint,
+  taskIntent: TaskIntentAnalysis
+): TargetedLookupHint {
+  const affinity = applicationLayerAffinity(hint.path);
+  if (affinity === "neutral") {
+    return hint;
+  }
+
+  const explicitlyTargeted = taskExplicitlyTargetsPath(hint, taskIntent)
+    || hint.signal === "exact-filename-match";
+  const matchesPositiveIntent = affinity === "frontend"
+    ? taskIntent.hasFrontendIntent
+    : taskIntent.hasBackendIntent;
+  const oppositeIntent = affinity === "frontend"
+    ? taskIntent.hasBackendIntent
+    : taskIntent.hasFrontendIntent;
+  const explicitlyExcluded = taskIntent.excludedApplicationLayers.includes(affinity);
+  let adjustment = 0;
+  let reason: string | null = null;
+
+  if (matchesPositiveIntent) {
+    adjustment = 36;
+    reason = `${affinity} layer affinity`;
+  } else if (!explicitlyTargeted && explicitlyExcluded) {
+    adjustment = -44;
+    reason = `${affinity} layer explicitly excluded`;
+  } else if (!explicitlyTargeted && oppositeIntent) {
+    adjustment = -22;
+    reason = `${affinity} layer outside task intent`;
+  }
+
+  if (adjustment === 0 || !reason) {
+    return hint;
+  }
+
+  const score = Math.max(0, hint.score + adjustment);
+  return {
+    ...hint,
+    score,
+    confidence: hintConfidence(score),
+    reason: `${hint.reason}; ${reason} (${adjustment > 0 ? "+" : ""}${adjustment})`
+  };
+}
+
 function isPromotableLookupHint(hint: TargetedLookupHint, taskIntent: TaskIntentAnalysis): boolean {
   const info = classifyRepoFile(hint.path);
   const promotableRoles = new Set(["source", "test", "config", "workflow", "package"]);
@@ -457,6 +571,131 @@ function chooseBetterHint(left: TargetedLookupHint | undefined, right: TargetedL
   return left;
 }
 
+const cumulativeSignalBonusCap = 34;
+const cumulativeSignalBonuses = [18, 10, 6] as const;
+const genericCumulativeTerms = new Set([
+  "app",
+  "client",
+  "code",
+  "component",
+  "file",
+  "files",
+  "frontend",
+  "helper",
+  "page",
+  "source",
+  "task",
+  "tasks",
+  "ui"
+]);
+
+function meaningfulCumulativeTerms(taskIntent: TaskIntentAnalysis): Set<string> {
+  return new Set(taskIntent.lookupTerms.filter((term) => (
+    !taskIntent.actionTerms.includes(term)
+    && !taskIntent.lowSignalTerms.includes(term)
+    && !genericCumulativeTerms.has(term)
+  )));
+}
+
+function prefersTaskRoutingGuidance(taskIntent: TaskIntentAnalysis): boolean {
+  return taskIntent.hasRoutingImplementationIntent
+    || taskIntent.hasCiWorkflowIntent
+    || taskIntent.hasDocumentationIntent
+    || taskIntent.hasReleaseIntent
+    || taskIntent.isExplicitCommandTask
+    || (taskIntent.lookupTerms.includes("token") && /\b(measure|measurement|estimate|estimator)\b/.test(taskIntent.normalizedTask));
+}
+
+function compoundFilenameHint(
+  filePath: string,
+  index: number,
+  taskIntent: TaskIntentAnalysis
+): TargetedLookupHint | undefined {
+  if (prefersTaskRoutingGuidance(taskIntent)) {
+    return undefined;
+  }
+
+  const filenameTokens = basenameIdentifierTokens(filePath);
+  if (filenameTokens.length < 2) {
+    return undefined;
+  }
+
+  const meaningfulTerms = meaningfulCumulativeTerms(taskIntent);
+  if (!filenameTokens.every((term) => meaningfulTerms.has(term))) {
+    return undefined;
+  }
+
+  const taskTokens = identifierTokens(taskIntent.normalizedTask);
+  const phrase = filenameTokens.join(" ");
+  const taskText = taskTokens.join(" ");
+  if (!taskText.includes(phrase)) {
+    return undefined;
+  }
+
+  return makeLookupHint(
+    filePath,
+    phrase,
+    98,
+    `matched normalized compound filename "${phrase}"`,
+    "filename-match",
+    index
+  );
+}
+
+function addBoundedCumulativeSignals(
+  best: TargetedLookupHint,
+  candidates: TargetedLookupHint[],
+  taskIntent: TaskIntentAnalysis
+): TargetedLookupHint {
+  if (
+    best.signal === "exact-filename-match"
+    || best.signal === "command-name-match"
+    || best.signal === "paired-test"
+    || best.reason.startsWith("matched normalized compound filename")
+  ) {
+    return best;
+  }
+
+  const meaningfulTerms = meaningfulCumulativeTerms(taskIntent);
+  const filenameTerms = new Set(basenameIdentifierTokens(best.path));
+  const pathCandidates = candidates.filter((candidate) => (
+    meaningfulTerms.has(candidate.term)
+    && filenameTerms.has(candidate.term)
+    && ["filename-match", "path-match"].includes(candidate.signal)
+  ));
+  const strongestPathCandidate = pathCandidates.reduce<TargetedLookupHint | undefined>(chooseBetterHint, undefined);
+  if (!strongestPathCandidate) {
+    return best;
+  }
+
+  const additionalTerms = [...new Set(pathCandidates
+    .filter((candidate) => (
+      candidate.term !== strongestPathCandidate.term
+    ))
+    .sort((left, right) => right.score - left.score)
+    .map((candidate) => candidate.term))];
+  const bonus = Math.min(
+    cumulativeSignalBonusCap,
+    additionalTerms.reduce((total, _term, bonusIndex) => (
+      total + (cumulativeSignalBonuses[bonusIndex] ?? 0)
+    ), 0)
+  );
+
+  if (bonus === 0) {
+    return best;
+  }
+
+  const cumulativeScore = strongestPathCandidate.score + bonus;
+  return cumulativeScore > best.score
+    ? {
+      ...strongestPathCandidate,
+      score: cumulativeScore,
+      confidence: hintConfidence(cumulativeScore),
+      reason: `${strongestPathCandidate.reason}; additional matches: ${additionalTerms.slice(0, cumulativeSignalBonuses.length).join(", ")}`
+    }
+    : best;
+}
+
 function bestPathMatch(
   filePath: string,
   terms: string[],
@@ -469,7 +708,12 @@ function bestPathMatch(
   const basenameStem = basenameWithoutExtensions(filePath);
   const parts = pathParts(filePath);
   const parentParts = path.posix.dirname(lowerPath).split(/[/.\\_-]+/).filter(Boolean);
-  let best: TargetedLookupHint | undefined;
+  const candidates: TargetedLookupHint[] = [];
+
+  const compoundHint = compoundFilenameHint(filePath, index, taskIntent);
+  if (compoundHint) {
+    candidates.push(compoundHint);
+  }
 
   for (const term of terms) {
     let score = 0;
@@ -509,18 +753,39 @@ function bestPathMatch(
     }
 
     if (score > 0 && signal) {
-      if (isAuthMiddlewareTask(taskIntent) && isStrongAuthMiddlewareLookupPath(filePath)) {
-        score += 80;
-      }
+      candidates.push(makeLookupHint(filePath, term, weightedScore(score, term), reason, signal, index));
 
-      best = chooseBetterHint(best, applyLookupPenalty(
-        makeLookupHint(filePath, term, weightedScore(score, term), reason, signal, index),
-        taskIntent
-      ));
+      if (signal === "task-routing" && !prefersTaskRoutingGuidance(taskIntent) && parts.includes(term)) {
+        const pathScore = parentParts.includes(term) ? 58 : 52;
+        candidates.push(makeLookupHint(
+          filePath,
+          term,
+          weightedScore(pathScore, term),
+          parentParts.includes(term)
+            ? `matched parent folder "${term}"`
+            : `matched path segment "${term}"`,
+          "path-match",
+          index
+        ));
+      }
     }
   }
 
-  return best;
+  const best = candidates.reduce<TargetedLookupHint | undefined>(chooseBetterHint, undefined);
+  if (!best) {
+    return undefined;
+  }
+
+  let combined = addBoundedCumulativeSignals(best, candidates, taskIntent);
+  if (isAuthMiddlewareTask(taskIntent) && isStrongAuthMiddlewareLookupPath(filePath)) {
+    combined = {
+      ...combined,
+      score: combined.score + 80,
+      confidence: hintConfidence(combined.score + 80)
+    };
+  }
+
+  return applyLookupPenalty(combined, taskIntent);
 }
 
 async function contentMatch(
@@ -770,7 +1035,10 @@ export async function targetedLookupHints(cwd: string, taskIntent: TaskIntentAna
       continue;
     }
 
-    candidates.push(applyWorkspaceScopeScore(hint, taskIntent, workspaceTerms));
+    candidates.push(applyApplicationLayerScore(
+      applyWorkspaceScopeScore(hint, taskIntent, workspaceTerms),
+      taskIntent
+    ));
   }
 
   const deduped = new Map<string, TargetedLookupHint>();

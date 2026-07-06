@@ -691,6 +691,8 @@ npx repo-context-center archive --keep 50
 ```
 
 Archiving keeps work memory compact and refreshes repository learning from the remaining indexed history.
+`done` also performs this compaction automatically when `WORK_LOG.md` grows beyond 100 entries,
+keeping the newest 50 entries in the live file and moving older entries into the excluded archive.
 
 Preserve durable project decisions:
 

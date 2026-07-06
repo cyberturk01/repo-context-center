@@ -70,6 +70,11 @@ test("RepoFileClassifier detects monorepo package scope and package source/test 
   });
 });
 
+test("RepoFileClassifier recognizes app and service workspace source roots", () => {
+  assert.equal(classifyRepoFile("apps/dashboard/src/reservations/ReservationFoundation.tsx").role, "source");
+  assert.equal(classifyRepoFile("services/admin/app/pages/Home.jsx").role, "source");
+});
+
 test("RepoFileClassifier classifies workflow files", () => {
   assert.equal(classifyRepoFile(".github/workflows/ci.yml").role, "workflow");
   assert.equal(classifyRepoFile(".Github/workflows/ci.yml").role, "workflow");

@@ -12,9 +12,15 @@ export interface TaskIntentAnalysis {
   hasRoutingImplementationIntent: boolean;
   hasDocumentationIntent: boolean;
   hasReleaseIntent: boolean;
+  hasFrontendIntent: boolean;
+  hasBackendIntent: boolean;
+  excludedApplicationLayers: ApplicationLayer[];
+  namedUiSurfaces: string[];
   isExplicitCommandTask: boolean;
   nextLookupKeyword: string | null;
 }
+
+export type ApplicationLayer = "frontend" | "backend";
 
 type TermGroup =
   | "action"
@@ -314,6 +320,70 @@ const ciWorkflowIntentTerms = new Set([
   "risk",
   "risks"
 ]);
+const frontendIntentTerms = new Set([
+  "badge",
+  "button",
+  "client",
+  "component",
+  "dashboard",
+  "detail",
+  "drawer",
+  "form",
+  "frontend",
+  "jsx",
+  "list",
+  "mobile",
+  "modal",
+  "page",
+  "panel",
+  "screen",
+  "tsx",
+  "ui",
+  "warning"
+]);
+const backendIntentTerms = new Set([
+  "api",
+  "backend",
+  "controller",
+  "database",
+  "endpoint",
+  "migration",
+  "repository",
+  "route",
+  "service"
+]);
+const uiSurfaceTerms = new Set([
+  "badge",
+  "button",
+  "component",
+  "detail",
+  "drawer",
+  "form",
+  "home",
+  "list",
+  "modal",
+  "page",
+  "panel",
+  "screen",
+  "warning"
+]);
+const uiSurfacePrefixStopTerms = new Set([
+  "a",
+  "an",
+  "and",
+  "at",
+  "behind",
+  "for",
+  "from",
+  "in",
+  "into",
+  "of",
+  "on",
+  "or",
+  "the",
+  "to",
+  "with"
+]);
 
 export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
   const filenameTerms = task
@@ -327,6 +397,12 @@ export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
   const hasRoutingImplementationIntent = detectsRoutingImplementationIntent(normalizedTask, expandedTerms);
   const hasCiWorkflowIntent = !hasRoutingImplementationIntent
     && detectsCiWorkflowIntent(normalizedTask, expandedTerms, hasDocumentationIntent);
+  const excludedApplicationLayers = detectExcludedApplicationLayers(normalizedTask);
+  const namedUiSurfaces = extractNamedUiSurfaces(task);
+  const hasFrontendIntent = detectsFrontendIntent(expandedTerms, namedUiSurfaces)
+    && !excludedApplicationLayers.includes("frontend");
+  const hasBackendIntent = detectsBackendIntent(expandedTerms)
+    && !excludedApplicationLayers.includes("backend");
   const hasRoleSignal = expandedTerms.some((term) => term === "role" || term === "roles");
   const isExplicitCommandTask = expandedTerms.some((term) => explicitCommandTaskTerms.has(term));
   const termsForLookup = hasRoleSignal
@@ -367,9 +443,75 @@ export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
     hasRoutingImplementationIntent,
     hasDocumentationIntent,
     hasReleaseIntent,
+    hasFrontendIntent,
+    hasBackendIntent,
+    excludedApplicationLayers,
+    namedUiSurfaces,
     isExplicitCommandTask,
     nextLookupKeyword: lookupTerms[0] ?? null
   };
+}
+
+function detectsFrontendIntent(terms: string[], namedUiSurfaces: string[]): boolean {
+  return namedUiSurfaces.length > 0 || terms.some((term) => frontendIntentTerms.has(term));
+}
+
+function detectsBackendIntent(terms: string[]): boolean {
+  return terms.some((term) => backendIntentTerms.has(term));
+}
+
+function detectExcludedApplicationLayers(normalizedTask: string): ApplicationLayer[] {
+  const excluded: ApplicationLayer[] = [];
+  const excludesBackend = [
+    /\bdo\s+not\s+(?:change|modify|touch)\s+(?:the\s+)?(?:backend|api|apis|backend\s+apis?)\b/,
+    /\bno\s+(?:backend|api)\s+changes?\b/,
+    /\bwithout\s+(?:backend|api)\s+changes?\b/,
+    /\bclient[ -]side\s+only\b/,
+    /\bfrontend\s+only\b/
+  ].some((pattern) => pattern.test(normalizedTask));
+  const excludesFrontend = [
+    /\bdo\s+not\s+(?:change|modify|touch)\s+(?:the\s+)?(?:frontend|ui)\b/,
+    /\bno\s+(?:frontend|ui)\s+changes?\b/,
+    /\bwithout\s+(?:frontend|ui)\s+changes?\b/,
+    /\bbackend\s+only\b/,
+    /\bserver[ -]side\s+only\b/
+  ].some((pattern) => pattern.test(normalizedTask));
+
+  if (excludesFrontend) {
+    excluded.push("frontend");
+  }
+  if (excludesBackend) {
+    excluded.push("backend");
+  }
+
+  return excluded;
+}
+
+function extractNamedUiSurfaces(task: string): string[] {
+  const normalized = task
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .toLowerCase();
+  const words = normalized.match(/[a-z0-9]+/g) ?? [];
+  const surfaces: string[] = [];
+
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index];
+    if (!uiSurfaceTerms.has(word)) {
+      continue;
+    }
+
+    const prefix: string[] = [];
+    for (let cursor = index - 1; cursor >= 0 && prefix.length < 2; cursor -= 1) {
+      const candidate = words[cursor];
+      if (uiSurfacePrefixStopTerms.has(candidate) || actionTerms.has(candidate)) {
+        break;
+      }
+      prefix.unshift(candidate);
+    }
+    surfaces.push([...prefix, word].join(" "));
+  }
+
+  return [...new Set(surfaces)];
 }
 
 export function termWeight(term: string): number {

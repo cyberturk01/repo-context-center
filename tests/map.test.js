@@ -417,6 +417,33 @@ test("map preserves manual content before and after generated markers", async ()
   });
 });
 
+test("map --write preserves existing repository learning content", async () => {
+  await withMappedRepo(async (tempDir) => {
+    const targetPath = path.join(tempDir, "docs", "ai-context", "REPOSITORY_LEARNING.md");
+    const existing = [
+      "# Repository Learning",
+      "",
+      "Manual note before generated content.",
+      "",
+      "<!-- repo-context-center:repository-learning:start -->",
+      "## Recent Focus Areas",
+      "",
+      "- routing (3)",
+      "<!-- repo-context-center:repository-learning:end -->",
+      "",
+      "Manual note after generated content.",
+      ""
+    ].join("\n");
+    await writeFile(targetPath, existing, "utf8");
+
+    const result = runCli(tempDir, ["map", "--write"]);
+    const content = await readFile(targetPath, "utf8");
+
+    assert.equal(result.status, 0);
+    assert.equal(content, existing);
+  });
+});
+
 test("map --write does not create AGENTS.md generated stub from scratch", async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-map-agents-"));
 
