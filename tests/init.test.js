@@ -705,6 +705,8 @@ test("init generates dedicated RCC workflow guidance", async () => {
     assert.match(content, /# RCC Workflow/);
     assert.match(content, /`rcc work "<task>" --agent`/);
     assert.match(content, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);
+    assert.match(content, /For commit-clean workflows, prefer manual files/);
+    assert.match(content, /--no-learn` for small or repetitive tasks/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

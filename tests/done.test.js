@@ -48,8 +48,10 @@ test("done creates memory file if missing", async () => {
     assert.match(result.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md/);
     assert.match(content, /# Work Log/);
     assert.match(content, /<!-- repo-context-center:work-log:start -->/);
-    assert.match(content, /- Summary: Fixed login redirect bug/);
-    assert.match(content, /- Changed files: _not detected_/);
+    assert.match(content, /- Fixed login redirect bug/);
+    assert.match(content, /- files: _not detected_/);
+    assert.doesNotMatch(content, /<!-- rcc:handoff/);
+    assert.doesNotMatch(content, /```json repo-context-center:done/);
   });
 });
 
@@ -62,7 +64,8 @@ test("done appends new entry", async () => {
     assert.equal(first.status, 0);
     assert.equal(second.status, 0);
     assert.ok(content.indexOf("Fixed login redirect bug") < content.indexOf("Added coupon redemption tests"));
-    assert.match(content, /- Verification: npm test -- coupons/);
+    assert.match(content, /- verify: npm test -- coupons/);
+    assert.equal(countOccurrences(content, "npm test -- coupons"), 1);
   });
 });
 
@@ -91,8 +94,8 @@ test("done preserves existing entries", async () => {
     assert.equal(result.status, 0);
     assert.match(content, /Manual intro stays\./);
     assert.match(content, /- Summary: Existing work/);
-    assert.match(content, /- Summary: Updated routing docs/);
-    assert.match(content, /- Risk: low/);
+    assert.match(content, /- Updated routing docs/);
+    assert.match(content, /- risk: low/);
   });
 });
 
@@ -140,7 +143,7 @@ test("done works without git", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Changed files: not detected/);
-    assert.match(content, /- Summary: Finished non-git task/);
+    assert.match(content, /- Finished non-git task/);
   });
 });
 
@@ -158,7 +161,7 @@ test("done --files auto detects changed files and filters RCC memory files", asy
     assert.match(result.stdout, /Changed files: src\/index\.ts/);
     assert.doesNotMatch(result.stdout, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.doesNotMatch(result.stdout, /\.repo-context-center\/config\.json/);
-    assert.match(content, /- Changed files: `src\/index\.ts`/);
+    assert.match(content, /- files: src\/index\.ts/);
     assert.doesNotMatch(content, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.doesNotMatch(content, /\.repo-context-center\/config\.json/);
   });
@@ -173,7 +176,7 @@ test("done --files none records no changed files", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Changed files: none/);
-    assert.match(content, /- Changed files: _none_/);
+    assert.match(content, /- files: _none_/);
   });
 });
 
@@ -211,7 +214,7 @@ test("done output tells agent what was saved", async () => {
   });
 });
 
-test("done writes structured handoff-friendly data", async () => {
+test("done writes compact handoff-friendly data without duplicate JSON blocks", async () => {
   await withDoneRepo(async (tempDir) => {
     const result = runCli([
       "done",
@@ -227,31 +230,34 @@ test("done writes structured handoff-friendly data", async () => {
       "src/cli/commands/done.ts,src/cli/handoff/handoffSources.ts"
     ], { cwd: tempDir });
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
-    const handoffMatch = content.match(/<!-- rcc:handoff\s*(?<json>[\s\S]*?)-->/);
-    const match = content.match(/```json repo-context-center:done\s*\n(?<json>[\s\S]*?)\n```/);
-    assert.ok(handoffMatch);
-    assert.ok(match);
-    const handoffEntry = JSON.parse(handoffMatch.groups.json);
-    const entry = JSON.parse(match.groups.json);
 
     assert.equal(result.status, 0);
-    assert.match(content, /- Summary: Finished handoff integration/);
-    assert.match(content, /- Changed files: `src\/cli\/commands\/done\.ts`, `src\/cli\/handoff\/handoffSources\.ts`/);
-    assert.equal(handoffEntry.schemaVersion, 1);
-    assert.match(handoffEntry.timestamp, /^\d{4}-\d{2}-\d{2}T/);
-    assert.equal(handoffEntry.summary, "Finished handoff integration");
-    assert.deepEqual(handoffEntry.files, ["src/cli/commands/done.ts", "src/cli/handoff/handoffSources.ts"]);
-    assert.deepEqual(handoffEntry.verification, ["node --test tests/handoff.test.js"]);
-    assert.deepEqual(handoffEntry.followUps, ["Wire full handoff assembly"]);
-    assert.deepEqual(handoffEntry.risks, ["Parser should tolerate legacy entries"]);
-    assert.equal(entry.schemaVersion, 1);
-    assert.equal(entry.command, "done");
-    assert.match(entry.timestamp, /^\d{4}-\d{2}-\d{2}T/);
-    assert.equal(entry.summary, "Finished handoff integration");
-    assert.deepEqual(entry.files, ["src/cli/commands/done.ts", "src/cli/handoff/handoffSources.ts"]);
-    assert.equal(entry.verification, "node --test tests/handoff.test.js");
-    assert.deepEqual(entry.followUps, ["Wire full handoff assembly"]);
-    assert.deepEqual(entry.risks, ["Parser should tolerate legacy entries"]);
+    assert.match(content, /^## \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/m);
+    assert.match(content, /- Finished handoff integration/);
+    assert.match(content, /- files: src\/cli\/commands\/done\.ts, src\/cli\/handoff\/handoffSources\.ts/);
+    assert.match(content, /- verify: node --test tests\/handoff\.test\.js/);
+    assert.match(content, /- risk: Parser should tolerate legacy entries/);
+    assert.match(content, /- follow-ups: Wire full handoff assembly/);
+    assert.doesNotMatch(content, /<!-- rcc:handoff/);
+    assert.doesNotMatch(content, /```json repo-context-center:done/);
+    assert.equal(countOccurrences(content, "node --test tests/handoff.test.js"), 1);
+  });
+});
+
+test("done compacts long file lists with a remainder count", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Updated many routing surfaces",
+      "--files",
+      "scripts/benchmark-routing.js,src/cli/work/taskFileRecommendations.ts,tests/helpers/routingEvaluation.js,tests/scripts/benchmark-routing.test.js,tests/fixtures/routing-cases.json"
+    ], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, workLogPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /- files: scripts\/benchmark-routing\.js, src\/cli\/work\/taskFileRecommendations\.ts, \+3/);
+    assert.doesNotMatch(content, /tests\/fixtures\/routing-cases\.json/);
   });
 });
 
@@ -273,9 +279,9 @@ test("done --memory-only writes a simple log entry and skips derived memory arti
     assert.match(result.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md/);
     assert.match(result.stdout, /RCC work index skipped: docs\/ai-context\/WORK_INDEX\.md \(--memory-only\)/);
     assert.match(result.stdout, /RCC learning skipped: docs\/ai-context\/REPOSITORY_LEARNING\.md \(--memory-only\)/);
-    assert.match(content, /- Summary: Fixed small README typo/);
-    assert.match(content, /- Changed files: `README\.md`/);
-    assert.match(content, /- Verification: not run \(docs only\)/);
+    assert.match(content, /- Fixed small README typo/);
+    assert.match(content, /- files: README\.md/);
+    assert.match(content, /- verify: not run \(docs only\)/);
     assert.doesNotMatch(content, /<!-- rcc:handoff/);
     assert.doesNotMatch(content, /```json repo-context-center:done/);
     await assert.rejects(() => readFile(path.join(tempDir, workIndexPath), "utf8"), { code: "ENOENT" });
@@ -297,20 +303,15 @@ test("done neutralizes handoff comment injection in untrusted fields", async () 
       "src/cli/commands/done.ts"
     ], { cwd: tempDir });
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
-    const handoffMatch = content.match(/<!-- rcc:handoff\s*(?<json>[\s\S]*?)-->/);
 
     assert.equal(result.status, 0);
-    assert.ok(handoffMatch);
-    assert.doesNotMatch(handoffMatch.groups.json, /Finished task -->/);
-    assert.doesNotMatch(handoffMatch.groups.json, /<!-- injected/);
-    assert.doesNotMatch(handoffMatch.groups.json, /low --> forged/);
-    assert.match(handoffMatch.groups.json, /Finished task -- > <! -- injected/);
+    assert.doesNotMatch(content, /Finished task -->/);
+    assert.doesNotMatch(content, /<!-- injected/);
+    assert.doesNotMatch(content, /low --> forged/);
+    assert.match(content, /Finished task -- > <! -- injected/);
     assert.match(content, /node --test tests\/done\.test\.js - forged verification/);
     assert.doesNotMatch(content, /^\- forged verification$/m);
-
-    const handoffEntry = JSON.parse(handoffMatch.groups.json);
-    assert.equal(handoffEntry.summary, "Finished task -- > <! -- injected");
-    assert.deepEqual(handoffEntry.risks, ["low -- > forged"]);
+    assert.match(content, /- risk: low -- > forged/);
   });
 });
 
@@ -324,22 +325,11 @@ test("done neutralizes handoff comment injection in file paths", async () => {
       "src/cli/commands/done.ts --> <!-- forged,tests/done.test.js"
     ], { cwd: tempDir });
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
-    const handoffMatch = content.match(/<!-- rcc:handoff\s*(?<json>[\s\S]*?)-->/);
-    const entryMatch = content.match(/```json repo-context-center:done\s*\n(?<json>[\s\S]*?)\n```/);
 
     assert.equal(result.status, 0);
-    assert.ok(handoffMatch);
-    assert.ok(entryMatch);
-    assert.doesNotMatch(handoffMatch.groups.json, /done\.ts --> <!-- forged/);
-    assert.match(handoffMatch.groups.json, /done\.ts -- > <! -- forged/);
-
-    const handoffEntry = JSON.parse(handoffMatch.groups.json);
-    const entry = JSON.parse(entryMatch.groups.json);
-    assert.deepEqual(handoffEntry.files, [
-      "src/cli/commands/done.ts -- > <! -- forged",
-      "tests/done.test.js"
-    ]);
-    assert.deepEqual(entry.files, handoffEntry.files);
+    assert.doesNotMatch(content, /done\.ts --> <!-- forged/);
+    assert.match(content, /done\.ts -- > <! -- forged/);
+    assert.match(content, /- files: src\/cli\/commands\/done\.ts -- > <! -- forged, tests\/done\.test\.js/);
   });
 });
 

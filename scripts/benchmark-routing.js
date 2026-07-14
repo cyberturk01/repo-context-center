@@ -5,7 +5,8 @@ const { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require(
 const os = require("node:os");
 const path = require("node:path");
 const {
-  evaluateRoutingCase
+  evaluateRoutingCase,
+  surfaceSummary
 } = require("../tests/helpers/routingEvaluation");
 
 const repoRoot = path.resolve(__dirname, "..");
@@ -70,6 +71,7 @@ function rowFor(benchmarkCase) {
   try {
     const brief = runWork(benchmarkCase.task, tempDir ?? repoRoot);
     const failures = failuresFor(brief, benchmarkCase);
+    const surfaces = surfaceSummary(brief, benchmarkCase);
 
     return {
       name: benchmarkCase.name,
@@ -79,6 +81,9 @@ function rowFor(benchmarkCase) {
       supportingCount: brief.supportingFiles?.length ?? 0,
       testsCount: brief.tests?.length ?? 0,
       readFirstCount: brief.readFirst?.length ?? 0,
+      detectedSurfaces: surfaces.detected.length > 0 ? surfaces.detected.join(",") : "-",
+      coveredSurfaces: surfaces.covered.length > 0 ? surfaces.covered.join(",") : "-",
+      missingSurfaces: surfaces.missing.length > 0 ? surfaces.missing.join(",") : "-",
       briefTokens: brief.briefTokens ?? "-",
       status: statusFor(brief, benchmarkCase),
       details: failures.length > 0 ? failures.join("; ") : "-"
@@ -95,8 +100,8 @@ function pad(value, width) {
 }
 
 function printTable(rows) {
-  const headers = ["Case", "First primary file", "Primary", "Supporting", "Tests", "ReadFirst", "Brief tokens", "Status", "Details"];
-  const fields = ["name", "firstPrimaryFile", "primaryCount", "supportingCount", "testsCount", "readFirstCount", "briefTokens", "status", "details"];
+  const headers = ["Case", "First primary file", "Primary", "Supporting", "Tests", "ReadFirst", "Detected", "Covered", "Missing", "Brief tokens", "Status", "Details"];
+  const fields = ["name", "firstPrimaryFile", "primaryCount", "supportingCount", "testsCount", "readFirstCount", "detectedSurfaces", "coveredSurfaces", "missingSurfaces", "briefTokens", "status", "details"];
   const widths = headers.map((header, index) => Math.max(
     header.length,
     ...rows.map((row) => String(row[fields[index]]).length)

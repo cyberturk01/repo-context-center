@@ -35,7 +35,7 @@ const helpText = [
   '  --files "<path,path>"  Record explicit comma-separated files',
   "",
   "Churn control:",
-  "  --memory-only  Append a simple WORK_LOG.md entry only; skip WORK_INDEX.md, REPOSITORY_LEARNING.md, and handoff JSON",
+  "  --memory-only  Append a WORK_LOG.md entry only; skip WORK_INDEX.md and REPOSITORY_LEARNING.md",
   "",
   "Learning:",
   "  --learn     Force repository learning refresh",
@@ -174,24 +174,21 @@ function cleanFileList(files: string[]): string[] {
     .filter(Boolean);
 }
 
-function handoffBlockJson(options: DoneOptions, files: string[], timestamp: string): string {
-  return JSON.stringify({
-    schemaVersion: 1,
-    summary: cleanInline(options.summary),
-    files,
-    verification: compactList(options.verify),
-    followUps: compactList(options.followUps),
-    risks: compactList(options.risk),
-    timestamp
-  }, null, 2);
+function formatTimestamp(date = new Date()): string {
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
-function formatFiles(files: string[], emptyLabel = "_not detected_"): string {
+function formatFiles(files: string[], emptyLabel = "_not detected_", visibleCount = 2): string {
   if (files.length === 0) {
     return emptyLabel;
   }
 
-  return files.slice(0, 10).map((file) => `\`${cleanInline(file, 160).replace(/`/g, "")}\``).join(", ");
+  const visibleFiles = files.slice(0, visibleCount).map((file) => cleanInline(file, 160).replace(/`/g, ""));
+  const remainder = files.length - visibleFiles.length;
+  return [
+    ...visibleFiles,
+    ...(remainder > 0 ? [`+${remainder}`] : [])
+  ].join(", ");
 }
 
 function parseGitStatusFiles(output: string): string[] {
@@ -243,53 +240,21 @@ function defaultContent(): string {
   ].join("\n");
 }
 
-function formatEntry(options: DoneOptions, files: string[], timestamp = new Date().toISOString()): string {
+function formatEntry(options: DoneOptions, files: string[], timestamp = formatTimestamp()): string {
   const lines = [
     `## ${timestamp}`,
-    `- Summary: ${cleanInline(options.summary)}`,
-    `- Changed files: ${formatFiles(files, options.fileMode === "none" ? "_none_" : "_not detected_")}`
+    `- ${cleanInline(options.summary)}`,
+    `- files: ${formatFiles(files, options.fileMode === "none" ? "_none_" : "_not detected_")}`
   ];
 
   if (options.verify) {
-    lines.push(`- Verification: ${cleanInline(options.verify)}`);
+    lines.push(`- verify: ${cleanInline(options.verify)}`);
   }
   if (options.risk) {
-    lines.push(`- Risk: ${cleanInline(options.risk, 80)}`);
+    lines.push(`- risk: ${cleanInline(options.risk, 80)}`);
   }
   if (options.followUps) {
-    lines.push(`- Follow-ups: ${cleanInline(options.followUps)}`);
-  }
-
-  lines.push(
-    "<!-- rcc:handoff",
-    handoffBlockJson(options, files, timestamp),
-    "-->",
-    "```json repo-context-center:done",
-    JSON.stringify({
-      schemaVersion: 1,
-      command: "done",
-      timestamp,
-      summary: cleanInline(options.summary),
-      files,
-      verification: options.verify ? cleanInline(options.verify) : null,
-      followUps: compactList(options.followUps),
-      risks: compactList(options.risk)
-    }, null, 2),
-    "```"
-  );
-
-  return lines.join("\n");
-}
-
-function formatSimpleEntry(options: DoneOptions, files: string[], timestamp = new Date().toISOString()): string {
-  const lines = [
-    `## ${timestamp}`,
-    `- Summary: ${cleanInline(options.summary)}`,
-    `- Changed files: ${formatFiles(files, options.fileMode === "none" ? "_none_" : "_not detected_")}`
-  ];
-
-  if (options.verify) {
-    lines.push(`- Verification: ${cleanInline(options.verify)}`);
+    lines.push(`- follow-ups: ${cleanInline(options.followUps)}`);
   }
 
   return lines.join("\n");
@@ -390,7 +355,7 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
   const files = cleanFileList(detectedFiles);
   const targetPath = path.join(io.cwd, workLogPath);
   const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : defaultContent();
-  const nextContent = appendEntry(existing, options.memoryOnly ? formatSimpleEntry(options, files) : formatEntry(options, files));
+  const nextContent = appendEntry(existing, formatEntry(options, files));
   const skippedLearning = shouldSkipRepositoryLearning(options, files);
   let autoArchived = 0;
 

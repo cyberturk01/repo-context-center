@@ -45,7 +45,7 @@ function verificationArray(value: unknown): string[] {
 }
 
 export function parseChangedFilesLine(line: string): string[] {
-  const value = line.replace(/^- Changed files:\s*/, "").trim();
+  const value = line.replace(/^-\s*(?:Changed files|files):\s*/i, "").trim();
   if (!value || value === "_none_" || value === "_not detected_" || value === "`auto`" || value === "auto") {
     return [];
   }
@@ -61,6 +61,7 @@ export function parseChangedFilesLine(line: string): string[] {
   return value
     .split(",")
     .map((item) => item.trim().replace(/^`|`$/g, ""))
+    .filter((item) => !/^\+\d+$/.test(item))
     .filter(Boolean);
 }
 
@@ -165,30 +166,35 @@ function legacyWorkLogEntries(content: string): LegacyWorkLogEntry[] {
       continue;
     }
 
-    if (trimmed.startsWith("- Summary: ")) {
-      current.summary = trimmed.replace(/^- Summary:\s*/, "").trim() || null;
+    if (/^- Summary:\s*/i.test(trimmed)) {
+      current.summary = trimmed.replace(/^- Summary:\s*/i, "").trim() || null;
       continue;
     }
 
-    if (trimmed.startsWith("- Changed files: ")) {
+    if (/^- Changed files:\s*/i.test(trimmed) || /^- files:\s*/i.test(trimmed)) {
       current.changedFiles = parseChangedFilesLine(trimmed);
       continue;
     }
 
-    if (trimmed.startsWith("- Verification: ")) {
-      current.verification = trimmed.replace(/^- Verification:\s*/, "").trim() || null;
+    if (/^- Verification:\s*/i.test(trimmed) || /^- verify:\s*/i.test(trimmed)) {
+      current.verification = trimmed.replace(/^-\s*(?:Verification|verify):\s*/i, "").trim() || null;
       continue;
     }
 
-    if (trimmed.startsWith("- Risk: ")) {
-      const risk = trimmed.replace(/^- Risk:\s*/, "").trim();
+    if (/^- Risk:\s*/i.test(trimmed) || /^- risks?:\s*/i.test(trimmed)) {
+      const risk = trimmed.replace(/^-\s*risks?:\s*/i, "").trim();
       current.risks = risk ? [risk] : [];
       continue;
     }
 
-    if (trimmed.startsWith("- Follow-ups: ")) {
-      const followUp = trimmed.replace(/^- Follow-ups:\s*/, "").trim();
+    if (/^- Follow-ups:\s*/i.test(trimmed) || /^- follow-ups?:\s*/i.test(trimmed)) {
+      const followUp = trimmed.replace(/^-\s*follow-ups?:\s*/i, "").trim();
       current.followUps = followUp ? [followUp] : [];
+      continue;
+    }
+
+    if (trimmed.startsWith("- ") && !trimmed.includes(":") && !current.summary) {
+      current.summary = trimmed.replace(/^- /, "").trim() || null;
     }
   }
 

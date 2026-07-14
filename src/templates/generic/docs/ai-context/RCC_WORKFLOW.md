@@ -21,6 +21,10 @@ Do not rerun `rcc work` for the same task.
 
 - Use `rcc find "<keyword>"` only if the route is insufficient.
 - After meaningful changes: `rcc done --summary "<summary>" --files auto --verify "<checks>"`
+- For commit-clean workflows, prefer manual files: `rcc done --summary "<summary>" --files "src/a.ts,tests/a.test.ts" --verify "<checks>" --no-learn`.
+- Use `--files auto` only when the dirty working tree contains just the completed task changes.
+- Use `--files none` for context-only notes that should not teach file relationships.
+- Use `--no-learn` for small or repetitive tasks where repository learning churn is not useful.
 
 Optional utilities:
 

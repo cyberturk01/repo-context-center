@@ -266,6 +266,10 @@ function taskMentionsExactFilename(task: string, filePath: string): boolean {
   return pattern.test(task);
 }
 
+function taskMentionsPublicMiddlewareTarget(task: string, filePath: string): boolean {
+  return /\bmiddleware\b/i.test(task) && /(^|\/)public\/middleware\//i.test(filePath.replace(/\\/g, "/"));
+}
+
 export function isExplicitlyExcludedLayerPath(
   task: string,
   filePath: string,
@@ -575,9 +579,10 @@ function demotePublicApiBoundaryPrimaryPaths(
   task: string,
   taskIntent: TaskIntentAnalysis
 ): string[] {
-  const isMultiSurfacePublicBoundary = taskIntent.detectedSurfaces.includes("public-api")
-    && taskIntent.detectedSurfaces.some((surface) => surface !== "public-api" && surface !== "tests");
-  if (!isMultiSurfacePublicBoundary) {
+  const hasPublicIntent = taskIntent.detectedSurfaces.includes("public-api");
+  const isPublicOnlyTask = hasPublicIntent
+    && !taskIntent.detectedSurfaces.some((surface) => surface !== "public-api" && surface !== "tests");
+  if (isPublicOnlyTask) {
     return primaryPaths;
   }
 
@@ -585,6 +590,7 @@ function demotePublicApiBoundaryPrimaryPaths(
     surfaceForPath(file) !== "public-api"
     || taskMentionsExplicitPath(task, file)
     || taskMentionsExactFilename(task, file)
+    || taskMentionsPublicMiddlewareTarget(task, file)
   ));
 
   return retained.length > 0 ? retained : primaryPaths;

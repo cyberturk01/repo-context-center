@@ -2316,4 +2316,93 @@ Lightweight RCC memory from completed agent work.
 - Summary: added memory-only done mode
 - Changed files: `src/cli/commands/done.ts`, `src/cli/index.ts`, `README.md`, `tests/done.test.js`, `tests/cli.test.js`, `tests/v07-release.test.js`
 - Verification: npm run build; node --test tests/done.test.js; node --test tests/cli.test.js tests/v07-release.test.js
+
+## 2026-07-14T10:01:55.831Z
+- Summary: documented clean done file modes
+- Changed files: `README.md`, `docs/ai-context/RCC_WORKFLOW.md`, `src/core/templateInstaller.ts`, `src/templates/generic/docs/ai-context/RCC_WORKFLOW.md`, `tests/init.test.js`
+- Verification: npm run build; node --test tests/init.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "documented clean done file modes",
+  "files": [
+    "README.md",
+    "docs/ai-context/RCC_WORKFLOW.md",
+    "src/core/templateInstaller.ts",
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "tests/init.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/init.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-07-14T10:01:55.831Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-07-14T10:01:55.831Z",
+  "summary": "documented clean done file modes",
+  "files": [
+    "README.md",
+    "docs/ai-context/RCC_WORKFLOW.md",
+    "src/core/templateInstaller.ts",
+    "src/templates/generic/docs/ai-context/RCC_WORKFLOW.md",
+    "tests/init.test.js"
+  ],
+  "verification": "npm run build; node --test tests/init.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-07-14T10:09:47.278Z
+- Summary: added routing benchmark surface coverage cases
+- Changed files: `scripts/benchmark-routing.js`, `src/cli/work/taskFileRecommendations.ts`, `tests/helpers/routingEvaluation.js`, `tests/scripts/benchmark-routing.test.js`, `tests/fixtures/routing-cases.json`
+- Verification: npm run build; npm run benchmark:routing; node --test tests/scripts/benchmark-routing.test.js tests/work.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "added routing benchmark surface coverage cases",
+  "files": [
+    "scripts/benchmark-routing.js",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/helpers/routingEvaluation.js",
+    "tests/scripts/benchmark-routing.test.js",
+    "tests/fixtures/routing-cases.json"
+  ],
+  "verification": [
+    "npm run build; npm run benchmark:routing; node --test tests/scripts/benchmark-routing.test.js tests/work.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-07-14T10:09:47.278Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-07-14T10:09:47.278Z",
+  "summary": "added routing benchmark surface coverage cases",
+  "files": [
+    "scripts/benchmark-routing.js",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/helpers/routingEvaluation.js",
+    "tests/scripts/benchmark-routing.test.js",
+    "tests/fixtures/routing-cases.json"
+  ],
+  "verification": "npm run build; npm run benchmark:routing; node --test tests/scripts/benchmark-routing.test.js tests/work.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-07-14T10:16:48Z
+- implemented compact work log entries
+- files: src/cli/commands/done.ts, src/core/workMemory.ts, +2
+- verify: npm run build; node --test tests/done.test.js; node --test tests/handoff.test.js
 <!-- repo-context-center:work-log:end -->

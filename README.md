@@ -567,10 +567,32 @@ npx repo-context-center done --summary "fixed auth routing" --files auto --verif
 
 `done` also refreshes repository learning so future `work` and `handoff` output can include learned file relationships, likely tests, verification patterns, and repository habits.
 
+Choose the file mode based on how clean you need the resulting diff to be:
+
+- Use `--files auto` when the working tree contains only the completed task changes you want RCC to remember.
+- Use manual `--files "src/a.ts,tests/a.test.ts"` for commit-clean workflows, especially when context files, generated files, or unrelated user changes are also dirty.
+- Use `--files none` for notes that should not teach RCC a file relationship.
+
+For small or repetitive tasks, add `--no-learn` so RCC records the work without refreshing repository learning:
+
+```sh
+node dist/cli/index.js done --summary "updated docs wording" --files "README.md" --verify "not run (docs only)" --no-learn
+```
+
 For small tasks where you only want a compact work note, use `--memory-only`. It appends a simple `WORK_LOG.md` entry with summary, changed files, and verification, but skips `WORK_INDEX.md`, `REPOSITORY_LEARNING.md`, and handoff JSON:
 
 ```sh
 npx repo-context-center done --summary "fixed typo" --files "README.md" --verify "not run (docs only)" --memory-only
+```
+
+Clean commit workflow:
+
+1. Run the narrow verification command for the task.
+2. Check `git diff --stat` or `git status --short`.
+3. Run `done` with an explicit implementation file list:
+
+```sh
+node dist/cli/index.js done --summary "implemented feature" --files "src/a.ts,tests/a.test.ts" --verify "npm test -- a" --no-learn
 ```
 
 ### Regenerate Repository Learning

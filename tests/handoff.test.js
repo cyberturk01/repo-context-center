@@ -1065,6 +1065,37 @@ test("rcc handoff falls back to old work log parsing without structured done ent
   });
 });
 
+test("rcc handoff reads compact work log entries without structured JSON", async () => {
+  await withTempRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "## 2026-07-14T10:09:47Z",
+      "- added routing benchmark surface coverage cases",
+      "- files: scripts/benchmark-routing.js, src/cli/work/taskFileRecommendations.ts, +3",
+      "- verify: npm run build; npm run benchmark:routing; node --test tests/scripts/benchmark-routing.test.js tests/work.test.js",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["handoff", "--json", "--debug"], { cwd: tempDir });
+    const brief = parseJsonOnlyOutput(result);
+
+    assert.equal(brief.lastSummary, "added routing benchmark surface coverage cases");
+    assert.deepEqual(brief.filesTouched, [
+      "scripts/benchmark-routing.js",
+      "src/cli/work/taskFileRecommendations.ts"
+    ]);
+    assert.deepEqual(brief.verification, [
+      "npm run build; npm run benchmark:routing; node --test tests/scripts/benchmark-routing.test.js tests/work.test.js"
+    ]);
+    assert.ok(brief.memory.includes("Last completed: added routing benchmark surface coverage cases"));
+    assert.ok(brief.memory.includes("Completed at: 2026-07-14T10:09:47Z"));
+    assert.ok(brief.currentState.includes("Recently touched: scripts/benchmark-routing.js"));
+    assert.ok(brief.currentState.includes("Recently touched: src/cli/work/taskFileRecommendations.ts"));
+    assert.equal(brief.debug.sources.latestDoneEntryPresent, true);
+  });
+});
+
 test("rcc handoff falls back safely when WORK_INDEX is missing", async () => {
   await withTempRepo(async (tempDir) => {
     await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
