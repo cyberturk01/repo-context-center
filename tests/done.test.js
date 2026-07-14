@@ -138,13 +138,20 @@ test("done automatically archives an oversized work log", async () => {
       path.join(tempDir, "docs/ai-context/archive/WORK_LOG_ARCHIVE.md"),
       "utf8"
     );
+    const events = (await readFile(path.join(tempDir, workEventsPath), "utf8")).trim().split(/\r?\n/).map(JSON.parse);
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Auto-archived 51 older work log entries\./);
+    assert.match(result.stdout, /Auto-compacted 100 verbose work log entries\./);
     assert.equal((live.match(/^## /gm) ?? []).length, 50);
     assert.match(live, /Newest completed work/);
+    assert.doesNotMatch(live, /- Summary:/);
     assert.doesNotMatch(live, /Historical work 0\b/);
     assert.match(archived, /Historical work 0\b/);
+    assert.doesNotMatch(archived, /- Summary:/);
+    assert.equal(events.length, 101);
+    assert.ok(events.some((event) => event.s === "Historical work 0"));
+    assert.ok(events.some((event) => event.s === "Newest completed work"));
   });
 });
 

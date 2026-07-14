@@ -2415,4 +2415,9 @@ Lightweight RCC memory from completed agent work.
 - added configurable done log formats
 - files: src/cli/commands/done.ts, src/cli/index.ts, +4
 - verify: npm run build; node --test tests/done.test.js tests/init.test.js
+
+## 2026-07-14T10:32:51Z
+- added automatic work log compaction
+- files: src/cli/commands/archive.ts, src/cli/commands/done.ts, +5
+- verify: npm run build; node --test tests/archive.test.js tests/done.test.js
 <!-- repo-context-center:work-log:end -->

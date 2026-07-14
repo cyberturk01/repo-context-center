@@ -7,6 +7,24 @@ export interface WorkMemoryEntry {
   verification: string[];
 }
 
+export interface WorkLogSection {
+  before: string;
+  entries: string[];
+  after: string;
+}
+
+export interface WorkLogCompactionResult {
+  content: string;
+  events: WorkMemoryEntry[];
+  compacted: number;
+  entries: number;
+}
+
+export interface WorkEventMergeResult {
+  content: string;
+  added: number;
+}
+
 interface LegacyWorkLogEntry {
   changedFiles: string[];
   followUps: string[];
@@ -27,7 +45,12 @@ export const workIndexStart = "<!-- repo-context-center:work-index:start -->";
 export const workIndexEnd = "<!-- repo-context-center:work-index:end -->";
 
 function cleanInline(value: string, maxLength = 180): string {
-  const cleaned = value.replace(/\r?\n/g, " ").replace(/\s+/g, " ").trim();
+  const cleaned = value
+    .replace(/\r?\n/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/<!--/g, "<! --")
+    .replace(/-->/g, "-- >")
+    .trim();
   return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength - 1)}...` : cleaned;
 }
 
@@ -85,6 +108,24 @@ export function formatWorkEventLine(entry: WorkMemoryEntry): string {
 export function appendWorkEventLine(content: string, line: string): string {
   const normalized = content.replace(/\r\n/g, "\n").trimEnd();
   return normalized ? `${normalized}\n${line}\n` : `${line}\n`;
+}
+
+export function mergeWorkEventEntries(content: string, entries: WorkMemoryEntry[]): WorkEventMergeResult {
+  const existingTimestamps = new Set(parseWorkEventEntries(content).map((entry) => entry.timestamp));
+  let nextContent = content;
+  let added = 0;
+
+  for (const entry of sortEntries(entries)) {
+    if (existingTimestamps.has(entry.timestamp)) {
+      continue;
+    }
+
+    nextContent = appendWorkEventLine(nextContent, formatWorkEventLine(entry));
+    existingTimestamps.add(entry.timestamp);
+    added += 1;
+  }
+
+  return { content: nextContent, added };
 }
 
 export function parseChangedFilesLine(line: string): string[] {
@@ -309,6 +350,117 @@ export function parseWorkMemoryEntries(content: string): WorkMemoryEntry[] {
   }
 
   return sortEntries([...byTimestamp.values()]);
+}
+
+export function extractWorkLogSection(content: string): WorkLogSection {
+  const normalized = content.replace(/\r\n/g, "\n");
+  const start = normalized.indexOf(workLogStart);
+  const end = normalized.indexOf(workLogEnd);
+
+  if (start === -1 || end === -1 || end <= start) {
+    return {
+      before: normalized.trimEnd(),
+      entries: [],
+      after: ""
+    };
+  }
+
+  const body = normalized.slice(start + workLogStart.length, end).trim();
+  const entries = body
+    ? body.split(/\n(?=##\s+)/).map((entry) => entry.trim()).filter(Boolean)
+    : [];
+
+  return {
+    before: normalized.slice(0, start + workLogStart.length).trimEnd(),
+    entries,
+    after: normalized.slice(end).trimStart()
+  };
+}
+
+function compactFiles(files: string[], emptyLabel = "_not detected_", visibleCount = 2): string {
+  if (files.length === 0) {
+    return emptyLabel;
+  }
+
+  const visibleFiles = files.slice(0, visibleCount).map((file) => cleanInline(file, 160).replace(/`/g, ""));
+  const remainder = files.length - visibleFiles.length;
+  return [
+    ...visibleFiles,
+    ...(remainder > 0 ? [`+${remainder}`] : [])
+  ].join(", ");
+}
+
+function firstNonEmpty(values: string[]): string {
+  return values.map((value) => cleanInline(value, 300)).find(Boolean) ?? "";
+}
+
+export function formatCompactWorkLogEntry(entry: WorkMemoryEntry): string {
+  const lines = [
+    `## ${cleanInline(entry.timestamp, 80)}`,
+    `- ${cleanInline(entry.summary, 300)}`,
+    `- files: ${compactFiles(entry.files)}`
+  ];
+  const verification = firstNonEmpty(entry.verification);
+  const risk = firstNonEmpty(entry.risks);
+  const followUp = firstNonEmpty(entry.followUps);
+
+  if (verification) {
+    lines.push(`- verify: ${verification}`);
+  }
+  if (risk) {
+    lines.push(`- risk: ${cleanInline(risk, 80)}`);
+  }
+  if (followUp) {
+    lines.push(`- follow-ups: ${followUp}`);
+  }
+
+  return lines.join("\n");
+}
+
+export function renderWorkLogSection(source: WorkLogSection, entries: string[]): string {
+  return [
+    source.before,
+    "",
+    ...entries.flatMap((entry) => [entry, ""]),
+    source.after || workLogEnd,
+    ""
+  ].join("\n").replace(/\n{3,}/g, "\n\n");
+}
+
+function isVerboseWorkLogEntry(entry: string): boolean {
+  return /<!--\s*rcc:handoff\b/.test(entry)
+    || /```json repo-context-center:done\b/.test(entry)
+    || /^-\s*(Summary|Changed files|Verification|Risk|Follow-ups):/im.test(entry);
+}
+
+export function compactWorkLogContent(content: string): WorkLogCompactionResult {
+  const section = extractWorkLogSection(content);
+  const compactEntries: string[] = [];
+  const events: WorkMemoryEntry[] = [];
+  let compacted = 0;
+
+  for (const entryText of section.entries) {
+    const entry = parseWorkMemoryEntries(entryText)[0];
+    if (!entry) {
+      compactEntries.push(entryText);
+      continue;
+    }
+
+    events.push(entry);
+    if (isVerboseWorkLogEntry(entryText)) {
+      compacted += 1;
+      compactEntries.push(formatCompactWorkLogEntry(entry));
+    } else {
+      compactEntries.push(entryText);
+    }
+  }
+
+  return {
+    content: compacted > 0 ? renderWorkLogSection(section, compactEntries) : content,
+    events: sortEntries(events),
+    compacted,
+    entries: section.entries.length
+  };
 }
 
 function themeForSummary(summary: string): string {

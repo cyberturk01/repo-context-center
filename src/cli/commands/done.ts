@@ -399,7 +399,7 @@ function appendEntry(content: string, entry: string): string {
   return `${normalized.trimEnd()}\n\n${memoryStart}\n${entry}\n${memoryEnd}\n`;
 }
 
-function formatSavedMessage(options: DoneOptions, files: string[], skippedLearning: boolean, autoArchived = 0): string {
+function formatSavedMessage(options: DoneOptions, files: string[], skippedLearning: boolean, autoArchived = 0, autoCompacted = 0): string {
   const workIndexVerb = options.memoryOnly
     ? options.dryRun ? "would skip" : "skipped"
     : options.dryRun ? "would update" : "updated";
@@ -422,6 +422,9 @@ function formatSavedMessage(options: DoneOptions, files: string[], skippedLearni
   }
   if (autoArchived > 0) {
     lines.push(`Auto-archived ${autoArchived} older work log entries.`);
+  }
+  if (autoCompacted > 0) {
+    lines.push(`Auto-compacted ${autoCompacted} verbose work log entries.`);
   }
 
   return `${lines.join("\n")}\n`;
@@ -455,6 +458,7 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
   const nextEventsContent = appendWorkEventLine(existingEvents, formatWorkEventLine(entry));
   const skippedLearning = shouldSkipRepositoryLearning(options, files);
   let autoArchived = 0;
+  let autoCompacted = 0;
 
   if (!options.dryRun) {
     await writeTextFile(targetPath, nextContent);
@@ -472,9 +476,10 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
         updateRepositoryLearning: !skippedLearning
       });
       autoArchived = archiveResult?.archived ?? 0;
+      autoCompacted = archiveResult?.compacted ?? 0;
     }
   }
 
-  io.stdout(formatSavedMessage(options, files, skippedLearning, autoArchived));
+  io.stdout(formatSavedMessage(options, files, skippedLearning, autoArchived, autoCompacted));
   return 0;
 }

@@ -108,6 +108,52 @@ async function writeArchivedWorkLog(tempDir, entries) {
   return content;
 }
 
+async function writeVerboseWorkLog(tempDir, entries) {
+  const content = [
+    "# Work Log",
+    "",
+    "Lightweight RCC memory from completed agent work.",
+    "",
+    "<!-- repo-context-center:work-log:start -->",
+    "",
+    ...entries.flatMap((entry) => [
+      `## ${entry.timestamp}`,
+      `- Summary: ${entry.summary}`,
+      `- Changed files: ${entry.files.map((file) => `\`${file}\``).join(", ")}`,
+      `- Verification: ${entry.verify}`,
+      "<!-- rcc:handoff",
+      JSON.stringify({
+        schemaVersion: 1,
+        timestamp: entry.timestamp,
+        summary: entry.summary,
+        files: entry.files,
+        verification: [entry.verify],
+        followUps: entry.followUps ?? [],
+        risks: entry.risks ?? []
+      }, null, 2),
+      "-->",
+      "```json repo-context-center:done",
+      JSON.stringify({
+        schemaVersion: 1,
+        command: "done",
+        timestamp: entry.timestamp,
+        summary: entry.summary,
+        files: entry.files,
+        verification: entry.verify,
+        followUps: entry.followUps ?? [],
+        risks: entry.risks ?? []
+      }, null, 2),
+      "```",
+      "",
+    ]),
+    "<!-- repo-context-center:work-log:end -->",
+    ""
+  ].join("\n");
+
+  await writeFile(path.join(tempDir, "docs", "ai-context", "WORK_LOG.md"), content, "utf8");
+  return content;
+}
+
 function countOccurrences(content, value) {
   return (content.match(new RegExp(value, "g")) ?? []).length;
 }
@@ -327,6 +373,167 @@ test("archive refreshes compact memory from archived work log when live work log
     assert.match(workIndex, /Preserved archived memory refresh/);
     assert.match(learning, /archive \(1\)/);
     assert.match(learning, /`node --test tests\/archive\.test\.js`/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("archive --compact-work-log converts verbose work log entries and preserves JSONL metadata", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeVerboseWorkLog(tempDir, [
+      {
+        timestamp: "2026-07-14T10:00:00.000Z",
+        summary: "Documented verbose compaction",
+        files: ["src/core/workMemory.ts", "src/core/archiver.ts", "tests/archive.test.js"],
+        verify: "node --test tests/archive.test.js",
+        risks: ["Legacy parser compatibility"],
+        followUps: ["Watch compact archive output"]
+      }
+    ]);
+
+    const result = runArchive(tempDir, ["--compact-work-log", "--keep", "5"]);
+    const workLog = await readFile(path.join(tempDir, "docs", "ai-context", "WORK_LOG.md"), "utf8");
+    const events = (await readFile(
+      path.join(tempDir, "docs", "ai-context", "WORK_EVENTS.jsonl"),
+      "utf8"
+    )).trim().split(/\r?\n/).map(JSON.parse);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Compacted 1 verbose entries in docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /Preserved 1 work log metadata entries in docs\/ai-context\/WORK_EVENTS\.jsonl/);
+    assert.match(workLog, /- Documented verbose compaction/);
+    assert.match(workLog, /- files: src\/core\/workMemory\.ts, src\/core\/archiver\.ts, \+1/);
+    assert.match(workLog, /- verify: node --test tests\/archive\.test\.js/);
+    assert.match(workLog, /- risk: Legacy parser compatibility/);
+    assert.match(workLog, /- follow-ups: Watch compact archive output/);
+    assert.doesNotMatch(workLog, /<!-- rcc:handoff/);
+    assert.doesNotMatch(workLog, /```json repo-context-center:done/);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].s, "Documented verbose compaction");
+    assert.deepEqual(events[0].f, ["src/core/workMemory.ts", "src/core/archiver.ts", "tests/archive.test.js"]);
+    assert.deepEqual(events[0].v, ["node --test tests/archive.test.js"]);
+    assert.deepEqual(events[0].risk, ["Legacy parser compatibility"]);
+    assert.deepEqual(events[0].follow, ["Watch compact archive output"]);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("archive --compact-work-log dry-run reports compaction without writing files", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    const original = await writeVerboseWorkLog(tempDir, [
+      {
+        timestamp: "2026-07-14T10:00:00.000Z",
+        summary: "Preview verbose compaction",
+        files: ["src/core/workMemory.ts"],
+        verify: "node --test tests/archive.test.js"
+      }
+    ]);
+
+    const result = runArchive(tempDir, ["--compact-work-log", "--keep", "5", "--dry-run"]);
+    const workLog = await readFile(path.join(tempDir, "docs", "ai-context", "WORK_LOG.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Archive dry run/);
+    assert.match(result.stdout, /Would compact 1 verbose entries in docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /Would preserve 1 work log metadata entries in docs\/ai-context\/WORK_EVENTS\.jsonl/);
+    assert.equal(workLog, original);
+    await assert.rejects(
+      () => stat(path.join(tempDir, "docs", "ai-context", "WORK_EVENTS.jsonl")),
+      { code: "ENOENT" }
+    );
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("archive --compact-work-log compacts before archiving older work log entries", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeVerboseWorkLog(tempDir, [
+      {
+        timestamp: "2026-07-14T10:00:00.000Z",
+        summary: "Newest compacted entry",
+        files: ["src/newest.ts"],
+        verify: "npm run build"
+      },
+      {
+        timestamp: "2026-07-13T10:00:00.000Z",
+        summary: "Middle compacted entry",
+        files: ["src/middle.ts"],
+        verify: "node --test tests/archive.test.js"
+      },
+      {
+        timestamp: "2026-07-12T10:00:00.000Z",
+        summary: "Oldest compacted entry",
+        files: ["src/oldest.ts"],
+        verify: "node --test tests/done.test.js"
+      }
+    ]);
+
+    const result = runArchive(tempDir, ["--compact-work-log", "--keep", "1"]);
+    const workLog = await readFile(path.join(tempDir, "docs", "ai-context", "WORK_LOG.md"), "utf8");
+    const archive = await readFile(
+      path.join(tempDir, "docs", "ai-context", "archive", "WORK_LOG_ARCHIVE.md"),
+      "utf8"
+    );
+    const events = (await readFile(
+      path.join(tempDir, "docs", "ai-context", "WORK_EVENTS.jsonl"),
+      "utf8"
+    )).trim().split(/\r?\n/).map(JSON.parse);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Compacted 3 verbose entries in docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /Archived 2 entries from docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(workLog, /Newest compacted entry/);
+    assert.doesNotMatch(workLog, /Middle compacted entry|Oldest compacted entry/);
+    assert.match(archive, /Middle compacted entry/);
+    assert.match(archive, /Oldest compacted entry/);
+    assert.doesNotMatch(archive, /<!-- rcc:handoff/);
+    assert.doesNotMatch(archive, /```json repo-context-center:done/);
+    assert.equal(events.length, 3);
+    assert.deepEqual(events.map((event) => event.s).sort(), [
+      "Middle compacted entry",
+      "Newest compacted entry",
+      "Oldest compacted entry"
+    ]);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("archive --compact-work-log is idempotent", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    await writeVerboseWorkLog(tempDir, [
+      {
+        timestamp: "2026-07-14T10:00:00.000Z",
+        summary: "Stable compacted entry",
+        files: ["src/core/workMemory.ts", "tests/archive.test.js"],
+        verify: "node --test tests/archive.test.js"
+      }
+    ]);
+
+    const first = runArchive(tempDir, ["--compact-work-log", "--keep", "5"]);
+    const firstWorkLog = await readFile(path.join(tempDir, "docs", "ai-context", "WORK_LOG.md"), "utf8");
+    const firstEvents = await readFile(path.join(tempDir, "docs", "ai-context", "WORK_EVENTS.jsonl"), "utf8");
+    const second = runArchive(tempDir, ["--compact-work-log", "--keep", "5"]);
+    const secondWorkLog = await readFile(path.join(tempDir, "docs", "ai-context", "WORK_LOG.md"), "utf8");
+    const secondEvents = await readFile(path.join(tempDir, "docs", "ai-context", "WORK_EVENTS.jsonl"), "utf8");
+
+    assert.equal(first.status, 0);
+    assert.equal(second.status, 0);
+    assert.match(first.stdout, /Compacted 1 verbose entries/);
+    assert.doesNotMatch(second.stdout, /Compacted 1 verbose entries/);
+    assert.equal(secondWorkLog, firstWorkLog);
+    assert.equal(secondEvents, firstEvents);
+    assert.equal(secondEvents.trim().split(/\r?\n/).length, 1);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

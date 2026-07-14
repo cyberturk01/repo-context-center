@@ -69,8 +69,8 @@ Commands:
             Options: --strict
   verify    Recommend verification checks from impact analysis
             Usage: verify "<task>" [--json] [--task-only] [--planned]
-  archive   Archive older CHANGE_LOG and LESSONS_LEARNED entries
-            Options: --keep <number>, --dry-run
+  archive   Archive older context entries and optionally compact WORK_LOG.md
+            Options: --keep <number>, --compact-work-log, --dry-run
   decision  Add a durable project decision to docs/ai-context/DECISIONS.md
             Usage: decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
                    decision list
