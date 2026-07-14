@@ -3,6 +3,11 @@ import path from "node:path";
 import { ensureDir, pathExists, writeTextFile } from "./fileSystem";
 import { refreshWorkMemoryArtifacts } from "./workMemoryRefresh";
 import {
+  compactWorkLogContent,
+  extractWorkLogSection,
+  mergeWorkEventEntries,
+  renderWorkLogSection,
+  workEventsPath,
   workLogArchivePath,
   workLogEnd,
   workLogPath,
@@ -13,6 +18,7 @@ export interface ArchiveOptions {
   cwd: string;
   keep: number;
   dryRun?: boolean;
+  compactWorkLog?: boolean;
   includeLowSignalLearning?: boolean;
   updateRepositoryLearning?: boolean;
 }
@@ -26,6 +32,8 @@ export interface ArchiveFileResult {
   kept: number;
   archived: number;
   missing: boolean;
+  compacted?: number;
+  eventsAdded?: number;
 }
 
 export interface ArchiveResult {
@@ -174,35 +182,6 @@ function entryTime(entry: string): number | undefined {
   return Number.isNaN(time) ? undefined : time;
 }
 
-function extractGeneratedSection(content: string, startMarker: string, endMarker: string): {
-  before: string;
-  entries: string[];
-  after: string;
-} {
-  const normalized = content.replace(/\r\n/g, "\n");
-  const start = normalized.indexOf(startMarker);
-  const end = normalized.indexOf(endMarker);
-
-  if (start === -1 || end === -1 || end <= start) {
-    return {
-      before: normalized.trimEnd(),
-      entries: [],
-      after: ""
-    };
-  }
-
-  const body = normalized.slice(start + startMarker.length, end).trim();
-  const entries = body
-    ? body.split(/\n(?=##\s+)/).map((entry) => entry.trim()).filter(Boolean)
-    : [];
-
-  return {
-    before: normalized.slice(0, start + startMarker.length).trimEnd(),
-    entries,
-    after: normalized.slice(end).trimStart()
-  };
-}
-
 function selectWorkLogEntries(entries: string[], keep: number): { keptEntries: string[]; archivedEntries: string[] } {
   const ranked = entries.map((entry, index) => ({
     entry,
@@ -232,20 +211,10 @@ function selectWorkLogEntries(entries: string[], keep: number): { keptEntries: s
   };
 }
 
-function renderWorkLog(source: ReturnType<typeof extractGeneratedSection>, entries: string[]): string {
-  return [
-    source.before,
-    "",
-    ...entries.flatMap((entry) => [entry, ""]),
-    source.after || workLogEnd,
-    ""
-  ].join("\n").replace(/\n{3,}/g, "\n\n");
-}
-
 function renderWorkLogArchive(entries: string[], existingContent?: string): string {
   const existing = existingContent?.trimEnd();
   const archivedEntries = existingContent
-    ? extractGeneratedSection(existingContent, workLogStart, workLogEnd).entries
+    ? extractWorkLogSection(existingContent).entries
     : [];
   const body = [...archivedEntries, ...entries];
 
@@ -316,6 +285,7 @@ async function readIfPresent(filePath: string): Promise<string | undefined> {
 async function archiveWorkLog(options: ArchiveOptions): Promise<{ result: ArchiveFileResult; updatedPaths: string[] }> {
   const sourcePath = path.join(options.cwd, workLogPath);
   const archivePath = path.join(options.cwd, workLogArchivePath);
+  const eventsPath = path.join(options.cwd, workEventsPath);
 
   if (!(await pathExists(sourcePath))) {
     const existingArchive = await readIfPresent(archivePath);
@@ -338,12 +308,27 @@ async function archiveWorkLog(options: ArchiveOptions): Promise<{ result: Archiv
   }
 
   const content = await readFile(sourcePath, "utf8");
-  const parsed = extractGeneratedSection(content, workLogStart, workLogEnd);
+  const existingEvents = await readIfPresent(eventsPath) ?? "";
+  const compaction = options.compactWorkLog ? compactWorkLogContent(content) : undefined;
+  const mergedEvents = compaction
+    ? mergeWorkEventEntries(existingEvents, compaction.events)
+    : { content: existingEvents, added: 0 };
+  const workLogContent = compaction?.content ?? content;
+  const parsed = extractWorkLogSection(workLogContent);
   const existingArchive = await readIfPresent(archivePath);
   if (parsed.entries.length <= options.keep) {
+    if (!options.dryRun) {
+      if (compaction && compaction.compacted > 0) {
+        await writeTextFile(sourcePath, workLogContent);
+      }
+      if (mergedEvents.added > 0) {
+        await writeTextFile(eventsPath, mergedEvents.content);
+      }
+    }
     const updatedPaths = await refreshWorkMemoryArtifacts(options.cwd, {
       dryRun: options.dryRun,
-      workLogContent: content,
+      workEventsContent: mergedEvents.content,
+      workLogContent,
       archivedWorkLogContent: existingArchive,
       includeLowSignalLearning: options.includeLowSignalLearning,
       updateRepositoryLearning: options.updateRepositoryLearning
@@ -354,25 +339,36 @@ async function archiveWorkLog(options: ArchiveOptions): Promise<{ result: Archiv
         archivePath: workLogArchivePath,
         kept: parsed.entries.length,
         archived: 0,
-        missing: false
+        missing: false,
+        compacted: compaction?.compacted ?? 0,
+        eventsAdded: mergedEvents.added
       },
-      updatedPaths
+      updatedPaths: [
+        ...(!options.dryRun && compaction && compaction.compacted > 0 ? [workLogPath] : []),
+        ...(!options.dryRun && mergedEvents.added > 0 ? [workEventsPath] : []),
+        ...updatedPaths
+      ]
     };
   }
 
   const { keptEntries, archivedEntries } = selectWorkLogEntries(parsed.entries, options.keep);
-  const nextWorkLog = renderWorkLog(parsed, keptEntries);
+  const nextWorkLog = renderWorkLogSection(parsed, keptEntries);
   const nextArchive = renderWorkLogArchive(archivedEntries, existingArchive);
 
   if (!options.dryRun) {
     await writeTextFile(sourcePath, nextWorkLog);
     await ensureDir(path.dirname(archivePath));
     await writeTextFile(archivePath, nextArchive);
+    if (mergedEvents.added > 0) {
+      await writeTextFile(eventsPath, mergedEvents.content);
+    }
   }
   const updatedPaths = [
     ...(!options.dryRun ? [workLogPath] : []),
+    ...(!options.dryRun && mergedEvents.added > 0 ? [workEventsPath] : []),
     ...await refreshWorkMemoryArtifacts(options.cwd, {
       dryRun: options.dryRun,
+      workEventsContent: mergedEvents.content,
       workLogContent: nextWorkLog,
       archivedWorkLogContent: nextArchive,
       includeLowSignalLearning: options.includeLowSignalLearning,
@@ -386,7 +382,9 @@ async function archiveWorkLog(options: ArchiveOptions): Promise<{ result: Archiv
       archivePath: workLogArchivePath,
       kept: keptEntries.length,
       archived: archivedEntries.length,
-      missing: false
+      missing: false,
+      compacted: compaction?.compacted ?? 0,
+      eventsAdded: mergedEvents.added
     },
     updatedPaths
   };
@@ -405,7 +403,7 @@ export async function autoArchiveWorkLog(options: {
   }
 
   const content = await readFile(sourcePath, "utf8");
-  const entries = extractGeneratedSection(content, workLogStart, workLogEnd).entries;
+  const entries = extractWorkLogSection(content).entries;
   const trigger = options.trigger ?? automaticWorkLogArchiveTrigger;
   if (entries.length <= trigger) {
     return undefined;
@@ -413,6 +411,7 @@ export async function autoArchiveWorkLog(options: {
 
   const { result } = await archiveWorkLog({
     cwd: options.cwd,
+    compactWorkLog: true,
     keep: options.keep ?? automaticWorkLogArchiveKeep,
     includeLowSignalLearning: options.includeLowSignalLearning,
     updateRepositoryLearning: options.updateRepositoryLearning

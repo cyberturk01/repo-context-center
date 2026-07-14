@@ -6,6 +6,9 @@ const {
   pad,
   statusFor
 } = require("../../scripts/benchmark-routing.js");
+const {
+  surfaceSummary
+} = require("../helpers/routingEvaluation.js");
 
 test("benchmark routing status passes only when case evaluation has no failures", () => {
   const benchmarkCase = {
@@ -31,4 +34,21 @@ test("benchmark routing status passes only when case evaluation has no failures"
 test("benchmark routing table padding preserves original cell text", () => {
   assert.equal(pad("Case", 8), "Case    ");
   assert.equal(pad("Longer than width", 4), "Longer than width");
+});
+
+test("benchmark routing surface summary detects covered and missing surfaces", () => {
+  const route = {
+    primaryFiles: ["apps/api/src/availability/availability.routes.ts"],
+    supportingFiles: ["apps/dashboard/src/RestaurantManagement.tsx"],
+    tests: []
+  };
+  const benchmarkCase = {
+    task: "add authenticated availability preview in dashboard settings UI and keep public widget API unchanged"
+  };
+
+  assert.deepEqual(surfaceSummary(route, benchmarkCase), {
+    detected: ["backend-api", "dashboard-ui", "public-api"],
+    covered: ["backend-api", "dashboard-ui"],
+    missing: ["public-api"]
+  });
 });

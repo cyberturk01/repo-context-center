@@ -3,9 +3,11 @@ import { pathExists, readTextFile, writeTextFile } from "./fileSystem";
 import { upsertRepositoryLearning } from "./renderRepositoryLearning";
 import { buildRepositoryLearningModel } from "./repositoryLearning";
 import {
+  parseWorkEventEntries,
   parseWorkMemoryEntries,
   repositoryLearningPath,
   renderWorkIndex,
+  workEventsPath,
   workIndexPath
 } from "./workMemory";
 
@@ -14,6 +16,7 @@ export interface RefreshWorkMemoryArtifactsOptions {
   archivedWorkLogContent?: string;
   includeLowSignalLearning?: boolean;
   updateRepositoryLearning?: boolean;
+  workEventsContent?: string;
   workLogContent?: string;
 }
 
@@ -29,10 +32,12 @@ export async function refreshWorkMemoryArtifacts(
     return [];
   }
 
+  const workEventsContent = options.workEventsContent ?? await readIfPresent(path.join(cwd, workEventsPath));
   const workLogContent = options.workLogContent ?? "";
   const archivedWorkLogContent = options.archivedWorkLogContent;
   const contents = [workLogContent, archivedWorkLogContent].filter((content): content is string => Boolean(content));
-  const entries = contents.flatMap(parseWorkMemoryEntries);
+  const eventEntries = workEventsContent ? parseWorkEventEntries(workEventsContent) : [];
+  const entries = eventEntries.length > 0 ? eventEntries : contents.flatMap(parseWorkMemoryEntries);
 
   await writeTextFile(path.join(cwd, workIndexPath), renderWorkIndex(entries));
 
@@ -45,7 +50,7 @@ export async function refreshWorkMemoryArtifacts(
   await writeTextFile(learningTargetPath, upsertRepositoryLearning(
     existingLearning,
     buildRepositoryLearningModel({
-      workLog: contents.join("\n\n")
+      workLog: eventEntries.length > 0 ? workEventsContent : contents.join("\n\n")
     }, {
       includeLowSignal: options.includeLowSignalLearning
     })

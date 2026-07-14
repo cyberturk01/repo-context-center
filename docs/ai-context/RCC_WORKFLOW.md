@@ -2,6 +2,8 @@
 
 ## Task Routing
 
+If the user gives an explicit file list, "Start with" files, or a narrow implementation path, you may skip `rcc work` and inspect those files directly.
+
 Try once, in order:
 
 1. `rcc work "<task>" --agent`
@@ -20,7 +22,13 @@ Do not rerun `rcc work` for the same task.
 ## During Implementation
 
 - Use `rcc find "<keyword>"` only if the route is insufficient.
-- After meaningful changes: `rcc done --summary "<summary>" --files auto --verify "<checks>"`
+- After meaningful changes: `rcc done --summary "<summary>" --files auto --verify "<checks>"` (compact log format is the default).
+- Use `--files auto` only when the dirty working tree contains just the completed task changes; it excludes RCC memory files and may warn when the tree is noisy.
+- For commit-clean workflows, prefer manual files: `rcc done --summary "<summary>" --files "src/a.ts,tests/a.test.ts" --verify "<checks>" --no-learn`.
+- Use `--files none` for context-only notes that should not teach file relationships.
+- Use `--log-format verbose` only when debugging or when legacy duplicated handoff/done JSON blocks are needed.
+- Use `--no-learn` for small or repetitive tasks where repository learning churn is not useful.
+- Use `--memory-only` for low-signal notes that should avoid refreshing derived memory artifacts.
 
 Optional utilities:
 

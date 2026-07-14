@@ -83,12 +83,16 @@ const legacyWorkflowDuplicateLines = new Set([
   "After meaningful changes:",
   "- After meaningful changes, run tests and record:",
   "`rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`",
+  "For clean commits, prefer manual files and `--no-learn`:",
+  "`rcc done --summary \"<summary>\" --files \"src/a.ts,tests/a.test.ts\" --verify \"<checks>\" --no-learn`",
   "1. Run relevant tests.",
   "2. Run `rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`.",
+  "   For clean commits, use manual `--files \"src/a.ts,tests/a.test.ts\"` and add `--no-learn` for small/repetitive tasks.",
   "- Start tasks with `rcc work \"<task>\"` before broad scanning.",
   "- Do not replace `rcc work` with manually reading `docs/ai-context` files.",
   "- For targeted lookup, prefer `rcc find \"<keyword>\"` before broad repo search.",
-  "- Save completed-work memory with `rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`."
+  "- Save completed-work memory with `rcc done --summary \"<summary>\" --files auto --verify \"<checks>\"`.",
+  "- For clean commits, prefer manual `--files \"src/a.ts,tests/a.test.ts\"` and add `--no-learn` for small/repetitive tasks."
 ]);
 const legacyAgentsSupportLines = new Set([
   "- Read `docs/ai-context/HANDOFF.md` if present.",

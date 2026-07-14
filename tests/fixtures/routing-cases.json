@@ -67,7 +67,7 @@
       "requiredMode": "normal",
       "maxPrimaryFiles": 1,
       "maxSupportingFiles": 5,
-      "maxTests": 4,
+      "maxTests": 5,
       "maxReadFirst": 1,
       "forbiddenPrimaryPrefixes": [
         ".github/workflows/",
@@ -188,7 +188,7 @@
       "maxSupportingFiles": 0,
       "maxTests": 1,
       "maxReadFirst": 1,
-      "maxBriefTokens": 120
+      "maxBriefTokens": 170
     }
   },
   {
@@ -295,6 +295,166 @@
       "maxTests": 3,
       "maxReadFirst": 1,
       "maxBriefTokens": 190
+    }
+  },
+  {
+    "name": "availability backend-only route quality",
+    "task": "update authenticated availability backend endpoint and service behavior",
+    "files": {
+      "AGENTS.md": "Repo guidance\n",
+      "package.json": "{\"private\":true,\"workspaces\":[\"apps/*\"]}\n",
+      "apps/api/src/availability/availability.routes.ts": "export const availabilityRoutes = { authenticatedPreview: true };\n",
+      "apps/api/src/availability/availability.service.ts": "export function getAvailabilityPreview() { return ['availability']; }\n",
+      "apps/api/src/availability/availability.types.ts": "export interface AvailabilityPreview { available: boolean; }\n",
+      "apps/api/src/public/restaurants/availability.routes.ts": "export const publicWidgetAvailability = { publicApiContract: true };\n",
+      "apps/api/src/availability/availability.routes.test.ts": "test('authenticated availability preview route', () => {});\n",
+      "apps/dashboard/src/RestaurantManagement.tsx": "export function RestaurantManagement() { return <section>Booking settings availability preview</section>; }\n",
+      "apps/dashboard/src/client.ts": "export async function fetchAvailabilityPreview() { return fetch('/availability?includeUnavailable=true'); }\n",
+      "apps/dashboard/src/RestaurantManagement.test.tsx": "test('booking settings availability preview', () => {});\n"
+    },
+    "expect": {
+      "detectedSurfaces": [
+        "backend-api"
+      ],
+      "coveredSurfaces": [
+        "backend-api"
+      ],
+      "missingSurfacesNotContains": [
+        "backend-api"
+      ],
+      "primaryOrSupportingContains": [
+        "apps/api/src/availability/availability.routes.ts"
+      ],
+      "primaryNotContains": [
+        "apps/api/src/public/restaurants/availability.routes.ts"
+      ],
+      "maxPrimaryFiles": 4,
+      "maxSupportingFiles": 5,
+      "maxTests": 3,
+      "maxReadFirst": 1,
+      "maxBriefTokens": 230
+    }
+  },
+  {
+    "name": "availability dashboard-only route quality",
+    "task": "add dashboard booking settings availability preview UI",
+    "files": {
+      "AGENTS.md": "Repo guidance\n",
+      "package.json": "{\"private\":true,\"workspaces\":[\"apps/*\"]}\n",
+      "apps/api/src/availability/availability.routes.ts": "export const availabilityRoutes = { authenticatedPreview: true };\n",
+      "apps/api/src/availability/availability.service.ts": "export function getAvailabilityPreview() { return ['availability']; }\n",
+      "apps/api/src/public/restaurants/availability.routes.ts": "export const publicWidgetAvailability = { publicApiContract: true };\n",
+      "apps/dashboard/src/RestaurantManagement.tsx": "export function RestaurantManagement() { return <section>Booking settings availability preview</section>; }\n",
+      "apps/dashboard/src/client.ts": "export async function fetchAvailabilityPreview() { return fetch('/availability?includeUnavailable=true'); }\n",
+      "apps/dashboard/src/RestaurantManagement.test.tsx": "test('booking settings availability preview', () => {});\n"
+    },
+    "expect": {
+      "detectedSurfaces": [
+        "dashboard-ui"
+      ],
+      "coveredSurfaces": [
+        "dashboard-ui"
+      ],
+      "missingSurfacesNotContains": [
+        "dashboard-ui"
+      ],
+      "primaryOrSupportingContains": [
+        "apps/dashboard/src/RestaurantManagement.tsx"
+      ],
+      "primaryNotContains": [
+        "apps/api/src/public/restaurants/availability.routes.ts"
+      ],
+      "maxPrimaryFiles": 4,
+      "maxSupportingFiles": 5,
+      "maxTests": 3,
+      "maxReadFirst": 1,
+      "maxBriefTokens": 230
+    }
+  },
+  {
+    "name": "availability backend and dashboard route quality",
+    "task": "add authenticated availability preview in dashboard settings UI using existing backend availability endpoint; keep public widget API unchanged",
+    "files": {
+      "AGENTS.md": "Repo guidance\n",
+      "package.json": "{\"private\":true,\"workspaces\":[\"apps/*\"]}\n",
+      "apps/api/src/availability/availability.routes.ts": "export const availabilityRoutes = { authenticatedPreview: true };\n",
+      "apps/api/src/availability/availability.service.ts": "export function getAvailabilityPreview() { return ['availability']; }\n",
+      "apps/api/src/availability/availability.types.ts": "export interface AvailabilityPreview { available: boolean; }\n",
+      "apps/api/src/public/restaurants/availability.routes.ts": "export const publicWidgetAvailability = { publicApiContract: true };\n",
+      "apps/api/src/availability/availability.routes.test.ts": "test('authenticated availability preview route', () => {});\n",
+      "apps/dashboard/src/RestaurantManagement.tsx": "export function RestaurantManagement() { return <section>Booking settings availability preview</section>; }\n",
+      "apps/dashboard/src/client.ts": "export async function fetchAvailabilityPreview() { return fetch('/availability?includeUnavailable=true'); }\n",
+      "apps/dashboard/src/RestaurantManagement.test.tsx": "test('booking settings availability preview', () => {});\n"
+    },
+    "expect": {
+      "detectedSurfaces": [
+        "backend-api",
+        "dashboard-ui",
+        "public-api"
+      ],
+      "coveredSurfaces": [
+        "backend-api",
+        "dashboard-ui",
+        "public-api"
+      ],
+      "missingSurfacesNotContains": [
+        "backend-api",
+        "dashboard-ui",
+        "public-api"
+      ],
+      "primaryOrSupportingContains": [
+        "apps/api/src/availability/availability.routes.ts",
+        "apps/dashboard/src/RestaurantManagement.tsx",
+        "apps/api/src/public/restaurants/availability.routes.ts"
+      ],
+      "primaryNotContains": [
+        "apps/api/src/public/restaurants/availability.routes.ts"
+      ],
+      "maxPrimaryFiles": 5,
+      "maxSupportingFiles": 6,
+      "maxTests": 4,
+      "maxReadFirst": 1,
+      "maxBriefTokens": 260
+    }
+  },
+  {
+    "name": "availability public contract boundary route quality",
+    "task": "keep public restaurant availability widget API unchanged while adding internal availability preview",
+    "files": {
+      "AGENTS.md": "Repo guidance\n",
+      "package.json": "{\"private\":true,\"workspaces\":[\"apps/*\"]}\n",
+      "apps/api/src/availability/availability.routes.ts": "export const availabilityRoutes = { authenticatedPreview: true };\n",
+      "apps/api/src/availability/availability.service.ts": "export function getAvailabilityPreview() { return ['availability']; }\n",
+      "apps/api/src/public/restaurants/availability.routes.ts": "export const publicWidgetAvailability = { publicApiContract: true };\n",
+      "apps/api/src/availability/availability.routes.test.ts": "test('authenticated availability preview route', () => {});\n",
+      "apps/dashboard/src/RestaurantManagement.tsx": "export function RestaurantManagement() { return <section>Booking settings availability preview</section>; }\n",
+      "apps/dashboard/src/client.ts": "export async function fetchAvailabilityPreview() { return fetch('/availability?includeUnavailable=true'); }\n"
+    },
+    "expect": {
+      "detectedSurfaces": [
+        "backend-api",
+        "public-api"
+      ],
+      "coveredSurfaces": [
+        "backend-api",
+        "public-api"
+      ],
+      "missingSurfacesNotContains": [
+        "backend-api",
+        "public-api"
+      ],
+      "primaryOrSupportingContains": [
+        "apps/api/src/availability/availability.routes.ts",
+        "apps/api/src/public/restaurants/availability.routes.ts"
+      ],
+      "primaryNotContains": [
+        "apps/api/src/public/restaurants/availability.routes.ts"
+      ],
+      "maxPrimaryFiles": 4,
+      "maxSupportingFiles": 6,
+      "maxTests": 3,
+      "maxReadFirst": 1,
+      "maxBriefTokens": 250
     }
   }
 ]

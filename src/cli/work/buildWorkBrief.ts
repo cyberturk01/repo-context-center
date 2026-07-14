@@ -266,6 +266,7 @@ export function buildWorkBrief(
     mapFreshness,
     routingGuidance: startup.startupInstructions,
     startupContext: startup,
+    detectedSurfaces: taskIntent.detectedSurfaces,
     primaryFiles: fileCategories.primaryFiles,
     supportingFiles: supportingTier.supportingFiles,
     optionalSupportingFiles: supportingTier.optionalSupportingFiles,

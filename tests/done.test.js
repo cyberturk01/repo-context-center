@@ -8,6 +8,7 @@ const test = require("node:test");
 const repoRoot = path.resolve(__dirname, "..");
 const cliPath = path.join(repoRoot, "dist", "cli", "index.js");
 const workLogPath = path.join("docs", "ai-context", "WORK_LOG.md");
+const workEventsPath = path.join("docs", "ai-context", "WORK_EVENTS.jsonl");
 const workIndexPath = path.join("docs", "ai-context", "WORK_INDEX.md");
 const repositoryLearningPath = path.join("docs", "ai-context", "REPOSITORY_LEARNING.md");
 
@@ -42,14 +43,83 @@ test("done creates memory file if missing", async () => {
   await withDoneRepo(async (tempDir) => {
     const result = runCli(["done", "Fixed login redirect bug"], { cwd: tempDir });
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
+    const events = await readFile(path.join(tempDir, workEventsPath), "utf8");
+    const event = JSON.parse(events.trim());
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Summary: Fixed login redirect bug/);
-    assert.match(result.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md; docs\/ai-context\/WORK_EVENTS\.jsonl/);
+    assert.doesNotMatch(result.stdout, /Warning: docs\/ai-context\/WORK_LOG\.md is about/);
     assert.match(content, /# Work Log/);
     assert.match(content, /<!-- repo-context-center:work-log:start -->/);
-    assert.match(content, /- Summary: Fixed login redirect bug/);
-    assert.match(content, /- Changed files: _not detected_/);
+    assert.match(content, /- Fixed login redirect bug/);
+    assert.match(content, /- files: _not detected_/);
+    assert.doesNotMatch(content, /<!-- rcc:handoff/);
+    assert.doesNotMatch(content, /```json repo-context-center:done/);
+    assert.match(event.t, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    assert.equal(event.s, "Fixed login redirect bug");
+    assert.deepEqual(event.f, []);
+    assert.deepEqual(event.v, []);
+    assert.deepEqual(event.risk, []);
+    assert.deepEqual(event.follow, []);
+  });
+});
+
+test("done warns when the work log exceeds the token warning threshold", async () => {
+  await withDoneRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, workLogPath, [
+      "# Work Log",
+      "",
+      "Lightweight RCC memory from completed agent work.",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "## 2026-07-14T10:00:00Z",
+      `- ${"Verbose completed work ".repeat(900)}`,
+      "- files: src/history.ts",
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["done", "Added one more entry", "--files", "src/new.ts"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Warning: docs\/ai-context\/WORK_LOG\.md is about \d+ tokens, above the 4000 token warning threshold\./);
+    assert.match(result.stdout, /RCC will try to compact\/archive above 8000 tokens\./);
+  });
+});
+
+test("done archives by token budget before the entry-count trigger", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const entries = Array.from({ length: 60 }, (_, index) => [
+      `## ${new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString()}`,
+      `- ${`Historical token-heavy work ${index} `.repeat(20)}`,
+      `- files: src/history-${index}.ts`
+    ].join("\n"));
+    await writeFixtureFile(tempDir, workLogPath, [
+      "# Work Log",
+      "",
+      "Lightweight RCC memory from completed agent work.",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "",
+      ...entries.flatMap((entry) => [entry, ""]),
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["done", "Newest token-budget work", "--files", "src/newest.ts"], { cwd: tempDir });
+    const live = await readFile(path.join(tempDir, workLogPath), "utf8");
+    const archived = await readFile(
+      path.join(tempDir, "docs/ai-context/archive/WORK_LOG_ARCHIVE.md"),
+      "utf8"
+    );
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Auto-archived 11 older work log entries\./);
+    assert.equal((live.match(/^## /gm) ?? []).length, 50);
+    assert.match(live, /Newest token-budget work/);
+    assert.doesNotMatch(live, /Historical token-heavy work 0\b/);
+    assert.match(archived, /Historical token-heavy work 0\b/);
   });
 });
 
@@ -58,11 +128,17 @@ test("done appends new entry", async () => {
     const first = runCli(["done", "Fixed login redirect bug"], { cwd: tempDir });
     const second = runCli(["done", "Added coupon redemption tests", "--verify", "npm test -- coupons"], { cwd: tempDir });
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
+    const events = (await readFile(path.join(tempDir, workEventsPath), "utf8")).trim().split(/\r?\n/).map(JSON.parse);
 
     assert.equal(first.status, 0);
     assert.equal(second.status, 0);
     assert.ok(content.indexOf("Fixed login redirect bug") < content.indexOf("Added coupon redemption tests"));
-    assert.match(content, /- Verification: npm test -- coupons/);
+    assert.match(content, /- verify: npm test -- coupons/);
+    assert.equal(countOccurrences(content, "npm test -- coupons"), 1);
+    assert.equal(events.length, 2);
+    assert.equal(events[0].s, "Fixed login redirect bug");
+    assert.equal(events[1].s, "Added coupon redemption tests");
+    assert.deepEqual(events[1].v, ["npm test -- coupons"]);
   });
 });
 
@@ -91,8 +167,8 @@ test("done preserves existing entries", async () => {
     assert.equal(result.status, 0);
     assert.match(content, /Manual intro stays\./);
     assert.match(content, /- Summary: Existing work/);
-    assert.match(content, /- Summary: Updated routing docs/);
-    assert.match(content, /- Risk: low/);
+    assert.match(content, /- Updated routing docs/);
+    assert.match(content, /- risk: low/);
   });
 });
 
@@ -121,13 +197,20 @@ test("done automatically archives an oversized work log", async () => {
       path.join(tempDir, "docs/ai-context/archive/WORK_LOG_ARCHIVE.md"),
       "utf8"
     );
+    const events = (await readFile(path.join(tempDir, workEventsPath), "utf8")).trim().split(/\r?\n/).map(JSON.parse);
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Auto-archived 51 older work log entries\./);
+    assert.match(result.stdout, /Auto-compacted 100 verbose work log entries\./);
     assert.equal((live.match(/^## /gm) ?? []).length, 50);
     assert.match(live, /Newest completed work/);
+    assert.doesNotMatch(live, /- Summary:/);
     assert.doesNotMatch(live, /Historical work 0\b/);
     assert.match(archived, /Historical work 0\b/);
+    assert.doesNotMatch(archived, /- Summary:/);
+    assert.equal(events.length, 101);
+    assert.ok(events.some((event) => event.s === "Historical work 0"));
+    assert.ok(events.some((event) => event.s === "Newest completed work"));
   });
 });
 
@@ -140,7 +223,7 @@ test("done works without git", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Changed files: not detected/);
-    assert.match(content, /- Summary: Finished non-git task/);
+    assert.match(content, /- Finished non-git task/);
   });
 });
 
@@ -156,11 +239,27 @@ test("done --files auto detects changed files and filters RCC memory files", asy
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Changed files: src\/index\.ts/);
+    assert.match(result.stdout, /Warning: --files auto excluded 2 RCC memory files/);
     assert.doesNotMatch(result.stdout, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.doesNotMatch(result.stdout, /\.repo-context-center\/config\.json/);
-    assert.match(content, /- Changed files: `src\/index\.ts`/);
+    assert.match(content, /- files: src\/index\.ts/);
     assert.doesNotMatch(content, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.doesNotMatch(content, /\.repo-context-center\/config\.json/);
+  });
+});
+
+test("done --files auto warns for noisy dirty trees but still succeeds", async () => {
+  await withDoneRepo(async (tempDir) => {
+    spawnSync("git", ["init"], { cwd: tempDir, encoding: "utf8" });
+    for (let index = 0; index < 11; index += 1) {
+      await writeFixtureFile(tempDir, `src/file-${index}.ts`, `export const value${index} = true;\n`);
+    }
+
+    const result = runCli(["done", "--summary", "Recorded broad edit", "--files", "auto"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Warning: --files auto detected 11 changed non-RCC files\. Manual --files is safer for commit-clean workflows\./);
+    assert.match(result.stdout, /Changed files: src\/file-0\.ts, src\/file-1\.ts/);
   });
 });
 
@@ -173,7 +272,7 @@ test("done --files none records no changed files", async () => {
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Changed files: none/);
-    assert.match(content, /- Changed files: _none_/);
+    assert.match(content, /- files: _none_/);
   });
 });
 
@@ -211,7 +310,7 @@ test("done output tells agent what was saved", async () => {
   });
 });
 
-test("done writes structured handoff-friendly data", async () => {
+test("done writes compact handoff-friendly data without duplicate JSON blocks", async () => {
   await withDoneRepo(async (tempDir) => {
     const result = runCli([
       "done",
@@ -227,31 +326,94 @@ test("done writes structured handoff-friendly data", async () => {
       "src/cli/commands/done.ts,src/cli/handoff/handoffSources.ts"
     ], { cwd: tempDir });
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
-    const handoffMatch = content.match(/<!-- rcc:handoff\s*(?<json>[\s\S]*?)-->/);
-    const match = content.match(/```json repo-context-center:done\s*\n(?<json>[\s\S]*?)\n```/);
-    assert.ok(handoffMatch);
-    assert.ok(match);
-    const handoffEntry = JSON.parse(handoffMatch.groups.json);
-    const entry = JSON.parse(match.groups.json);
 
     assert.equal(result.status, 0);
-    assert.match(content, /- Summary: Finished handoff integration/);
-    assert.match(content, /- Changed files: `src\/cli\/commands\/done\.ts`, `src\/cli\/handoff\/handoffSources\.ts`/);
-    assert.equal(handoffEntry.schemaVersion, 1);
-    assert.match(handoffEntry.timestamp, /^\d{4}-\d{2}-\d{2}T/);
-    assert.equal(handoffEntry.summary, "Finished handoff integration");
-    assert.deepEqual(handoffEntry.files, ["src/cli/commands/done.ts", "src/cli/handoff/handoffSources.ts"]);
-    assert.deepEqual(handoffEntry.verification, ["node --test tests/handoff.test.js"]);
-    assert.deepEqual(handoffEntry.followUps, ["Wire full handoff assembly"]);
-    assert.deepEqual(handoffEntry.risks, ["Parser should tolerate legacy entries"]);
-    assert.equal(entry.schemaVersion, 1);
-    assert.equal(entry.command, "done");
-    assert.match(entry.timestamp, /^\d{4}-\d{2}-\d{2}T/);
-    assert.equal(entry.summary, "Finished handoff integration");
-    assert.deepEqual(entry.files, ["src/cli/commands/done.ts", "src/cli/handoff/handoffSources.ts"]);
-    assert.equal(entry.verification, "node --test tests/handoff.test.js");
-    assert.deepEqual(entry.followUps, ["Wire full handoff assembly"]);
-    assert.deepEqual(entry.risks, ["Parser should tolerate legacy entries"]);
+    assert.match(content, /^## \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/m);
+    assert.match(content, /- Finished handoff integration/);
+    assert.match(content, /- files: src\/cli\/commands\/done\.ts, src\/cli\/handoff\/handoffSources\.ts/);
+    assert.match(content, /- verify: node --test tests\/handoff\.test\.js/);
+    assert.match(content, /- risk: Parser should tolerate legacy entries/);
+    assert.match(content, /- follow-ups: Wire full handoff assembly/);
+    assert.doesNotMatch(content, /<!-- rcc:handoff/);
+    assert.doesNotMatch(content, /```json repo-context-center:done/);
+    assert.equal(countOccurrences(content, "node --test tests/handoff.test.js"), 1);
+  });
+});
+
+test("done --log-format verbose writes legacy duplicated JSON blocks", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Finished legacy handoff logging",
+      "--verify",
+      "node --test tests/done.test.js",
+      "--risk",
+      "Compatibility mode only",
+      "--follow-ups",
+      "Prefer compact for new entries",
+      "--files",
+      "src/cli/commands/done.ts,tests/done.test.js",
+      "--log-format",
+      "verbose"
+    ], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, workLogPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /^## \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/m);
+    assert.match(content, /- Summary: Finished legacy handoff logging/);
+    assert.match(content, /- Changed files: `src\/cli\/commands\/done\.ts`, `tests\/done\.test\.js`/);
+    assert.match(content, /- Verification: node --test tests\/done\.test\.js/);
+    assert.match(content, /<!-- rcc:handoff/);
+    assert.match(content, /```json repo-context-center:done/);
+    assert.match(content, /"summary": "Finished legacy handoff logging"/);
+    assert.match(content, /"command": "done"/);
+    assert.equal(countOccurrences(content, "node --test tests/done.test.js"), 3);
+  });
+});
+
+test("done compacts long file lists with a remainder count", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Updated many routing surfaces",
+      "--files",
+      "scripts/benchmark-routing.js,src/cli/work/taskFileRecommendations.ts,tests/helpers/routingEvaluation.js,tests/scripts/benchmark-routing.test.js,tests/fixtures/routing-cases.json"
+    ], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, workLogPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /- files: scripts\/benchmark-routing\.js, src\/cli\/work\/taskFileRecommendations\.ts, \+3/);
+    assert.doesNotMatch(content, /tests\/fixtures\/routing-cases\.json/);
+  });
+});
+
+test("done --memory-only writes a simple log entry and skips derived memory artifacts", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Fixed small README typo",
+      "--verify",
+      "not run (docs only)",
+      "--files",
+      "README.md",
+      "--memory-only"
+    ], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, workLogPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /RCC work index skipped: docs\/ai-context\/WORK_INDEX\.md \(--memory-only\)/);
+    assert.match(result.stdout, /RCC learning skipped: docs\/ai-context\/REPOSITORY_LEARNING\.md \(--memory-only\)/);
+    assert.match(content, /- Fixed small README typo/);
+    assert.match(content, /- files: README\.md/);
+    assert.match(content, /- verify: not run \(docs only\)/);
+    assert.doesNotMatch(content, /<!-- rcc:handoff/);
+    assert.doesNotMatch(content, /```json repo-context-center:done/);
+    await assert.rejects(() => readFile(path.join(tempDir, workIndexPath), "utf8"), { code: "ENOENT" });
+    await assert.rejects(() => readFile(path.join(tempDir, repositoryLearningPath), "utf8"), { code: "ENOENT" });
   });
 });
 
@@ -269,20 +431,15 @@ test("done neutralizes handoff comment injection in untrusted fields", async () 
       "src/cli/commands/done.ts"
     ], { cwd: tempDir });
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
-    const handoffMatch = content.match(/<!-- rcc:handoff\s*(?<json>[\s\S]*?)-->/);
 
     assert.equal(result.status, 0);
-    assert.ok(handoffMatch);
-    assert.doesNotMatch(handoffMatch.groups.json, /Finished task -->/);
-    assert.doesNotMatch(handoffMatch.groups.json, /<!-- injected/);
-    assert.doesNotMatch(handoffMatch.groups.json, /low --> forged/);
-    assert.match(handoffMatch.groups.json, /Finished task -- > <! -- injected/);
+    assert.doesNotMatch(content, /Finished task -->/);
+    assert.doesNotMatch(content, /<!-- injected/);
+    assert.doesNotMatch(content, /low --> forged/);
+    assert.match(content, /Finished task -- > <! -- injected/);
     assert.match(content, /node --test tests\/done\.test\.js - forged verification/);
     assert.doesNotMatch(content, /^\- forged verification$/m);
-
-    const handoffEntry = JSON.parse(handoffMatch.groups.json);
-    assert.equal(handoffEntry.summary, "Finished task -- > <! -- injected");
-    assert.deepEqual(handoffEntry.risks, ["low -- > forged"]);
+    assert.match(content, /- risk: low -- > forged/);
   });
 });
 
@@ -296,22 +453,11 @@ test("done neutralizes handoff comment injection in file paths", async () => {
       "src/cli/commands/done.ts --> <!-- forged,tests/done.test.js"
     ], { cwd: tempDir });
     const content = await readFile(path.join(tempDir, workLogPath), "utf8");
-    const handoffMatch = content.match(/<!-- rcc:handoff\s*(?<json>[\s\S]*?)-->/);
-    const entryMatch = content.match(/```json repo-context-center:done\s*\n(?<json>[\s\S]*?)\n```/);
 
     assert.equal(result.status, 0);
-    assert.ok(handoffMatch);
-    assert.ok(entryMatch);
-    assert.doesNotMatch(handoffMatch.groups.json, /done\.ts --> <!-- forged/);
-    assert.match(handoffMatch.groups.json, /done\.ts -- > <! -- forged/);
-
-    const handoffEntry = JSON.parse(handoffMatch.groups.json);
-    const entry = JSON.parse(entryMatch.groups.json);
-    assert.deepEqual(handoffEntry.files, [
-      "src/cli/commands/done.ts -- > <! -- forged",
-      "tests/done.test.js"
-    ]);
-    assert.deepEqual(entry.files, handoffEntry.files);
+    assert.doesNotMatch(content, /done\.ts --> <!-- forged/);
+    assert.match(content, /done\.ts -- > <! -- forged/);
+    assert.match(content, /- files: src\/cli\/commands\/done\.ts -- > <! -- forged, tests\/done\.test\.js/);
   });
 });
 
@@ -460,6 +606,43 @@ test("done refreshes work index and repository learning from the completed entry
   });
 });
 
+test("done refreshes derived memory from JSONL events when WORK_LOG is stale", async () => {
+  await withDoneRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, workEventsPath, `${JSON.stringify({
+      t: "2026-07-13T10:00:00Z",
+      s: "Canonical JSONL memory",
+      f: ["src/canonical.ts"],
+      v: ["node --test tests/canonical.test.js"],
+      risk: [],
+      follow: []
+    })}\n`);
+    await writeFixtureFile(tempDir, workLogPath, [
+      "# Work Log",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "## 2026-07-14T10:00:00Z",
+      "- Stale markdown memory",
+      "- files: src/stale.ts",
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli([
+      "done",
+      "--summary",
+      "Updated canonical event stream",
+      "--files",
+      "src/cli/commands/done.ts"
+    ], { cwd: tempDir });
+    const workIndex = await readFile(path.join(tempDir, workIndexPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(workIndex, /Canonical JSONL memory/);
+    assert.match(workIndex, /Updated canonical event stream/);
+    assert.doesNotMatch(workIndex, /Stale markdown memory|src\/stale\.ts/);
+  });
+});
+
 test("done preserves manual repository learning content outside generated markers", async () => {
   await withDoneRepo(async (tempDir) => {
     await writeFixtureFile(tempDir, repositoryLearningPath, [
@@ -500,7 +683,54 @@ test("done dry-run does not write work log", async () => {
     assert.match(result.stdout, /RCC memory would update: docs\/ai-context\/WORK_LOG\.md/);
     assert.match(result.stdout, /RCC work index would update: docs\/ai-context\/WORK_INDEX\.md/);
     assert.match(result.stdout, /RCC learning would update: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
+    assert.match(result.stdout, /RCC memory budget: docs\/ai-context\/WORK_LOG\.md would be healthy \(~\d+ tokens; warn 4000, compact 8000\)\./);
+    assert.match(result.stdout, /A normal run would not compact\/archive WORK_LOG by token budget\./);
     await assert.rejects(() => readFile(path.join(tempDir, workLogPath), "utf8"), { code: "ENOENT" });
+    await assert.rejects(() => readFile(path.join(tempDir, workEventsPath), "utf8"), { code: "ENOENT" });
+  });
+});
+
+test("done dry-run reports warning work log token budget", async () => {
+  await withDoneRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, workLogPath, [
+      "# Work Log",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "## 2026-07-14T10:00:00Z",
+      `- ${"Warning sized memory ".repeat(900)}`,
+      "- files: src/history.ts",
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["done", "Preview warning memory", "--dry-run", "--files", "none"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC memory budget: docs\/ai-context\/WORK_LOG\.md would be warning \(~\d+ tokens; warn 4000, compact 8000\)\./);
+    assert.match(result.stdout, /A normal run would not compact\/archive WORK_LOG by token budget\./);
+    assert.match(result.stdout, /Warning: docs\/ai-context\/WORK_LOG\.md is about \d+ tokens, above the 4000 token warning threshold\./);
+  });
+});
+
+test("done dry-run reports oversized work log token archive action", async () => {
+  await withDoneRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, workLogPath, [
+      "# Work Log",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "## 2026-07-14T10:00:00Z",
+      `- ${"Oversized memory entry ".repeat(1800)}`,
+      "- files: src/history.ts",
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["done", "Preview oversized memory", "--dry-run", "--files", "none"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC memory budget: docs\/ai-context\/WORK_LOG\.md would be oversized \(~\d+ tokens; warn 4000, compact 8000\)\./);
+    assert.match(result.stdout, /A normal run would attempt WORK_LOG compact\/archive due to token budget\./);
+    assert.match(result.stdout, /Warning: docs\/ai-context\/WORK_LOG\.md is about \d+ tokens, above the 8000 token compact\/archive threshold\./);
   });
 });
 
@@ -512,5 +742,8 @@ test("done help documents auto and none file modes", async () => {
     assert.match(result.stdout, /--files auto\|none\|"<path,path>"/);
     assert.match(result.stdout, /--files auto\s+Detect changed files from git status/);
     assert.match(result.stdout, /--files none\s+Record no changed files/);
+    assert.match(result.stdout, /--log-format compact\|verbose/);
+    assert.match(result.stdout, /--log-format compact\s+Write one compact markdown entry \(default\)/);
+    assert.match(result.stdout, /--log-format verbose\s+Write legacy handoff JSON and done JSON blocks/);
   });
 });

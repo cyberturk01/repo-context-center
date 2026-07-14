@@ -113,6 +113,62 @@ async function withFrontendReservationRepo(callback, options = {}) {
   }
 }
 
+async function withAvailabilityPreviewRepo(callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-availability-preview-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(tempDir, "package.json", JSON.stringify({
+      private: true,
+      workspaces: ["apps/*"]
+    }, null, 2));
+    await writeFixtureFile(
+      tempDir,
+      "apps/api/src/availability/availability.routes.ts",
+      "export const availabilityRoutes = { authenticatedPreview: true };\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "apps/api/src/availability/availability.service.ts",
+      "export function getAvailabilityPreview() { return ['availability']; }\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "apps/api/src/availability/availability.types.ts",
+      "export interface AvailabilityPreview { available: boolean; }\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "apps/api/src/public/restaurants/availability.routes.ts",
+      "export const publicWidgetAvailability = { publicApiContract: true };\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "apps/api/src/availability/availability.routes.test.ts",
+      "test('authenticated availability preview', () => {});\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "apps/dashboard/src/RestaurantManagement.tsx",
+      "export function RestaurantManagement() { return <section>Booking settings availability preview</section>; }\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "apps/dashboard/src/client.ts",
+      "export async function fetchAvailabilityPreview() { return fetch('/availability?includeUnavailable=true'); }\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "apps/dashboard/src/RestaurantManagement.test.tsx",
+      "test('booking settings availability preview', () => {});\n"
+    );
+
+    return await callback(tempDir);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function withFreshnessRepo(callback) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-freshness-"));
   const contextDate = new Date("2026-06-17T12:00:00.000Z");
@@ -3306,6 +3362,108 @@ test("work --agent retains both application layers for mixed tasks", async () =>
     assert.ok(route.primaryFiles.some((file) => file.startsWith("apps/dashboard/")), route.primaryFiles.join("\n"));
     assert.ok(route.primaryFiles.some((file) => file.startsWith("apps/api/")), route.primaryFiles.join("\n"));
   });
+});
+
+test("work --agent covers availability preview backend and dashboard surfaces without primary public API", async () => {
+  await withAvailabilityPreviewRepo(async (tempDir) => {
+    const task = [
+      "add authenticated availability preview in dashboard settings UI using existing backend availability endpoint;",
+      "keep public widget API unchanged"
+    ].join(" ");
+    const result = runCli(["work", task, "--agent"], { cwd: tempDir });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const route = JSON.parse(result.stdout);
+    const routedFiles = [...route.primaryFiles, ...route.supportingFiles];
+    const publicApiPath = "apps/api/src/public/restaurants/availability.routes.ts";
+
+    assert.ok(
+      route.primaryFiles.includes("apps/api/src/availability/availability.routes.ts")
+        || route.primaryFiles.includes("apps/api/src/availability/availability.service.ts"),
+      route.primaryFiles.join("\n")
+    );
+    assert.ok(
+      routedFiles.includes("apps/dashboard/src/RestaurantManagement.tsx"),
+      routedFiles.join("\n")
+    );
+    assert.ok(
+      routedFiles.includes("apps/dashboard/src/client.ts"),
+      routedFiles.join("\n")
+    );
+    assert.equal(route.primaryFiles.includes(publicApiPath), false, route.primaryFiles.join("\n"));
+    assert.ok(route.supportingFiles.includes(publicApiPath), route.supportingFiles.join("\n"));
+    assert.ok(route.tests.includes("apps/api/src/availability/availability.routes.test.ts"), route.tests.join("\n"));
+    assert.equal(route.missingSurfaces, undefined);
+    assert.equal(route.warnings, undefined);
+  });
+});
+
+test("work warns when a detected dashboard surface is missing from the route", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-missing-surface-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "apps/api/src/availability/availability.routes.ts",
+      "export const availabilityRoutes = { authenticatedPreview: true };\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "apps/api/src/availability/availability.service.ts",
+      "export function getAvailabilityPreview() { return ['availability']; }\n"
+    );
+
+    const task = "add availability preview in dashboard settings UI using existing backend availability endpoint";
+    const agentResult = runCli(["work", task, "--agent"], { cwd: tempDir });
+    const route = JSON.parse(agentResult.stdout);
+
+    assert.equal(agentResult.status, 0, agentResult.stderr || agentResult.stdout);
+    assert.ok(route.primaryFiles.some((file) => file.startsWith("apps/api/")), route.primaryFiles.join("\n"));
+    assert.deepEqual(route.missingSurfaces, [{
+      surface: "dashboard-ui",
+      label: "dashboard UI",
+      message: 'Possibly missing surface: dashboard UI. Try: rcc find "dashboard availability"',
+      command: 'rcc find "dashboard availability"'
+    }]);
+    assert.deepEqual(route.warnings, ['Possibly missing surface: dashboard UI. Try: rcc find "dashboard availability"']);
+
+    const textResult = runCli(["work", task], { cwd: tempDir });
+    assert.match(textResult.stdout, /Surface warnings:\n- Possibly missing surface: dashboard UI\. Try: rcc find "dashboard availability"/);
+
+    const jsonResult = runCli(["work", task, "--json"], { cwd: tempDir });
+    const compact = JSON.parse(jsonResult.stdout);
+    assert.deepEqual(compact.missingSurfaces, route.missingSurfaces);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("work does not warn about surfaces for backend-only tasks", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "repo-context-center-work-backend-only-surface-"));
+
+  try {
+    await writeFixtureFile(tempDir, "AGENTS.md", "Repo guidance\n");
+    await writeFixtureFile(
+      tempDir,
+      "apps/api/src/availability/availability.routes.ts",
+      "export const availabilityRoutes = { authenticatedPreview: true };\n"
+    );
+    await writeFixtureFile(
+      tempDir,
+      "apps/api/src/availability/availability.service.ts",
+      "export function getAvailabilityPreview() { return ['availability']; }\n"
+    );
+
+    const result = runCli(["work", "update backend availability endpoint", "--agent"], { cwd: tempDir });
+    const route = JSON.parse(result.stdout);
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(route.missingSurfaces, undefined);
+    assert.equal(route.warnings, undefined);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("work --agent preserves an explicitly named filename across layer exclusion", async () => {

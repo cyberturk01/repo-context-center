@@ -2,7 +2,7 @@ import path from "node:path";
 import type { LearnedRoutingSignals } from "../../core/repositoryLearningRouting";
 import { classifyRepoFile } from "../../core/repoFileClassifier";
 import type { StartupContext } from "../../core/suggester";
-import type { TaskIntentAnalysis } from "../../core/taskIntent";
+import type { ApplicationSurface, TaskIntentAnalysis } from "../../core/taskIntent";
 import { workOutputAssemblyRoutes } from "./workConstants";
 import {
   escapeRegExp,
@@ -266,6 +266,10 @@ function taskMentionsExactFilename(task: string, filePath: string): boolean {
   return pattern.test(task);
 }
 
+function taskMentionsPublicMiddlewareTarget(task: string, filePath: string): boolean {
+  return /\bmiddleware\b/i.test(task) && /(^|\/)public\/middleware\//i.test(filePath.replace(/\\/g, "/"));
+}
+
 export function isExplicitlyExcludedLayerPath(
   task: string,
   filePath: string,
@@ -440,6 +444,158 @@ function isDirectTaskTargetHint(hint: TargetedLookupHint | Omit<TargetedLookupHi
   return false;
 }
 
+function normalizeSurfacePath(filePath: string): string {
+  return filePath.replace(/\\/g, "/").toLowerCase();
+}
+
+export function surfaceForPath(filePath: string): ApplicationSurface | null {
+  const normalized = normalizeSurfacePath(filePath);
+  const segments = normalized.split(/[\/.\-_]+/).filter(Boolean);
+  const basename = path.posix.basename(normalized);
+  const role = classifyRepoFile(filePath).role;
+
+  if (role === "test") {
+    return "tests";
+  }
+  if (segments.some((segment) => ["migration", "migrations", "schema", "schemas", "database", "db"].includes(segment))) {
+    return "database";
+  }
+  if (segments.includes("public") || segments.includes("widget") || /public[.-]/i.test(basename)) {
+    return "public-api";
+  }
+  if (
+    /^client\.[cm]?[jt]sx?$/i.test(basename)
+    || /^api-client\.[cm]?[jt]sx?$/i.test(basename)
+    || segments.includes("sdk")
+    || (segments.includes("client") && segments.includes("api"))
+  ) {
+    return "api-client";
+  }
+  if (
+    normalized.startsWith("apps/dashboard/")
+    || segments.some((segment) => ["dashboard", "frontend", "settings", "ui", "component", "components", "page", "pages"].includes(segment))
+    || /\.[cm]?tsx$/i.test(basename)
+  ) {
+    return "dashboard-ui";
+  }
+  if (
+    normalized.startsWith("apps/api/")
+    || segments.some((segment) => ["api", "backend", "controller", "controllers", "route", "routes", "service", "services", "server"].includes(segment))
+  ) {
+    return "backend-api";
+  }
+
+  return null;
+}
+
+function routeCoversSurface(surface: ApplicationSurface, paths: string[], testPaths: string[]): boolean {
+  if (surface === "tests") {
+    return testPaths.length > 0;
+  }
+
+  return paths.some((file) => surfaceForPath(file) === surface);
+}
+
+function surfaceCandidateScore(
+  filePath: string,
+  lookupHints: TargetedLookupHint[],
+  categoryRank: number
+): number {
+  const hint = lookupHints.find((candidate) => candidate.path === filePath);
+  const role = classifyRepoFile(filePath).role;
+  const roleBonus = role === "source" ? 8 : role === "config" || role === "package" ? 2 : 0;
+
+  return (hint?.score ?? 35) + roleBonus - categoryRank;
+}
+
+function surfaceCandidateReason(surface: ApplicationSurface): string {
+  if (surface === "public-api") {
+    return "public API contract boundary for this multi-surface task";
+  }
+  return `covers ${surface.replace("-", " ")} surface for this multi-surface task`;
+}
+
+function addSurfaceCoverage(
+  options: {
+    primaryPaths: string[];
+    supportingPaths: string[];
+    testPaths: string[];
+    categorized: {
+      taskFiles: WorkRecommendation[];
+      supportingTests: WorkRecommendation[];
+      recommendedFiles: WorkRecommendation[];
+    };
+    lookupHints: TargetedLookupHint[];
+    taskIntent: TaskIntentAnalysis;
+    startup: StartupContext;
+  }
+): string[] {
+  const detected = options.taskIntent.detectedSurfaces.filter((surface) => surface !== "tests");
+  if (detected.length <= 1) {
+    return options.supportingPaths;
+  }
+
+  const routedPaths = uniquePaths([...options.primaryPaths, ...options.supportingPaths]);
+  let supportingPaths = [...options.supportingPaths];
+  const candidateSources = [
+    { rank: 0, paths: options.categorized.taskFiles.map((file) => file.path) },
+    { rank: 4, paths: options.categorized.recommendedFiles.map((file) => file.path) },
+    { rank: 8, paths: options.lookupHints.map((hint) => hint.path) }
+  ];
+
+  for (const surface of detected) {
+    if (routeCoversSurface(surface, [...routedPaths, ...supportingPaths], options.testPaths)) {
+      continue;
+    }
+
+    const candidates = candidateSources
+      .flatMap((source) => source.paths.map((file) => ({ file, rank: source.rank })))
+      .filter((candidate) => surfaceForPath(candidate.file) === surface)
+      .filter((candidate) => classifyRepoFile(candidate.file).role !== "test")
+      .filter((candidate) => !options.primaryPaths.includes(candidate.file))
+      .filter((candidate) => !supportingPaths.includes(candidate.file))
+      .filter((candidate) => !isExplicitlyExcludedLayerPath(options.startup.task, candidate.file, options.taskIntent))
+      .map((candidate) => ({
+        ...candidate,
+        score: surfaceCandidateScore(candidate.file, options.lookupHints, candidate.rank)
+      }))
+      .filter((candidate) => candidate.score >= 45)
+      .sort((left, right) => {
+        const scoreDelta = right.score - left.score;
+        return scoreDelta !== 0 ? scoreDelta : left.file.localeCompare(right.file);
+      });
+
+    const selected = candidates[0];
+    if (selected) {
+      supportingPaths = uniquePaths([...supportingPaths, selected.file]);
+    }
+  }
+
+  return supportingPaths;
+}
+
+function demotePublicApiBoundaryPrimaryPaths(
+  primaryPaths: string[],
+  task: string,
+  taskIntent: TaskIntentAnalysis
+): string[] {
+  const hasPublicIntent = taskIntent.detectedSurfaces.includes("public-api");
+  const isPublicOnlyTask = hasPublicIntent
+    && !taskIntent.detectedSurfaces.some((surface) => surface !== "public-api" && surface !== "tests");
+  if (isPublicOnlyTask) {
+    return primaryPaths;
+  }
+
+  const retained = primaryPaths.filter((file) => (
+    surfaceForPath(file) !== "public-api"
+    || taskMentionsExplicitPath(task, file)
+    || taskMentionsExactFilename(task, file)
+    || taskMentionsPublicMiddlewareTarget(task, file)
+  ));
+
+  return retained.length > 0 ? retained : primaryPaths;
+}
+
 export function buildWorkFileCategorization(
   categorized: {
     taskFiles: WorkRecommendation[];
@@ -476,7 +632,11 @@ export function buildWorkFileCategorization(
   const scopedPrimaryCandidatePaths = primaryCandidatePaths.filter((file) => (
     !isExplicitlyExcludedLayerPath(startup.task, file, taskIntent)
   ));
-  const primaryPaths = calibrateAuthMiddlewarePrimaryPaths(scopedPrimaryCandidatePaths, taskIntent);
+  const primaryPaths = demotePublicApiBoundaryPrimaryPaths(
+    calibrateAuthMiddlewarePrimaryPaths(scopedPrimaryCandidatePaths, taskIntent),
+    startup.task,
+    taskIntent
+  );
   const primarySet = new Set(primaryPaths);
   const testCandidates = uniquePaths([
     ...categorized.supportingTests.map((file) => file.path),
@@ -504,10 +664,24 @@ export function buildWorkFileCategorization(
       : []),
     ...learnedSignals.learnedRelatedFiles
   ]).filter((file) => !primarySet.has(file) && !testSet.has(file));
+  const surfaceBalancedSupportingPaths = addSurfaceCoverage({
+    primaryPaths,
+    supportingPaths,
+    testPaths,
+    categorized,
+    lookupHints,
+    taskIntent,
+    startup
+  });
 
   return {
     primaryFiles: recommendationItemsWithHints(primaryPaths, startup, lookupHints),
-    supportingFiles: recommendationItemsWithLearning(supportingPaths, startup, lookupHints, learnedSignals),
+    supportingFiles: recommendationItemsWithLearning(surfaceBalancedSupportingPaths, startup, lookupHints, learnedSignals).map((item) => {
+      const surface = surfaceForPath(item.path);
+      return surface && !item.reasons.some((reason) => reason.includes("multi-surface task"))
+        ? { ...item, reasons: uniquePaths([...item.reasons, surfaceCandidateReason(surface)]) }
+        : item;
+    }),
     optionalSupportingFiles: [],
     tests: recommendationItemsWithLearning(testPaths, startup, lookupHints, learnedSignals).map((item) => ({
       ...item,

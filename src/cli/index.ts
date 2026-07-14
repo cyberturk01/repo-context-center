@@ -60,7 +60,7 @@ Agent workflow:
   work      Print a concise work brief for an AI coding agent
             Usage: work "<task>" [--agent|--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
   done      Save lightweight memory after completed agent work
-            Usage: done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]
+            Usage: done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--log-format compact|verbose] [--learn|--no-learn] [--memory-only] [--dry-run]
 
 Commands:
   init      Install generic context templates and config
@@ -69,8 +69,8 @@ Commands:
             Options: --strict
   verify    Recommend verification checks from impact analysis
             Usage: verify "<task>" [--json] [--task-only] [--planned]
-  archive   Archive older CHANGE_LOG and LESSONS_LEARNED entries
-            Options: --keep <number>, --dry-run
+  archive   Archive older context entries and optionally compact WORK_LOG.md
+            Options: --keep <number>, --compact-work-log, --dry-run
   decision  Add a durable project decision to docs/ai-context/DECISIONS.md
             Usage: decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
                    decision list

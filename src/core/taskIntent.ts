@@ -14,6 +14,7 @@ export interface TaskIntentAnalysis {
   hasReleaseIntent: boolean;
   hasFrontendIntent: boolean;
   hasBackendIntent: boolean;
+  detectedSurfaces: ApplicationSurface[];
   excludedApplicationLayers: ApplicationLayer[];
   namedUiSurfaces: string[];
   isExplicitCommandTask: boolean;
@@ -21,6 +22,7 @@ export interface TaskIntentAnalysis {
 }
 
 export type ApplicationLayer = "frontend" | "backend";
+export type ApplicationSurface = "backend-api" | "dashboard-ui" | "api-client" | "public-api" | "database" | "tests";
 
 type TermGroup =
   | "action"
@@ -403,6 +405,7 @@ export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
     && !excludedApplicationLayers.includes("frontend");
   const hasBackendIntent = detectsBackendIntent(expandedTerms)
     && !excludedApplicationLayers.includes("backend");
+  const detectedSurfaces = detectApplicationSurfaces(normalizedTask, expandedTerms, namedUiSurfaces, excludedApplicationLayers);
   const hasRoleSignal = expandedTerms.some((term) => term === "role" || term === "roles");
   const isExplicitCommandTask = expandedTerms.some((term) => explicitCommandTaskTerms.has(term));
   const termsForLookup = hasRoleSignal
@@ -445,11 +448,80 @@ export function analyzeTaskIntent(task: string): TaskIntentAnalysis {
     hasReleaseIntent,
     hasFrontendIntent,
     hasBackendIntent,
+    detectedSurfaces,
     excludedApplicationLayers,
     namedUiSurfaces,
     isExplicitCommandTask,
     nextLookupKeyword: lookupTerms[0] ?? null
   };
+}
+
+function detectApplicationSurfaces(
+  normalizedTask: string,
+  terms: string[],
+  namedUiSurfaces: string[],
+  excludedApplicationLayers: ApplicationLayer[]
+): ApplicationSurface[] {
+  const termSet = new Set(terms);
+  const surfaces: ApplicationSurface[] = [];
+  const add = (surface: ApplicationSurface): void => {
+    if (!surfaces.includes(surface)) {
+      surfaces.push(surface);
+    }
+  };
+
+  if (!excludedApplicationLayers.includes("backend") && terms.some((term) => [
+    "api",
+    "backend",
+    "controller",
+    "endpoint",
+    "route",
+    "service"
+  ].includes(term))) {
+    add("backend-api");
+  }
+
+  if (!excludedApplicationLayers.includes("frontend") && (
+    namedUiSurfaces.length > 0
+    || terms.some((term) => ["dashboard", "frontend", "settings", "ui"].includes(term))
+    || /\b(settings|dashboard)\b/.test(normalizedTask)
+  )) {
+    add("dashboard-ui");
+  }
+
+  if (
+    /\b(?:api|http|sdk)\s+client\b/.test(normalizedTask)
+    || /\bclient\s+(?:api|sdk)\b/.test(normalizedTask)
+    || /\bclient\.[cm]?[jt]sx?\b/.test(normalizedTask)
+  ) {
+    add("api-client");
+  }
+
+  if (
+    /\bpublic\b.{0,40}\b(?:api|endpoint|widget|contract)\b/.test(normalizedTask)
+    || /\b(?:api|endpoint|widget|contract)\b.{0,40}\bpublic\b/.test(normalizedTask)
+    || termSet.has("widget")
+  ) {
+    add("public-api");
+  }
+
+  if (terms.some((term) => [
+    "database",
+    "db",
+    "migration",
+    "migrations",
+    "schema",
+    "table",
+    "tables"
+  ].includes(term))) {
+    add("database");
+  }
+
+  if (terms.some((term) => ["test", "tests", "spec", "verify", "verification"].includes(term))) {
+    add("tests");
+  }
+
+  return surfaces;
 }
 
 function detectsFrontendIntent(terms: string[], namedUiSurfaces: string[]): boolean {

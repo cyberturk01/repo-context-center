@@ -1,4 +1,5 @@
 import type { StartupContext } from "../../core/suggester";
+import type { ApplicationSurface } from "../../core/taskIntent";
 import type { TaskMode, TaskSize, TaskSizeClassification } from "./taskSize";
 
 export interface WorkOptions {
@@ -75,6 +76,7 @@ export interface WorkBrief {
   mapFreshness: WorkMapFreshness;
   routingGuidance: string[];
   startupContext: StartupContext;
+  detectedSurfaces: ApplicationSurface[];
   primaryFiles: WorkRecommendation[];
   supportingFiles: WorkRecommendation[];
   optionalSupportingFiles: WorkRecommendation[];
@@ -106,6 +108,13 @@ export interface WorkBrief {
   readFirstGuidance: ReadFirstGuidance;
   nextCheapestCommand: string;
   nextCommand: string;
+}
+
+export interface PublicMissingSurfaceWarning {
+  surface: ApplicationSurface;
+  label: string;
+  message: string;
+  command: string;
 }
 
 export interface PublicWorkBrief {
@@ -141,6 +150,7 @@ export interface PublicWorkBrief {
   cheapestPath: string[];
   avoid: string[];
   nextCheapestCommand: string;
+  missingSurfaces?: PublicMissingSurfaceWarning[];
   promotedFromTargetedLookup: PublicTargetedLookupHint[];
   learnedRelatedFiles?: string[];
   learnedTests?: string[];
@@ -190,6 +200,7 @@ export interface CompactWorkBrief {
   readFirst: string[];
   contextIfUnclear: string[];
   nextLookup: string;
+  missingSurfaces?: PublicMissingSurfaceWarning[];
   nextCommand: string;
   reusePolicy: "Call once per task. Do not rerun work unless task meaning changes. Use rcc find if route is insufficient.";
   tokens: {
@@ -234,6 +245,8 @@ export interface PublicAgentRoute {
   optionalSupportingFiles?: PublicAgentRouteItem[];
   tests: PublicAgentRouteItem[];
   readFirst: PublicAgentRouteItem[];
+  missingSurfaces?: PublicMissingSurfaceWarning[];
+  warnings?: string[];
   next: string;
   briefTokens: number;
 }

@@ -1,4 +1,5 @@
 import { analyzeTaskIntent } from "../../core/taskIntent";
+import { missingSurfaceWarnings } from "./missingSurfaceWarnings";
 import { targetedLookupLimit } from "./workConstants";
 import type {
   ReadFirstGuidance,
@@ -186,6 +187,7 @@ export function renderWorkBriefLines(brief: WorkBrief): string[] {
   const lookupHintLimit = deep ? targetedLookupLimit : 3;
   const highRisk = brief.risks.some((risk) => risk === "high" || risk === "critical");
   const hasPrimaryFiles = brief.primaryFiles.length > 0;
+  const missingSurfaces = missingSurfaceWarnings(brief);
   const compactLines = [
     "repo-context-center work brief",
     "",
@@ -214,6 +216,13 @@ export function renderWorkBriefLines(brief: WorkBrief): string[] {
     ...formatRecommendationSection(brief.contextIfUnclear, "Use only if primary/supporting files are insufficient.", false).slice(0, 6),
     "",
     ...repositoryLearningLines(brief),
+    ...(missingSurfaces.length > 0
+      ? [
+        "Surface warnings:",
+        ...missingSurfaces.map((warning) => `- ${warning.message}`),
+        ""
+      ]
+      : []),
     "Next:",
     ...renderNextLines(brief, hasPrimaryFiles)
   ];

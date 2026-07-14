@@ -7,6 +7,24 @@ export interface WorkMemoryEntry {
   verification: string[];
 }
 
+export interface WorkLogSection {
+  before: string;
+  entries: string[];
+  after: string;
+}
+
+export interface WorkLogCompactionResult {
+  content: string;
+  events: WorkMemoryEntry[];
+  compacted: number;
+  entries: number;
+}
+
+export interface WorkEventMergeResult {
+  content: string;
+  added: number;
+}
+
 interface LegacyWorkLogEntry {
   changedFiles: string[];
   followUps: string[];
@@ -17,6 +35,7 @@ interface LegacyWorkLogEntry {
 }
 
 export const workLogPath = "docs/ai-context/WORK_LOG.md";
+export const workEventsPath = "docs/ai-context/WORK_EVENTS.jsonl";
 export const workLogArchivePath = "docs/ai-context/archive/WORK_LOG_ARCHIVE.md";
 export const workIndexPath = "docs/ai-context/WORK_INDEX.md";
 export const repositoryLearningPath = "docs/ai-context/REPOSITORY_LEARNING.md";
@@ -24,9 +43,49 @@ export const workLogStart = "<!-- repo-context-center:work-log:start -->";
 export const workLogEnd = "<!-- repo-context-center:work-log:end -->";
 export const workIndexStart = "<!-- repo-context-center:work-index:start -->";
 export const workIndexEnd = "<!-- repo-context-center:work-index:end -->";
+export const workMemoryWarnTokens = 4000;
+export const workMemoryCompactTokens = 8000;
+
+export type WorkMemoryBudgetStatus = "healthy" | "warning" | "oversized";
+
+export interface WorkMemoryBudget {
+  estimatedTokens: number;
+  status: WorkMemoryBudgetStatus;
+  warnThreshold: number;
+  compactThreshold: number;
+}
+
+export function estimateRoughTokens(content: string): number {
+  return Math.ceil(content.length / 4);
+}
+
+export function evaluateWorkMemoryBudget(
+  content: string,
+  warnThreshold = workMemoryWarnTokens,
+  compactThreshold = workMemoryCompactTokens
+): WorkMemoryBudget {
+  const estimatedTokens = estimateRoughTokens(content);
+  const status = estimatedTokens > compactThreshold
+    ? "oversized"
+    : estimatedTokens > warnThreshold
+      ? "warning"
+      : "healthy";
+
+  return {
+    estimatedTokens,
+    status,
+    warnThreshold,
+    compactThreshold
+  };
+}
 
 function cleanInline(value: string, maxLength = 180): string {
-  const cleaned = value.replace(/\r?\n/g, " ").replace(/\s+/g, " ").trim();
+  const cleaned = value
+    .replace(/\r?\n/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/<!--/g, "<! --")
+    .replace(/-->/g, "-- >")
+    .trim();
   return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength - 1)}...` : cleaned;
 }
 
@@ -44,8 +103,68 @@ function verificationArray(value: unknown): string[] {
   return stringArray(value);
 }
 
+export function workMemoryEntryFromCompactEvent(value: unknown): WorkMemoryEntry | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const entry = value as Record<string, unknown>;
+  const summary = typeof entry.s === "string" ? entry.s.trim() : "";
+  const timestamp = typeof entry.t === "string" ? entry.t.trim() : "";
+  if (!summary || !timestamp) {
+    return null;
+  }
+
+  return {
+    files: stringArray(entry.f),
+    followUps: stringArray(entry.follow),
+    risks: stringArray(entry.risk),
+    summary,
+    timestamp,
+    verification: verificationArray(entry.v)
+  };
+}
+
+export function compactEventFromWorkMemoryEntry(entry: WorkMemoryEntry): Record<string, unknown> {
+  return {
+    t: entry.timestamp,
+    s: entry.summary,
+    f: entry.files,
+    v: entry.verification,
+    risk: entry.risks,
+    follow: entry.followUps
+  };
+}
+
+export function formatWorkEventLine(entry: WorkMemoryEntry): string {
+  return JSON.stringify(compactEventFromWorkMemoryEntry(entry));
+}
+
+export function appendWorkEventLine(content: string, line: string): string {
+  const normalized = content.replace(/\r\n/g, "\n").trimEnd();
+  return normalized ? `${normalized}\n${line}\n` : `${line}\n`;
+}
+
+export function mergeWorkEventEntries(content: string, entries: WorkMemoryEntry[]): WorkEventMergeResult {
+  const existingTimestamps = new Set(parseWorkEventEntries(content).map((entry) => entry.timestamp));
+  let nextContent = content;
+  let added = 0;
+
+  for (const entry of sortEntries(entries)) {
+    if (existingTimestamps.has(entry.timestamp)) {
+      continue;
+    }
+
+    nextContent = appendWorkEventLine(nextContent, formatWorkEventLine(entry));
+    existingTimestamps.add(entry.timestamp);
+    added += 1;
+  }
+
+  return { content: nextContent, added };
+}
+
 export function parseChangedFilesLine(line: string): string[] {
-  const value = line.replace(/^- Changed files:\s*/, "").trim();
+  const value = line.replace(/^-\s*(?:Changed files|files):\s*/i, "").trim();
   if (!value || value === "_none_" || value === "_not detected_" || value === "`auto`" || value === "auto") {
     return [];
   }
@@ -61,6 +180,7 @@ export function parseChangedFilesLine(line: string): string[] {
   return value
     .split(",")
     .map((item) => item.trim().replace(/^`|`$/g, ""))
+    .filter((item) => !/^\+\d+$/.test(item))
     .filter(Boolean);
 }
 
@@ -91,6 +211,28 @@ export function parseStructuredWorkEntry(value: unknown): WorkMemoryEntry | null
     timestamp,
     verification: verificationArray(entry.verification)
   };
+}
+
+export function parseWorkEventEntries(content: string): WorkMemoryEntry[] {
+  const entries: WorkMemoryEntry[] = [];
+
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    try {
+      const entry = workMemoryEntryFromCompactEvent(JSON.parse(trimmed));
+      if (entry) {
+        entries.push(entry);
+      }
+    } catch {
+      // Ignore malformed JSONL records and keep reading later events.
+    }
+  }
+
+  return sortEntries(entries);
 }
 
 function structuredHandoffEntries(content: string): WorkMemoryEntry[] {
@@ -165,30 +307,35 @@ function legacyWorkLogEntries(content: string): LegacyWorkLogEntry[] {
       continue;
     }
 
-    if (trimmed.startsWith("- Summary: ")) {
-      current.summary = trimmed.replace(/^- Summary:\s*/, "").trim() || null;
+    if (/^- Summary:\s*/i.test(trimmed)) {
+      current.summary = trimmed.replace(/^- Summary:\s*/i, "").trim() || null;
       continue;
     }
 
-    if (trimmed.startsWith("- Changed files: ")) {
+    if (/^- Changed files:\s*/i.test(trimmed) || /^- files:\s*/i.test(trimmed)) {
       current.changedFiles = parseChangedFilesLine(trimmed);
       continue;
     }
 
-    if (trimmed.startsWith("- Verification: ")) {
-      current.verification = trimmed.replace(/^- Verification:\s*/, "").trim() || null;
+    if (/^- Verification:\s*/i.test(trimmed) || /^- verify:\s*/i.test(trimmed)) {
+      current.verification = trimmed.replace(/^-\s*(?:Verification|verify):\s*/i, "").trim() || null;
       continue;
     }
 
-    if (trimmed.startsWith("- Risk: ")) {
-      const risk = trimmed.replace(/^- Risk:\s*/, "").trim();
+    if (/^- Risk:\s*/i.test(trimmed) || /^- risks?:\s*/i.test(trimmed)) {
+      const risk = trimmed.replace(/^-\s*risks?:\s*/i, "").trim();
       current.risks = risk ? [risk] : [];
       continue;
     }
 
-    if (trimmed.startsWith("- Follow-ups: ")) {
-      const followUp = trimmed.replace(/^- Follow-ups:\s*/, "").trim();
+    if (/^- Follow-ups:\s*/i.test(trimmed) || /^- follow-ups?:\s*/i.test(trimmed)) {
+      const followUp = trimmed.replace(/^-\s*follow-ups?:\s*/i, "").trim();
       current.followUps = followUp ? [followUp] : [];
+      continue;
+    }
+
+    if (trimmed.startsWith("- ") && !trimmed.includes(":") && !current.summary) {
+      current.summary = trimmed.replace(/^- /, "").trim() || null;
     }
   }
 
@@ -221,6 +368,10 @@ function sortEntries(entries: WorkMemoryEntry[]): WorkMemoryEntry[] {
 export function parseWorkMemoryEntries(content: string): WorkMemoryEntry[] {
   const byTimestamp = new Map<string, WorkMemoryEntry>();
 
+  for (const entry of parseWorkEventEntries(content)) {
+    byTimestamp.set(entry.timestamp, entry);
+  }
+
   for (const entry of legacyWorkLogEntries(content).map(entryFromLegacy).filter((entry): entry is WorkMemoryEntry => Boolean(entry))) {
     byTimestamp.set(entry.timestamp, entry);
   }
@@ -234,6 +385,117 @@ export function parseWorkMemoryEntries(content: string): WorkMemoryEntry[] {
   }
 
   return sortEntries([...byTimestamp.values()]);
+}
+
+export function extractWorkLogSection(content: string): WorkLogSection {
+  const normalized = content.replace(/\r\n/g, "\n");
+  const start = normalized.indexOf(workLogStart);
+  const end = normalized.indexOf(workLogEnd);
+
+  if (start === -1 || end === -1 || end <= start) {
+    return {
+      before: normalized.trimEnd(),
+      entries: [],
+      after: ""
+    };
+  }
+
+  const body = normalized.slice(start + workLogStart.length, end).trim();
+  const entries = body
+    ? body.split(/\n(?=##\s+)/).map((entry) => entry.trim()).filter(Boolean)
+    : [];
+
+  return {
+    before: normalized.slice(0, start + workLogStart.length).trimEnd(),
+    entries,
+    after: normalized.slice(end).trimStart()
+  };
+}
+
+function compactFiles(files: string[], emptyLabel = "_not detected_", visibleCount = 2): string {
+  if (files.length === 0) {
+    return emptyLabel;
+  }
+
+  const visibleFiles = files.slice(0, visibleCount).map((file) => cleanInline(file, 160).replace(/`/g, ""));
+  const remainder = files.length - visibleFiles.length;
+  return [
+    ...visibleFiles,
+    ...(remainder > 0 ? [`+${remainder}`] : [])
+  ].join(", ");
+}
+
+function firstNonEmpty(values: string[]): string {
+  return values.map((value) => cleanInline(value, 300)).find(Boolean) ?? "";
+}
+
+export function formatCompactWorkLogEntry(entry: WorkMemoryEntry): string {
+  const lines = [
+    `## ${cleanInline(entry.timestamp, 80)}`,
+    `- ${cleanInline(entry.summary, 300)}`,
+    `- files: ${compactFiles(entry.files)}`
+  ];
+  const verification = firstNonEmpty(entry.verification);
+  const risk = firstNonEmpty(entry.risks);
+  const followUp = firstNonEmpty(entry.followUps);
+
+  if (verification) {
+    lines.push(`- verify: ${verification}`);
+  }
+  if (risk) {
+    lines.push(`- risk: ${cleanInline(risk, 80)}`);
+  }
+  if (followUp) {
+    lines.push(`- follow-ups: ${followUp}`);
+  }
+
+  return lines.join("\n");
+}
+
+export function renderWorkLogSection(source: WorkLogSection, entries: string[]): string {
+  return [
+    source.before,
+    "",
+    ...entries.flatMap((entry) => [entry, ""]),
+    source.after || workLogEnd,
+    ""
+  ].join("\n").replace(/\n{3,}/g, "\n\n");
+}
+
+function isVerboseWorkLogEntry(entry: string): boolean {
+  return /<!--\s*rcc:handoff\b/.test(entry)
+    || /```json repo-context-center:done\b/.test(entry)
+    || /^-\s*(Summary|Changed files|Verification|Risk|Follow-ups):/im.test(entry);
+}
+
+export function compactWorkLogContent(content: string): WorkLogCompactionResult {
+  const section = extractWorkLogSection(content);
+  const compactEntries: string[] = [];
+  const events: WorkMemoryEntry[] = [];
+  let compacted = 0;
+
+  for (const entryText of section.entries) {
+    const entry = parseWorkMemoryEntries(entryText)[0];
+    if (!entry) {
+      compactEntries.push(entryText);
+      continue;
+    }
+
+    events.push(entry);
+    if (isVerboseWorkLogEntry(entryText)) {
+      compacted += 1;
+      compactEntries.push(formatCompactWorkLogEntry(entry));
+    } else {
+      compactEntries.push(entryText);
+    }
+  }
+
+  return {
+    content: compacted > 0 ? renderWorkLogSection(section, compactEntries) : content,
+    events: sortEntries(events),
+    compacted,
+    entries: section.entries.length
+  };
 }
 
 function themeForSummary(summary: string): string {

@@ -157,7 +157,8 @@ test("done --files auto does not learn from low-confidence dirty worktree files"
 
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /RCC learning skipped: docs\/ai-context\/REPOSITORY_LEARNING\.md \(tiny\/noise task; use --learn to force\)/);
-    assert.match(workLog, /src\/unrelated\.ts/);
+    assert.match(result.stdout, /Changed files: README\.md, src\/cli\/work\/renderAgent\.ts, src\/unrelated\.ts/);
+    assert.match(workLog, /- files: README\.md, src\/cli\/work\/renderAgent\.ts, \+1/);
     assert.match(workIndex, /fixed typo/);
     await assert.rejects(
       () => readFile(path.join(tempDir, "docs", "ai-context", "REPOSITORY_LEARNING.md"), "utf8"),

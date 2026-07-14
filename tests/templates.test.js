@@ -111,9 +111,12 @@ test("RCC workflow template keeps core startup rules", async () => {
   assert.match(content, /`rcc work "<task>" --agent`/);
   assert.match(content, /`repo-context-center work "<task>" --agent`/);
   assert.match(content, /`npx repo-context-center@latest work "<task>" --agent`/);
+  assert.match(content, /If the user gives an explicit file list, "Start with" files, or a narrow implementation path/);
   assert.match(content, /Do not enter fallback mode after only one failed command\./);
   assert.match(content, /Use the returned:\n- primaryFiles\n- supportingFiles\n- tests/);
   assert.match(content, /Do not rerun `rcc work` for the same task\./);
+  assert.match(content, /Use `--files auto` only when the dirty working tree contains just the completed task changes; it excludes RCC memory files/);
+  assert.match(content, /Use `--memory-only` for low-signal notes that should avoid refreshing derived memory artifacts/);
   assert.match(content, /`rcc doctor`/);
   assert.match(content, /`rcc measure "<task>"`/);
   assert.match(content, /`rcc estimate --compare-naive`/);

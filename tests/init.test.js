@@ -704,7 +704,12 @@ test("init generates dedicated RCC workflow guidance", async () => {
     assert.equal(result.status, 0);
     assert.match(content, /# RCC Workflow/);
     assert.match(content, /`rcc work "<task>" --agent`/);
+    assert.match(content, /If the user gives an explicit file list, "Start with" files, or a narrow implementation path/);
     assert.match(content, /`rcc done --summary "<summary>" --files auto --verify "<checks>"`/);
+    assert.match(content, /Use `--files auto` only when the dirty working tree contains just the completed task changes; it excludes RCC memory files/);
+    assert.match(content, /For commit-clean workflows, prefer manual files/);
+    assert.match(content, /--no-learn` for small or repetitive tasks/);
+    assert.match(content, /--memory-only` for low-signal notes that should avoid refreshing derived memory artifacts/);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

@@ -2,12 +2,14 @@ import { archiveContextFiles, type ArchiveResult } from "../../core/archiver";
 import type { CliIO } from "../index";
 
 interface ArchiveCliOptions {
+  compactWorkLog: boolean;
   keep: number;
   dryRun: boolean;
 }
 
 function parseArchiveOptions(args: string[]): ArchiveCliOptions | undefined {
   const options: ArchiveCliOptions = {
+    compactWorkLog: false,
     keep: 50,
     dryRun: false
   };
@@ -17,6 +19,11 @@ function parseArchiveOptions(args: string[]): ArchiveCliOptions | undefined {
 
     if (arg === "--dry-run") {
       options.dryRun = true;
+      continue;
+    }
+
+    if (arg === "--compact-work-log") {
+      options.compactWorkLog = true;
       continue;
     }
 
@@ -51,11 +58,25 @@ function formatResult(result: ArchiveResult, dryRun: boolean): string {
     }
 
     if (file.archived === 0) {
+      if (file.compacted && file.compacted > 0) {
+        const action = dryRun ? "Would compact" : "Compacted";
+        lines.push(`${action} ${file.compacted} verbose entries in ${file.sourcePath}`);
+      }
+      if (file.eventsAdded && file.eventsAdded > 0) {
+        const action = dryRun ? "Would preserve" : "Preserved";
+        lines.push(`${action} ${file.eventsAdded} work log metadata entries in docs/ai-context/WORK_EVENTS.jsonl`);
+      }
       lines.push(`No archive needed: ${file.sourcePath} (${file.kept} entries)`);
       continue;
     }
 
     const action = dryRun ? "Would archive" : "Archived";
+    if (file.compacted && file.compacted > 0) {
+      lines.push(`${dryRun ? "Would compact" : "Compacted"} ${file.compacted} verbose entries in ${file.sourcePath}`);
+    }
+    if (file.eventsAdded && file.eventsAdded > 0) {
+      lines.push(`${dryRun ? "Would preserve" : "Preserved"} ${file.eventsAdded} work log metadata entries in docs/ai-context/WORK_EVENTS.jsonl`);
+    }
     lines.push(`${action} ${file.archived} entries from ${file.sourcePath} to ${file.archivePath}`);
     lines.push(`Kept ${file.kept} entries in ${file.sourcePath}`);
   }
@@ -80,12 +101,13 @@ function formatResult(result: ArchiveResult, dryRun: boolean): string {
 export async function archiveCommand(io: CliIO, args: string[] = []): Promise<number> {
   const options = parseArchiveOptions(args);
   if (!options) {
-    io.stderr("Unknown archive option. Supported options: --keep <number>, --dry-run\n");
+    io.stderr("Unknown archive option. Supported options: --keep <number>, --compact-work-log, --dry-run\n");
     return 1;
   }
 
   const result = await archiveContextFiles({
     cwd: io.cwd,
+    compactWorkLog: options.compactWorkLog,
     keep: options.keep,
     dryRun: options.dryRun
   });

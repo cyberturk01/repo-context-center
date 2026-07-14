@@ -147,10 +147,10 @@ test("v0.7 release: rcc done creates and appends memory", async () => {
     assert.equal(second.status, 0);
     assert.match(first.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md/);
     assert.match(content, /# Work Log/);
-    assert.match(content, /- Summary: Fixed login bug/);
-    assert.match(content, /- Changed files: `src\/auth\/login\.ts`/);
-    assert.match(content, /- Summary: Added login regression test/);
-    assert.match(content, /- Verification: npm test -- login/);
+    assert.match(content, /- Fixed login bug/);
+    assert.match(content, /- files: src\/auth\/login\.ts/);
+    assert.match(content, /- Added login regression test/);
+    assert.match(content, /- verify: npm test -- login/);
     assert.ok(content.indexOf("Fixed login bug") < content.indexOf("Added login regression test"));
   });
 });
@@ -208,6 +208,6 @@ test("v0.7 release: help output shows the new agent workflow clearly", () => {
   assert.match(result.stdout, /work\s+Print a concise work brief for an AI coding agent/);
   assert.match(result.stdout, /Usage: work "<task>"/);
   assert.match(result.stdout, /done\s+Save lightweight memory after completed agent work/);
-  assert.match(result.stdout, /Usage: done --summary "<summary>" \[--files auto\|none\|"<path,path>"\] \[--verify "<command\/result>"\] \[--dry-run\]/);
+  assert.match(result.stdout, /Usage: done --summary "<summary>" \[--files auto\|none\|"<path,path>"\] \[--verify "<command\/result>"\] \[--log-format compact\|verbose\] \[--learn\|--no-learn\] \[--memory-only\] \[--dry-run\]/);
   assert.ok(result.stdout.indexOf("Agent workflow:") < result.stdout.indexOf("Commands:"));
 });

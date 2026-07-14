@@ -567,6 +567,40 @@ npx repo-context-center done --summary "fixed auth routing" --files auto --verif
 
 `done` also refreshes repository learning so future `work` and `handoff` output can include learned file relationships, likely tests, verification patterns, and repository habits.
 
+`done` writes compact `WORK_LOG.md` entries by default. Use `--log-format verbose` only when debugging or when compatibility requires the legacy duplicated handoff JSON and done JSON blocks:
+
+```sh
+npx repo-context-center done --summary "fixed auth routing" --files auto --verify "npm test" --log-format verbose
+```
+
+Choose the file mode based on how clean you need the resulting diff to be:
+
+- Use `--files auto` when the working tree contains only the completed task changes you want RCC to remember.
+- Use manual `--files "src/a.ts,tests/a.test.ts"` for commit-clean workflows, especially when context files, generated files, or unrelated user changes are also dirty.
+- Use `--files none` for notes that should not teach RCC a file relationship.
+
+For small or repetitive tasks, add `--no-learn` so RCC records the work without refreshing repository learning:
+
+```sh
+node dist/cli/index.js done --summary "updated docs wording" --files "README.md" --verify "not run (docs only)" --no-learn
+```
+
+For small tasks where you only want a compact work note, use `--memory-only`. It appends a simple `WORK_LOG.md` entry with summary, changed files, and verification, but skips `WORK_INDEX.md` and `REPOSITORY_LEARNING.md`:
+
+```sh
+npx repo-context-center done --summary "fixed typo" --files "README.md" --verify "not run (docs only)" --memory-only
+```
+
+Clean commit workflow:
+
+1. Run the narrow verification command for the task.
+2. Check `git diff --stat` or `git status --short`.
+3. Run `done` with an explicit implementation file list:
+
+```sh
+node dist/cli/index.js done --summary "implemented feature" --files "src/a.ts,tests/a.test.ts" --verify "npm test -- a" --no-learn
+```
+
 ### Regenerate Repository Learning
 
 Use `learn` when you want to inspect or refresh learned repository patterns without recording new completed work:
@@ -747,7 +781,7 @@ repo-context-center verify "<task>" [--json] [--task-only] [--planned] [--level 
 ### Memory and handoff
 
 ```sh
-repo-context-center done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]
+repo-context-center done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--log-format compact|verbose] [--learn|--no-learn] [--memory-only] [--dry-run]
 repo-context-center learn [--json] [--write] [--debug]
 repo-context-center handoff [task] [--json|--agent] [--debug] [--write]
 repo-context-center decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
@@ -1012,6 +1046,8 @@ Use `repo-context-center doctor` when local and global RCC commands are confusin
 - `docs/ai-context/WORK_LOG.md`
 - `docs/ai-context/WORK_INDEX.md`
 - `docs/ai-context/REPOSITORY_LEARNING.md`
+
+`repo-context-center done` writes compact `WORK_LOG.md` entries by default. `repo-context-center done --log-format verbose` writes the legacy duplicated handoff JSON and done JSON blocks for debugging or compatibility. `repo-context-center done --memory-only` updates only `docs/ai-context/WORK_LOG.md`.
 
 With `--github-action`, init also creates:
 

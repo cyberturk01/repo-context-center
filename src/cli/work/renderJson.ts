@@ -1,3 +1,4 @@
+import { missingSurfaceWarnings } from "./missingSurfaceWarnings";
 import { uniquePaths } from "./taskFileRecommendations";
 import type {
   CompactWorkBrief,
@@ -75,6 +76,7 @@ function publicRisks(risks: string[]): PublicWorkRisk[] {
 
 export function renderWorkBriefDebugJson(brief: WorkBrief): string {
   const lookupHints = publicLookupHints(brief.targetedLookupHints);
+  const missingSurfaces = missingSurfaceWarnings(brief);
   const publicBrief: PublicWorkBrief = {
     schemaVersion: 1,
     command: brief.command,
@@ -110,6 +112,7 @@ export function renderWorkBriefDebugJson(brief: WorkBrief): string {
     cheapestPath: brief.cheapestPath,
     avoid: brief.avoid,
     nextCheapestCommand: brief.nextCheapestCommand,
+    ...(missingSurfaces.length > 0 ? { missingSurfaces } : {}),
     promotedFromTargetedLookup: publicLookupHints(brief.promotedFromTargetedLookup),
     learnedRelatedFiles: brief.learnedRelatedFiles,
     learnedTests: brief.learnedTests,
@@ -150,6 +153,7 @@ function compactContextIfUnclear(brief: WorkBrief): string[] {
 }
 
 export function toCompactWorkBrief(brief: WorkBrief): CompactWorkBrief {
+  const missingSurfaces = missingSurfaceWarnings(brief);
   const withoutTokens: Omit<CompactWorkBrief, "tokens"> = {
     schemaVersion: 1,
     command: brief.command,
@@ -170,6 +174,7 @@ export function toCompactWorkBrief(brief: WorkBrief): CompactWorkBrief {
     readFirst: brief.readFirst,
     contextIfUnclear: compactContextIfUnclear(brief),
     nextLookup: brief.nextCheapestCommand,
+    ...(missingSurfaces.length > 0 ? { missingSurfaces } : {}),
     nextCommand: brief.nextCommand,
     reusePolicy: "Call once per task. Do not rerun work unless task meaning changes. Use rcc find if route is insufficient."
   };
