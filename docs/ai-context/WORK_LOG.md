@@ -254,5 +254,8 @@ Lightweight RCC memory from completed agent work.
 - files: src/cli/verify/buildVerify.ts, tests/fixtures/verify-json-contract-snapshots.json, +2
 - verify: npm test
 
+## 2026-07-14T10:48:18Z
+- improved done memory churn ergonomics
+- files: src/cli/commands/done.ts, src/templates/generic/docs/ai-context/RCC_WORKFLOW.md, +3
+- verify: npm run build; node --test tests/done.test.js tests/init.test.js; node --test tests/templates.test.js
 <!-- repo-context-center:work-log:end -->
-

@@ -239,11 +239,27 @@ test("done --files auto detects changed files and filters RCC memory files", asy
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Changed files: src\/index\.ts/);
+    assert.match(result.stdout, /Warning: --files auto excluded 2 RCC memory files/);
     assert.doesNotMatch(result.stdout, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.doesNotMatch(result.stdout, /\.repo-context-center\/config\.json/);
     assert.match(content, /- files: src\/index\.ts/);
     assert.doesNotMatch(content, /docs\/ai-context\/TASK_ROUTING\.md/);
     assert.doesNotMatch(content, /\.repo-context-center\/config\.json/);
+  });
+});
+
+test("done --files auto warns for noisy dirty trees but still succeeds", async () => {
+  await withDoneRepo(async (tempDir) => {
+    spawnSync("git", ["init"], { cwd: tempDir, encoding: "utf8" });
+    for (let index = 0; index < 11; index += 1) {
+      await writeFixtureFile(tempDir, `src/file-${index}.ts`, `export const value${index} = true;\n`);
+    }
+
+    const result = runCli(["done", "--summary", "Recorded broad edit", "--files", "auto"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Warning: --files auto detected 11 changed non-RCC files\. Manual --files is safer for commit-clean workflows\./);
+    assert.match(result.stdout, /Changed files: src\/file-0\.ts, src\/file-1\.ts/);
   });
 });
 
@@ -667,8 +683,54 @@ test("done dry-run does not write work log", async () => {
     assert.match(result.stdout, /RCC memory would update: docs\/ai-context\/WORK_LOG\.md/);
     assert.match(result.stdout, /RCC work index would update: docs\/ai-context\/WORK_INDEX\.md/);
     assert.match(result.stdout, /RCC learning would update: docs\/ai-context\/REPOSITORY_LEARNING\.md/);
+    assert.match(result.stdout, /RCC memory budget: docs\/ai-context\/WORK_LOG\.md would be healthy \(~\d+ tokens; warn 4000, compact 8000\)\./);
+    assert.match(result.stdout, /A normal run would not compact\/archive WORK_LOG by token budget\./);
     await assert.rejects(() => readFile(path.join(tempDir, workLogPath), "utf8"), { code: "ENOENT" });
     await assert.rejects(() => readFile(path.join(tempDir, workEventsPath), "utf8"), { code: "ENOENT" });
+  });
+});
+
+test("done dry-run reports warning work log token budget", async () => {
+  await withDoneRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, workLogPath, [
+      "# Work Log",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "## 2026-07-14T10:00:00Z",
+      `- ${"Warning sized memory ".repeat(900)}`,
+      "- files: src/history.ts",
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["done", "Preview warning memory", "--dry-run", "--files", "none"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC memory budget: docs\/ai-context\/WORK_LOG\.md would be warning \(~\d+ tokens; warn 4000, compact 8000\)\./);
+    assert.match(result.stdout, /A normal run would not compact\/archive WORK_LOG by token budget\./);
+    assert.match(result.stdout, /Warning: docs\/ai-context\/WORK_LOG\.md is about \d+ tokens, above the 4000 token warning threshold\./);
+  });
+});
+
+test("done dry-run reports oversized work log token archive action", async () => {
+  await withDoneRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, workLogPath, [
+      "# Work Log",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "## 2026-07-14T10:00:00Z",
+      `- ${"Oversized memory entry ".repeat(1800)}`,
+      "- files: src/history.ts",
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["done", "Preview oversized memory", "--dry-run", "--files", "none"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC memory budget: docs\/ai-context\/WORK_LOG\.md would be oversized \(~\d+ tokens; warn 4000, compact 8000\)\./);
+    assert.match(result.stdout, /A normal run would attempt WORK_LOG compact\/archive due to token budget\./);
+    assert.match(result.stdout, /Warning: docs\/ai-context\/WORK_LOG\.md is about \d+ tokens, above the 8000 token compact\/archive threshold\./);
   });
 });
 

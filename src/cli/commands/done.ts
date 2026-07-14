@@ -28,9 +28,15 @@ interface DoneOptions {
   verify: string;
 }
 
+interface GitStatusFiles {
+  files: string[];
+  memoryFiles: string[];
+}
+
 const workLogPath = "docs/ai-context/WORK_LOG.md";
 const memoryStart = "<!-- repo-context-center:work-log:start -->";
 const memoryEnd = "<!-- repo-context-center:work-log:end -->";
+const noisyAutoFileThreshold = 10;
 const usage = 'Usage: rcc done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--log-format compact|verbose] [--learn|--no-learn] [--memory-only] [--dry-run]';
 const helpText = [
   usage,
@@ -232,7 +238,7 @@ function isRccMemoryPath(filePath: string): boolean {
     || filePath === "docs/ai-context" || filePath.startsWith("docs/ai-context/");
 }
 
-function detectChangedFiles(cwd: string): string[] {
+function detectGitStatusFiles(cwd: string): GitStatusFiles {
   try {
     const result = spawnSync("git", ["status", "--short", "--untracked-files=all"], {
       cwd,
@@ -240,12 +246,16 @@ function detectChangedFiles(cwd: string): string[] {
     });
 
     if (result.status !== 0 || result.error) {
-      return [];
+      return { files: [], memoryFiles: [] };
     }
 
-    return parseGitStatusFiles(result.stdout).filter((file) => !isRccMemoryPath(file));
+    const allFiles = parseGitStatusFiles(result.stdout);
+    return {
+      files: allFiles.filter((file) => !isRccMemoryPath(file)),
+      memoryFiles: allFiles.filter(isRccMemoryPath)
+    };
   } catch {
-    return [];
+    return { files: [], memoryFiles: [] };
   }
 }
 
@@ -416,13 +426,43 @@ function formatBudgetWarning(content: string, attemptedCompaction: boolean): str
   return `Warning: ${workLogPath} is about ${budget.estimatedTokens} tokens, above the ${budget.warnThreshold} token warning threshold. RCC will try to compact/archive above ${budget.compactThreshold} tokens.`;
 }
 
+function formatDryRunBudgetStatus(content: string): string[] {
+  const budget = evaluateWorkMemoryBudget(content);
+  const archiveAction = budget.status === "oversized"
+    ? "A normal run would attempt WORK_LOG compact/archive due to token budget."
+    : "A normal run would not compact/archive WORK_LOG by token budget.";
+
+  return [
+    `RCC memory budget: ${workLogPath} would be ${budget.status} (~${budget.estimatedTokens} tokens; warn ${budget.warnThreshold}, compact ${budget.compactThreshold}).`,
+    archiveAction
+  ];
+}
+
+function autoFileWarnings(options: DoneOptions, statusFiles: GitStatusFiles): string[] {
+  if (options.fileMode !== "auto") {
+    return [];
+  }
+
+  const warnings: string[] = [];
+  if (statusFiles.files.length > noisyAutoFileThreshold) {
+    warnings.push(`Warning: --files auto detected ${statusFiles.files.length} changed non-RCC files. Manual --files is safer for commit-clean workflows.`);
+  }
+  if (statusFiles.memoryFiles.length > 0) {
+    warnings.push(`Warning: --files auto excluded ${statusFiles.memoryFiles.length} RCC memory file${statusFiles.memoryFiles.length === 1 ? "" : "s"}; use manual --files when you need a commit-clean record.`);
+  }
+
+  return warnings;
+}
+
 function formatSavedMessage(
   options: DoneOptions,
   files: string[],
   skippedLearning: boolean,
   autoArchived = 0,
   autoCompacted = 0,
-  budgetWarning?: string
+  budgetWarning?: string,
+  warnings: string[] = [],
+  dryRunBudgetStatus: string[] = []
 ): string {
   const workIndexVerb = options.memoryOnly
     ? options.dryRun ? "would skip" : "skipped"
@@ -444,6 +484,7 @@ function formatSavedMessage(
   if (options.followUps) {
     lines.push(`Follow-ups: ${cleanInline(options.followUps)}`);
   }
+  lines.push(...dryRunBudgetStatus);
   if (autoArchived > 0) {
     lines.push(`Auto-archived ${autoArchived} older work log entries.`);
   }
@@ -453,6 +494,7 @@ function formatSavedMessage(
   if (budgetWarning) {
     lines.push(budgetWarning);
   }
+  lines.push(...warnings);
 
   return `${lines.join("\n")}\n`;
 }
@@ -469,11 +511,12 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
     return 1;
   }
 
+  const statusFiles = options.fileMode === "auto" ? detectGitStatusFiles(io.cwd) : { files: [], memoryFiles: [] };
   const detectedFiles = options.fileMode === "none"
     ? []
     : options.fileMode === "manual"
       ? options.files
-      : detectChangedFiles(io.cwd);
+      : statusFiles.files;
   const files = cleanFileList(detectedFiles);
   const targetPath = path.join(io.cwd, workLogPath);
   const eventsTargetPath = path.join(io.cwd, workEventsPath);
@@ -484,6 +527,7 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
   const nextContent = appendEntry(existing, formatEntry(options, files, timestamp));
   const nextEventsContent = appendWorkEventLine(existingEvents, formatWorkEventLine(entry));
   const skippedLearning = shouldSkipRepositoryLearning(options, files);
+  const warnings = autoFileWarnings(options, statusFiles);
   let autoArchived = 0;
   let autoCompacted = 0;
   let finalWorkLogContent = nextContent;
@@ -518,6 +562,15 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
     finalWorkLogContent,
     attemptedBudgetCompaction || autoArchived > 0 || autoCompacted > 0
   );
-  io.stdout(formatSavedMessage(options, files, skippedLearning, autoArchived, autoCompacted, budgetWarning));
+  io.stdout(formatSavedMessage(
+    options,
+    files,
+    skippedLearning,
+    autoArchived,
+    autoCompacted,
+    budgetWarning,
+    warnings,
+    options.dryRun ? formatDryRunBudgetStatus(nextContent) : []
+  ));
   return 0;
 }
