@@ -20,8 +20,6 @@
     ".github/workflows/ai-project-guardian.yml"
   ],
   "requiredChecks": [
-    "npm run build",
-    "npm test",
-    "npm pack --dry-run"
+    "npm run release:check"
   ]
 }

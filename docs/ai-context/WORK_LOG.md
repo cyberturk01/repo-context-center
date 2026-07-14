@@ -263,4 +263,9 @@ Lightweight RCC memory from completed agent work.
 - fixed stale release test expectations
 - files: tests/learningQuality.test.js, tests/v07-release.test.js
 - verify: npm test
+
+## 2026-07-14T11:29:54Z
+- aligned guardian required checks with CI gate
+- files: guardian.config.json
+- verify: node -e JSON.parse(require('fs').readFileSync('guardian.config.json','utf8')); node --test tests/archive.test.js
 <!-- repo-context-center:work-log:end -->

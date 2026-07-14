@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- aligned guardian required checks with CI gate
 - fixed stale release test expectations
 - improved done memory churn ergonomics
 - added WORK_LOG token budget guardrail
 - added automatic work log compaction
 - added configurable done log formats
 - separated done metadata into JSONL work events
-- implemented compact work log entries
 
 ## Hot Files
 
@@ -33,7 +33,7 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 | Theme | Count | Recent summary |
 | ----- | ----: | -------------- |
-| General maintenance | 25 | added configurable done log formats |
+| General maintenance | 26 | aligned guardian required checks with CI gate |
 | Work routing | 16 | separated done metadata into JSONL work events |
 | Repository context | 8 | Preserve existing repository learning during map --write and init --update |
 | Work memory | 4 | improved done memory churn ergonomics |

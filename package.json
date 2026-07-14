@@ -45,7 +45,7 @@
     "release:check": "node scripts/release-check.js",
     "smoke:pack-install": "node scripts/smoke-pack-install.js",
     "test": "npm run build && node --test tests/*.test.js tests/scripts/*.test.js",
-    "test:cli": "npm run build && node --test tests/cli.test.js tests/work.test.js tests/done.test.js tests/v07-release.test.js"
+    "test:cli": "npm run build && node --test tests/cli.test.js tests/work.test.js tests/done.test.js tests/v07-release.test.js tests/archive.test.js tests/cli-args.test.js tests/cli-args-v07.test.js tests/cli-args-v08.test.js tests/cli-args-v09.test.js tests/cli-args-v10.test.js tests/cli-args-v11.test.js tests/cli-args-v12.test.js tests/cli-args-v13.test.js"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",

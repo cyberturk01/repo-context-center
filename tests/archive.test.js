@@ -304,6 +304,19 @@ test("archive creates WORK_INDEX from retained and archived work log entries", a
   }
 });
 
+test("archive rejects invalid options", async () => {
+  const tempDir = await createTempRepo();
+
+  try {
+    const result = runArchive(tempDir, ["--keep", "0"]);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Unknown archive option/);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("archive updates repository learning from retained and archived work log entries", async () => {
   const tempDir = await createTempRepo();
 
