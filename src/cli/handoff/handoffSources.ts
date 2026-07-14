@@ -9,6 +9,7 @@ import {
   decisionsPath,
   handoffSourceLimit,
   lessonsPath,
+  workEventsPath,
   workIndexPath,
   workLogPath
 } from "./handoffConstants";
@@ -164,8 +165,13 @@ export async function readHandoffSources(cwd: string): Promise<HandoffSources> {
     readOptionalText(cwd, changeLogPath),
     readOptionalText(cwd, lessonsPath)
   ]);
-  const workLogTail = await readOptionalTail(cwd, workLogPath);
-  let doneEntries = workLogTail ? parseWorkMemoryEntries(workLogTail).slice(0, handoffSourceLimit) : [];
+  const workEvents = await readOptionalText(cwd, workEventsPath);
+  let doneEntries = workEvents ? parseWorkMemoryEntries(workEvents).slice(0, handoffSourceLimit) : [];
+
+  const workLogTail = doneEntries.length === 0 ? await readOptionalTail(cwd, workLogPath) : null;
+  doneEntries = doneEntries.length > 0
+    ? doneEntries
+    : workLogTail ? parseWorkMemoryEntries(workLogTail).slice(0, handoffSourceLimit) : [];
 
   if (doneEntries.length === 0) {
     const workLog = await readOptionalText(cwd, workLogPath);

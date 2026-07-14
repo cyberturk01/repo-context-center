@@ -58,6 +58,17 @@ function workLog() {
   ].join("\n");
 }
 
+function workEvents(summary = "Updated learn command") {
+  return `${JSON.stringify({
+    t: "2026-06-21T10:00:00Z",
+    s: summary,
+    f: ["src/cli/commands/learn.ts", "tests/learn.test.js"],
+    v: ["node --test tests/learn.test.js"],
+    risk: [],
+    follow: []
+  })}\n`;
+}
+
 test("learn command exists in help and dispatches", () => {
   const help = runCli(["--help"]);
   const result = runCli(["learn"]);
@@ -102,6 +113,29 @@ test("learn --write creates repository learning file", async () => {
     assert.match(content, /^# Repository Learning$/m);
     assert.match(content, /<!-- repo-context-center:repository-learning:start -->/);
     assert.match(content, /src\/cli\/commands\/learn\.ts/);
+  });
+});
+
+test("learn prefers JSONL work events over legacy WORK_LOG", async () => {
+  await withTempRepo("repo-context-center-learn-events-", async (tempDir) => {
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_EVENTS.jsonl", workEvents("Updated learn JSONL memory"));
+    await writeFixtureFile(tempDir, "docs/ai-context/WORK_LOG.md", [
+      "# Work Log",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "## 2026-06-22T10:00:00Z",
+      "- Summary: Stale work log entry",
+      "- Changed files: `src/stale.ts`",
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["learn", "--write"], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, "docs", "ai-context", "REPOSITORY_LEARNING.md"), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(content, /src\/cli\/commands\/learn\.ts/);
+    assert.doesNotMatch(content, /src\/stale\.ts|Stale work log entry/);
   });
 });
 

@@ -60,7 +60,7 @@ Agent workflow:
   work      Print a concise work brief for an AI coding agent
             Usage: work "<task>" [--agent|--json] [--context-budget minimal|balanced|deep] [--max-files <number>]
   done      Save lightweight memory after completed agent work
-            Usage: done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--learn|--no-learn] [--memory-only] [--dry-run]
+            Usage: done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--log-format compact|verbose] [--learn|--no-learn] [--memory-only] [--dry-run]
 
 Commands:
   init      Install generic context templates and config

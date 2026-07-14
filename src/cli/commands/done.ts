@@ -5,7 +5,11 @@ import { pathExists, readTextFile, writeTextFile } from "../../core/fileSystem";
 import { evaluateLearningQuality } from "../../core/learningQuality";
 import { refreshWorkMemoryArtifacts } from "../../core/workMemoryRefresh";
 import {
+  appendWorkEventLine,
+  formatWorkEventLine,
   repositoryLearningPath,
+  type WorkMemoryEntry,
+  workEventsPath,
   workIndexPath
 } from "../../core/workMemory";
 import type { CliIO } from "../index";
@@ -16,6 +20,7 @@ interface DoneOptions {
   files: string[];
   followUps: string;
   learningMode: "auto" | "force" | "skip";
+  logFormat: "compact" | "verbose";
   memoryOnly: boolean;
   risk: string;
   summary: string;
@@ -25,7 +30,7 @@ interface DoneOptions {
 const workLogPath = "docs/ai-context/WORK_LOG.md";
 const memoryStart = "<!-- repo-context-center:work-log:start -->";
 const memoryEnd = "<!-- repo-context-center:work-log:end -->";
-const usage = 'Usage: rcc done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--learn|--no-learn] [--memory-only] [--dry-run]';
+const usage = 'Usage: rcc done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--log-format compact|verbose] [--learn|--no-learn] [--memory-only] [--dry-run]';
 const helpText = [
   usage,
   "",
@@ -33,6 +38,10 @@ const helpText = [
   "  --files auto  Detect changed files from git status (default)",
   "  --files none  Record no changed files",
   '  --files "<path,path>"  Record explicit comma-separated files',
+  "",
+  "Log formats:",
+  "  --log-format compact   Write one compact markdown entry (default)",
+  "  --log-format verbose   Write legacy handoff JSON and done JSON blocks",
   "",
   "Churn control:",
   "  --memory-only  Append a WORK_LOG.md entry only; skip WORK_INDEX.md and REPOSITORY_LEARNING.md",
@@ -47,6 +56,7 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
   let fileMode: DoneOptions["fileMode"] = "auto";
   let followUps = "";
   let learningMode: DoneOptions["learningMode"] = "auto";
+  let logFormat: DoneOptions["logFormat"] = "compact";
   let memoryOnly = false;
   let risk = "";
   let summary = "";
@@ -74,6 +84,16 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
 
     if (arg === "--memory-only") {
       memoryOnly = true;
+      continue;
+    }
+
+    if (arg === "--log-format") {
+      const value = args[index + 1];
+      if (value !== "compact" && value !== "verbose") {
+        return undefined;
+      }
+      logFormat = value;
+      index += 1;
       continue;
     }
 
@@ -150,7 +170,7 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
     return undefined;
   }
 
-  return { dryRun, fileMode, files, followUps, learningMode, memoryOnly, risk, summary, verify };
+  return { dryRun, fileMode, files, followUps, learningMode, logFormat, memoryOnly, risk, summary, verify };
 }
 
 function cleanInline(value: string, maxLength = 300): string {
@@ -241,6 +261,10 @@ function defaultContent(): string {
 }
 
 function formatEntry(options: DoneOptions, files: string[], timestamp = formatTimestamp()): string {
+  if (options.logFormat === "verbose") {
+    return formatVerboseEntry(options, files, timestamp);
+  }
+
   const lines = [
     `## ${timestamp}`,
     `- ${cleanInline(options.summary)}`,
@@ -256,6 +280,74 @@ function formatEntry(options: DoneOptions, files: string[], timestamp = formatTi
   if (options.followUps) {
     lines.push(`- follow-ups: ${cleanInline(options.followUps)}`);
   }
+
+  return lines.join("\n");
+}
+
+function buildWorkMemoryEntry(options: DoneOptions, files: string[], timestamp: string): WorkMemoryEntry {
+  return {
+    files,
+    followUps: compactList(options.followUps),
+    risks: compactList(options.risk),
+    summary: cleanInline(options.summary),
+    timestamp,
+    verification: compactList(options.verify)
+  };
+}
+
+function formatVerboseFiles(files: string[], options: DoneOptions): string {
+  if (files.length === 0) {
+    return options.fileMode === "none" ? "_none_" : "_not detected_";
+  }
+
+  return files.map((file) => `\`${cleanInline(file, 500).replace(/`/g, "")}\``).join(", ");
+}
+
+function formatVerboseEntry(options: DoneOptions, files: string[], timestamp: string): string {
+  const entry = buildWorkMemoryEntry(options, files, timestamp);
+  const handoffPayload = {
+    schemaVersion: 1,
+    summary: entry.summary,
+    files: entry.files,
+    verification: entry.verification,
+    followUps: entry.followUps,
+    risks: entry.risks,
+    timestamp: entry.timestamp
+  };
+  const donePayload = {
+    schemaVersion: 1,
+    command: "done",
+    timestamp: entry.timestamp,
+    summary: entry.summary,
+    files: entry.files,
+    verification: cleanInline(options.verify),
+    followUps: entry.followUps,
+    risks: entry.risks
+  };
+  const lines = [
+    `## ${timestamp}`,
+    `- Summary: ${entry.summary}`,
+    `- Changed files: ${formatVerboseFiles(files, options)}`
+  ];
+
+  if (options.verify) {
+    lines.push(`- Verification: ${cleanInline(options.verify)}`);
+  }
+  if (options.risk) {
+    lines.push(`- Risk: ${cleanInline(options.risk, 80)}`);
+  }
+  if (options.followUps) {
+    lines.push(`- Follow-ups: ${cleanInline(options.followUps)}`);
+  }
+
+  lines.push(
+    "<!-- rcc:handoff",
+    JSON.stringify(handoffPayload, null, 2),
+    "-->",
+    "```json repo-context-center:done",
+    JSON.stringify(donePayload, null, 2),
+    "```"
+  );
 
   return lines.join("\n");
 }
@@ -314,7 +406,7 @@ function formatSavedMessage(options: DoneOptions, files: string[], skippedLearni
   const lines = [
     `Summary: ${cleanInline(options.summary)}`,
     `Changed files: ${files.length > 0 ? files.slice(0, 10).join(", ") : options.fileMode === "none" ? "none" : "not detected"}`,
-    `RCC memory ${options.dryRun ? "would update" : "updated"}: ${workLogPath}`,
+    `RCC memory ${options.dryRun ? "would update" : "updated"}: ${workLogPath}; ${workEventsPath}`,
     `RCC work index ${workIndexVerb}: ${workIndexPath}${options.memoryOnly ? " (--memory-only)" : ""}`,
     learningStatusLine(options, skippedLearning)
   ];
@@ -354,16 +446,23 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
       : detectChangedFiles(io.cwd);
   const files = cleanFileList(detectedFiles);
   const targetPath = path.join(io.cwd, workLogPath);
+  const eventsTargetPath = path.join(io.cwd, workEventsPath);
   const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : defaultContent();
-  const nextContent = appendEntry(existing, formatEntry(options, files));
+  const existingEvents = (await pathExists(eventsTargetPath)) ? await readTextFile(eventsTargetPath) : "";
+  const timestamp = formatTimestamp();
+  const entry = buildWorkMemoryEntry(options, files, timestamp);
+  const nextContent = appendEntry(existing, formatEntry(options, files, timestamp));
+  const nextEventsContent = appendWorkEventLine(existingEvents, formatWorkEventLine(entry));
   const skippedLearning = shouldSkipRepositoryLearning(options, files);
   let autoArchived = 0;
 
   if (!options.dryRun) {
     await writeTextFile(targetPath, nextContent);
+    await writeTextFile(eventsTargetPath, nextEventsContent);
     if (!options.memoryOnly) {
       await refreshWorkMemoryArtifacts(io.cwd, {
         includeLowSignalLearning: options.learningMode === "force",
+        workEventsContent: nextEventsContent,
         workLogContent: nextContent,
         updateRepositoryLearning: !skippedLearning
       });

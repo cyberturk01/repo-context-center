@@ -2,7 +2,7 @@ import path from "node:path";
 import { pathExists, readTextFile } from "./fileSystem";
 import { evaluateLearningQuality } from "./learningQuality";
 import { classifyRepoFile } from "./repoFileClassifier";
-import { parseWorkMemoryEntries, type WorkMemoryEntry } from "./workMemory";
+import { parseWorkMemoryEntries, workEventsPath, type WorkMemoryEntry } from "./workMemory";
 
 export interface RepositoryLearningRelationship {
   source: string;
@@ -52,6 +52,7 @@ const workLogPath = "docs/ai-context/WORK_LOG.md";
 const workIndexPath = "docs/ai-context/WORK_INDEX.md";
 const decisionsPath = "docs/ai-context/DECISIONS.md";
 const ignoredContextFiles = new Set([
+  "docs/ai-context/WORK_EVENTS.jsonl",
   "docs/ai-context/WORK_LOG.md",
   "docs/ai-context/WORK_INDEX.md",
   "docs/ai-context/REPOSITORY_LEARNING.md"
@@ -425,13 +426,18 @@ export async function readRepositoryLearningSources(cwd: string): Promise<Reposi
     return (await pathExists(fullPath)) ? readTextFile(fullPath) : undefined;
   };
 
-  const [workLog, workIndex, decisions] = await Promise.all([
+  const [workEvents, workLog, workIndex, decisions] = await Promise.all([
+    readOptional(workEventsPath),
     readOptional(workLogPath),
     readOptional(workIndexPath),
     readOptional(decisionsPath)
   ]);
 
-  return { decisions, workIndex, workLog };
+  return {
+    decisions,
+    workIndex,
+    workLog: workEvents && parseWorkMemoryEntries(workEvents).length > 0 ? workEvents : workLog
+  };
 }
 
 export async function buildRepositoryLearningModelForRepo(cwd: string): Promise<RepositoryLearningModel> {

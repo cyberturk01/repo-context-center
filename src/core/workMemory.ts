@@ -17,6 +17,7 @@ interface LegacyWorkLogEntry {
 }
 
 export const workLogPath = "docs/ai-context/WORK_LOG.md";
+export const workEventsPath = "docs/ai-context/WORK_EVENTS.jsonl";
 export const workLogArchivePath = "docs/ai-context/archive/WORK_LOG_ARCHIVE.md";
 export const workIndexPath = "docs/ai-context/WORK_INDEX.md";
 export const repositoryLearningPath = "docs/ai-context/REPOSITORY_LEARNING.md";
@@ -42,6 +43,48 @@ function verificationArray(value: unknown): string[] {
   }
 
   return stringArray(value);
+}
+
+export function workMemoryEntryFromCompactEvent(value: unknown): WorkMemoryEntry | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const entry = value as Record<string, unknown>;
+  const summary = typeof entry.s === "string" ? entry.s.trim() : "";
+  const timestamp = typeof entry.t === "string" ? entry.t.trim() : "";
+  if (!summary || !timestamp) {
+    return null;
+  }
+
+  return {
+    files: stringArray(entry.f),
+    followUps: stringArray(entry.follow),
+    risks: stringArray(entry.risk),
+    summary,
+    timestamp,
+    verification: verificationArray(entry.v)
+  };
+}
+
+export function compactEventFromWorkMemoryEntry(entry: WorkMemoryEntry): Record<string, unknown> {
+  return {
+    t: entry.timestamp,
+    s: entry.summary,
+    f: entry.files,
+    v: entry.verification,
+    risk: entry.risks,
+    follow: entry.followUps
+  };
+}
+
+export function formatWorkEventLine(entry: WorkMemoryEntry): string {
+  return JSON.stringify(compactEventFromWorkMemoryEntry(entry));
+}
+
+export function appendWorkEventLine(content: string, line: string): string {
+  const normalized = content.replace(/\r\n/g, "\n").trimEnd();
+  return normalized ? `${normalized}\n${line}\n` : `${line}\n`;
 }
 
 export function parseChangedFilesLine(line: string): string[] {
@@ -92,6 +135,28 @@ export function parseStructuredWorkEntry(value: unknown): WorkMemoryEntry | null
     timestamp,
     verification: verificationArray(entry.verification)
   };
+}
+
+export function parseWorkEventEntries(content: string): WorkMemoryEntry[] {
+  const entries: WorkMemoryEntry[] = [];
+
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    try {
+      const entry = workMemoryEntryFromCompactEvent(JSON.parse(trimmed));
+      if (entry) {
+        entries.push(entry);
+      }
+    } catch {
+      // Ignore malformed JSONL records and keep reading later events.
+    }
+  }
+
+  return sortEntries(entries);
 }
 
 function structuredHandoffEntries(content: string): WorkMemoryEntry[] {
@@ -226,6 +291,10 @@ function sortEntries(entries: WorkMemoryEntry[]): WorkMemoryEntry[] {
 
 export function parseWorkMemoryEntries(content: string): WorkMemoryEntry[] {
   const byTimestamp = new Map<string, WorkMemoryEntry>();
+
+  for (const entry of parseWorkEventEntries(content)) {
+    byTimestamp.set(entry.timestamp, entry);
+  }
 
   for (const entry of legacyWorkLogEntries(content).map(entryFromLegacy).filter((entry): entry is WorkMemoryEntry => Boolean(entry))) {
     byTimestamp.set(entry.timestamp, entry);

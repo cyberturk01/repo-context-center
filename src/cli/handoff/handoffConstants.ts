@@ -3,6 +3,7 @@ export const placeholderHandoffNextCommand = 'rcc work "<task>" --agent';
 export const placeholderHandoffNextLookup = 'rcc find "<keyword>"';
 export const agentsPath = "AGENTS.md";
 export const handoffPath = "docs/ai-context/HANDOFF.md";
+export const workEventsPath = "docs/ai-context/WORK_EVENTS.jsonl";
 export const workLogPath = "docs/ai-context/WORK_LOG.md";
 export const workIndexPath = "docs/ai-context/WORK_INDEX.md";
 export const decisionsPath = "docs/ai-context/DECISIONS.md";

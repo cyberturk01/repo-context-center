@@ -2405,4 +2405,14 @@ Lightweight RCC memory from completed agent work.
 - implemented compact work log entries
 - files: src/cli/commands/done.ts, src/core/workMemory.ts, +2
 - verify: npm run build; node --test tests/done.test.js; node --test tests/handoff.test.js
+
+## 2026-07-14T10:21:33Z
+- separated done metadata into JSONL work events
+- files: src/cli/commands/done.ts, src/cli/handoff/handoffConstants.ts, +6
+- verify: npm run build; node --test tests/done.test.js tests/learn.test.js
+
+## 2026-07-14T10:25:00Z
+- added configurable done log formats
+- files: src/cli/commands/done.ts, src/cli/index.ts, +4
+- verify: npm run build; node --test tests/done.test.js tests/init.test.js
 <!-- repo-context-center:work-log:end -->
