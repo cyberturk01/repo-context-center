@@ -2227,4 +2227,93 @@ Lightweight RCC memory from completed agent work.
   "risks": []
 }
 ```
+
+## 2026-07-14T09:47:18.306Z
+- Summary: added multi-surface work routing coverage
+- Changed files: `src/core/taskIntent.ts`, `src/cli/work/taskFileRecommendations.ts`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/work.test.js; node --test tests/task-analysis.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "added multi-surface work routing coverage",
+  "files": [
+    "src/core/taskIntent.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/work.test.js; node --test tests/task-analysis.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-07-14T09:47:18.306Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-07-14T09:47:18.306Z",
+  "summary": "added multi-surface work routing coverage",
+  "files": [
+    "src/core/taskIntent.ts",
+    "src/cli/work/taskFileRecommendations.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/work.test.js; node --test tests/task-analysis.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-07-14T09:52:38.454Z
+- Summary: added missing surface warnings to work output
+- Changed files: `src/cli/work/buildWorkBrief.ts`, `src/cli/work/renderAgent.ts`, `src/cli/work/renderJson.ts`, `src/cli/work/renderText.ts`, `src/cli/work/workTypes.ts`, `src/cli/work/missingSurfaceWarnings.ts`, `tests/work.test.js`
+- Verification: npm run build; node --test tests/work.test.js
+<!-- rcc:handoff
+{
+  "schemaVersion": 1,
+  "summary": "added missing surface warnings to work output",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/workTypes.ts",
+    "src/cli/work/missingSurfaceWarnings.ts",
+    "tests/work.test.js"
+  ],
+  "verification": [
+    "npm run build; node --test tests/work.test.js"
+  ],
+  "followUps": [],
+  "risks": [],
+  "timestamp": "2026-07-14T09:52:38.454Z"
+}
+-->
+```json repo-context-center:done
+{
+  "schemaVersion": 1,
+  "command": "done",
+  "timestamp": "2026-07-14T09:52:38.454Z",
+  "summary": "added missing surface warnings to work output",
+  "files": [
+    "src/cli/work/buildWorkBrief.ts",
+    "src/cli/work/renderAgent.ts",
+    "src/cli/work/renderJson.ts",
+    "src/cli/work/renderText.ts",
+    "src/cli/work/workTypes.ts",
+    "src/cli/work/missingSurfaceWarnings.ts",
+    "tests/work.test.js"
+  ],
+  "verification": "npm run build; node --test tests/work.test.js",
+  "followUps": [],
+  "risks": []
+}
+```
+
+## 2026-07-14T09:59:11.710Z
+- Summary: added memory-only done mode
+- Changed files: `src/cli/commands/done.ts`, `src/cli/index.ts`, `README.md`, `tests/done.test.js`, `tests/cli.test.js`, `tests/v07-release.test.js`
+- Verification: npm run build; node --test tests/done.test.js; node --test tests/cli.test.js tests/v07-release.test.js
 <!-- repo-context-center:work-log:end -->

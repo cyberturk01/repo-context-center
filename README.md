@@ -567,6 +567,12 @@ npx repo-context-center done --summary "fixed auth routing" --files auto --verif
 
 `done` also refreshes repository learning so future `work` and `handoff` output can include learned file relationships, likely tests, verification patterns, and repository habits.
 
+For small tasks where you only want a compact work note, use `--memory-only`. It appends a simple `WORK_LOG.md` entry with summary, changed files, and verification, but skips `WORK_INDEX.md`, `REPOSITORY_LEARNING.md`, and handoff JSON:
+
+```sh
+npx repo-context-center done --summary "fixed typo" --files "README.md" --verify "not run (docs only)" --memory-only
+```
+
 ### Regenerate Repository Learning
 
 Use `learn` when you want to inspect or refresh learned repository patterns without recording new completed work:
@@ -747,7 +753,7 @@ repo-context-center verify "<task>" [--json] [--task-only] [--planned] [--level 
 ### Memory and handoff
 
 ```sh
-repo-context-center done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--dry-run]
+repo-context-center done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--learn|--no-learn] [--memory-only] [--dry-run]
 repo-context-center learn [--json] [--write] [--debug]
 repo-context-center handoff [task] [--json|--agent] [--debug] [--write]
 repo-context-center decision add "<decision>" --reason "<reason>" [--status <status>] [--files <path,path>]
@@ -1012,6 +1018,8 @@ Use `repo-context-center doctor` when local and global RCC commands are confusin
 - `docs/ai-context/WORK_LOG.md`
 - `docs/ai-context/WORK_INDEX.md`
 - `docs/ai-context/REPOSITORY_LEARNING.md`
+
+`repo-context-center done --memory-only` updates only `docs/ai-context/WORK_LOG.md` and writes a compact entry without structured handoff JSON.
 
 With `--github-action`, init also creates:
 

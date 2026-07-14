@@ -1,3 +1,4 @@
+import { missingSurfaceWarnings } from "./missingSurfaceWarnings";
 import type {
   PublicAgentRoute,
   PublicAgentRouteItem,
@@ -62,6 +63,7 @@ function agentNext(brief: WorkBrief): string {
 }
 
 export function toAgentRoute(brief: WorkBrief, verbose: boolean): PublicAgentRoute {
+  const missingSurfaces = missingSurfaceWarnings(brief);
   const withoutTokens: Omit<PublicAgentRoute, "briefTokens"> = {
     task: brief.task,
     taskSize: brief.taskSize,
@@ -70,6 +72,12 @@ export function toAgentRoute(brief: WorkBrief, verbose: boolean): PublicAgentRou
     supportingFiles: agentRouteItems(brief.supportingFiles, verbose),
     tests: agentRouteItems(brief.tests, verbose),
     readFirst: agentReadFirstItems(brief, verbose),
+    ...(missingSurfaces.length > 0
+      ? {
+        missingSurfaces,
+        warnings: missingSurfaces.map((warning) => warning.message)
+      }
+      : {}),
     next: agentNext(brief)
   };
   if (verbose && brief.optionalSupportingFiles.length > 0) {

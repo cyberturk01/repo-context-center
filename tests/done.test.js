@@ -255,6 +255,34 @@ test("done writes structured handoff-friendly data", async () => {
   });
 });
 
+test("done --memory-only writes a simple log entry and skips derived memory artifacts", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const result = runCli([
+      "done",
+      "--summary",
+      "Fixed small README typo",
+      "--verify",
+      "not run (docs only)",
+      "--files",
+      "README.md",
+      "--memory-only"
+    ], { cwd: tempDir });
+    const content = await readFile(path.join(tempDir, workLogPath), "utf8");
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md/);
+    assert.match(result.stdout, /RCC work index skipped: docs\/ai-context\/WORK_INDEX\.md \(--memory-only\)/);
+    assert.match(result.stdout, /RCC learning skipped: docs\/ai-context\/REPOSITORY_LEARNING\.md \(--memory-only\)/);
+    assert.match(content, /- Summary: Fixed small README typo/);
+    assert.match(content, /- Changed files: `README\.md`/);
+    assert.match(content, /- Verification: not run \(docs only\)/);
+    assert.doesNotMatch(content, /<!-- rcc:handoff/);
+    assert.doesNotMatch(content, /```json repo-context-center:done/);
+    await assert.rejects(() => readFile(path.join(tempDir, workIndexPath), "utf8"), { code: "ENOENT" });
+    await assert.rejects(() => readFile(path.join(tempDir, repositoryLearningPath), "utf8"), { code: "ENOENT" });
+  });
+});
+
 test("done neutralizes handoff comment injection in untrusted fields", async () => {
   await withDoneRepo(async (tempDir) => {
     const result = runCli([

@@ -16,6 +16,7 @@ interface DoneOptions {
   files: string[];
   followUps: string;
   learningMode: "auto" | "force" | "skip";
+  memoryOnly: boolean;
   risk: string;
   summary: string;
   verify: string;
@@ -24,7 +25,7 @@ interface DoneOptions {
 const workLogPath = "docs/ai-context/WORK_LOG.md";
 const memoryStart = "<!-- repo-context-center:work-log:start -->";
 const memoryEnd = "<!-- repo-context-center:work-log:end -->";
-const usage = 'Usage: rcc done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--learn|--no-learn] [--dry-run]';
+const usage = 'Usage: rcc done --summary "<summary>" [--files auto|none|"<path,path>"] [--verify "<command/result>"] [--learn|--no-learn] [--memory-only] [--dry-run]';
 const helpText = [
   usage,
   "",
@@ -32,6 +33,9 @@ const helpText = [
   "  --files auto  Detect changed files from git status (default)",
   "  --files none  Record no changed files",
   '  --files "<path,path>"  Record explicit comma-separated files',
+  "",
+  "Churn control:",
+  "  --memory-only  Append a simple WORK_LOG.md entry only; skip WORK_INDEX.md, REPOSITORY_LEARNING.md, and handoff JSON",
   "",
   "Learning:",
   "  --learn     Force repository learning refresh",
@@ -43,6 +47,7 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
   let fileMode: DoneOptions["fileMode"] = "auto";
   let followUps = "";
   let learningMode: DoneOptions["learningMode"] = "auto";
+  let memoryOnly = false;
   let risk = "";
   let summary = "";
   let verify = "";
@@ -64,6 +69,11 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
 
     if (arg === "--no-learn") {
       learningMode = "skip";
+      continue;
+    }
+
+    if (arg === "--memory-only") {
+      memoryOnly = true;
       continue;
     }
 
@@ -140,7 +150,7 @@ function parseDoneOptions(args: string[]): DoneOptions | undefined {
     return undefined;
   }
 
-  return { dryRun, fileMode, files, followUps, learningMode, risk, summary, verify };
+  return { dryRun, fileMode, files, followUps, learningMode, memoryOnly, risk, summary, verify };
 }
 
 function cleanInline(value: string, maxLength = 300): string {
@@ -271,7 +281,24 @@ function formatEntry(options: DoneOptions, files: string[], timestamp = new Date
   return lines.join("\n");
 }
 
+function formatSimpleEntry(options: DoneOptions, files: string[], timestamp = new Date().toISOString()): string {
+  const lines = [
+    `## ${timestamp}`,
+    `- Summary: ${cleanInline(options.summary)}`,
+    `- Changed files: ${formatFiles(files, options.fileMode === "none" ? "_none_" : "_not detected_")}`
+  ];
+
+  if (options.verify) {
+    lines.push(`- Verification: ${cleanInline(options.verify)}`);
+  }
+
+  return lines.join("\n");
+}
+
 function shouldSkipRepositoryLearning(options: DoneOptions, files: string[]): boolean {
+  if (options.memoryOnly) {
+    return true;
+  }
   if (options.learningMode === "force") {
     return false;
   }
@@ -290,7 +317,9 @@ function learningStatusLine(options: DoneOptions, skippedLearning: boolean): str
   const verb = options.dryRun
     ? skippedLearning ? "would skip" : "would update"
     : skippedLearning ? "skipped" : "updated";
-  const suffix = skippedLearning && options.learningMode === "auto"
+  const suffix = skippedLearning && options.memoryOnly
+    ? " (--memory-only)"
+    : skippedLearning && options.learningMode === "auto"
     ? " (tiny/noise task; use --learn to force)"
     : skippedLearning && options.learningMode === "skip"
       ? " (--no-learn)"
@@ -314,11 +343,14 @@ function appendEntry(content: string, entry: string): string {
 }
 
 function formatSavedMessage(options: DoneOptions, files: string[], skippedLearning: boolean, autoArchived = 0): string {
+  const workIndexVerb = options.memoryOnly
+    ? options.dryRun ? "would skip" : "skipped"
+    : options.dryRun ? "would update" : "updated";
   const lines = [
     `Summary: ${cleanInline(options.summary)}`,
     `Changed files: ${files.length > 0 ? files.slice(0, 10).join(", ") : options.fileMode === "none" ? "none" : "not detected"}`,
     `RCC memory ${options.dryRun ? "would update" : "updated"}: ${workLogPath}`,
-    `RCC work index ${options.dryRun ? "would update" : "updated"}: ${workIndexPath}`,
+    `RCC work index ${workIndexVerb}: ${workIndexPath}${options.memoryOnly ? " (--memory-only)" : ""}`,
     learningStatusLine(options, skippedLearning)
   ];
 
@@ -358,23 +390,25 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
   const files = cleanFileList(detectedFiles);
   const targetPath = path.join(io.cwd, workLogPath);
   const existing = (await pathExists(targetPath)) ? await readTextFile(targetPath) : defaultContent();
-  const nextContent = appendEntry(existing, formatEntry(options, files));
+  const nextContent = appendEntry(existing, options.memoryOnly ? formatSimpleEntry(options, files) : formatEntry(options, files));
   const skippedLearning = shouldSkipRepositoryLearning(options, files);
   let autoArchived = 0;
 
   if (!options.dryRun) {
     await writeTextFile(targetPath, nextContent);
-    await refreshWorkMemoryArtifacts(io.cwd, {
-      includeLowSignalLearning: options.learningMode === "force",
-      workLogContent: nextContent,
-      updateRepositoryLearning: !skippedLearning
-    });
-    const archiveResult = await autoArchiveWorkLog({
-      cwd: io.cwd,
-      includeLowSignalLearning: options.learningMode === "force",
-      updateRepositoryLearning: !skippedLearning
-    });
-    autoArchived = archiveResult?.archived ?? 0;
+    if (!options.memoryOnly) {
+      await refreshWorkMemoryArtifacts(io.cwd, {
+        includeLowSignalLearning: options.learningMode === "force",
+        workLogContent: nextContent,
+        updateRepositoryLearning: !skippedLearning
+      });
+      const archiveResult = await autoArchiveWorkLog({
+        cwd: io.cwd,
+        includeLowSignalLearning: options.learningMode === "force",
+        updateRepositoryLearning: !skippedLearning
+      });
+      autoArchived = archiveResult?.archived ?? 0;
+    }
   }
 
   io.stdout(formatSavedMessage(options, files, skippedLearning, autoArchived));

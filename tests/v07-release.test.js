@@ -208,6 +208,6 @@ test("v0.7 release: help output shows the new agent workflow clearly", () => {
   assert.match(result.stdout, /work\s+Print a concise work brief for an AI coding agent/);
   assert.match(result.stdout, /Usage: work "<task>"/);
   assert.match(result.stdout, /done\s+Save lightweight memory after completed agent work/);
-  assert.match(result.stdout, /Usage: done --summary "<summary>" \[--files auto\|none\|"<path,path>"\] \[--verify "<command\/result>"\] \[--dry-run\]/);
+  assert.match(result.stdout, /Usage: done --summary "<summary>" \[--files auto\|none\|"<path,path>"\] \[--verify "<command\/result>"\] \[--learn\|--no-learn\] \[--memory-only\] \[--dry-run\]/);
   assert.ok(result.stdout.indexOf("Agent workflow:") < result.stdout.indexOf("Commands:"));
 });
