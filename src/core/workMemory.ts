@@ -43,6 +43,41 @@ export const workLogStart = "<!-- repo-context-center:work-log:start -->";
 export const workLogEnd = "<!-- repo-context-center:work-log:end -->";
 export const workIndexStart = "<!-- repo-context-center:work-index:start -->";
 export const workIndexEnd = "<!-- repo-context-center:work-index:end -->";
+export const workMemoryWarnTokens = 4000;
+export const workMemoryCompactTokens = 8000;
+
+export type WorkMemoryBudgetStatus = "healthy" | "warning" | "oversized";
+
+export interface WorkMemoryBudget {
+  estimatedTokens: number;
+  status: WorkMemoryBudgetStatus;
+  warnThreshold: number;
+  compactThreshold: number;
+}
+
+export function estimateRoughTokens(content: string): number {
+  return Math.ceil(content.length / 4);
+}
+
+export function evaluateWorkMemoryBudget(
+  content: string,
+  warnThreshold = workMemoryWarnTokens,
+  compactThreshold = workMemoryCompactTokens
+): WorkMemoryBudget {
+  const estimatedTokens = estimateRoughTokens(content);
+  const status = estimatedTokens > compactThreshold
+    ? "oversized"
+    : estimatedTokens > warnThreshold
+      ? "warning"
+      : "healthy";
+
+  return {
+    estimatedTokens,
+    status,
+    warnThreshold,
+    compactThreshold
+  };
+}
 
 function cleanInline(value: string, maxLength = 180): string {
   const cleaned = value

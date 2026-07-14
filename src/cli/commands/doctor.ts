@@ -2,7 +2,12 @@ import { realpath } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
-import { pathExists, readJsonFile } from "../../core/fileSystem";
+import { pathExists, readJsonFile, readTextFile } from "../../core/fileSystem";
+import {
+  evaluateWorkMemoryBudget,
+  workLogPath,
+  type WorkMemoryBudget
+} from "../../core/workMemory";
 import type { CliIO } from "../index";
 
 interface PackageInfo {
@@ -34,6 +39,12 @@ interface ShellCommandCheck {
   supportsWorkAgent: boolean;
   status: ShellCommandStatus;
   note?: string;
+}
+
+interface MemoryFileCheck {
+  filePath: string;
+  exists: boolean;
+  budget?: WorkMemoryBudget;
 }
 
 const usage = "Usage: repo-context-center doctor\n";
@@ -314,6 +325,41 @@ function suggestedFixes(): string[] {
   ];
 }
 
+async function inspectMemoryFile(cwd: string, filePath: string): Promise<MemoryFileCheck> {
+  const targetPath = path.join(cwd, filePath);
+  if (!(await pathExists(targetPath))) {
+    return { filePath, exists: false };
+  }
+
+  return {
+    filePath,
+    exists: true,
+    budget: evaluateWorkMemoryBudget(await readTextFile(targetPath))
+  };
+}
+
+function formatMemoryFileCheck(check: MemoryFileCheck): string[] {
+  if (!check.exists || !check.budget) {
+    return [`${check.filePath}: missing`];
+  }
+
+  return [
+    `${check.filePath}: ${check.budget.status} (~${check.budget.estimatedTokens} tokens; warn ${check.budget.warnThreshold}, compact ${check.budget.compactThreshold})`
+  ];
+}
+
+function memoryFileWarning(check: MemoryFileCheck): string | undefined {
+  if (!check.budget || check.budget.status === "healthy") {
+    return undefined;
+  }
+
+  if (check.budget.status === "oversized") {
+    return `Warning: ${check.filePath} is oversized. Run \`rcc archive --keep 50 --compact-work-log\`; future \`rcc done\` runs will also try to compact/archive it automatically.`;
+  }
+
+  return `Warning: ${check.filePath} is above the warning threshold. Keep using compact \`rcc done\` entries; run \`rcc archive --keep 50 --compact-work-log\` if it keeps growing.`;
+}
+
 export async function doctorCommand(io: CliIO, args: string[] = []): Promise<number> {
   if (args.length > 0) {
     io.stderr(usage);
@@ -337,6 +383,9 @@ export async function doctorCommand(io: CliIO, args: string[] = []): Promise<num
     inspectShellCommand("rcc", io.cwd, runningVersion, activeSupportsAgent),
     inspectShellCommand("repo-context-center", io.cwd, runningVersion, activeSupportsAgent)
   ]);
+  const memoryChecks = await Promise.all([
+    inspectMemoryFile(io.cwd, workLogPath)
+  ]);
   const runningFromRepo = isInsidePath(executable, repoPackage?.path ?? null);
   const runningFromLocalInstall = isInsidePath(executable, localInstall?.path ?? null);
   const repoPackageMismatch = repoName === packageName
@@ -354,8 +403,10 @@ export async function doctorCommand(io: CliIO, args: string[] = []): Promise<num
   );
   const activeCliProblem = !activeSupportsAgent || repoPackageMismatch || declaredDependencyNewer || localInstallNewer;
   const staleNearestLocalInstall = localInstallOlder && !runningFromLocalInstall;
+  const memoryWarnings = memoryChecks.map(memoryFileWarning).filter((warning): warning is string => Boolean(warning));
+  const memoryProblem = memoryWarnings.length > 0;
   const hardSuggestedFixesNeeded = !activeSupportsAgent || declaredDependencyNewer || localInstallNewer || shellCommandProblem;
-  const shouldWarn = activeCliProblem || staleNearestLocalInstall || shellCommandProblem || shellPathDiffers;
+  const shouldWarn = activeCliProblem || staleNearestLocalInstall || shellCommandProblem || shellPathDiffers || memoryProblem;
 
   const lines = [
     "repo-context-center doctor",
@@ -369,6 +420,9 @@ export async function doctorCommand(io: CliIO, args: string[] = []): Promise<num
     "",
     "Shell commands:",
     ...shellChecks.flatMap(formatShellCommandCheck),
+    "",
+    "RCC memory files:",
+    ...memoryChecks.flatMap(formatMemoryFileCheck),
     ""
   ];
 
@@ -407,6 +461,9 @@ export async function doctorCommand(io: CliIO, args: string[] = []): Promise<num
 
   if (hardSuggestedFixesNeeded) {
     lines.push("", ...suggestedFixes());
+  }
+  if (memoryWarnings.length > 0) {
+    lines.push("", ...memoryWarnings);
   }
 
   io.stdout(`${lines.join("\n")}\n`);

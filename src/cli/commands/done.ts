@@ -6,6 +6,7 @@ import { evaluateLearningQuality } from "../../core/learningQuality";
 import { refreshWorkMemoryArtifacts } from "../../core/workMemoryRefresh";
 import {
   appendWorkEventLine,
+  evaluateWorkMemoryBudget,
   formatWorkEventLine,
   repositoryLearningPath,
   type WorkMemoryEntry,
@@ -399,7 +400,30 @@ function appendEntry(content: string, entry: string): string {
   return `${normalized.trimEnd()}\n\n${memoryStart}\n${entry}\n${memoryEnd}\n`;
 }
 
-function formatSavedMessage(options: DoneOptions, files: string[], skippedLearning: boolean, autoArchived = 0, autoCompacted = 0): string {
+function formatBudgetWarning(content: string, attemptedCompaction: boolean): string | undefined {
+  const budget = evaluateWorkMemoryBudget(content);
+  if (budget.status === "healthy") {
+    return undefined;
+  }
+
+  if (budget.status === "oversized") {
+    const attempted = attemptedCompaction
+      ? " Automatic compaction/archive was attempted; run `rcc archive --keep 50 --compact-work-log` if this warning remains."
+      : " Run `rcc archive --keep 50 --compact-work-log` to compact/archive it.";
+    return `Warning: ${workLogPath} is about ${budget.estimatedTokens} tokens, above the ${budget.compactThreshold} token compact/archive threshold.${attempted}`;
+  }
+
+  return `Warning: ${workLogPath} is about ${budget.estimatedTokens} tokens, above the ${budget.warnThreshold} token warning threshold. RCC will try to compact/archive above ${budget.compactThreshold} tokens.`;
+}
+
+function formatSavedMessage(
+  options: DoneOptions,
+  files: string[],
+  skippedLearning: boolean,
+  autoArchived = 0,
+  autoCompacted = 0,
+  budgetWarning?: string
+): string {
   const workIndexVerb = options.memoryOnly
     ? options.dryRun ? "would skip" : "skipped"
     : options.dryRun ? "would update" : "updated";
@@ -425,6 +449,9 @@ function formatSavedMessage(options: DoneOptions, files: string[], skippedLearni
   }
   if (autoCompacted > 0) {
     lines.push(`Auto-compacted ${autoCompacted} verbose work log entries.`);
+  }
+  if (budgetWarning) {
+    lines.push(budgetWarning);
   }
 
   return `${lines.join("\n")}\n`;
@@ -459,6 +486,8 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
   const skippedLearning = shouldSkipRepositoryLearning(options, files);
   let autoArchived = 0;
   let autoCompacted = 0;
+  let finalWorkLogContent = nextContent;
+  let attemptedBudgetCompaction = false;
 
   if (!options.dryRun) {
     await writeTextFile(targetPath, nextContent);
@@ -473,13 +502,22 @@ export async function doneCommand(io: CliIO, args: string[] = []): Promise<numbe
       const archiveResult = await autoArchiveWorkLog({
         cwd: io.cwd,
         includeLowSignalLearning: options.learningMode === "force",
+        trigger: evaluateWorkMemoryBudget(nextContent).status === "oversized" ? 0 : undefined,
         updateRepositoryLearning: !skippedLearning
       });
+      attemptedBudgetCompaction = evaluateWorkMemoryBudget(nextContent).status === "oversized";
       autoArchived = archiveResult?.archived ?? 0;
       autoCompacted = archiveResult?.compacted ?? 0;
+      if (archiveResult) {
+        finalWorkLogContent = await readTextFile(targetPath);
+      }
     }
   }
 
-  io.stdout(formatSavedMessage(options, files, skippedLearning, autoArchived, autoCompacted));
+  const budgetWarning = formatBudgetWarning(
+    finalWorkLogContent,
+    attemptedBudgetCompaction || autoArchived > 0 || autoCompacted > 0
+  );
+  io.stdout(formatSavedMessage(options, files, skippedLearning, autoArchived, autoCompacted, budgetWarning));
   return 0;
 }

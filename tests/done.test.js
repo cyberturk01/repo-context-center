@@ -49,6 +49,7 @@ test("done creates memory file if missing", async () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /Summary: Fixed login redirect bug/);
     assert.match(result.stdout, /RCC memory updated: docs\/ai-context\/WORK_LOG\.md; docs\/ai-context\/WORK_EVENTS\.jsonl/);
+    assert.doesNotMatch(result.stdout, /Warning: docs\/ai-context\/WORK_LOG\.md is about/);
     assert.match(content, /# Work Log/);
     assert.match(content, /<!-- repo-context-center:work-log:start -->/);
     assert.match(content, /- Fixed login redirect bug/);
@@ -61,6 +62,64 @@ test("done creates memory file if missing", async () => {
     assert.deepEqual(event.v, []);
     assert.deepEqual(event.risk, []);
     assert.deepEqual(event.follow, []);
+  });
+});
+
+test("done warns when the work log exceeds the token warning threshold", async () => {
+  await withDoneRepo(async (tempDir) => {
+    await writeFixtureFile(tempDir, workLogPath, [
+      "# Work Log",
+      "",
+      "Lightweight RCC memory from completed agent work.",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "## 2026-07-14T10:00:00Z",
+      `- ${"Verbose completed work ".repeat(900)}`,
+      "- files: src/history.ts",
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["done", "Added one more entry", "--files", "src/new.ts"], { cwd: tempDir });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Warning: docs\/ai-context\/WORK_LOG\.md is about \d+ tokens, above the 4000 token warning threshold\./);
+    assert.match(result.stdout, /RCC will try to compact\/archive above 8000 tokens\./);
+  });
+});
+
+test("done archives by token budget before the entry-count trigger", async () => {
+  await withDoneRepo(async (tempDir) => {
+    const entries = Array.from({ length: 60 }, (_, index) => [
+      `## ${new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString()}`,
+      `- ${`Historical token-heavy work ${index} `.repeat(20)}`,
+      `- files: src/history-${index}.ts`
+    ].join("\n"));
+    await writeFixtureFile(tempDir, workLogPath, [
+      "# Work Log",
+      "",
+      "Lightweight RCC memory from completed agent work.",
+      "",
+      "<!-- repo-context-center:work-log:start -->",
+      "",
+      ...entries.flatMap((entry) => [entry, ""]),
+      "<!-- repo-context-center:work-log:end -->",
+      ""
+    ].join("\n"));
+
+    const result = runCli(["done", "Newest token-budget work", "--files", "src/newest.ts"], { cwd: tempDir });
+    const live = await readFile(path.join(tempDir, workLogPath), "utf8");
+    const archived = await readFile(
+      path.join(tempDir, "docs/ai-context/archive/WORK_LOG_ARCHIVE.md"),
+      "utf8"
+    );
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Auto-archived 11 older work log entries\./);
+    assert.equal((live.match(/^## /gm) ?? []).length, 50);
+    assert.match(live, /Newest token-budget work/);
+    assert.doesNotMatch(live, /Historical token-heavy work 0\b/);
+    assert.match(archived, /Historical token-heavy work 0\b/);
   });
 });
 

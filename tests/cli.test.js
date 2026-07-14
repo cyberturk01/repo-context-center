@@ -112,15 +112,15 @@ test("CLI help prints usage", () => {
   assert.match(result.stdout, /work\s+Print a concise work brief for an AI coding agent/);
   assert.match(result.stdout, /Usage: work "<task>"/);
   assert.match(result.stdout, /done\s+Save lightweight memory after completed agent work/);
-  assert.match(result.stdout, /Usage: done --summary "<summary>" \[--files auto\|none\|"<path,path>"\] \[--verify "<command\/result>"\] \[--learn\|--no-learn\] \[--memory-only\] \[--dry-run\]/);
+  assert.match(result.stdout, /Usage: done --summary "<summary>" \[--files auto\|none\|"<path,path>"\] \[--verify "<command\/result>"\] \[--log-format compact\|verbose\] \[--learn\|--no-learn\] \[--memory-only\] \[--dry-run\]/);
   assert.match(result.stdout, /init\s+Install generic context templates and config/);
   assert.match(result.stdout, /Options: --update, --dry-run, --force/);
   assert.match(result.stdout, /validate\s+Validate required context files and warnings/);
   assert.match(result.stdout, /Options: --strict/);
   assert.match(result.stdout, /verify\s+Recommend verification checks from impact analysis/);
   assert.match(result.stdout, /Usage: verify "<task>" \[--json\] \[--task-only\] \[--planned\]/);
-  assert.match(result.stdout, /archive\s+Archive older CHANGE_LOG and LESSONS_LEARNED entries/);
-  assert.match(result.stdout, /Options: --keep <number>, --dry-run/);
+  assert.match(result.stdout, /archive\s+Archive older context entries and optionally compact WORK_LOG\.md/);
+  assert.match(result.stdout, /Options: --keep <number>, --compact-work-log, --dry-run/);
   assert.match(result.stdout, /decision\s+Add a durable project decision to docs\/ai-context\/DECISIONS\.md/);
   assert.match(result.stdout, /Usage: decision add "<decision>" --reason "<reason>" \[--status <status>\] \[--files <path,path>\]/);
   assert.match(result.stdout, /decision list/);
