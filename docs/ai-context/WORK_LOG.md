@@ -258,4 +258,9 @@ Lightweight RCC memory from completed agent work.
 - improved done memory churn ergonomics
 - files: src/cli/commands/done.ts, src/templates/generic/docs/ai-context/RCC_WORKFLOW.md, +3
 - verify: npm run build; node --test tests/done.test.js tests/init.test.js; node --test tests/templates.test.js
+
+## 2026-07-14T11:02:57Z
+- fixed stale release test expectations
+- files: tests/learningQuality.test.js, tests/v07-release.test.js
+- verify: npm test
 <!-- repo-context-center:work-log:end -->

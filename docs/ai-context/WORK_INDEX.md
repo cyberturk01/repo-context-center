@@ -6,13 +6,13 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 
 ## Recent Focus
 
+- fixed stale release test expectations
 - improved done memory churn ergonomics
 - added WORK_LOG token budget guardrail
 - added automatic work log compaction
 - added configurable done log formats
 - separated done metadata into JSONL work events
 - implemented compact work log entries
-- added routing benchmark surface coverage cases
 
 ## Hot Files
 
@@ -37,16 +37,16 @@ Compact memory derived from completed work. Designed for agents to read; not a r
 | Work routing | 16 | separated done metadata into JSONL work events |
 | Repository context | 8 | Preserve existing repository learning during map --write and init --update |
 | Work memory | 4 | improved done memory churn ergonomics |
+| Tests | 3 | fixed stale release test expectations |
 | Measurement and benchmarks | 3 | added WORK_LOG token budget guardrail |
 | CLI commands | 3 | Stabilized verify output by replacing duplicated execution-plan command/path payloads with section refs and compacting domain check paths |
-| Tests | 2 | Polish Go ecosystem adoption docs and regression coverage |
 | Handoff | 1 | Hardened RC command docs, estimate JSON contract, and handoff verification spacing |
 
 ## Verification Patterns
 
 - `npm run build` (51)
+- `npm test` (15)
 - `node --test tests/verify.test.js` (14)
-- `npm test` (14)
 - `node --test tests/outputContract.test.js` (12)
 - `node --test tests/cli.test.js` (7)
 - `node --test tests/work.test.js` (4)
